@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My App</title>
+    <script src="js/vue@2.7.16.min.js"></script>
+    <script src="js/vueloader.min.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/FranckFreiburger/http-vue-loader/src/httpVueLoader.js"></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const app = new Vue({
+            el: '#app',
+            data: {
+                activeComponents: ['GeoComponent', 'FlowComponent']
+            },
+            components: {
+                'GeoComponent': httpVueLoader('plugins/geo/frontend/geo_component.vue'), 'FlowComponent': httpVueLoader('plugins/flow/frontend/flow_component.vue')
+            },
+            template: `
+            <div>
+                <component v-for="component in activeComponents" :is="component" :key="component"></component>
+            </div>
+            `
+        });
+    });
+    </script>
+    
+</head>
+<body>
+    <div id="app">
+        <!-- Dynamic Vue components will be rendered here -->
+    </div>
+</body>
+</html>
