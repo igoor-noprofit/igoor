@@ -1,0 +1,8 @@
+{
+    "active": true,
+    "category": "context",
+    "layout": {
+        "part": "sidebar",
+        "order": 0
+    }
+}

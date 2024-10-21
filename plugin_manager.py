@@ -39,13 +39,24 @@ class PluginManager:
                     print(f"Error loading plugin '{plugin_name}': {e}")
 
     def get_activated_plugins(self):
-        config_file = 'plugins_config.json'
-        if os.path.exists(config_file):
-            with open(config_file, 'r') as f:
-                return json.load(f)
-        else:
-            print(f"Configuration file '{config_file}' not found. All plugins will be considered inactive.")
-            return {}
+        """Gathers activation status and other metadata for all plugins."""
+        plugin_folder = "plugins"
+        plugins_metadata = {}
+
+        for plugin_name in os.listdir(plugin_folder):
+            plugin_path = os.path.join(plugin_folder, plugin_name)
+            metadata_file = os.path.join(plugin_path, 'plugin.json')
+            if os.path.isdir(plugin_path) and os.path.exists(metadata_file):
+                try:
+                    with open(metadata_file, 'r') as f:
+                        metadata = json.load(f)
+                        plugins_metadata[plugin_name] = metadata
+                except (OSError, json.JSONDecodeError) as e:
+                    print(f"Error loading metadata for plugin '{plugin_name}': {e}")
+            else:
+                print(f"Plugin '{plugin_name}' does not have a valid plugin.json file.")
+
+        return plugins_metadata
 
     def get_frontend_components(self):
         components = []

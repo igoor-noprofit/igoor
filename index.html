@@ -15,10 +15,10 @@
         const app = new Vue({
             el: '#app',
             data: {
-                activeComponents: ['GeoComponent', 'FlowComponent']
+                activeComponents: ['FlowComponent', 'GeoComponent']
             },
             components: {
-                'GeoComponent': httpVueLoader('plugins/geo/frontend/geo_component.vue'), 'FlowComponent': httpVueLoader('plugins/flow/frontend/flow_component.vue')
+                'FlowComponent': httpVueLoader('plugins/flow/frontend/flow_component.vue'), 'GeoComponent': httpVueLoader('plugins/geo/frontend/geo_component.vue')
             },
             template: `
             <div>
