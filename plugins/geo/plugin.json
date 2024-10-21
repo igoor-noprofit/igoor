@@ -2,7 +2,7 @@
     "active": true,
     "category": "context",
     "layout": {
-        "part": "sidebar",
-        "order": 0
+        "part": "header",
+        "order": -2
     }
 }

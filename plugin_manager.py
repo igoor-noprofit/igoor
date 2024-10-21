@@ -38,6 +38,23 @@ class PluginManager:
                 except Exception as e:
                     print(f"Error loading plugin '{plugin_name}': {e}")
 
+    def get_plugins_metadata(self):
+        """Gathers metadata for all plugins from their respective plugin.json files."""
+        plugin_folder = "plugins"
+        plugins_metadata = {}
+
+        for plugin_name in os.listdir(plugin_folder):
+            plugin_path = os.path.join(plugin_folder, plugin_name)
+            metadata_file = os.path.join(plugin_path, 'plugin.json')
+            if os.path.isdir(plugin_path) and os.path.exists(metadata_file):
+                try:
+                    with open(metadata_file, 'r') as f:
+                        plugins_metadata[plugin_name] = json.load(f)
+                except (OSError, json.JSONDecodeError) as e:
+                    print(f"Error loading metadata for plugin '{plugin_name}': {e}")
+
+        return plugins_metadata
+
     def get_activated_plugins(self):
         """Gathers activation status and other metadata for all plugins."""
         plugin_folder = "plugins"

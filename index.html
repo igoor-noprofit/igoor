@@ -1,28 +1,31 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>My App</title>
     <script src="js/vue@2.7.16.min.js"></script>
     <script src="js/vueloader.min.js"></script>
-
-    <script src="https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/FranckFreiburger/http-vue-loader/src/httpVueLoader.js"></script>
+  
     <script>
     document.addEventListener('DOMContentLoaded', function() {
         const app = new Vue({
             el: '#app',
-            data: {
-                activeComponents: ['FlowComponent', 'GeoComponent']
-            },
             components: {
-                'FlowComponent': httpVueLoader('plugins/flow/frontend/flow_component.vue'), 'GeoComponent': httpVueLoader('plugins/geo/frontend/geo_component.vue')
+                'Geo': httpVueLoader('/plugins/geo/frontend/geo_component.vue'), 'Flow': httpVueLoader('/plugins/flow/frontend/flow_component.vue')
             },
             template: `
             <div>
-                <component v-for="component in activeComponents" :is="component" :key="component"></component>
+                <header>
+                    <geo /><flow />
+                </header>
+                <main>
+                    
+                </main>
+                 <footer>
+                    
+                </header>
             </div>
             `
         });
@@ -30,9 +33,9 @@
     </script>
     
 </head>
-<body>
+  <body>
     <div id="app">
-        <!-- Dynamic Vue components will be rendered here -->
+      <!-- Dynamic Vue components will be rendered here -->
     </div>
-</body>
+  </body>
 </html>

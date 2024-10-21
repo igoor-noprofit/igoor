@@ -11,55 +11,67 @@ IGOOR_OUTPUT_HTML = os.getenv('IGOOR_OUTPUT_HTML', 'False')
 
 def load_frontend_components():
     manager = PluginManager()
-    
-    # Load activated plugins
-    activated_plugins = manager.get_activated_plugins()
-    print("Activated plugins:", activated_plugins)  # Debugging output
+    plugins_metadata = manager.get_plugins_metadata()
+    print("Plugins metadata:", plugins_metadata)  # Debugging output
 
-    # Store component paths and names
-    component_js_definitions = []
-    component_names = []
+    # Components organized by category
+    components_by_category = {
+        'header': [],
+        'main': [],
+        'footer': []
+    }
 
-    # Iterate through activated plugins
-    for plugin_name, is_active in activated_plugins.items():
-        if is_active:  # Check if the plugin is active
-            # Define the path to the Vue component and fix the slashes
-            component_key = f"{plugin_name}_component.vue"  # Assuming the component naming convention
-            vue_path = os.path.join("plugins", plugin_name, "frontend", component_key)
+    # Iterate over plugins metadata
+    for plugin_name, metadata in plugins_metadata.items():
+        if metadata.get('active', False):  # Check if plugin is active
+            print ("Plugin " + plugin_name + " is active")
+            component_name = ''.join(word.capitalize() for word in plugin_name.split('_'))
+            component_path = f"/plugins/{plugin_name}/frontend/{plugin_name}_component.vue"
             
-            # Use forward slashes in the URL
-            vue_path = vue_path.replace(os.sep, '/')
-            print("Vue Path:", vue_path)  # Debugging output for the constructed path
+            component_definition = {
+                'name': component_name,
+                'path': component_path,
+                'order': metadata.get('layout', {}).get('order', 0)
+            }
             
-            # Create a consistent component name from the file name
-            component_name = os.path.splitext(os.path.basename(component_key))[0]
-            component_name_camel = ''.join(word.capitalize() for word in component_name.split('_'))
-            component_names.append(component_name_camel)
+            category = metadata.get('layout', {}).get('part', 'main')
+            if category in components_by_category:
+                components_by_category[category].append(component_definition)
+        else:
+            print(f"The plugin '{plugin_name}' is not activated.")
 
-            # Add the component to the definitions using httpVueLoader
-            component_js_definitions.append(
-                f"'{component_name_camel}': httpVueLoader('{vue_path}')"
+    # Sort components by 'order'
+    for category, components in components_by_category.items():
+        components_by_category[category] = sorted(components, key=lambda x: x['order'])
+
+    print(components_by_category)
+    # Prepare Vue components registration
+    vue_component_definitions = []
+    for category, components in components_by_category.items():
+        for component in components:
+            vue_component_definitions.append(
+                f"'{component['name']}': httpVueLoader('{component['path']}')"
             )
 
-    # Check if component names are populated
-    print("Component Names:", component_names)  # Debugging output
-
     vue_loader = f"""
-    <script src="https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/FranckFreiburger/http-vue-loader/src/httpVueLoader.js"></script>
     <script>
     document.addEventListener('DOMContentLoaded', function() {{
         const app = new Vue({{
             el: '#app',
-            data: {{
-                activeComponents: [{', '.join([f"'{name}'" for name in component_names])}]
-            }},
             components: {{
-                {', '.join(component_js_definitions)}
+                {', '.join(vue_component_definitions)}
             }},
             template: `
             <div>
-                <component v-for="component in activeComponents" :is="component" :key="component"></component>
+                <header>
+                    { ''.join(f'<{comp["name"].lower()} />' for comp in components_by_category['header']) }
+                </header>
+                <main>
+                    { ''.join(f'<{comp["name"].lower()} />' for comp in components_by_category['main']) }
+                </main>
+                 <footer>
+                    { ''.join(f'<{comp["name"].lower()} />' for comp in components_by_category['footer']) }
+                </header>
             </div>
             `
         }});
@@ -67,7 +79,7 @@ def load_frontend_components():
     </script>
     """
 
-    # Load template HTML
+    # Load and modify the template HTML
     with open('index_template.html', 'r') as f:
         html_content = f.read()
 

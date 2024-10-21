@@ -10,6 +10,5 @@ module.exports = {
 
 <style scoped>
 .geo-plugin {
-    display: none
 }
 </style>
