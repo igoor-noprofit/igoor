@@ -1,6 +1,4 @@
 from plugin_manager import hookimpl
-from elevenlabs.client import ElevenLabs
-from elevenlabs import stream
 from elevenlabslib import *
 from dotenv import load_dotenv
 load_dotenv()
@@ -23,7 +21,7 @@ class Elevenlabs:
         self.api_key = os.getenv("ELEVENLABS_API_KEY")
         self.voice_id = os.getenv("ELEVENLABS_VOICE_ID")
         self.model_id = os.getenv("ELEVENLABS_MODEL_ID")
-        self.speak("Bonjour, je suis IGOOR!")
+        # self.speak("Bonjour, je suis IGOOR!")
 
     @hookimpl
     def speak(self, message):

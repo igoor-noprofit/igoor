@@ -1,10 +1,18 @@
 import json
 import os
 from pydantic import BaseModel, ValidationError, Field
+from typing import Dict
+
+class PluginSettings(BaseModel):
+    # Define common schema for plugins; can be expanded as needed
+    voice_id: str = None
+    api_key: str = None
+    model_id: str = None
 
 class AppSettings(BaseModel):
     theme: str = Field(default='light', description="UI Theme")
     notifications_enabled: bool = Field(default=True, description="Enable notifications")
+    plugins: Dict[str, PluginSettings] = Field(default_factory=dict, description="Plugin-specific settings")
 
     @classmethod
     def load_from_file(cls, file_path):
@@ -44,32 +52,12 @@ class AppSettings(BaseModel):
         """
         return self.dict()
 
-def get_settings_file_path(app_name='YourAppName'):
+def get_settings_file_path(app_name):
     """
     Determine the settings file path based on the operating system.
     """
-    if platform.system() == "Windows":
-        base_dir = os.path.join(os.getenv('LOCALAPPDATA'), app_name)
-    elif platform.system() == "Darwin":  # macOS
-        base_dir = os.path.join(os.path.expanduser('~'), 'Library', 'Application Support', app_name)
-    else:  # Assume Linux or other Unix-like systems
-        base_dir = os.path.join(os.path.expanduser('~'), f'.{app_name.lower()}')
-    
+    base_dir = os.path.join(os.getenv('LOCALAPPDATA'), app_name)
     # Ensure the directory exists
     os.makedirs(base_dir, exist_ok=True)
     
     return os.path.join(base_dir, 'settings.json')
-
-# Example usage:
-if __name__ == '__main__':
-    settings_file = get_settings_file_path()
-
-    # Load settings
-    settings = AppSettings.load_from_file(settings_file)
-    print("Current settings:", settings.as_json())
-
-    # Update settings and save
-    settings.update_setting('theme', 'dark')
-    settings.save_to_file(settings_file)
-
-    print("Updated settings:", settings.as_json())
