@@ -16,6 +16,7 @@ def load_frontend_components():
 
     # Components organized by category
     components_by_category = {
+        'topbar': [],
         'header': [],
         'main': [],
         'footer': []
@@ -64,6 +65,9 @@ def load_frontend_components():
             template: `
             <div>
                 <header>
+                    <div id="topbar">
+                        { ''.join(f'<{comp["name"].lower()} />' for comp in components_by_category['topbar']) }
+                    </div>
                     { ''.join(f'<{comp["name"].lower()} />' for comp in components_by_category['header']) }
                 </header>
                 <main>

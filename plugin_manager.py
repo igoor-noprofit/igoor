@@ -11,6 +11,11 @@ class MyAppSpec:
     def get_frontend_components(self):
         """Hook for plugins to provide frontend components"""
         pass
+    
+    @pluggy.HookspecMarker("myapp")
+    def startup(self):
+        """Hook for plugins to perform startup activities"""
+        pass
 
 class PluginManager:
     def __init__(self):
@@ -20,6 +25,7 @@ class PluginManager:
 
         # Load plugins dynamically from the plugins/ directory based on activation state
         self.load_plugins()
+        self.startup_plugins()
 
     def load_plugins(self):
         print ("Loading plugins")
@@ -81,3 +87,7 @@ class PluginManager:
             frontend_components = self.plugin_manager.hook.get_frontend_components(plugin=plugin)
             components.extend(frontend_components)
         return components
+
+    def startup_plugins(self):
+        """Calls the startup method on all registered plugins."""
+        self.plugin_manager.hook.startup()
