@@ -8,38 +8,22 @@
     <script src="js/vue@2.7.16.min.js"></script>
     <script src="js/vueloader.min.js"></script>
     <link href="css/app.css" rel="stylesheet" type="text/css" />
-  
-    <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const app = new Vue({
-            el: '#app',
-            components: {
-                'Clock': httpVueLoader('/plugins/clock/frontend/clock_component.vue'), 'Geo': httpVueLoader('/plugins/geo/frontend/geo_component.vue'), 'Meteo': httpVueLoader('/plugins/meteo/frontend/meteo_component.vue'), 'Flow': httpVueLoader('/plugins/flow/frontend/flow_component.vue')
-            },
-            template: `
-            <div>
-                <header>
-                    <div id="topbar">
-                        <clock /><geo /><meteo />
-                    </div>
-                    <flow />
-                </header>
-                <main>
-                    
-                </main>
-                <footer>
-                    
-                </header>
-            </div>
-            `
-        });
-    });
-    </script>
-    
-</head>
+    <script src="js/app.js"></script>
+  </head>
   <body>
     <div id="app">
-      <!-- Dynamic Vue components will be rendered here -->
+      <header>
+        <div id="topbar">
+          <clock /><geo /><meteo />
+        </div>
+        <flow />
+      </header>
+      <main>
+        
+      </main>
+      <footer>
+        
+      </footer>
     </div>
   </body>
 </html>

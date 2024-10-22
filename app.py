@@ -58,45 +58,45 @@ def load_frontend_components():
                 f"'{component['name']}': httpVueLoader('{component['path']}')"
             )
 
-    vue_loader = f"""
-    <script>
-    document.addEventListener('DOMContentLoaded', function() {{
-        const app = new Vue({{
-            el: '#app',
-            components: {{
-                {', '.join(vue_component_definitions)}
-            }},
-            template: `
-            <div>
-                <header>
-                    <div id="topbar">
-                        { ''.join(f'<{comp["name"].lower()} />' for comp in components_by_category['topbar']) }
-                    </div>
-                    { ''.join(f'<{comp["name"].lower()} />' for comp in components_by_category['header']) }
-                </header>
-                <main>
-                    { ''.join(f'<{comp["name"].lower()} />' for comp in components_by_category['main']) }
-                </main>
-                <footer>
-                    { ''.join(f'<{comp["name"].lower()} />' for comp in components_by_category['footer']) }
-                </header>
-            </div>
-            `
-        }});
-    }});
-    </script>
-    """
-
     # Load and modify the template HTML
     with open('index_template.html', 'r') as f:
         html_content = f.read()
+        
+    # Define the placeholders and their corresponding replacements
+    replacements = {
+        '<!-- TOPBAR_COMPONENTS -->': ''.join(f'<{comp["name"].lower()} />' for comp in components_by_category['topbar']),
+        '<!-- HEADER_COMPONENTS -->': ''.join(f'<{comp["name"].lower()} />' for comp in components_by_category['header']),
+        '<!-- MAIN_COMPONENTS -->': ''.join(f'<{comp["name"].lower()} />' for comp in components_by_category['main']),
+        '<!-- FOOTER_COMPONENTS -->': ''.join(f'<{comp["name"].lower()} />' for comp in components_by_category['footer'])
+    }
+
+    # Replace all placeholders in the HTML content
+    for placeholder, replacement in replacements.items():
+        html_content = html_content.replace(placeholder, replacement)
 
     # Insert the Vue loader script into HTML content
-    final_html = html_content.replace('</head>', f'{vue_loader}\n</head>')
+    final_html = html_content
 
     # Write the final HTML to index.html
     with open('index.html', 'w') as f:
         f.write(final_html)
+        f.close()
+    
+    # Load and modify the JAVASCRIPT
+    with open('js/app_template.js', 'r') as f:
+        js_content = f.read()
+    
+    replacements = {
+        '<!-- JS_COMPONENTS -->': ', '.join(vue_component_definitions)
+    }        
+    
+    # Replace all placeholders in the HTML content
+    for placeholder, replacement in replacements.items():
+        js_content = js_content.replace(placeholder, replacement)
+    
+    # Load and modify the JAVASCRIPT
+    with open('js/app.js', 'w') as f:
+        js_content = f.write(js_content)  
 
     return final_html
 
