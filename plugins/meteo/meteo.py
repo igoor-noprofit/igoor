@@ -5,9 +5,9 @@ from pyowm.utils.config import get_default_config
 import threading
 import time
 import requests
-import json
 from dotenv import load_dotenv
 load_dotenv()
+from app import context_manager
 
 class Meteo:
     @hookimpl
@@ -100,7 +100,8 @@ class Meteo:
                     'clouds': weather.clouds
                 }
                 print(obj)
-                return obj
+                context_manager.update_context("meteo", obj)
+                return True
             except Exception as error:
                 print("Error fetching weather data:", error)
                 raise RuntimeError("Failed to fetch weather data.")

@@ -6,7 +6,7 @@
 
 <script>
 module.exports = {
-    name: "flow",
+    name: "clock",
     data() {
         return {
             formattedDateTime: '',

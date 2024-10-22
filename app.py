@@ -4,6 +4,10 @@ import re
 from plugin_manager import PluginManager
 from dotenv import load_dotenv
 load_dotenv()
+from context_manager import ContextManager
+
+context_manager = ContextManager()
+
 # VARS HERE
 IGOOR_DEBUG = os.getenv('IGOOR_DEBUG', 'False') 
 IGOOR_CLI = os.getenv('IGOOR_CLI', 'False') 
@@ -73,7 +77,7 @@ def load_frontend_components():
                 <main>
                     { ''.join(f'<{comp["name"].lower()} />' for comp in components_by_category['main']) }
                 </main>
-                 <footer>
+                <footer>
                     { ''.join(f'<{comp["name"].lower()} />' for comp in components_by_category['footer']) }
                 </header>
             </div>
@@ -96,6 +100,9 @@ def load_frontend_components():
 
     return final_html
 
+def get_full_context():
+    return context_manager.get_context()
+
 if __name__ == "__main__":
     final_html = load_frontend_components()
     if (IGOOR_OUTPUT_HTML.lower() == 'true'):
@@ -105,4 +112,6 @@ if __name__ == "__main__":
         webview.create_window("IGOOR", "index.html", resizable=True) # fullscreen=True
         # Start the webview
         webview.start(debug=IGOOR_DEBUG.lower() == 'true')
+    else:
+        print(get_full_context())
         

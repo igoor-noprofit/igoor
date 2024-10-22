@@ -14,20 +14,20 @@
         const app = new Vue({
             el: '#app',
             components: {
-                'Datetime': httpVueLoader('/plugins/datetime/frontend/datetime_component.vue'), 'Geo': httpVueLoader('/plugins/geo/frontend/geo_component.vue'), 'Meteo': httpVueLoader('/plugins/meteo/frontend/meteo_component.vue'), 'Flow': httpVueLoader('/plugins/flow/frontend/flow_component.vue')
+                'Clock': httpVueLoader('/plugins/clock/frontend/clock_component.vue'), 'Geo': httpVueLoader('/plugins/geo/frontend/geo_component.vue'), 'Meteo': httpVueLoader('/plugins/meteo/frontend/meteo_component.vue'), 'Flow': httpVueLoader('/plugins/flow/frontend/flow_component.vue')
             },
             template: `
             <div>
                 <header>
                     <div id="topbar">
-                        <datetime /><geo /><meteo />
+                        <clock /><geo /><meteo />
                     </div>
                     <flow />
                 </header>
                 <main>
                     
                 </main>
-                 <footer>
+                <footer>
                     
                 </header>
             </div>
