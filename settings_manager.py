@@ -1,63 +1,43 @@
 import json
 import os
-from pydantic import BaseModel, ValidationError, Field
-from typing import Dict
+from typing import Any, Dict
 
-class PluginSettings(BaseModel):
-    # Define common schema for plugins; can be expanded as needed
-    voice_id: str = None
-    api_key: str = None
-    model_id: str = None
-
-class AppSettings(BaseModel):
-    theme: str = Field(default='light', description="UI Theme")
-    notifications_enabled: bool = Field(default=True, description="Enable notifications")
-    plugins: Dict[str, PluginSettings] = Field(default_factory=dict, description="Plugin-specific settings")
+class AppSettings:
+    def __init__(self, settings_data: Dict[str, Any] = None):
+        self.data = settings_data or {}
 
     @classmethod
-    def load_from_file(cls, file_path):
-        """
-        Load settings from a JSON file. If the file does not exist, return default settings.
-        """
+    def load_from_file(cls, file_path: str) -> 'AppSettings':
         if not os.path.exists(file_path):
             return cls()
         
         try:
             with open(file_path, 'r') as file:
                 data = json.load(file)
-                return cls(**data)
-        except (json.JSONDecodeError, ValidationError) as e:
+                return cls(data)
+        except json.JSONDecodeError as e:
             print(f"Error loading settings file: {e}")
-            return cls()  # Return default settings if there's an error
+            return cls()
 
-    def save_to_file(self, file_path):
-        """
-        Save the settings to a JSON file.
-        """
+    def save_to_file(self, file_path: str):
         with open(file_path, 'w') as file:
-            json.dump(self.dict(), file, indent=4)
+            json.dump(self.data, file, indent=4)
 
-    def update_setting(self, key, value):
-        """
-        Update a setting and save it to the file.
-        """
-        if hasattr(self, key):
-            setattr(self, key, value)
-        else:
-            print(f"Warning: Setting '{key}' is invalid.")
-            
-    def as_json(self):
-        """
-        Return the settings as a JSON-compatible dictionary.
-        """
-        return self.dict()
+    def update_settings(self, section: str, key: str, value: Any):
+        if section not in self.data:
+            self.data[section] = {}
+        self.data[section][key] = value
 
-def get_settings_file_path(app_name):
-    """
-    Determine the settings file path based on the operating system.
-    """
+    def get_settings(self, section: str) -> Dict[str, Any]:
+        return self.data.get(section, {})
+
+    def as_json(self) -> str:
+        """
+        Return the settings as a JSON string.
+        """
+        return json.dumps(self.data, indent=4)
+
+def get_settings_file_path(app_name: str) -> str:
     base_dir = os.path.join(os.getenv('LOCALAPPDATA'), app_name)
-    # Ensure the directory exists
     os.makedirs(base_dir, exist_ok=True)
-    
     return os.path.join(base_dir, 'settings.json')

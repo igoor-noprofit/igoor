@@ -2,22 +2,28 @@ import importlib.util
 import os
 import json
 import pluggy
+from settings_manager import AppSettings, get_settings_file_path
+from dotenv import load_dotenv
+load_dotenv()
+import os
+from typing import Any
 
-hookspec = pluggy.HookspecMarker("myapp")
-hookimpl = pluggy.HookimplMarker("myapp")
+app_name = os.getenv("IGOOR_APPNAME")
+hookspec = pluggy.HookspecMarker(app_name)
+hookimpl = pluggy.HookimplMarker(app_name)
 
 class MyAppSpec:
-    @pluggy.HookspecMarker("myapp")
+    @pluggy.HookspecMarker(app_name)
     def get_frontend_components(self):
         """Hook for plugins to provide frontend components"""
         pass
     
-    @pluggy.HookspecMarker("myapp")
+    @pluggy.HookspecMarker(app_name)
     def startup(self):
         """Hook for plugins to perform startup activities"""
         pass
     
-    @pluggy.HookspecMarker("myapp")
+    @pluggy.HookspecMarker(app_name)
     def speak(self,message):
         self.plugin_manager.hook.speak(message=message)
         pass
@@ -25,8 +31,12 @@ class MyAppSpec:
 class PluginManager:
     def __init__(self):
         self.plugins = []
-        self.plugin_manager = pluggy.PluginManager("myapp")
+        self.plugin_manager = pluggy.PluginManager(app_name)
         self.plugin_manager.add_hookspecs(MyAppSpec)
+
+        # Load global settings
+        self.settings_file = get_settings_file_path(app_name)
+        self.app_settings = AppSettings.load_from_file(self.settings_file)
 
         # Load plugins dynamically from the plugins/ directory based on activation state
         self.load_plugins()
@@ -48,6 +58,16 @@ class PluginManager:
                     self.plugin_manager.register(plugin_instance)
                 except Exception as e:
                     print(f"Error loading plugin '{plugin_name}': {e}")
+
+    def get_plugin_settings(self, plugin_name: str) -> dict:
+        return self.app_settings.get_settings(plugin_name)
+
+    def update_plugin_settings(self, plugin_name: str, key: str, value: Any):
+        self.app_settings.update_settings(plugin_name, key, value)
+        self.app_settings.save_to_file(self.settings_file)
+        
+        # Save updated settings back to file
+        self.app_settings.save_to_file(self.settings_file)
 
     def get_plugins_metadata(self):
         """Gathers metadata for all plugins from their respective plugin.json files."""

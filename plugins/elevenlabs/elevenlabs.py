@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 load_dotenv()
 import os
 import pyaudio
+from typing import Any, Dict
 
 class Elevenlabs:
     @hookimpl
@@ -45,3 +46,11 @@ class Elevenlabs:
         except Exception as e:
             print(f"Error occurred while speaking: {e}")
             return False
+    
+    def update_setting(self, key: str, value: Any):
+        # Update using manager function
+        self.plugin_manager.update_plugin_settings(self.plugin_name, key=key, value=value)
+
+    def get_settings(self) -> dict:
+        # Retrieving specific settings
+        return self.settings
