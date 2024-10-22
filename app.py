@@ -17,7 +17,7 @@ IGOOR_OUTPUT_HTML = os.getenv('IGOOR_OUTPUT_HTML', 'False')
 def load_frontend_components():
     manager = PluginManager()
     plugins_metadata = manager.get_plugins_metadata()
-    print("Plugins metadata:", plugins_metadata)  # Debugging output
+    # print("Plugins metadata:", plugins_metadata)  # Debugging output
 
     # Components organized by category
     components_by_category = {
@@ -50,7 +50,7 @@ def load_frontend_components():
     for category, components in components_by_category.items():
         components_by_category[category] = sorted(components, key=lambda x: x['order'])
 
-    print(components_by_category)
+    # print(components_by_category)
     # Prepare Vue components registration
     vue_component_definitions = []
     for category, components in components_by_category.items():
@@ -102,7 +102,16 @@ def load_frontend_components():
     return final_html
 
 def get_full_context():
+    """
+    Retrieves the full context from the context manager.
+
+
+    Returns:
+        dict: The full context.
+
+    """
     return context_manager.get_context()
+
 
 if __name__ == "__main__":
     final_html = load_frontend_components()
@@ -111,8 +120,10 @@ if __name__ == "__main__":
     # Create a webview window in fullscreen mode
     if IGOOR_CLI.lower() != 'true':
         webview.create_window("IGOOR", "index.html", js_api=Api(), resizable=True) # fullscreen=True
+        Api.speak("Bonjour, c'est IGOOR")
         # Start the webview
         webview.start(debug=IGOOR_DEBUG.lower() == 'true')
+        
     else:
         print(get_full_context())
         

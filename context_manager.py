@@ -15,7 +15,7 @@ class ContextManager:
     
     def update_context(self, key, value):
         """Update context with key-value pairs."""
-        print(f"Updating CONTEXT for {key} = {value}")
+        # print(f"Updating CONTEXT for {key} = {value}")
         self._context[key] = value
 
     def get_context(self):

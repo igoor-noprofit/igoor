@@ -1,6 +1,6 @@
 <template>
     <div class="datetime-plugin">
-        {{ formattedDateTime }} - <a @click="$parent.js_api('minimize')">MIN</a> MAX
+        {{ formattedDateTime }} - <a @click="$parent.js_api('minimize')">MIN</a> 
     </div>
 </template>
 

@@ -1,8 +1,8 @@
 {
     "active": true,
-    "category": "context",
+    "category": "TTS",
     "layout": {
         "part": "topbar",
-        "order": 300
+        "order": 0
     }
 }

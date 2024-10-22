@@ -86,7 +86,7 @@ class Meteo:
         else:
             raise ValueError("No lat lng or home or city provided. Cannot retrieve weather infos.")
 
-        print(f"mode = {mode}")
+        # print(f"mode = {mode}")
 
         if mode == 'city':
             raise NotImplementedError("City mode is not yet implemented.")

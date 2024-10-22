@@ -16,6 +16,11 @@ class MyAppSpec:
     def startup(self):
         """Hook for plugins to perform startup activities"""
         pass
+    
+    @pluggy.HookspecMarker("myapp")
+    def speak(self,message):
+        self.plugin_manager.hook.speak(message=message)
+        pass
 
 class PluginManager:
     def __init__(self):
@@ -91,3 +96,12 @@ class PluginManager:
     def startup_plugins(self):
         """Calls the startup method on all registered plugins."""
         self.plugin_manager.hook.startup()
+        
+    def get_plugin_manager(self):
+        return self
+    
+    def call_speak_hook(self, message):
+        """Trigger the speak hook with a message"""
+        for result in self.plugin_manager.hook.speak(message=message):
+            # Process each result if necessary
+            print(result)
