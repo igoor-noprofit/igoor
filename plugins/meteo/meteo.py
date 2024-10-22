@@ -8,6 +8,7 @@ import requests
 from dotenv import load_dotenv
 load_dotenv()
 from app import context_manager
+import math
 
 class Meteo:
     @hookimpl
@@ -23,6 +24,7 @@ class Meteo:
     def startup(self):
         print("Meteo is starting up!")
         self.geoloc = self.get_geoloc()
+        print(f"GEOlOC",self.geoloc)
         self.get_meteo()
         self.schedule_meteo_updates()
         # Plugin-specific initialization logic
@@ -64,9 +66,12 @@ class Meteo:
         mgr = owm.weather_manager()
         
         lat = self.geoloc.get('lat')
-        lng = self.geoloc.get('lng')
+        lng = self.geoloc.get('lon')
+
         lat_home = float(self.geoloc.get('latHome'))
         lng_home = float(self.geoloc.get('lngHome'))
+        is_home = self.is_home(lat,lng,lat_home,lng_home)
+        context_manager.update_context("lieu_actuel", is_home)
         city = self.geoloc.get('city')
 
         # Determine mode and coordinates
@@ -99,13 +104,27 @@ class Meteo:
                     'snow': weather.snow,
                     'clouds': weather.clouds
                 }
-                print(obj)
+                # print(obj)
                 context_manager.update_context("meteo", obj)
                 return True
             except Exception as error:
                 print("Error fetching weather data:", error)
                 raise RuntimeError("Failed to fetch weather data.")
-            
+    
+    def is_home(self, lat, lon, lat2, lon2):
+        distanceFromHome = self.calculate_distance(lat, lon, lat2, lon2)
+        print(f"distance from home {distanceFromHome}")
+        if distanceFromHome <= 10:
+            print("Vous etes à la maison")
+            self.isHome = 1
+        elif distanceFromHome <= 100:
+            print("Vous etes à coté de la maison (entre 10 et 100 metres)")
+            self.isHome = 0
+        else:
+            print("Vous n'etes pas à la maison")
+            self.isHome = -1
+        return self.isHome
+    
     def get_geoloc(self):
         ip_geo = self.get_ip_geolocation()
         if ip_geo.get('status') == 'success':
@@ -132,7 +151,7 @@ class Meteo:
 
             # Free tier response is JSON
             data = response.json()
-            print(data)
+            # print(data)
 
             # Extract latitude and longitude (check if keys exist)
             latitude = data.get("lat")
@@ -146,3 +165,20 @@ class Meteo:
         except requests.exceptions.RequestException as e:
             print(f"Error fetching geolocation: {e}")
             return None
+    
+    def calculate_distance(self,lat1, lon1, lat2, lon2):
+        print ("Calculate distance: ",lat1,lon1,lat2,lon2)
+        R = 6371e3  # meters
+
+        φ1 = math.radians(lat1)
+        φ2 = math.radians(lat2)
+        Δφ = φ2 - φ1
+        λ1 = math.radians(lon1)
+        λ2 = math.radians(lon2)
+        Δλ = λ2 - λ1
+
+        a = (math.sin(Δφ / 2) ** 2 + math.cos(φ1) * math.cos(φ2) * (math.sin(Δλ / 2) ** 2))
+        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+        distance = R * c
+        return distance

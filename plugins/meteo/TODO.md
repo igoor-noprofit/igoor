@@ -1,1 +1,3 @@
-Implement the city method
+- Implement the city method
+- Geoloc is NOT reliable via ip-api.com => user's never @ home
+- Detach geolocalisation from weather? Weather needs geoloc though

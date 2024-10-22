@@ -7,14 +7,15 @@ class ContextManager:
             cls._instance = super(ContextManager, cls).__new__(cls)
             # Initialize the shared context
             cls._context = {
-                "heure": None,
-                "lieu_actuel": None,
+                "horaire": None,
+                "lieu_actuel": 1,
                 "meteo": {}
             }
         return cls._instance
-
+    
     def update_context(self, key, value):
         """Update context with key-value pairs."""
+        print(f"Updating CONTEXT for {key} = {value}")
         self._context[key] = value
 
     def get_context(self):
