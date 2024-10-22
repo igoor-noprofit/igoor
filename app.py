@@ -5,6 +5,7 @@ from plugin_manager import PluginManager
 from dotenv import load_dotenv
 load_dotenv()
 from context_manager import ContextManager
+from js_api import Api
 
 context_manager = ContextManager()
 
@@ -87,7 +88,7 @@ def load_frontend_components():
         js_content = f.read()
     
     replacements = {
-        '<!-- JS_COMPONENTS -->': ', '.join(vue_component_definitions)
+        '//** JS_COMPONENTS */': ', '.join(vue_component_definitions)
     }        
     
     # Replace all placeholders in the HTML content
@@ -109,7 +110,7 @@ if __name__ == "__main__":
         print(final_html)
     # Create a webview window in fullscreen mode
     if IGOOR_CLI.lower() != 'true':
-        webview.create_window("IGOOR", "index.html", resizable=True) # fullscreen=True
+        webview.create_window("IGOOR", "index.html", js_api=Api(), resizable=True) # fullscreen=True
         # Start the webview
         webview.start(debug=IGOOR_DEBUG.lower() == 'true')
     else:
