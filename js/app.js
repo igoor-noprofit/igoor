@@ -5,7 +5,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const app = new Vue({
         el: "#app",
         components: {
-        'Elevenlabs': httpVueLoader('/plugins/elevenlabs/frontend/elevenlabs_component.vue'), 'Clock': httpVueLoader('/plugins/clock/frontend/clock_component.vue'), 'Meteo': httpVueLoader('/plugins/meteo/frontend/meteo_component.vue'), 'Flow': httpVueLoader('/plugins/flow/frontend/flow_component.vue')
+        'Baseplugin': httpVueLoader('/plugins/baseplugin/frontend/baseplugin_component.vue'), 'Elevenlabs': httpVueLoader('/plugins/elevenlabs/frontend/elevenlabs_component.vue'), 'Clock': httpVueLoader('/plugins/clock/frontend/clock_component.vue'), 'Meteo': httpVueLoader('/plugins/meteo/frontend/meteo_component.vue'), 'Flow': httpVueLoader('/plugins/flow/frontend/flow_component.vue')
         },
         data: data,
         mounted: function () {

@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 load_dotenv()
 from context_manager import ContextManager
 from js_api import Api
-from settings_manager import AppSettings, get_settings_file_path
+from settings_manager import SettingsManager
 
 
 context_manager = ContextManager()
@@ -19,17 +19,12 @@ IGOOR_OUTPUT_HTML = os.getenv('IGOOR_OUTPUT_HTML', 'False')
 def load_settings():
     
     # Get the settings file path
-    settings_file = get_settings_file_path(os.getenv("IGOOR_APPNAME"))
-    print (f"*********** LOADING SETTINGS FROM {settings_file} ***************")
-    # Load settings
-    settings = AppSettings.load_from_file(settings_file)
-    print("Current settings:", settings.as_json())
-    '''
-    # Update settings and save
-    settings.update_setting('theme', 'dark')
-    settings.save_to_file(settings_file)
 
-    print("Updated settings:", settings.as_json()) '''
+    print (f"*********** LOADING SETTINGS ")
+    # Load settings
+    settings = SettingsManager();
+    print("Current settings:", settings)
+ 
 
 def load_frontend_components():
     manager = PluginManager()

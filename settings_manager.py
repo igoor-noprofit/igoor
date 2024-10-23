@@ -1,43 +1,57 @@
 import json
 import os
-from typing import Any, Dict
 
-class AppSettings:
-    def __init__(self, settings_data: Dict[str, Any] = None):
-        self.data = settings_data or {}
+class SettingsManager:
+    def __init__(self, settings_file=None):
+        self.settings_file = settings_file or os.path.join(os.getenv('APPDATA'), os.getenv("IGOOR_APPNAME"), 'settings.json')
+        self.settings = {}
+        self.load_settings()
 
-    @classmethod
-    def load_from_file(cls, file_path: str) -> 'AppSettings':
-        if not os.path.exists(file_path):
-            return cls()
+    def load_settings(self):
+        """Load settings from the JSON file."""
+        if os.path.exists(self.settings_file):
+            with open(self.settings_file, 'r', encoding='utf-8') as f:
+                self.settings = json.load(f)
+        else:
+            print(f"Settings file not found at {self.settings_file}. Using default settings.")
+            self.settings = {
+                "user": {
+                    "lang": "fr_FR",
+                    "locale": "fr_FR.UTF-8"
+                },
+                "plugins": {}
+            }
+            self.save_settings()
+
+    def save_settings(self):
+        """Save settings to the JSON file."""
+        os.makedirs(os.path.dirname(self.settings_file), exist_ok=True)
+        with open(self.settings_file, 'w', encoding='utf-8') as f:
+            json.dump(self.settings, f, indent=4)
+
+    def get_all_settings(self):
+        """Return all settings."""
+        return self.settings
+
+    def get_plugin_settings(self, plugin_name):
+        """Retrieve settings for a specific plugin."""
+        return self.settings.get('plugins', {}).get(plugin_name, {})
+
+    def update_plugin_settings(self, plugin_name, new_settings):
+        """Update settings for a specific plugin."""
+        if 'plugins' not in self.settings:
+            self.settings['plugins'] = {}
         
-        try:
-            with open(file_path, 'r') as file:
-                data = json.load(file)
-                return cls(data)
-        except json.JSONDecodeError as e:
-            print(f"Error loading settings file: {e}")
-            return cls()
+        if plugin_name not in self.settings['plugins']:
+            self.settings['plugins'][plugin_name] = {}
+        
+        self.settings['plugins'][plugin_name].update(new_settings)
+        self.save_settings()
+        
+    def as_json(self):
+        """Return settings as a formatted JSON string."""
+        return json.dumps(self.settings, indent=4)
 
-    def save_to_file(self, file_path: str):
-        with open(file_path, 'w') as file:
-            json.dump(self.data, file, indent=4)
-
-    def update_settings(self, section: str, key: str, value: Any):
-        if section not in self.data:
-            self.data[section] = {}
-        self.data[section][key] = value
-
-    def get_settings(self, section: str) -> Dict[str, Any]:
-        return self.data.get(section, {})
-
-    def as_json(self) -> str:
-        """
-        Return the settings as a JSON string.
-        """
-        return json.dumps(self.data, indent=4)
-
-def get_settings_file_path(app_name: str) -> str:
-    base_dir = os.path.join(os.getenv('LOCALAPPDATA'), app_name)
-    os.makedirs(base_dir, exist_ok=True)
-    return os.path.join(base_dir, 'settings.json')
+    def __str__(self):
+        """Define the string representation of the settings."""
+        return self.as_json()

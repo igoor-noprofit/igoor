@@ -2,7 +2,7 @@ import importlib.util
 import os
 import json
 import pluggy
-from settings_manager import AppSettings, get_settings_file_path
+from settings_manager import SettingsManager
 from dotenv import load_dotenv
 load_dotenv()
 import os
@@ -35,8 +35,7 @@ class PluginManager:
         self.plugin_manager.add_hookspecs(MyAppSpec)
 
         # Load global settings
-        self.settings_file = get_settings_file_path(app_name)
-        self.app_settings = AppSettings.load_from_file(self.settings_file)
+        self.settings_manager = SettingsManager()
 
         # Load plugins dynamically from the plugins/ directory based on activation state
         self.load_plugins()
@@ -60,14 +59,14 @@ class PluginManager:
                     print(f"Error loading plugin '{plugin_name}': {e}")
 
     def get_plugin_settings(self, plugin_name: str) -> dict:
-        return self.app_settings.get_settings(plugin_name)
+        return self.settings_manager.get_plugin_settings(plugin_name)
 
     def update_plugin_settings(self, plugin_name: str, key: str, value: Any):
-        self.app_settings.update_settings(plugin_name, key, value)
-        self.app_settings.save_to_file(self.settings_file)
+        self.settings_manager.update_plugin_settings(plugin_name, key, value)
+        self.settings_manager.save_to_file(self.settings_file)
         
         # Save updated settings back to file
-        self.app_settings.save_to_file(self.settings_file)
+        self.settings_manager.save_to_file(self.settings_file)
 
     def get_plugins_metadata(self):
         """Gathers metadata for all plugins from their respective plugin.json files."""

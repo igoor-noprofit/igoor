@@ -1,0 +1,8 @@
+{
+    "active": true,
+    "category": "core",
+    "layout": {
+        "part": "topbar",
+        "order": 0
+    }
+}
