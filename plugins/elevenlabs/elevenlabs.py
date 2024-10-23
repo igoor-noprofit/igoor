@@ -20,14 +20,13 @@ class Elevenlabs(Baseplugin):
     @hookimpl
     def speak(self, message):
         try:
-            user = User(self.settings.api_key)
-            print("VOICE ID ", self.settings.voice_id)
-            voice=user.get_voice_by_ID(self.settings.voice_id)   
+            user = User(self.settings.get("api_key"))
+            voice=user.get_voice_by_ID(self.settings.get("voice_id"))   
             print ("§§§§ SPEAKING *********************************************** :",message)
             # Set generation options
             playback_options = PlaybackOptions(runInBackground=True)
             generation_options = GenerationOptions(  # Adjusts latency optimization
-                model_id=self.settings.model_id, # Specifies the model
+                model_id=self.settings.get("model_id"), # Specifies the model
                 latencyOptimizationLevel=1,
                 stability=0.42,
                 similarity_boost=0.4,
