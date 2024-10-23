@@ -33,6 +33,7 @@ def load_frontend_components():
 
     # Components organized by category
     components_by_category = {
+        'hidden': [],
         'topbar': [],
         'header': [],
         'main': [],
@@ -77,6 +78,7 @@ def load_frontend_components():
         
     # Define the placeholders and their corresponding replacements
     replacements = {
+        '<!-- HIDDEN_COMPONENTS -->': ''.join(f'<{comp["name"].lower()} />' for comp in components_by_category['hidden']),
         '<!-- TOPBAR_COMPONENTS -->': ''.join(f'<{comp["name"].lower()} />' for comp in components_by_category['topbar']),
         '<!-- HEADER_COMPONENTS -->': ''.join(f'<{comp["name"].lower()} />' for comp in components_by_category['header']),
         '<!-- MAIN_COMPONENTS -->': ''.join(f'<{comp["name"].lower()} />' for comp in components_by_category['main']),
@@ -133,7 +135,7 @@ if __name__ == "__main__":
     # Create a webview window in fullscreen mode
     if IGOOR_CLI.lower() != 'true':
         webview.create_window("IGOOR", "index.html", js_api=Api(), resizable=True) # fullscreen=True
-        Api.speak("Bonjour, c'est IGOOR")
+        # Api.speak("Bonjour, c'est IGOOR")
         # Start the webview
         webview.start(debug=IGOOR_DEBUG.lower() == 'true')
         

@@ -15,8 +15,7 @@ class Elevenlabs(Baseplugin):
         print ("ELEVENLABS IS STARTING UP")
         self.settings = self.get_my_settings()
         print ("ELEVENLABS settings", self.settings)
-        self.speak("Bonjour, je suis IGOOR!")
-
+        
     @hookimpl
     def speak(self, message):
         try:

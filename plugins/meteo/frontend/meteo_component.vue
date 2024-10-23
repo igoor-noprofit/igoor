@@ -1,6 +1,6 @@
 <template>
     <div class="meteo-plugin">
-        {{ formattedDateTime }}
+        WEATHER PARISI
     </div>
 </template>
 
@@ -8,30 +8,13 @@
 module.exports = {
     name: "meteo",
     data() {
-        return {
-            formattedDateTime: '',
-        };
     },
-    created() {
-        this.updateDateTime();
-    },
-    methods: {
-        updateDateTime() {
-            const now = new Date();
-            const optionsDate = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
-            const dateString = now.toLocaleDateString(undefined, optionsDate);
-
-            const optionsTime = { hour: '2-digit', minute: '2-digit' };
-            const timeString = now.toLocaleTimeString(undefined, optionsTime);
-
-            this.formattedDateTime = `${dateString} ${timeString}`;
-        }
-    }
+   
 };
 </script>
 
 <style scoped>
-.datetime-plugin {
+.meteo-plugin {
     color: #fff;
 }
 </style>

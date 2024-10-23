@@ -3,6 +3,6 @@
     "category": "context",
     "layout": {
         "part": "topbar",
-        "order": 5
+        "order": 1
     }
 }

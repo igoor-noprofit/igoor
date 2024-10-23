@@ -1,3 +1,4 @@
+from plugins.baseplugin.baseplugin import Baseplugin
 from plugin_manager import hookimpl 
 import os
 from pyowm.owm import OWM
@@ -11,15 +12,6 @@ from app import context_manager
 import math
 
 class Meteo:
-    @hookimpl
-    def get_frontend_components(self):
-        print("loading geo frontend")
-        return [
-            {
-                "vue": "meteo_component.vue"
-            }
-        ]
-
     @hookimpl
     def startup(self):
         print("Meteo is starting up!")
