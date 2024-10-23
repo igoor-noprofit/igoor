@@ -78,11 +78,11 @@ def load_frontend_components():
         
     # Define the placeholders and their corresponding replacements
     replacements = {
-        '<!-- HIDDEN_COMPONENTS -->': ''.join(f'<{comp["name"].lower()} />' for comp in components_by_category['hidden']),
-        '<!-- TOPBAR_COMPONENTS -->': ''.join(f'<{comp["name"].lower()} />' for comp in components_by_category['topbar']),
-        '<!-- HEADER_COMPONENTS -->': ''.join(f'<{comp["name"].lower()} />' for comp in components_by_category['header']),
-        '<!-- MAIN_COMPONENTS -->': ''.join(f'<{comp["name"].lower()} />' for comp in components_by_category['main']),
-        '<!-- FOOTER_COMPONENTS -->': ''.join(f'<{comp["name"].lower()} />' for comp in components_by_category['footer'])
+        '<!-- HIDDEN_COMPONENTS -->': ''.join(f'<{comp["name"].lower()}></{comp["name"].lower()}>' for comp in components_by_category['hidden']),
+        '<!-- TOPBAR_COMPONENTS -->': ''.join(f'<{comp["name"].lower()}></{comp["name"].lower()}>' for comp in components_by_category['topbar']),
+        '<!-- HEADER_COMPONENTS -->': ''.join(f'<{comp["name"].lower()}></{comp["name"].lower()}>' for comp in components_by_category['header']),
+        '<!-- MAIN_COMPONENTS -->': ''.join(f'<{comp["name"].lower()}></{comp["name"].lower()}>' for comp in components_by_category['main']),
+        '<!-- FOOTER_COMPONENTS -->': ''.join(f'<{comp["name"].lower()}></{comp["name"].lower()}>' for comp in components_by_category['footer'])
     }
 
     # Replace all placeholders in the HTML content

@@ -6,10 +6,7 @@
 
 <script>
 module.exports = {
-    name: "meteo",
-    data() {
-    },
-   
+    name: "meteo"
 };
 </script>
 

@@ -1,7 +1,16 @@
-#topbar{
-    background-color: #000;
-    color: #fff;
-    font-size: 10px;
-    height: 20px;
-    width: 100%;
+#topbar {
+  background-color: #000;
+  color: #fff;
+  font-size: 10px;
+  height: 20px;
+  width: 100%;
+  display: flex;
+  justify-content: space-between; /* Space between the items */
+}
+#hidden{
+    display: none
+}
+#topbar > div {
+  flex: 1; /* Make each child div take equal space */
+  text-align: center; /* Optional: to center text within each div */
 }

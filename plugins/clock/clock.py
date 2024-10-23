@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 load_dotenv()
 import os
 
-class Clock:    
+class Clock(Baseplugin):    
     @hookimpl
     def startup(self):
         print ("Starting CLOCK plugin")

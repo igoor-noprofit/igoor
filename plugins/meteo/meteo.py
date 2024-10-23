@@ -11,10 +11,13 @@ load_dotenv()
 from app import context_manager
 import math
 
-class Meteo:
+class Meteo(Baseplugin):
     @hookimpl
     def startup(self):
-        print("Meteo is starting up!")
+        super().__init__('meteo')
+        print ("METEO IS STARTING UP")
+        self.settings = self.get_my_settings()
+        print ("METEO settings", self.settings)
         self.geoloc = self.get_geoloc()
         print(f"GEOlOC",self.geoloc)
         self.get_meteo()
@@ -53,7 +56,7 @@ class Meteo:
         config_dict['language'] = os.getenv("METEO_LANG")  # 'fr' for French language
 
         # Initialize the OWM object with your API key
-        api_key = os.getenv('METEO_API_KEY')  # Ensure your API key is set in the environment variable
+        api_key = self.settings.get("api_key")  # Ensure your API key is set in the environment variable
         owm = OWM(api_key, config_dict)
         mgr = owm.weather_manager()
         
@@ -120,8 +123,8 @@ class Meteo:
     def get_geoloc(self):
         ip_geo = self.get_ip_geolocation()
         if ip_geo.get('status') == 'success':
-            ip_geo['latHome'] = os.getenv("IGOOR_LAT_HOME")
-            ip_geo['lngHome'] = os.getenv("IGOOR_LNG_HOME")
+            ip_geo['latHome'] = self.settings.get("lat_home")
+            ip_geo['lngHome'] = self.settings.get("lng_home")
             return ip_geo
         else:
             return {}
