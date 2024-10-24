@@ -17,14 +17,12 @@ IGOOR_CLI = os.getenv('IGOOR_CLI', 'False')
 IGOOR_OUTPUT_HTML = os.getenv('IGOOR_OUTPUT_HTML', 'False') 
 
 def load_settings():
-    
     # Get the settings file path
-
     print (f"*********** LOADING SETTINGS ")
     # Load settings
     settings = SettingsManager();
     print("Current settings:", settings)
- 
+
 
 def load_frontend_components():
     manager = PluginManager()

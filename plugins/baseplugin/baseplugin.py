@@ -1,10 +1,18 @@
 from settings_manager import SettingsManager
 from plugin_manager import hookimpl
+import os 
 
 class Baseplugin:
     def __init__(self, plugin_name="baseplugin"):
         self.plugin_name = plugin_name
         self.settings_manager = SettingsManager()
+        self.plugin_folder = os.path.join(os.getenv('APPDATA'), os.getenv('APPNAME'), 'plugins', plugin_name)
+        
+        # Create the directory if it doesn't exist
+        if not os.path.exists(self.plugin_folder):
+            os.makedirs(self.plugin_folder)
+
+        print(f"Plugin folder set to: {self.plugin_folder}")
         
     @hookimpl
     def get_frontend_components(self):

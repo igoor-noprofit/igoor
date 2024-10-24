@@ -58,33 +58,6 @@ class PluginManager:
                 except Exception as e:
                     print(f"Error loading plugin '{plugin_name}': {e}")
 
-    def get_plugin_settings(self, plugin_name: str) -> dict:
-        return self.settings_manager.get_plugin_settings(plugin_name)
-
-    def update_plugin_settings(self, plugin_name: str, key: str, value: Any):
-        self.settings_manager.update_plugin_settings(plugin_name, key, value)
-        self.settings_manager.save_to_file(self.settings_file)
-        
-        # Save updated settings back to file
-        self.settings_manager.save_to_file(self.settings_file)
-
-    def get_plugins_metadata(self):
-        """Gathers metadata for all plugins from their respective plugin.json files."""
-        plugin_folder = "plugins"
-        plugins_metadata = {}
-
-        for plugin_name in os.listdir(plugin_folder):
-            plugin_path = os.path.join(plugin_folder, plugin_name)
-            metadata_file = os.path.join(plugin_path, 'plugin.json')
-            if os.path.isdir(plugin_path) and os.path.exists(metadata_file):
-                try:
-                    with open(metadata_file, 'r') as f:
-                        plugins_metadata[plugin_name] = json.load(f)
-                except (OSError, json.JSONDecodeError) as e:
-                    print(f"Error loading metadata for plugin '{plugin_name}': {e}")
-
-        return plugins_metadata
-
     def get_activated_plugins(self):
         """Gathers activation status and other metadata for all plugins."""
         plugin_folder = "plugins"
@@ -104,6 +77,24 @@ class PluginManager:
                 print(f"Plugin '{plugin_name}' does not have a valid plugin.json file.")
 
         return plugins_metadata
+
+    def get_plugins_by_category(self):
+        """Returns plugins grouped by categories."""
+        plugins_metadata = self.get_activated_plugins()
+        plugins_by_category = {}
+
+        for plugin_name, metadata in plugins_metadata.items():
+            category = metadata.get("category", "Uncategorized")
+            if category not in plugins_by_category:
+                plugins_by_category[category] = []
+            plugins_by_category[category].append({
+                "name": plugin_name,
+                "active": metadata.get("active", False),
+                # Other metadata you might need
+                "layout": metadata.get("layout", {})
+            })
+        
+        return plugins_by_category
 
     def get_frontend_components(self):
         components = []
