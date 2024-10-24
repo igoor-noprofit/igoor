@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 load_dotenv()
 import os
 from typing import Any
+from status_manager import StatusManager
 
 app_name = os.getenv("IGOOR_APPNAME")
 hookspec = pluggy.HookspecMarker(app_name)
@@ -30,6 +31,7 @@ class MyAppSpec:
 
 class PluginManager:
     def __init__(self):
+        self.status_manager = StatusManager()
         self.plugins = []
         self.plugin_manager = pluggy.PluginManager(app_name)
         self.plugin_manager.add_hookspecs(MyAppSpec)
@@ -55,6 +57,7 @@ class PluginManager:
                     plugin_instance = getattr(plugin_module, f"{plugin_name.capitalize()}")()  # Use existing class name
                     self.plugins.append(plugin_instance)
                     self.plugin_manager.register(plugin_instance)
+                    self.status_manager.register_observer(plugin_instance)
                 except Exception as e:
                     print(f"Error loading plugin '{plugin_name}': {e}")
 

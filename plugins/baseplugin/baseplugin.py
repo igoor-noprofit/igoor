@@ -1,21 +1,24 @@
 from settings_manager import SettingsManager
+from status_manager import StatusManager
 from plugin_manager import hookimpl
-import os 
+import os
 
 class Baseplugin:
     def __init__(self, plugin_name="baseplugin"):
         self.plugin_name = plugin_name
         self.settings_manager = SettingsManager()
+        self.status_manager = StatusManager()
         # Construct the plugin folder path
-        app_name = os.getenv('IGOOR_APPNAME')  # Get the application name from the environment variable
-        appdata_path = os.getenv('APPDATA')  # Get the APPDATA path from the environment variable
-        self.plugin_folder = os.path.join(appdata_path, app_name, 'plugins', plugin_name)
-        
+        self.app_name = os.getenv('IGOOR_APPNAME')  # Get the application name from the environment variable
+        self.appdata_path = os.getenv('APPDATA')  # Get the APPDATA path from the environment variable
+        self.plugin_folder = os.path.join(self.appdata_path, self.app_name, 'plugins', plugin_name)
+        print (self.plugin_name + " FOLDER = " + self.plugin_folder)
         # Create the directory if it doesn't exist
         if not os.path.exists(self.plugin_folder):
+            print("CREATING FOLDER ", self.plugin_folder)
             os.makedirs(self.plugin_folder)
 
-        print(f"Plugin folder set to: {self.plugin_folder}")
+        # print(f"Plugin folder set to: {self.plugin_folder}")
         
     @hookimpl
     def get_frontend_components(self):
@@ -41,3 +44,10 @@ class Baseplugin:
         current_settings[key] = value
         self.settings_manager.update_plugin_settings(self.plugin_name, current_settings)
         self.settings_manager.save_settings()
+        
+    def update_status(self, status):
+        print(f"Plugin {self.__class__.__name__} received status update: {status}")
+        # Implement specific status handling logic here
+
+    def cleanup(self):
+        self.status_manager.unregister_observer(self)

@@ -124,6 +124,9 @@ def get_full_context():
     """
     return context_manager.get_context()
 
+def start_webview():
+    webview.create_window("IGOOR", "index.html", js_api=Api(), resizable=True)  # fullscreen=True if needed
+    webview.start(debug=IGOOR_DEBUG.lower() == 'true')
 
 if __name__ == "__main__":
     load_settings();

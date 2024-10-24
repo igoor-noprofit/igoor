@@ -1,0 +1,8 @@
+{
+    "active": true,
+    "category": "STT",
+    "layout": {
+        "part": "header",
+        "order": 0
+    }
+}
