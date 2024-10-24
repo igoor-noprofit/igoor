@@ -6,7 +6,10 @@ class Baseplugin:
     def __init__(self, plugin_name="baseplugin"):
         self.plugin_name = plugin_name
         self.settings_manager = SettingsManager()
-        self.plugin_folder = os.path.join(os.getenv('APPDATA'), os.getenv('APPNAME'), 'plugins', plugin_name)
+        # Construct the plugin folder path
+        app_name = os.getenv('IGOOR_APPNAME')  # Get the application name from the environment variable
+        appdata_path = os.getenv('APPDATA')  # Get the APPDATA path from the environment variable
+        self.plugin_folder = os.path.join(appdata_path, app_name, 'plugins', plugin_name)
         
         # Create the directory if it doesn't exist
         if not os.path.exists(self.plugin_folder):
