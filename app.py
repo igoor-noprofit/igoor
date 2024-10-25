@@ -1,4 +1,5 @@
 import webview
+import threading
 import os
 import re
 from plugin_manager import PluginManager
@@ -135,10 +136,7 @@ if __name__ == "__main__":
         print(final_html)
     # Create a webview window in fullscreen mode
     if IGOOR_CLI.lower() != 'true':
-        webview.create_window("IGOOR", "index.html", js_api=Api(), resizable=True) # fullscreen=True
-        # Api.speak("Bonjour, c'est IGOOR")
-        # Start the webview
-        webview.start(debug=IGOOR_DEBUG.lower() == 'true')
+        start_webview()
         
     else:
         print(get_full_context())
