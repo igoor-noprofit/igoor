@@ -75,7 +75,7 @@ class Sttvosk(Baseplugin):
                     print(f"Recognized text (FR): {text}")
                     if wakeword.lower() in text.lower():
                         following_text = text.lower().split(wakeword.lower(), 1)[1].strip()
-                        handle_wake_word(following_text)
+                        self.handle_wake_word(following_text)
                         
         except KeyboardInterrupt:
             print("\nStopping...")
