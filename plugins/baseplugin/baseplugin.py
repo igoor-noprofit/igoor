@@ -12,13 +12,10 @@ class Baseplugin:
         self.app_name = os.getenv('IGOOR_APPNAME')  # Get the application name from the environment variable
         self.appdata_path = os.getenv('APPDATA')  # Get the APPDATA path from the environment variable
         self.plugin_folder = os.path.join(self.appdata_path, self.app_name, 'plugins', plugin_name)
-        print (self.plugin_name + " FOLDER = " + self.plugin_folder)
         # Create the directory if it doesn't exist
         if not os.path.exists(self.plugin_folder):
             print("CREATING FOLDER ", self.plugin_folder)
             os.makedirs(self.plugin_folder)
-
-        # print(f"Plugin folder set to: {self.plugin_folder}")
         
     @hookimpl
     def get_frontend_components(self):

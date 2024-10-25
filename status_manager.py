@@ -10,7 +10,8 @@ class StatusManager:
 
     def __init__(self):
         if not hasattr(self, '_initialized'):
-            self._status = "online"  # Default status
+            self._status = "loading"  # Default status
+            self._isonline = True
             self._observers = []
             self._initialized = True
 

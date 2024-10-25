@@ -27,20 +27,13 @@ class Sttvosk(Baseplugin):
         monitor_thread = threading.Thread(target=self.monitor_loading, daemon=True)
         monitor_thread.start()
 
-    
     def monitor_loading(self):
         while not self.isloaded:
             # Wait until the model is loaded
             import time
             time.sleep(1)
-        # Assume you have some mechanism to update UI or the state when loaded
-        
-        # Continue with other initialization or setup here, if needed
-        # You can check if the model is ready and start streaming when it is
-
-        # Wait for the model to finish loading before starting the audio stream
+ 
         self.model_thread.join()
-
         print("Model is ready to use.")
         self.start()
     
@@ -55,8 +48,11 @@ class Sttvosk(Baseplugin):
         self.isloaded = True
     
     def handle_wake_word(self,following_text):
-        print(f"Wake word detected! Following text: '{following_text}'")
-    
+        print(f"Wake word detected! Text: '{following_text}'")
+        # self.plugin_manager.hook.process_wake_word(text=following_text)
+        # CALL STATUS MANAGER ?
+        self.status_manager.set_status("wakeword_detected")
+                
     def start(self):
         print("STARTING WAKEWORD RECOGNITION")
         # Initialize PyAudio and start the audio stream (after model loading)

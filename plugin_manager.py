@@ -28,6 +28,11 @@ class MyAppSpec:
     def speak(self,message):
         self.plugin_manager.hook.speak(message=message)
         pass
+    
+    @pluggy.HookspecMarker(app_name)
+    def process_wake_word(self, text):
+        """Hook for processing wake word detected text"""
+        pass
 
 class PluginManager:
     def __init__(self):
