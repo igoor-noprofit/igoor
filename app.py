@@ -27,7 +27,7 @@ def load_settings():
 
 def load_frontend_components():
     manager = PluginManager()
-    manager.activate_plugin("flow")
+    manager.deactivate_plugin("flow")
     plugins_metadata = manager.get_plugins_metadata()
     # print("Plugins metadata:", plugins_metadata)  # Debugging output
 

@@ -33,6 +33,16 @@ class MyAppSpec:
     def process_wake_word(self, text):
         """Hook for processing wake word detected text"""
         pass
+    
+    @pluggy.HookspecMarker(app_name)
+    def activate(self):
+        """Hook for plugins to perform actions upon activation."""
+        pass
+
+    @pluggy.HookspecMarker(app_name)
+    def deactivate(self):
+        """Hook for plugins to perform actions upon deactivation."""
+        pass
 
 class PluginManager:
     def __init__(self):
@@ -144,10 +154,12 @@ class PluginManager:
     def activate_plugin(self, plugin_name):
         """Activates a plugin by setting its 'active' status to True in its plugin.json."""
         self._set_plugin_active_status(plugin_name, True)
+        self._trigger_plugin_hook(plugin_name, 'activate')
 
     def deactivate_plugin(self, plugin_name):
         """Deactivates a plugin by setting its 'active' status to False in its plugin.json."""
         self._set_plugin_active_status(plugin_name, False)
+        self._trigger_plugin_hook(plugin_name, 'deactivate')
 
     def _set_plugin_active_status(self, plugin_name, status):
         """Helper method to update the 'active' status of a plugin."""
@@ -169,3 +181,14 @@ class PluginManager:
                 print(f"Error updating active status for plugin '{plugin_name}': {e}")
         else:
             print(f"Plugin '{plugin_name}' does not have a valid plugin.json file.")
+            
+    def _trigger_plugin_hook(self, plugin_name, hook_name):
+        """Triggers a specific hook for a given plugin."""
+        for plugin in self.plugins:
+            if plugin.__class__.__name__.lower() == plugin_name.lower():
+                hook = getattr(self.plugin_manager.hook, hook_name)
+                hook(plugin=plugin)
+                print(f"Triggered '{hook_name}' hook for plugin '{plugin_name}'.")
+                break
+        else:
+            print(f"Plugin '{plugin_name}' not found or not loaded.")
