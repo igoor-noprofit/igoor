@@ -4,5 +4,8 @@
     "layout": {
         "part": "hidden",
         "order": 0
-    }
+    },
+    "is_free" : true,
+    "requires_subscription": true,
+    "requires_internet": true
 }

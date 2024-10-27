@@ -4,5 +4,8 @@
     "layout": {
         "part": "topbar",
         "order": -1
-    }
+    },
+    "is_free" : true,
+    "requires_subscription": true,
+    "requires_internet": true
 }
