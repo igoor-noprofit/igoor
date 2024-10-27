@@ -140,3 +140,32 @@ class PluginManager:
         for result in self.plugin_manager.hook.speak(message=message):
             # Process each result if necessary
             print(result)
+            
+    def activate_plugin(self, plugin_name):
+        """Activates a plugin by setting its 'active' status to True in its plugin.json."""
+        self._set_plugin_active_status(plugin_name, True)
+
+    def deactivate_plugin(self, plugin_name):
+        """Deactivates a plugin by setting its 'active' status to False in its plugin.json."""
+        self._set_plugin_active_status(plugin_name, False)
+
+    def _set_plugin_active_status(self, plugin_name, status):
+        """Helper method to update the 'active' status of a plugin."""
+        plugin_folder = "plugins"
+        metadata_file = os.path.join(plugin_folder, plugin_name, 'plugin.json')
+
+        if os.path.exists(metadata_file):
+            try:
+                with open(metadata_file, 'r') as f:
+                    metadata = json.load(f)
+
+                metadata['active'] = status
+
+                with open(metadata_file, 'w') as f:
+                    json.dump(metadata, f, indent=4)
+
+                print(f"Plugin '{plugin_name}' has been {'activated' if status else 'deactivated'}.")
+            except (OSError, json.JSONDecodeError) as e:
+                print(f"Error updating active status for plugin '{plugin_name}': {e}")
+        else:
+            print(f"Plugin '{plugin_name}' does not have a valid plugin.json file.")

@@ -1,6 +1,6 @@
 {
     "active": true,
-    "category": "STT",
+    "category": "ASR",
     "layout": {
         "part": "header",
         "order": 0

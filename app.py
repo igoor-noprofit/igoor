@@ -27,6 +27,7 @@ def load_settings():
 
 def load_frontend_components():
     manager = PluginManager()
+    manager.activate_plugin("flow")
     plugins_metadata = manager.get_plugins_metadata()
     # print("Plugins metadata:", plugins_metadata)  # Debugging output
 
@@ -131,6 +132,7 @@ def start_webview():
 
 if __name__ == "__main__":
     load_settings();
+    
     final_html = load_frontend_components()
     if (IGOOR_OUTPUT_HTML.lower() == 'true'):
         print(final_html)
