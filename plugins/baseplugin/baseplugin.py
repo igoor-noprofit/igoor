@@ -6,6 +6,7 @@ import os
 class Baseplugin:
     def __init__(self, plugin_name="baseplugin"):
         self.plugin_name = plugin_name
+        print ("plugin name = " + plugin_name)
         self.settings_manager = SettingsManager()
         self.status_manager = StatusManager()
         # Construct the plugin folder path
@@ -16,6 +17,8 @@ class Baseplugin:
         if not os.path.exists(self.plugin_folder):
             print("CREATING FOLDER ", self.plugin_folder)
             os.makedirs(self.plugin_folder)
+        else:
+            print("FOLDER EXISTING: " + self.plugin_folder)
         
     @hookimpl
     def get_frontend_components(self):
@@ -48,3 +51,21 @@ class Baseplugin:
 
     def cleanup(self):
         self.status_manager.unregister_observer(self)
+        
+    def create_subfolder(self, subfolder_name: str):
+        """
+        Create a subfolder inside the plugin folder if it doesn't exist.
+        Return the full path if created, otherwise return False.
+        """
+        subfolder_path = os.path.join(self.plugin_folder, subfolder_name)
+        try:
+            if not os.path.exists(subfolder_path):
+                print(f"CREATING SUBFOLDER {subfolder_path}")
+                os.makedirs(subfolder_path)
+                return subfolder_path
+            else:
+                print(f"SUBFOLDER ALREADY EXISTS: {subfolder_path}")
+                return subfolder_path
+        except Exception as e:
+            print(f"Failed to create subfolder {subfolder_path}: {e}")
+            return False

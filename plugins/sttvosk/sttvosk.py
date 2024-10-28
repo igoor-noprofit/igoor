@@ -7,13 +7,12 @@ import pyaudio
 import json
 import os
 from vosk import Model, KaldiRecognizer
-import sys
 
 class Sttvosk(Baseplugin):
     @hookimpl
     def startup(self):
         super().__init__('sttvosk')
-        print ("STTVOSK IS STARTING UP")
+        print ("STTVOSK IS REALLY STARTING UP")
         self.settings = self.get_my_settings()
         self.isloaded = False
         print ("VOSK settings", self.settings)

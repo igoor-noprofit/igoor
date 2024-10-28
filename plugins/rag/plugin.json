@@ -1,8 +1,8 @@
 {
-    "active": false,
-    "category": "ASR",
+    "active": true,
+    "category": "rag",
     "layout": {
-        "part": "header",
+        "part": "hidden",
         "order": 0
     },
     "is_free" : true,

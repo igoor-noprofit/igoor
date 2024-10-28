@@ -1,5 +1,5 @@
 import importlib.util
-import os
+import os, sys
 import json
 import pluggy
 from settings_manager import SettingsManager
@@ -9,6 +9,8 @@ import os
 from typing import Any
 from status_manager import StatusManager
 
+
+IGOOR_DEBUG = os.getenv('IGOOR_DEBUG', 'False') 
 app_name = os.getenv("IGOOR_APPNAME")
 hookspec = pluggy.HookspecMarker(app_name)
 hookimpl = pluggy.HookimplMarker(app_name)
@@ -57,16 +59,19 @@ class PluginManager:
         # Load plugins dynamically from the plugins/ directory based on activation state
         self.load_plugins()
         self.startup_plugins()
+        
+    def is_active(self, plugin_name):
+        is_active = self.all_plugins.get(plugin_name, {}).get("active", False)
+        print(f"{plugin_name} is {'active' if is_active else 'NOT active'}")
+        return is_active
 
     def load_plugins(self):
         print ("Loading plugins")
         plugin_folder = "plugins"
-        activated_plugins = self.get_activated_plugins()
-        print("Activated plugins : ", activated_plugins)
-
+        self.all_plugins = self.get_all_plugins()
         for plugin_name in os.listdir(plugin_folder):
             plugin_path = os.path.join(plugin_folder, plugin_name)
-            if os.path.isdir(plugin_path) and activated_plugins.get(plugin_name, False):
+            if os.path.isdir(plugin_path) and self.is_active(plugin_name):
                 try:
                     plugin_module = importlib.import_module(f"plugins.{plugin_name}.{plugin_name}")
                     plugin_instance = getattr(plugin_module, f"{plugin_name.capitalize()}")()  # Use existing class name
@@ -75,8 +80,10 @@ class PluginManager:
                     self.status_manager.register_observer(plugin_instance)
                 except Exception as e:
                     print(f"Error loading plugin '{plugin_name}': {e}")
+                    if (IGOOR_DEBUG):
+                        sys.exit()
 
-    def get_activated_plugins(self):
+    def get_all_plugins(self):
         """Gathers activation status and other metadata for all plugins."""
         plugin_folder = "plugins"
         plugins_metadata = {}
