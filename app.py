@@ -8,6 +8,7 @@ load_dotenv()
 from context_manager import ContextManager
 from js_api import Api
 from settings_manager import SettingsManager
+from prompts import AssistantPrompts
 
 
 context_manager = ContextManager()
@@ -23,11 +24,10 @@ def load_settings():
     # Load settings
     settings = SettingsManager();
     print("Current settings:", settings)
-
+    return settings
 
 def load_frontend_components():
     manager = PluginManager()
-    manager.deactivate_plugin("flow")
     plugins_metadata = manager.get_plugins_metadata()
     # print("Plugins metadata:", plugins_metadata)  # Debugging output
 
@@ -130,12 +130,26 @@ def start_webview():
     webview.create_window("IGOOR", "index.html", js_api=Api(), resizable=True)  # fullscreen=True if needed
     webview.start(debug=IGOOR_DEBUG.lower() == 'true')
 
+
 if __name__ == "__main__":
-    load_settings();
+    settings = load_settings();
     
     final_html = load_frontend_components()
     if (IGOOR_OUTPUT_HTML.lower() == 'true'):
         print(final_html)
+    
+    s = settings.get_all_settings()    
+    user=s.get("user")
+    print (user)
+    lang = user.get("lang")
+    print ("lang = " + lang)
+    prompts = AssistantPrompts("locales/",lang)
+    assistant_type="flow"
+    system_prompt = prompts.get_system_prompt(lang, assistant_type)
+    print (system_prompt)
+    manager = PluginManager()
+    manager.trigger_hook("send_prompt",prompt=system_prompt)
+    
     # Create a webview window in fullscreen mode
     if IGOOR_CLI.lower() != 'true':
         start_webview()

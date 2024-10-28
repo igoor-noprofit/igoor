@@ -3,14 +3,26 @@ from plugins.baseplugin.baseplugin import Baseplugin
 from plugin_manager import hookimpl
 import os
 from langchain_community.document_loaders import TextLoader
-from langchain_community.document_loaders import PyPDFLoader 
+import pymupdf4llm
 from langchain_community.vectorstores import FAISS
 from langchain_text_splitters import CharacterTextSplitter, MarkdownTextSplitter
 from langchain.schema import Document  # Ensure all documents are of this type
 from langchain_community.embeddings import HuggingFaceBgeEmbeddings
+from langchain.prompts import ChatPromptTemplate
 import time
+import asyncio
 
+PROMPT_TEMPLATE = """
+{system_prompt}
 
+Réponds en utilisant aussi le contexte suivant:
+
+{context}
+
+---
+
+Réponds en utilisant aussi le contexte ci-dessus à la question: {question}
+"""
 class Rag(Baseplugin):
     @hookimpl
     def startup(self):
@@ -22,17 +34,24 @@ class Rag(Baseplugin):
         print ("RAG settings", self.settings)
         self.create_folders()
         print ("FOLDERS CREATED")
-        self.create_index()
-        self.load_index()
+        # self.create_index()
+        # self.load_index()
+        
+    @hookimpl
+    def send_prompt(self, prompt: str) -> None:
+        print(f"Received prompt : {prompt}")
+        asyncio.run(self.query_rag(prompt, "Q: Qu'est-ce que t'en pense de Rodolphe?"))
 
     def load_index(self):
-        global embedding_function, db
+        print ("LOADING INDEX, PLEASE WAIT...")
         db_start_time = time.time()
         embedding_function = self.get_embedding_function()
-        
-        db = FAISS.load_local(self.index_folder_name, embedding_function, allow_dangerous_deserialization=True)
-        db_end_time = time.time()
-        print(f"DB preparation time: {db_end_time - db_start_time:.2f} seconds")
+        try:
+            self.db = FAISS.load_local(self.index_folder, embedding_function, allow_dangerous_deserialization=True)
+            db_end_time = time.time()
+            print(f"DB FAISS index loaded successfully in : {db_end_time - db_start_time:.2f} seconds")
+        except Exception as e:
+            print(f"Error loading FAISS index: {e}")
         
     def create_folders(self):
         self.medias_folder = self.create_subfolder(self.medias_folder_name)
@@ -40,10 +59,8 @@ class Rag(Baseplugin):
 
     # Function to load PDF content and return Document object
     def load_pdf_content(self,file_path):
-        loader = PyPDFLoader(file_path)
-        documents = loader.load()
-        # Ensure the first document is returned if the loader yields multiple
-        return documents if documents else None
+        md_text = pymupdf4llm.to_markdown(file_path)
+        return md_text
 
     def get_embedding_function(self):
         embedding_model = "BAAI/bge-small-en"
@@ -56,7 +73,7 @@ class Rag(Baseplugin):
 
     def create_index(self):
         print ("CREATING DB, PLEASE WAIT...")
-        global embedding_function, db
+        db_start_time = time.time()
         folder_path = os.path.join(self.plugin_folder,"medias")
         print (folder_path)
         # Load all .txt and .pdf files
@@ -72,16 +89,16 @@ class Rag(Baseplugin):
                 # Wrap the markdown content in a Document object with appropriate metadata
                 documents.append(Document(page_content=md_content, metadata={"source": file_path}))
             elif file_name.endswith(".pdf"):
-                document = self.load_pdf_content(file_path)
-                documents.append(document)
+                md_content = self.load_pdf_content(file_path)
+                documents.append(Document(page_content=md_content, metadata={"source": file_path}))
 
         # Check if there are no documents
         if not documents:
             print("No documents found in the folder. FAISS index cannot be created.")
-            return
+            return False
 
         # Split documents
-        text_splitter = CharacterTextSplitter(chunk_size=400, chunk_overlap=50)
+        text_splitter = CharacterTextSplitter(chunk_size=self.settings.get("chunk_size"), chunk_overlap=self.settings.get("chunk_overlap"))
         docs = text_splitter.split_documents(documents)
 
         for doc in docs:
@@ -91,40 +108,40 @@ class Rag(Baseplugin):
 
         # Embedding and FAISS index creation
         embedding_function = self.get_embedding_function()
-        
-        # Load or create FAISS index
-        try:
-            db = FAISS.load_local(self.index_folder, embedding_function, allow_dangerous_deserialization=True)
-            print("FAISS index loaded successfully.")
-        except:
-            db = FAISS.from_documents(docs, embedding_function)
-            db.save_local("faiss_index")
-            print("FAISS index created and saved.")
-
+        self.db = FAISS.from_documents(docs, embedding_function)
+        self.db.save_local(self.index_folder)
+        print("FAISS index saved.")
         db_end_time = time.time()
-        print(f"DB preparation time: {db_end_time:.2f} seconds")
+        print(f"DB FAISS index created successfully in : {db_end_time - db_start_time:.2f} seconds")
+        return True
         
-    async def query_rag(self,system_prompt_text: str, query_text: str):
-        # print(system_prompt_text)
-        if db is None or embedding_function is None:
-            self.prepare_db()
-        start_time = time.time()  # Start the timer    
-        # Search the DB.
-        search_start_time = time.time()
-        results = db.similarity_search(query_text)
-        search_end_time = time.time()
-        print(f"DB search time: {search_end_time - search_start_time:.2f} seconds")
-        context_text = "\n\n---\n\n".join([doc.page_content for doc in results])
-        # print(context_text);
-        prompt_template = ChatPromptTemplate.from_template(PROMPT_TEMPLATE)
-        prompt_format_start_time = time.time()
-        prompt = prompt_template.format(system_prompt=system_prompt_text, context=context_text, question=query_text)
-        prompt_format_end_time = time.time()
-        print("************** PROMPT *******************")
-        print(prompt)
-        print("************* END PROMPT ****************")
-        print(f"Prompt formatting time: {prompt_format_end_time - prompt_format_start_time:.2f} seconds")
-        # print(prompt)
+    async def query_rag(self, system_prompt_text: str, query_text: str):
+        try:
+            print("QUERYING INDEX: ", query_text)
+            try:
+                if not hasattr(self, 'db') or self.db is None:
+                    self.load_index()
+            except Exception as e:
+                print(f"An error occurred while loading the index: {e}")
+                return None
+            start_time = time.time()  # Start the timer    
+            # Search the DB.
+            search_start_time = time.time()
+            results = self.db.similarity_search(query_text)
+            search_end_time = time.time()
+            print(f"DB search time: {search_end_time - search_start_time:.2f} seconds")
+            context_text = "\n\n---\n\n".join([doc.page_content for doc in results])
+            prompt_template = ChatPromptTemplate.from_template(PROMPT_TEMPLATE)
+            prompt_format_start_time = time.time()
+            prompt = prompt_template.format(system_prompt=system_prompt_text, context=context_text, question=query_text)
+            prompt_format_end_time = time.time()
+            print("************** PROMPT *******************")
+            print(prompt)
+            print("************* END PROMPT ****************")
+            print(f"Prompt formatting time: {prompt_format_end_time - prompt_format_start_time:.2f} seconds")
+        except Exception as e:
+            print(f"An error occurred during query_rag execution: {e}")
+        return prompt
 
         '''
         # Generate response
@@ -140,6 +157,6 @@ class Rag(Baseplugin):
         end_time = time.time()  # End the timer
         execution_time = end_time - start_time
         print(f"Total execution time: {execution_time:.2f} seconds")
-         '''
+        '''
         # CALL THE HOOK
         return prompt

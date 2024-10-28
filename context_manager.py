@@ -7,9 +7,6 @@ class ContextManager:
             cls._instance = super(ContextManager, cls).__new__(cls)
             # Initialize the shared context
             cls._context = {
-                "horaire": None,
-                "lieu_actuel": 1,
-                "meteo": {}
             }
         return cls._instance
     

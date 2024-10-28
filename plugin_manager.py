@@ -45,7 +45,11 @@ class MyAppSpec:
     def deactivate(self):
         """Hook for plugins to perform actions upon deactivation."""
         pass
-
+    
+    @pluggy.HookspecMarker(app_name)
+    def send_prompt(self, prompt: str) -> None:
+        pass
+        
 class PluginManager:
     def __init__(self):
         self.status_manager = StatusManager()
@@ -59,6 +63,16 @@ class PluginManager:
         # Load plugins dynamically from the plugins/ directory based on activation state
         self.load_plugins()
         self.startup_plugins()
+        
+    def trigger_hook(self, hook_name, **kwargs):
+        """Generic method to trigger any hook by name."""
+        hook = getattr(self.plugin_manager.hook, hook_name, None)
+        if hook:
+            results = hook(**kwargs)
+            for result in results:
+                print(result)
+        else:
+            print(f"Hook '{hook_name}' not found.")
         
     def is_active(self, plugin_name):
         is_active = self.all_plugins.get(plugin_name, {}).get("active", False)
