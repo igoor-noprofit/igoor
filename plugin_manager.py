@@ -52,7 +52,7 @@ class MyAppSpec:
         pass
     
     @pluggy.HookspecMarker(app_name)
-    def speaker_msg(self, msg: str) -> None:
+    def asr_msg(self, msg: str) -> None:
         """Hook for plugins to perform actions when speaker has said something via ASR"""
         pass
         
@@ -71,15 +71,23 @@ class PluginManager:
         self.startup_plugins()
         
     def trigger_hook(self, hook_name, **kwargs):
-        print("Hook triggered")
+        print("Hook triggered: ", hook_name)
         """Generic method to trigger any hook by name."""
         hook = getattr(self.plugin_manager.hook, hook_name, None)
         if hook:
-            results = hook(**kwargs)
-            for result in results:
-                print(result)
+            try:
+                print("Executing hook")
+                results = hook(**kwargs)
+                for result in results:
+                    print(result)
+            except Exception as e:
+                print(f"Error executing hook '{hook_name}': {e}")
+                if IGOOR_DEBUG:
+                    print("EXIT BECAUSE OF ERROR EXECUTING HOOK")
+                    sys.exit()
         else:
             print(f"Hook '{hook_name}' not found.")
+            sys.exit()
         
     def is_active(self, plugin_name):
         is_active = self.all_plugins.get(plugin_name, {}).get("active", False)
@@ -90,19 +98,29 @@ class PluginManager:
         print("Loading plugins")
         plugin_folder = "plugins"
         self.all_plugins = self.get_all_plugins()
+        print(len(self.all_plugins), " TOTAL PLUGINS")
+        self.activated_plugins = []
         for plugin_name in os.listdir(plugin_folder):
             plugin_path = os.path.join(plugin_folder, plugin_name)
             if os.path.isdir(plugin_path) and self.is_active(plugin_name):
+                print ("plugin to be activated: ", plugin_name)
+                if (plugin_name.lower() not in map(str.lower, self.activated_plugins)):
+                    print ("plugin ", plugin_name.lower(), " not in map")
                 try:
                     plugin_module = importlib.import_module(f"plugins.{plugin_name}.{plugin_name}")
-                    plugin_instance = getattr(plugin_module, f"{plugin_name.capitalize()}",self)()
+                    plugin_class = getattr(plugin_module, f"{plugin_name.capitalize()}")
+                    plugin_instance = plugin_class(plugin_name, self)
+                    print("passing plugin instance of class ", plugin_class, " a pm")
                     self.plugins.append(plugin_instance)
                     self.plugin_manager.register(plugin_instance)
                     self.status_manager.register_observer(plugin_instance)
+                    self.activated_plugins.append(plugin_name)
                 except Exception as e:
                     print(f"Error loading plugin '{plugin_name}': {e}")
                     if IGOOR_DEBUG:
+                        print("EXIT BECAUSE OF ERROR LOADING PLUGIN")
                         sys.exit()
+        print("ACTIVATED PLUGINS LIST:", self.activated_plugins)
 
     def get_all_plugins(self):
         """Gathers activation status and other metadata for all plugins."""

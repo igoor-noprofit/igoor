@@ -1,13 +1,20 @@
 from settings_manager import SettingsManager
 from status_manager import StatusManager
-from plugin_manager import hookimpl
-import os
-
+from plugin_manager import hookimpl, PluginManager
+import os,sys
 class Baseplugin:
     def __init__(self, plugin_name="baseplugin", pm=None):
-        self.plugin_name = plugin_name
-        self.pm = pm
         print ("__init__ plugin : " + plugin_name)
+        self.plugin_name = plugin_name
+        if pm is None:
+            print ("no plugin manager passed")
+            # sys.exit()     
+        if isinstance(pm, PluginManager):
+            print("Valid PluginManager instance passed.")
+            self.pm = pm
+        else:
+            print("Warning: pm is not a PluginManager instance.")
+        
         self.plugin_name = plugin_name
         self.settings_manager = SettingsManager()
         self.status_manager = StatusManager()
@@ -22,14 +29,21 @@ class Baseplugin:
             os.makedirs(self.plugin_folder)
         else:
             print("FOLDER EXISTING: " + self.plugin_folder)
-        
-
-    def set_pm(self,pm):
-        print("received")
-        print(pm)
-        self.pm = pm
-        self.pm.trigger_hook("test")
     
+    '''
+    def trigger_hook(self,hook_name,**kwargs):
+        print ("BASEPLUGIN TRIGGER HOOK")
+        if self.pm:
+            try:
+                self.pm.trigger_hook(hook_name, msg="Q: " + "prova")
+            except TypeError as e:
+                print(f"TypeError occurred: {e}")
+            except Exception as e:
+                print(f"An unexpected error occurred: {e}")
+        else:
+            print("Plugin manager is not set.")
+            sys.exit()
+    '''
         
     @hookimpl
     def get_frontend_components(self):
@@ -45,6 +59,7 @@ class Baseplugin:
         """
         Retrieve settings specific to the plugin.
         """
+        print("getting settings for ", self.plugin_name)
         return self.settings_manager.get_plugin_settings(self.plugin_name)
 
     def update_my_settings(self, key: str, value: any):

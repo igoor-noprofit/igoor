@@ -1,28 +1,47 @@
 from settings_manager import SettingsManager
 from plugins.baseplugin.baseplugin import Baseplugin
-from plugin_manager import hookimpl 
+from plugin_manager import hookimpl, PluginManager
 import threading
 import time
 import pyaudio
 import json
-import os
+import os, sys
 from vosk import Model, KaldiRecognizer
 
-class Sttvosk(Baseplugin):
+class Asrvosk(Baseplugin):
+    def __init__(self, plugin_name, pm):
+        if pm is None:
+            print ("no plugin manager passed")
+        if isinstance(pm, PluginManager):
+            print("Valid PluginManager instance passed.")
+            self.pm = pm
+        else:
+            print("Warning: pm is not a PluginManager instance.")
+            print(pm)
+            sys.exit()  
+        print ("INITING:", plugin_name) 
+        # Call the base class constructor
+        super().__init__(plugin_name,pm)
+        # Add any Asrvosk-specific initialization here
+        print("Initializing Asrvosk-specific components")
+        
+    
     @hookimpl
     def startup(self):
-        super().__init__('sttvosk')
-        print ("STTVOSK IS REALLY STARTING UP")
+        print ("ASRVOSK IS REALLY STARTING UP")
         self.settings = self.get_my_settings()
         self.isloaded = False
+        self.wakeword = self.settings.get("wakeword")
         print ("VOSK settings", self.settings)
         # Start a thread to load the model
-        self.model_thread = threading.Thread(target=self.load_model, daemon=True)
-        self.model_thread.start()
-        print("Started loading model in background.")
+        # self.model_thread = threading.Thread(target=self.load_model, daemon=True)
+        # self.model_thread.start()
+        # print("Started loading model in background.")
         # Optionally: Setup a monitor to check when the model is ready
-        monitor_thread = threading.Thread(target=self.monitor_loading, daemon=True)
-        monitor_thread.start()
+        # monitor_thread = threading.Thread(target=self.monitor_loading, daemon=True)
+        # monitor_thread.start()
+        self.load_model()
+        self.start()
 
     def monitor_loading(self):
         while not self.isloaded:
@@ -45,17 +64,14 @@ class Sttvosk(Baseplugin):
     
     def handle_wake_word(self,following_text):
         print(f"Wake word detected! Text: '{following_text}'")
-        # self.plugin_manager.hook.process_wake_word(text=following_text)
-        # CALL STATUS MANAGER ?
+        self.pm.trigger_hook(hook_name="asr_msg", msg="Q: " + following_text)
         
-                
     def start(self):
         print("STARTING WAKEWORD RECOGNITION")
         # Initialize PyAudio and start the audio stream (after model loading)
         self.p = pyaudio.PyAudio()
         self.stream = self.p.open(format=pyaudio.paInt16, channels=1, rate=16000, input=True, frames_per_buffer=8000)
         self.stream.start_stream()
-        wakeword = self.settings.get("wakeword")
         try:
             while True:
                 data = self.stream.read(4000, exception_on_overflow=False)
@@ -65,8 +81,8 @@ class Sttvosk(Baseplugin):
                     result = rec.Result()
                     text = json.loads(result)["text"]
                     print(f"Recognized text (FR): {text}")
-                    if wakeword.lower() in text.lower():
-                        following_text = text.lower().split(wakeword.lower(), 1)[1].strip()
+                    if self.wakeword.lower() in text.lower():
+                        following_text = text.lower().split(self.wakeword.lower(), 1)[1].strip()
                         self.handle_wake_word(following_text)
                         
         except KeyboardInterrupt:

@@ -1,6 +1,6 @@
 from settings_manager import SettingsManager
 from plugins.baseplugin.baseplugin import Baseplugin
-from plugin_manager import hookimpl
+from plugin_manager import hookimpl, PluginManager
 import os
 from langchain_community.document_loaders import TextLoader
 import pymupdf4llm
@@ -9,8 +9,7 @@ from langchain_text_splitters import CharacterTextSplitter, MarkdownTextSplitter
 from langchain.schema import Document  # Ensure all documents are of this type
 from langchain_community.embeddings import HuggingFaceBgeEmbeddings
 from langchain.prompts import ChatPromptTemplate
-import time
-import asyncio, threading
+import time, sys, asyncio, threading
 
 PROMPT_TEMPLATE = """
 {system_prompt}
@@ -24,9 +23,23 @@ Réponds en utilisant aussi le contexte suivant:
 Réponds en utilisant aussi le contexte ci-dessus à la question: {question}
 """
 class Rag(Baseplugin):
+    def __init__(self, plugin_name, pm):
+        if pm is None:
+            print ("no plugin manager passed")
+            sys.exit()
+        if isinstance(pm, PluginManager):
+            print("Valid PluginManager instance passed.")
+            self.pm = pm
+        else:
+            print("Warning: pm is not a PluginManager instance.")
+            print(pm)
+            sys.exit()  
+        print ("INITING:", plugin_name) 
+        # Call the base class constructor
+        super().__init__(plugin_name,pm)
+        
     @hookimpl
     def startup(self):
-        super().__init__('rag')
         print ("RAG IS STARTING UP")
         self.settings = self.get_my_settings()
         self.medias_folder_name="medias"

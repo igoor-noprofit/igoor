@@ -19,11 +19,8 @@ IGOOR_CLI = os.getenv('IGOOR_CLI', 'False')
 IGOOR_OUTPUT_HTML = os.getenv('IGOOR_OUTPUT_HTML', 'False') 
 
 def load_settings():
-    # Get the settings file path
-    print (f"*********** LOADING SETTINGS ")
-    # Load settings
     settings = SettingsManager();
-    print("Current settings:", settings)
+    # print("Current settings:", settings)
     return settings
 
 def load_frontend_components():
@@ -134,9 +131,10 @@ def start_webview():
 if __name__ == "__main__":
     settings = load_settings();
     
-    final_html = load_frontend_components()
-    if (IGOOR_OUTPUT_HTML.lower() == 'true'):
-        print(final_html)
+    if IGOOR_CLI.lower() != 'true':
+        final_html = load_frontend_components()
+        if (IGOOR_OUTPUT_HTML.lower() == 'true'):
+            print(final_html)
     
     s = settings.get_all_settings()    
     user=s.get("user")
@@ -146,14 +144,13 @@ if __name__ == "__main__":
     prompts = AssistantPrompts("locales/",lang)
     assistant_type="flow"
     system_prompt = prompts.get_system_prompt(lang, assistant_type)
-    print (system_prompt)
+    # print (system_prompt)
     manager = PluginManager()
-    manager.trigger_hook("send_prompt",prompt=system_prompt)
+    # manager.trigger_hook("send_prompt",prompt=system_prompt)
     
     # Create a webview window in fullscreen mode
     if IGOOR_CLI.lower() != 'true':
         start_webview()
-        
     else:
         print(get_full_context())
         
