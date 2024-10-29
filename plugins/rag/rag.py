@@ -10,7 +10,7 @@ from langchain.schema import Document  # Ensure all documents are of this type
 from langchain_community.embeddings import HuggingFaceBgeEmbeddings
 from langchain.prompts import ChatPromptTemplate
 import time
-import asyncio
+import asyncio, threading
 
 PROMPT_TEMPLATE = """
 {system_prompt}
@@ -31,17 +31,11 @@ class Rag(Baseplugin):
         self.settings = self.get_my_settings()
         self.medias_folder_name="medias"
         self.index_folder_name="faiss_index" 
+        self.index_loaded=False
         print ("RAG settings", self.settings)
         self.create_folders()
-        print ("FOLDERS CREATED")
-        # self.create_index()
-        # self.load_index() => THREADING
-        
-    @hookimpl
-    def send_prompt(self, prompt: str) -> None:
-        print(f"Received prompt : {prompt}")
-        asyncio.run(self.query_rag(prompt, "Q: Tu te souviens de l'expo Drosephilia?"))
-
+        threading.Thread(target=self.load_index).start()
+    
     def load_index(self):
         print ("LOADING INDEX, PLEASE WAIT...")
         db_start_time = time.time()
@@ -50,8 +44,14 @@ class Rag(Baseplugin):
             self.db = FAISS.load_local(self.index_folder, embedding_function, allow_dangerous_deserialization=True)
             db_end_time = time.time()
             print(f"DB FAISS index loaded successfully in : {db_end_time - db_start_time:.2f} seconds")
+            self.index_loaded = True  # Set index_loaded to True after successful loading
         except Exception as e:
             print(f"Error loading FAISS index: {e}")
+        
+    @hookimpl
+    def send_prompt(self, prompt: str) -> None:
+        print(f"Received prompt : {prompt}")
+        asyncio.run(self.query_rag(prompt, "Q: Tu te souviens de l'expo Drosephilia?"))
         
     def create_folders(self):
         self.medias_folder = self.create_subfolder(self.medias_folder_name)
@@ -118,12 +118,16 @@ class Rag(Baseplugin):
     async def query_rag(self, system_prompt_text: str, query_text: str):
         try:
             print("QUERYING INDEX: ", query_text)
-            try:
-                if not hasattr(self, 'db') or self.db is None:
-                    self.load_index()
-            except Exception as e:
-                print(f"An error occurred while loading the index: {e}")
-                return None
+            if (not self.index_loaded):
+                print("Index still loading")
+            while (not self.index_loaded):
+                print(".", end="", flush=True)
+                # wait 
+            # if not hasattr(self, 'db') or not self.index_loaded:
+            #   self.load_index()
+            #except Exception as e:
+            #    print(f"An error occurred while loading the index: {e}")
+            #    return None
             start_time = time.time()  # Start the timer    
             # Search the DB.
             search_start_time = time.time()

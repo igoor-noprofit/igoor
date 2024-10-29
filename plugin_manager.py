@@ -96,8 +96,6 @@ class PluginManager:
                 try:
                     plugin_module = importlib.import_module(f"plugins.{plugin_name}.{plugin_name}")
                     plugin_instance = getattr(plugin_module, f"{plugin_name.capitalize()}",self)()
-                    # plugin_class = getattr(plugin_module, f"{plugin_name.capitalize()}",self)
-                    # plugin_instance = plugin_class(pm=self, plugin_name=plugin_name)# Pass self to the constructor
                     self.plugins.append(plugin_instance)
                     self.plugin_manager.register(plugin_instance)
                     self.status_manager.register_observer(plugin_instance)
