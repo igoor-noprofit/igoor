@@ -17,11 +17,9 @@ class Sttvosk(Baseplugin):
         self.isloaded = False
         print ("VOSK settings", self.settings)
         # Start a thread to load the model
-                # Start a thread to load the model
         self.model_thread = threading.Thread(target=self.load_model, daemon=True)
         self.model_thread.start()
         print("Started loading model in background.")
-
         # Optionally: Setup a monitor to check when the model is ready
         monitor_thread = threading.Thread(target=self.monitor_loading, daemon=True)
         monitor_thread.start()
@@ -31,7 +29,6 @@ class Sttvosk(Baseplugin):
             # Wait until the model is loaded
             import time
             time.sleep(1)
- 
         self.model_thread.join()
         print("Model is ready to use.")
         self.start()
@@ -50,7 +47,7 @@ class Sttvosk(Baseplugin):
         print(f"Wake word detected! Text: '{following_text}'")
         # self.plugin_manager.hook.process_wake_word(text=following_text)
         # CALL STATUS MANAGER ?
-        self.status_manager.set_status("wakeword_detected")
+        
                 
     def start(self):
         print("STARTING WAKEWORD RECOGNITION")

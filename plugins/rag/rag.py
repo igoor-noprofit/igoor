@@ -35,12 +35,12 @@ class Rag(Baseplugin):
         self.create_folders()
         print ("FOLDERS CREATED")
         # self.create_index()
-        # self.load_index()
+        # self.load_index() => THREADING
         
     @hookimpl
     def send_prompt(self, prompt: str) -> None:
         print(f"Received prompt : {prompt}")
-        asyncio.run(self.query_rag(prompt, "Q: Qu'est-ce que t'en pense de Rodolphe?"))
+        asyncio.run(self.query_rag(prompt, "Q: Tu te souviens de l'expo Drosephilia?"))
 
     def load_index(self):
         print ("LOADING INDEX, PLEASE WAIT...")
@@ -114,7 +114,7 @@ class Rag(Baseplugin):
         db_end_time = time.time()
         print(f"DB FAISS index created successfully in : {db_end_time - db_start_time:.2f} seconds")
         return True
-        
+    
     async def query_rag(self, system_prompt_text: str, query_text: str):
         try:
             print("QUERYING INDEX: ", query_text)
