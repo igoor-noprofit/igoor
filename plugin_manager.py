@@ -71,6 +71,7 @@ class PluginManager:
         self.startup_plugins()
         
     def trigger_hook(self, hook_name, **kwargs):
+        print("Hook triggered")
         """Generic method to trigger any hook by name."""
         hook = getattr(self.plugin_manager.hook, hook_name, None)
         if hook:
@@ -86,7 +87,7 @@ class PluginManager:
         return is_active
 
     def load_plugins(self):
-        print ("Loading plugins")
+        print("Loading plugins")
         plugin_folder = "plugins"
         self.all_plugins = self.get_all_plugins()
         for plugin_name in os.listdir(plugin_folder):
@@ -94,13 +95,15 @@ class PluginManager:
             if os.path.isdir(plugin_path) and self.is_active(plugin_name):
                 try:
                     plugin_module = importlib.import_module(f"plugins.{plugin_name}.{plugin_name}")
-                    plugin_instance = getattr(plugin_module, f"{plugin_name.capitalize()}")()  # Use existing class name
+                    plugin_instance = getattr(plugin_module, f"{plugin_name.capitalize()}",self)()
+                    # plugin_class = getattr(plugin_module, f"{plugin_name.capitalize()}",self)
+                    # plugin_instance = plugin_class(pm=self, plugin_name=plugin_name)# Pass self to the constructor
                     self.plugins.append(plugin_instance)
                     self.plugin_manager.register(plugin_instance)
                     self.status_manager.register_observer(plugin_instance)
                 except Exception as e:
                     print(f"Error loading plugin '{plugin_name}': {e}")
-                    if (IGOOR_DEBUG):
+                    if IGOOR_DEBUG:
                         sys.exit()
 
     def get_all_plugins(self):

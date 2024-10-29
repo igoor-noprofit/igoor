@@ -4,11 +4,14 @@ from plugin_manager import hookimpl
 import os
 
 class Baseplugin:
-    def __init__(self, plugin_name="baseplugin"):
+    def __init__(self, plugin_name="baseplugin", pm=None):
         self.plugin_name = plugin_name
-        print ("plugin name = " + plugin_name)
+        self.pm = pm
+        print ("__init__ plugin : " + plugin_name)
+        self.plugin_name = plugin_name
         self.settings_manager = SettingsManager()
         self.status_manager = StatusManager()
+        # self.pm = pm
         # Construct the plugin folder path
         self.app_name = os.getenv('IGOOR_APPNAME')  # Get the application name from the environment variable
         self.appdata_path = os.getenv('APPDATA')  # Get the APPDATA path from the environment variable
@@ -19,6 +22,14 @@ class Baseplugin:
             os.makedirs(self.plugin_folder)
         else:
             print("FOLDER EXISTING: " + self.plugin_folder)
+        
+
+    def set_pm(self,pm):
+        print("received")
+        print(pm)
+        self.pm = pm
+        self.pm.trigger_hook("test")
+    
         
     @hookimpl
     def get_frontend_components(self):
