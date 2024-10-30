@@ -66,6 +66,11 @@ class Rag(Baseplugin):
         print(f"Received prompt : {prompt}")
         asyncio.run(self.query_rag(prompt, "Q: Tu te souviens de l'expo Drosephilia?"))
         
+    @hookimpl
+    def asr_msg(self, msg: str) -> None:
+        print(f"Q: {msg}")
+        # asyncio.run(self.query_rag(msg, "Q: Tu te souviens de l'expo Drosephilia?"))
+        
     def create_folders(self):
         self.medias_folder = self.create_subfolder(self.medias_folder_name)
         self.index_folder = self.create_subfolder(self.index_folder_name)
