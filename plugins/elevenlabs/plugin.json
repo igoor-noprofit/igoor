@@ -1,5 +1,5 @@
 {
-    "active": false,
+    "active": true,
     "category": "TTS",
     "layout": {
         "part": "hidden",

@@ -1,7 +1,6 @@
 from plugin_manager import hookimpl, PluginManager
 from plugins.baseplugin.baseplugin import Baseplugin
 from elevenlabslib import *
-import pyaudio
 from typing import Any, Dict
 from settings_manager import SettingsManager
 
@@ -15,12 +14,16 @@ class Elevenlabs(Baseplugin):
         print ("ELEVENLABS IS STARTING UP")
         self.settings = self.get_my_settings()
         print ("ELEVENLABS settings", self.settings)
+        try:
+            self.user = User(self.settings.get("api_key"))
+            self.voice= self.user.get_voice_by_ID(self.settings.get("voice_id"))   
+        except Exception as e:
+            print(f"Error occurred while setting user : {e}")
+            return False
         
     @hookimpl
     def speak(self, message):
         try:
-            user = User(self.settings.get("api_key"))
-            voice=user.get_voice_by_ID(self.settings.get("voice_id"))   
             print ("§§§§ SPEAKING *********************************************** :",message)
             # Set generation options
             playback_options = PlaybackOptions(runInBackground=True)
@@ -31,7 +34,7 @@ class Elevenlabs(Baseplugin):
                 similarity_boost=0.4,
                 style=0.8
             )
-            voice.stream_audio_v3(message, playback_options, generation_options)
+            self.voice.stream_audio_v3(message, playback_options, generation_options)
             return True
         except Exception as e:
             print(f"Error occurred while speaking: {e}")
