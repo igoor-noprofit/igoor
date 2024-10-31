@@ -177,3 +177,6 @@ class Meteo(Baseplugin):
 
         distance = R * c
         return distance
+    
+    def force_update(self, var1,var2):
+        print ("force update", var1, var2)

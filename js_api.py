@@ -49,3 +49,12 @@ class Api:
         from plugin_manager import PluginManager
         plugin_manager = PluginManager()
         plugin_manager.call_speak_hook(message=message)
+        
+    def call_plugin_backend(self, module_name, target_function_name, args):
+        print("call backend of plugin", module_name)
+        if module_name:
+            from plugin_manager import PluginManager
+            plugin_manager = PluginManager()
+            return plugin_manager.call_target_function(module_name, target_function_name, args)
+        else:
+            raise ValueError("Module name is required")

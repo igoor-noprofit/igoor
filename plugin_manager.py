@@ -58,6 +58,7 @@ class MyAppSpec:
         
 class PluginManager:
     def __init__(self):
+        self.plugin_folder="plugins"
         self.status_manager = StatusManager()
         self.plugins = []
         self.plugin_manager = pluggy.PluginManager(app_name)
@@ -96,39 +97,39 @@ class PluginManager:
 
     def load_plugins(self):
         print("Loading plugins")
-        plugin_folder = "plugins"
         self.all_plugins = self.get_all_plugins()
         print(len(self.all_plugins), " TOTAL PLUGINS")
         self.activated_plugins = []
-        for plugin_name in os.listdir(plugin_folder):
-            plugin_path = os.path.join(plugin_folder, plugin_name)
-            if os.path.isdir(plugin_path) and self.is_active(plugin_name):
-                print ("plugin to be activated: ", plugin_name)
-                if (plugin_name.lower() not in map(str.lower, self.activated_plugins)):
-                    print ("plugin ", plugin_name.lower(), " not in map")
-                try:
-                    plugin_module = importlib.import_module(f"plugins.{plugin_name}.{plugin_name}")
-                    plugin_class = getattr(plugin_module, f"{plugin_name.capitalize()}")
-                    plugin_instance = plugin_class(plugin_name, self)
-                    print("passing plugin instance of class ", plugin_class, " a pm")
-                    self.plugins.append(plugin_instance)
-                    self.plugin_manager.register(plugin_instance)
-                    self.status_manager.register_observer(plugin_instance)
-                    self.activated_plugins.append(plugin_name)
-                except Exception as e:
-                    print(f"Error loading plugin '{plugin_name}': {e}")
-                    if IGOOR_DEBUG:
-                        print("EXIT BECAUSE OF ERROR LOADING PLUGIN")
-                        sys.exit()
+        for plugin_name in os.listdir(self.plugin_folder):
+            if not plugin_name == "baseplugin": 
+                print("activating because plugin_name=" + plugin_name)
+                plugin_path = os.path.join(self.plugin_folder, plugin_name)
+                if os.path.isdir(plugin_path) and self.is_active(plugin_name):
+                    print ("plugin to be activated: ", plugin_name)
+                    if (plugin_name.lower() not in map(str.lower, self.activated_plugins)):
+                        print ("plugin ", plugin_name.lower(), " not in map")
+                    try:
+                        plugin_module = importlib.import_module(f"plugins.{plugin_name}.{plugin_name}")
+                        plugin_class = getattr(plugin_module, f"{plugin_name.capitalize()}")
+                        plugin_instance = plugin_class(plugin_name, self)
+                        print("passing plugin instance of class ", plugin_class, " a pm")
+                        self.plugins.append(plugin_instance)
+                        self.plugin_manager.register(plugin_instance)
+                        self.status_manager.register_observer(plugin_instance)
+                        self.activated_plugins.append(plugin_name)
+                    except Exception as e:
+                        print(f"Error loading plugin '{plugin_name}': {e}")
+                        if IGOOR_DEBUG:
+                            print("EXIT BECAUSE OF ERROR LOADING PLUGIN")
+                            sys.exit()
         print("ACTIVATED PLUGINS LIST:", self.activated_plugins)
 
     def get_all_plugins(self):
         """Gathers activation status and other metadata for all plugins."""
-        plugin_folder = "plugins"
         plugins_metadata = {}
 
-        for plugin_name in os.listdir(plugin_folder):
-            plugin_path = os.path.join(plugin_folder, plugin_name)
+        for plugin_name in os.listdir(self.plugin_folder):
+            plugin_path = os.path.join(self.plugin_folder, plugin_name)
             metadata_file = os.path.join(plugin_path, 'plugin.json')
             if os.path.isdir(plugin_path) and os.path.exists(metadata_file):
                 try:
@@ -162,11 +163,10 @@ class PluginManager:
     
     def get_plugins_metadata(self):
         """Gathers metadata for all plugins from their respective plugin.json files."""
-        plugin_folder = "plugins"
         plugins_metadata = {}
 
-        for plugin_name in os.listdir(plugin_folder):
-            plugin_path = os.path.join(plugin_folder, plugin_name)
+        for plugin_name in os.listdir(self.plugin_folder):
+            plugin_path = os.path.join(self.plugin_folder, plugin_name)
             metadata_file = os.path.join(plugin_path, 'plugin.json')
             if os.path.isdir(plugin_path) and os.path.exists(metadata_file):
                 try:
@@ -209,8 +209,7 @@ class PluginManager:
 
     def _set_plugin_active_status(self, plugin_name, status):
         """Helper method to update the 'active' status of a plugin."""
-        plugin_folder = "plugins"
-        metadata_file = os.path.join(plugin_folder, plugin_name, 'plugin.json')
+        metadata_file = os.path.join(self.plugin_folder, plugin_name, 'plugin.json')
 
         if os.path.exists(metadata_file):
             try:
@@ -238,3 +237,12 @@ class PluginManager:
                 break
         else:
             print(f"Plugin '{plugin_name}' not found or not loaded.")
+            
+    def call_target_function(self, module_name, target_function_name, args):
+        print("calling target function", target_function_name, "in", module_name)
+        plugin = self.plugin_manager.get_plugin(module_name)
+        if plugin:
+            func = getattr(plugin, target_function_name, None)
+            if func and callable(func):
+                return func(*args)
+        raise Exception(f"Function {target_function_name} not found in module {module_name}")
