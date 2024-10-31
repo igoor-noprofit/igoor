@@ -24,18 +24,7 @@ Réponds en utilisant aussi le contexte ci-dessus à la question: {question}
 """
 class Rag(Baseplugin):
     def __init__(self, plugin_name, pm):
-        if pm is None:
-            print ("no plugin manager passed")
-            sys.exit()
-        if isinstance(pm, PluginManager):
-            print("Valid PluginManager instance passed.")
-            self.pm = pm
-        else:
-            print("Warning: pm is not a PluginManager instance.")
-            print(pm)
-            sys.exit()  
-        print ("INITING:", plugin_name) 
-        # Call the base class constructor
+        self.pm = pm
         super().__init__(plugin_name,pm)
         
     @hookimpl

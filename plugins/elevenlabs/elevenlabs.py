@@ -1,17 +1,17 @@
-from plugin_manager import hookimpl
+from plugin_manager import hookimpl, PluginManager
 from plugins.baseplugin.baseplugin import Baseplugin
 from elevenlabslib import *
-from dotenv import load_dotenv
-load_dotenv()
-import os
 import pyaudio
 from typing import Any, Dict
 from settings_manager import SettingsManager
 
-class Elevenlabs(Baseplugin):        
+class Elevenlabs(Baseplugin):
+    def __init__(self, plugin_name, pm):
+        self.pm = pm
+        super().__init__(plugin_name,pm)
+                
     @hookimpl
     def startup(self):
-        super().__init__('elevenlabs')
         print ("ELEVENLABS IS STARTING UP")
         self.settings = self.get_my_settings()
         print ("ELEVENLABS settings", self.settings)

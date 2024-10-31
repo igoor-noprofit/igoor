@@ -102,7 +102,6 @@ class PluginManager:
         self.activated_plugins = []
         for plugin_name in os.listdir(self.plugin_folder):
             if not plugin_name == "baseplugin": 
-                print("activating because plugin_name=" + plugin_name)
                 plugin_path = os.path.join(self.plugin_folder, plugin_name)
                 if os.path.isdir(plugin_path) and self.is_active(plugin_name):
                     print ("plugin to be activated: ", plugin_name)
@@ -122,6 +121,8 @@ class PluginManager:
                         if IGOOR_DEBUG:
                             print("EXIT BECAUSE OF ERROR LOADING PLUGIN")
                             sys.exit()
+            else:
+                print("Excluded baseplugin")
         print("ACTIVATED PLUGINS LIST:", self.activated_plugins)
 
     def get_all_plugins(self):

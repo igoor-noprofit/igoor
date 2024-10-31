@@ -1,5 +1,5 @@
 from plugins.baseplugin.baseplugin import Baseplugin
-from plugin_manager import hookimpl 
+from plugin_manager import hookimpl, PluginManager
 import os
 from pyowm.owm import OWM
 from pyowm.utils.config import get_default_config
@@ -12,9 +12,12 @@ from app import context_manager
 import math
 
 class Meteo(Baseplugin):
+    def __init__(self, plugin_name, pm):
+        self.pm = pm
+        super().__init__(plugin_name,pm)
+        
     @hookimpl
     def startup(self):
-        super().__init__('meteo')
         print ("METEO IS STARTING UP")
         self.settings = self.get_my_settings()
         print ("METEO settings", self.settings)

@@ -8,9 +8,12 @@ load_dotenv()
 import os
 
 class Clock(Baseplugin):    
+    def __init__(self, plugin_name, pm):
+        self.pm = pm
+        super().__init__(plugin_name,pm)
+        
     @hookimpl
     def startup(self):
-        print ("Starting CLOCK plugin")
         self.formatted_date_time = ""
         # Set locale if provided, otherwise use system default
         loc = os.getenv("IGOOR_LOCALE") # check in context, env or others
