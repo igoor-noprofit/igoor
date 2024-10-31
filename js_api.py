@@ -45,10 +45,10 @@ class Api:
     def get_context_all(self):
         print(context_manager.get_context())
         
-    def speak(message):
-        from plugin_manager import PluginManager
-        plugin_manager = PluginManager()
-        plugin_manager.call_speak_hook(message=message)
+    # def speak(message):
+        # from plugin_manager import PluginManager
+        # plugin_manager = PluginManager()
+        # plugin_manager.call_speak_hook(message=message)
         
     def call_plugin_backend(self, module_name, target_function_name, args):
         print("call backend of plugin", module_name)

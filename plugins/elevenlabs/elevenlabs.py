@@ -20,6 +20,7 @@ class Elevenlabs(Baseplugin):
         except Exception as e:
             print(f"Error occurred while setting user : {e}")
             return False
+        self.speak("Je me chauffe la voix")
         
     @hookimpl
     def speak(self, message):

@@ -115,11 +115,8 @@ def load_frontend_components():
 def get_full_context():
     """
     Retrieves the full context from the context manager.
-
-
     Returns:
         dict: The full context.
-
     """
     return context_manager.get_context()
 
@@ -144,9 +141,7 @@ if __name__ == "__main__":
     prompts = AssistantPrompts("locales/",lang)
     assistant_type="flow"
     system_prompt = prompts.get_system_prompt(lang, assistant_type)
-    # print (system_prompt)
-    manager = PluginManager()
-    # manager.trigger_hook("send_prompt",prompt=system_prompt)
+ 
     
     # Create a webview window in fullscreen mode
     if IGOOR_CLI.lower() != 'true':
