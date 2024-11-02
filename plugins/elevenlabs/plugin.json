@@ -2,7 +2,7 @@
     "active": true,
     "category": "TTS",
     "layout": {
-        "part": "hidden",
+        "part": "topbar",
         "order": 0
     },
     "is_free" : true,

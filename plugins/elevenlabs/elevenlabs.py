@@ -3,6 +3,7 @@ from plugins.baseplugin.baseplugin import Baseplugin
 from elevenlabslib import *
 from typing import Any, Dict
 from settings_manager import SettingsManager
+import threading,time
 
 class Elevenlabs(Baseplugin):
     def __init__(self, plugin_name, pm):
@@ -20,17 +21,24 @@ class Elevenlabs(Baseplugin):
         except Exception as e:
             print(f"Error occurred while setting user : {e}")
             return False
-        self.speak("Je me chauffe la voix")
         
     @hookimpl
     def speak(self, message):
+        print ("§§§§ SPEAKING *********************************************** :",message)
+        # Check if there's an existing playback thread and join it
+        if hasattr(self, 'playback_thread') and self.playback_thread.is_alive():
+            self.playback_thread.join()
+        playback_thread = threading.Thread(target=self.speak_func, args=(message,))
+        playback_thread.start()
+        
+    def speak_func(self, message):
+        print ("SPEAK FUNC:" + message)
         try:
-            print ("§§§§ SPEAKING *********************************************** :",message)
             # Set generation options
             playback_options = PlaybackOptions(runInBackground=True)
             generation_options = GenerationOptions(  # Adjusts latency optimization
                 model_id=self.settings.get("model_id"), # Specifies the model
-                latencyOptimizationLevel=1,
+                latencyOptimizationLevel=0,
                 stability=0.42,
                 similarity_boost=0.4,
                 style=0.8

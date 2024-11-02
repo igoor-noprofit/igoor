@@ -1,4 +1,9 @@
 class ContextManager:
+    """
+    A Singleton class to manage a shared context across the application.
+
+    Context is dynamic and updated by plugins or vue components
+    """
     _instance = None
     _context = {}
 

@@ -29,16 +29,16 @@ document.addEventListener("DOMContentLoaded", function () {
                 pywebview.api.maximize_window();
                 this.minimized = false;
                 }
-            },
-            js_api(func){
+            }
+            /* useless wrapper?
+            js_api(func, ...args){
                 if (this[func] && typeof this[func] === 'function') {
-                    this[func]();
+                    pywebview.api[func](...args);
                 } else {
-            
                     console.error(`Method '${func}' does not exist or is not a function`);
-            
                 }
             }
-          }
+            */
+        }
     });
 });

@@ -57,7 +57,16 @@ class MyAppSpec:
         pass
         
 class PluginManager:
+    _instance = None
+    def __new__(cls, *args, **kwargs):
+        if cls._instance is None:
+            cls._instance = super(PluginManager, cls).__new__(cls)
+        return cls._instance
+
     def __init__(self):
+        if hasattr(self, '_initialized') and self._initialized:
+            return
+        self._initialized = True
         self.plugin_folder="plugins"
         self.status_manager = StatusManager()
         self.plugins = []
@@ -70,15 +79,31 @@ class PluginManager:
         # Load plugins dynamically from the plugins/ directory based on activation state
         self.load_plugins()
         self.startup_plugins()
-        
-    def trigger_hook(self, hook_name, **kwargs):
-        print("Hook triggered: ", hook_name)
+    
+    '''
+    def _trigger_plugin_hook(self, plugin_name, hook_name):
+        """Triggers a specific hook for a given plugin."""
+        for plugin in self.plugins:
+            if plugin.__class__.__name__.lower() == plugin_name.lower():
+                hook = getattr(self.plugin_manager.hook, hook_name)
+                hook(plugin=plugin)
+                print(f"Triggered '{hook_name}' hook for plugin '{plugin_name}'.")
+                break
+        else:
+            print(f"Plugin '{plugin_name}' not found or not loaded.")
+    ''' 
+    def trigger_hook(self, hook_name, *args, **kwargs):
+        print("Hook triggered:", hook_name)
         """Generic method to trigger any hook by name."""
         hook = getattr(self.plugin_manager.hook, hook_name, None)
         if hook:
             try:
-                print("Executing hook")
-                results = hook(**kwargs)
+                # If args contains a dictionary, merge it into kwargs
+                if args and isinstance(args[0], dict):
+                    kwargs.update(args[0])  # Move the dictionary to kwargs
+
+                print(f"Executing hook with kwargs: {kwargs}")
+                results = hook(**kwargs)  # Pass only keyword arguments to the hook
                 for result in results:
                     print(result)
             except Exception as e:
@@ -86,9 +111,50 @@ class PluginManager:
                 if IGOOR_DEBUG:
                     print("EXIT BECAUSE OF ERROR EXECUTING HOOK")
                     sys.exit()
+
+    '''
+    def trigger_hook(self, hook_name, plugin_name=None, **kwargs):
+        """Triggers a hook for all plugins or a specific plugin if specified."""
+        if plugin_name:
+            # Trigger hook for a specific plugin
+            for plugin in self.plugins:
+                if plugin.__class__.__name__.lower() == plugin_name.lower():
+                    hook = getattr(self.plugin_manager.hook, hook_name, None)
+                    if hook:
+                        try:
+                            print(f"Executing '{hook_name}' hook for plugin '{plugin_name}'")
+                            results = hook(plugin=plugin, **kwargs)
+                            for result in results:
+                                print(result)
+                        except Exception as e:
+                            print(f"Error executing hook '{hook_name}' for plugin '{plugin_name}': {e}")
+                            if IGOOR_DEBUG:
+                                print("EXIT BECAUSE OF ERROR EXECUTING HOOK")
+                                sys.exit()
+                    else:
+                        print(f"Hook '{hook_name}' not found for plugin '{plugin_name}'.")
+                    break
+            else:
+                print(f"Plugin '{plugin_name}' not found or not loaded.")
         else:
-            print(f"Hook '{hook_name}' not found.")
-            sys.exit()
+            # Trigger hook for all plugins
+            hook = getattr(self.plugin_manager.hook, hook_name, None)
+            if hook:
+                try:
+                    print(f"Executing '{hook_name}' hook for all plugins")
+                    results = hook(**kwargs)
+                    for result in results:
+                        print(result)
+                except Exception as e:
+                    print(f"Error executing hook '{hook_name}': {e}")
+                    if IGOOR_DEBUG:
+                        print("EXIT BECAUSE OF ERROR EXECUTING HOOK")
+                        sys.exit()
+            else:
+                print(f"Hook '{hook_name}' not found.")
+                sys.exit()
+        
+    '''
         
     def is_active(self, plugin_name):
         is_active = self.all_plugins.get(plugin_name, {}).get("active", False)
@@ -192,11 +258,13 @@ class PluginManager:
     def get_plugin_manager(self):
         return self
     
+    '''
     def call_speak_hook(self, message):
         """Trigger the speak hook with a message"""
         for result in self.plugin_manager.hook.speak(message=message):
             # Process each result if necessary
             print(result)
+    '''
             
     def activate_plugin(self, plugin_name):
         """Activates a plugin by setting its 'active' status to True in its plugin.json."""
@@ -228,16 +296,7 @@ class PluginManager:
         else:
             print(f"Plugin '{plugin_name}' does not have a valid plugin.json file.")
             
-    def _trigger_plugin_hook(self, plugin_name, hook_name):
-        """Triggers a specific hook for a given plugin."""
-        for plugin in self.plugins:
-            if plugin.__class__.__name__.lower() == plugin_name.lower():
-                hook = getattr(self.plugin_manager.hook, hook_name)
-                hook(plugin=plugin)
-                print(f"Triggered '{hook_name}' hook for plugin '{plugin_name}'.")
-                break
-        else:
-            print(f"Plugin '{plugin_name}' not found or not loaded.")
+
             
     def call_target_function(self, module_name, target_function_name, args):
         print("calling target function", target_function_name, "in", module_name)
