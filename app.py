@@ -140,10 +140,8 @@ if __name__ == "__main__":
     print ("lang = " + lang)
     prompts = AssistantPrompts("locales/",lang)
     assistant_type="flow"
-    system_prompt = prompts.get_system_prompt(lang, assistant_type)
- 
-    
-    # Create a webview window in fullscreen mode
+    system_prompt = prompts.get_system_prompt(lang, assistant_type)    
+    # LAUNCH WINDOW APP
     if IGOOR_CLI.lower() != 'true':
         start_webview()
     else:

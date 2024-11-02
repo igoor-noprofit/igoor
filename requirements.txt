@@ -1,8 +1,12 @@
 elevenlabslib==0.31.3
+langchain==0.3.7
+langchain_community==0.3.5
+langchain_text_splitters==0.3.2
 pluggy==1.5.0
 PyAudio==0.2.14
-pydantic==2.9.2
+pymupdf4llm==0.0.17
 pyowm==3.3.0
 python-dotenv==1.0.1
 pywebview==5.0.5
 Requests==2.32.3
+vosk==0.3.45

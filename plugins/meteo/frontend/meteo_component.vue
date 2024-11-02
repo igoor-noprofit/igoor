@@ -4,9 +4,7 @@
         <button @click="invokeBackend">Invoke Backend</button>
     </div>
 </template>
-
 <script>
-
 module.exports = {
     name: "meteo",
     methods: {

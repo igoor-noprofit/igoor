@@ -78,6 +78,12 @@ class Baseplugin:
     def cleanup(self):
         self.status_manager.unregister_observer(self)
         
+    def subfolder_exists(self, subfolder_name: str):
+        subfolder_path = os.path.join(self.plugin_folder, subfolder_name)
+        if not os.path.exists(subfolder_path):
+            return False
+        return True    
+        
     def create_subfolder(self, subfolder_name: str):
         """
         Create a subfolder inside the plugin folder if it doesn't exist.

@@ -31,12 +31,20 @@ class Rag(Baseplugin):
     def startup(self):
         print ("RAG IS STARTING UP")
         self.settings = self.get_my_settings()
-        self.medias_folder_name="medias"
-        self.index_folder_name="faiss_index" 
+        self.medias_folder_name = "medias"
+        self.index_folder_name = "faiss_index"
         self.index_loaded=False
-        print ("RAG settings", self.settings)
-        self.create_folders()
-        threading.Thread(target=self.load_index).start()
+        # Check if medias folder exists but index does not
+        if self.subfolder_exists(self.medias_folder_name) and not self.subfolder_exists(self.index_folder_name):
+            print("INDEX FOLDER DOES NOT EXIST, CREATING FROM FOLDER")
+            self.create_folders()
+            self.create_index()
+            # You can add additional logic here if needed
+        else:
+            print("BOTH FOLDERS EXIST")
+            self.create_folders()
+            print ("RAG settings", self.settings)
+            threading.Thread(target=self.load_index).start()
     
     def load_index(self):
         print ("LOADING INDEX, PLEASE WAIT...")

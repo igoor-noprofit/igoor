@@ -3,7 +3,7 @@ from plugins.baseplugin.baseplugin import Baseplugin
 from elevenlabslib import *
 from typing import Any, Dict
 from settings_manager import SettingsManager
-import threading,time
+import threading
 
 class Elevenlabs(Baseplugin):
     def __init__(self, plugin_name, pm):

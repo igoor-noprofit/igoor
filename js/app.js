@@ -5,7 +5,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const app = new Vue({
         el: "#app",
         components: {
-        'Elevenlabs': httpVueLoader('/plugins/elevenlabs/frontend/elevenlabs_component.vue')
+        'Rag': httpVueLoader('/plugins/rag/frontend/rag_component.vue'), 'Elevenlabs': httpVueLoader('/plugins/elevenlabs/frontend/elevenlabs_component.vue')
         },
         data: data,
         mounted: function () {
