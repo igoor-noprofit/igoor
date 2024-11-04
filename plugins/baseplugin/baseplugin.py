@@ -105,6 +105,7 @@ class Baseplugin:
             return False
         
     def send_message_to_frontend(self, message):
+        print (self.plugin_name + " starts sending message to ws")
         """
         Sends a message to the designated plugin's frontend channel.
         

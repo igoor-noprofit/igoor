@@ -89,7 +89,7 @@ def load_frontend_components():
     # Insert the Vue loader script into HTML content
     final_html = html_content
 
-    # Write the final HTML to index.html
+    # Write the final vue to app.vue
     with open('js/app.vue', 'w') as f:
         f.write(final_html)
         f.close()
