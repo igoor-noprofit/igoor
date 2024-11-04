@@ -17,36 +17,63 @@ pipreqs --force
 python -m venv venv
 venv\scripts\activate
 ```
-## USER FOLDER
+## USER'S DATA FOLDER
 
-User folder is automatically created inside userAppDataFolder (usually C:/Users/username/AppData/).
-Final folder is :
+User's data folder is automatically created inside userAppDataFolder (usually C:/Users/username/AppData/).
+IGOOR_FOLDER is :
 
 C:/Users/username/AppData/Roaming/igoor/
 
-The folder contains a settings.json and a plugins data folder called plugins.
+The folder contains a settings.json and a plugins data folder, called plugins.
 
 ### NOTES ABOUT PLUGINS
 
-Plugins are currently activated by manually setting the corresponding variable in the plugin.json file inside /plugins/plugin_name/plugins.json
+Plugins are currently activated by manually setting the corresponding variable in the plugin.json file inside 
 
-Example:
+/plugins/plugin_name/plugins.json
+
+Example: /plugins/meteo/plugin.json :
+
 ```
 {
     "active": true,
 ```
 
+#### AUTOMATIC SPEECH RECOGNITION WITH VOSK
 
-#### Patient documents
-Documents in userAppDataFolder/plugins/rag/medias/ are scanned by the RAG plugin.
+Vosk is a local ASR plugin.
+It expects a model downloaded locally from this page in your language: 
+
+https://alphacephei.com/vosk/models
+
+And placed in 
+
+IGOOR_FOLDER/plugins/asrvosk/models/language/model_size
+
+Language and model size are set in the plugin's json, example:
+
+```
+"asrvosk":{
+            "lang":"fr_FR",
+            "wakeword":"Igor",
+            "model_size":"small"
+        },
+```
+
+In this case the final path is :
+
+IGOOR_FOLDER/plugins/asrvosk/models/language/model_size
+
+### Patient documents (RAG, RetrievalAugmentedGeneration)
+
+Documents in IGOOR_FOLDER/plugins/rag/medias/ are scanned by the RAG plugin.
 
 Allowed formats:
 .pdf
 .txt
 .md
 
-If the index folder (userAppDataFolder/plugins/rag/index) does not exist but the medias folder exist, 
-at startup the plugin will create the index
+If the index folder (IGOOR_FOLDER/plugins/rag/faiss_index) does not exist but the medias folder exist, at startup the plugin will create the index
 
 
 ## LAUNCH

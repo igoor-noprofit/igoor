@@ -14,4 +14,4 @@ trigger_hook
 
 
 HTML:
-- Move js,css,index_template and index.html inside /public
+- Move js,css,index_template and index.html inside /public ? beware of /
