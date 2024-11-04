@@ -2,10 +2,34 @@ document.addEventListener("DOMContentLoaded", function () {
     var data = {
         pywebviewready: false,
     };
-    const app = new Vue({
+     
+    const options = {
+
+        moduleCache: {
+          vue: Vue,
+        },
+        
+        getFile(url) {
+          return fetch(url).then(response => response.ok ? response.text() : Promise.reject(response));
+        },
+        
+        addStyle(styleStr) {
+          const style = document.createElement('style');
+          style.textContent = styleStr;
+          const ref = document.head.getElementsByTagName('style')[0] || null;
+          document.head.insertBefore(style, ref);
+        },
+        
+        log(type, ...args) {
+          console.log(type, ...args);
+        }
+      }
+      const { loadModule, version } = window["vue3-sfc-loader"];
+    
+    const app = Vue.createApp({
         el: "#app",
         components: {
-        'Clock': httpVueLoader('/plugins/clock/frontend/clock_component.vue'), 'Meteo': httpVueLoader('/plugins/meteo/frontend/meteo_component.vue')
+        'Clock': Vue.defineAsyncComponent(() => loadModule('/plugins/clock/frontend/clock_component.vue',options)), 'Meteo': Vue.defineAsyncComponent(() => loadModule('/plugins/meteo/frontend/meteo_component.vue',options))
         },
         data: data,
         mounted: function () {

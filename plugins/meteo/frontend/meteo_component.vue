@@ -8,7 +8,7 @@
 const BasePluginComponent = require('/js/BasePluginComponent.js');
 console.log('BasePluginComponent imported:', BasePluginComponent);
 
-module.exports = {
+export default {
     name: "meteo",
     mixins: [BasePluginComponent], // Use the mixin
     data() {

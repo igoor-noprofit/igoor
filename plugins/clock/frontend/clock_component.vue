@@ -5,8 +5,7 @@
 </template>
 
 <script>
-module.exports = {
-    name: "clock",
+export default {
     data() {
         return {
             formattedDateTime: '',

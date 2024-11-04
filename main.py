@@ -66,7 +66,7 @@ def load_frontend_components():
     for category, components in components_by_category.items():
         for component in components:
             vue_component_definitions.append(
-                f"'{component['name']}': httpVueLoader('{component['path']}')"
+                f"'{component['name']}': Vue.defineAsyncComponent(() => loadModule('{component['path']}',options))"
             )
 
     # Load and modify the template HTML
