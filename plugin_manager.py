@@ -172,7 +172,7 @@ class PluginManager:
                 if os.path.isdir(plugin_path) and self.is_active(plugin_name):
                     print ("plugin to be activated: ", plugin_name)
                     if (plugin_name.lower() not in map(str.lower, self.activated_plugins)):
-                        print ("plugin ", plugin_name.lower(), " not in map")
+                        print ("plugin ", plugin_name.lower(), " not already activated")
                     try:
                         plugin_module = importlib.import_module(f"plugins.{plugin_name}.{plugin_name}")
                         plugin_class = getattr(plugin_module, f"{plugin_name.capitalize()}")

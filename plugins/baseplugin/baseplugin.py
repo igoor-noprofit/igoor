@@ -1,7 +1,8 @@
 from settings_manager import SettingsManager
 from status_manager import StatusManager
 from plugin_manager import hookimpl, PluginManager
-import os,sys
+from websocket_server import websocket_server
+import os,json,asyncio
 class Baseplugin:
     def __init__(self, plugin_name="baseplugin", pm=None):
         print ("__init__ plugin : " + plugin_name)
@@ -18,6 +19,7 @@ class Baseplugin:
         self.plugin_name = plugin_name
         self.settings_manager = SettingsManager()
         self.status_manager = StatusManager()
+        
         # self.pm = pm
         # Construct the plugin folder path
         self.app_name = os.getenv('IGOOR_APPNAME')  # Get the application name from the environment variable
@@ -101,3 +103,21 @@ class Baseplugin:
         except Exception as e:
             print(f"Failed to create subfolder {subfolder_path}: {e}")
             return False
+        
+    def send_message_to_frontend(self, message):
+        """
+        Sends a message to the designated plugin's frontend channel.
+        
+        :param message: The message to be sent.
+        """
+        try:
+            websocket_server.send_message(self.plugin_name, message)
+        except Exception as e:
+            print(f"Error while sending message to {self.plugin_name} frontend: {e}")
+    
+    def update_component_a(self,data):
+        message = {
+            "channel": "plugin_" + self.plugin_name,
+            "data": data
+        }
+        asyncio.run(self.send_to_websocket(message))

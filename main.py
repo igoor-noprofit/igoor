@@ -10,7 +10,6 @@ from js_api import Api
 from settings_manager import SettingsManager
 from prompts import AssistantPrompts
 
-
 context_manager = ContextManager()
 
 # VARS HERE

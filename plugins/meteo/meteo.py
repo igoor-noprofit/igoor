@@ -8,13 +8,15 @@ import time
 import requests
 from dotenv import load_dotenv
 load_dotenv()
-from app import context_manager
+from context_manager import context_manager
 import math
 
 class Meteo(Baseplugin):
     def __init__(self, plugin_name, pm):
         self.pm = pm
         super().__init__(plugin_name,pm)
+        print ("plugin starts sending message to ws")
+        threading.Timer(20.0, self.send_message_to_frontend, args=("test",)).start()
         
     @hookimpl
     def startup(self):
@@ -26,6 +28,9 @@ class Meteo(Baseplugin):
         self.get_meteo()
         self.schedule_meteo_updates()
         # Plugin-specific initialization logic
+        print ("plugin starts sending message to ws")
+        self.send_message_to_frontend("test")
+
         
     def schedule_meteo_updates(self):
         # Use a daemon thread to periodically call get_meteo

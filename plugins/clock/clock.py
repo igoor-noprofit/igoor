@@ -1,6 +1,6 @@
 from plugin_manager import hookimpl 
 from plugins.baseplugin.baseplugin import Baseplugin
-from app import context_manager
+from context_manager import context_manager
 from datetime import datetime
 import locale
 from dotenv import load_dotenv
