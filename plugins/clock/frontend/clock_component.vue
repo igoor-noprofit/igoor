@@ -13,6 +13,7 @@ export default {
     },
     created() {
         this.updateDateTime();
+        console.log('clock created')
     },
     methods: {
         updateDateTime() {

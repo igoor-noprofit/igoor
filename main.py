@@ -70,7 +70,7 @@ def load_frontend_components():
             )
 
     # Load and modify the template HTML
-    with open('index_template.html', 'r') as f:
+    with open('js/app_template.vue', 'r') as f:
         html_content = f.read()
         
     # Define the placeholders and their corresponding replacements
@@ -90,7 +90,7 @@ def load_frontend_components():
     final_html = html_content
 
     # Write the final HTML to index.html
-    with open('index.html', 'w') as f:
+    with open('js/app.vue', 'w') as f:
         f.write(final_html)
         f.close()
     

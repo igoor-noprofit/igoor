@@ -5,7 +5,7 @@
 </template>
 
 <script>
-const BasePluginComponent = require('/js/BasePluginComponent.js');
+import BasePluginComponent from '/js/BasePluginComponent.js';
 console.log('BasePluginComponent imported:', BasePluginComponent);
 
 export default {
