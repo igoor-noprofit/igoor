@@ -13,7 +13,8 @@ export default {
     mixins: [BasePluginComponent], // Use the mixin
     data() {
         return {
-            websocket: null  // Store WebSocket instance
+            websocket: null,  // Store WebSocket instance
+            websocketPath: 'meteo' // Specify the path for WebSocket connection
         };
     },
     methods: {

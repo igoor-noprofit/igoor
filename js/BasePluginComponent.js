@@ -6,7 +6,6 @@ module.exports = {
     data() {
         return {
             websocket: null,  // Store WebSocket instance
-            websocketPath: 'meteo' // Specify the path for WebSocket connection
         };
     },
     methods: {
@@ -25,11 +24,11 @@ module.exports = {
     created() {
         console.log('BasePluginComponent created hook');
         const path = this.websocketPath || ''; // Use the provided path or default to an empty string
-        console.log("path = " + path);
-        this.websocketUtil = new WebSocketUtil(`ws://localhost:9715/${path}`, {
+        ws_url = `ws://localhost:9715/${path}`
+        this.websocketUtil = new WebSocketUtil(ws_url, {
             onMessage: this.handleIncomingMessage,
-            onOpen: () => console.log('WebSocket connection opened in BasePluginComponent'),
-            onClose: () => console.log('WebSocket connection closed in BasePluginComponent'),
+            onOpen: () => console.log('WebSocket connection opened at ' + ws_url),
+            onClose: () => console.log('WebSocket connection closed at ' + ws_url),
             onError: (error) => console.error('WebSocket error in BasePluginComponent:', error)
         });
     },
