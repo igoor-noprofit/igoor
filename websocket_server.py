@@ -45,6 +45,17 @@ class WebSocketServer:
     def start(self):
         if not self.server_thread.is_alive():
             self.server_thread.start()
+    
+    def stop(self):
+        print("Stopping server")
+        # Stop the server and close all connections
+        if self.server:
+            self.loop.call_soon_threadsafe(self.server.close)
+            self.loop.call_soon_threadsafe(self.loop.stop)
+        for plugin_name, connections in self.active_connections.items():
+            for websocket in connections:
+                asyncio.run_coroutine_threadsafe(websocket.close(), self.loop)
+        self.server_thread.join()
 
     def send_message(self, plugin_name: str, message: str):
         print ("Sending message " + message + " to plugin " + plugin_name)

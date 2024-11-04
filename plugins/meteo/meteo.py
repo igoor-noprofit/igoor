@@ -16,7 +16,7 @@ class Meteo(Baseplugin):
         self.pm = pm
         super().__init__(plugin_name,pm)
         print ("plugin starts sending message to ws")
-        threading.Timer(20.0, self.send_message_to_frontend, args=("test",)).start()
+        # threading.Timer(20.0, self.send_message_to_frontend, args=("test",)).start()
         
     @hookimpl
     def startup(self):

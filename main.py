@@ -9,6 +9,7 @@ from context_manager import ContextManager
 from js_api import Api
 from settings_manager import SettingsManager
 from prompts import AssistantPrompts
+from websocket_server import websocket_server
 
 context_manager = ContextManager()
 
@@ -120,8 +121,17 @@ def get_full_context():
     return context_manager.get_context()
 
 def start_webview():
-    webview.create_window("IGOOR", "index.html", js_api=Api(), resizable=True)  # fullscreen=True if needed
-    webview.start(debug=IGOOR_DEBUG.lower() == 'true')
+    try:
+        webview.create_window("IGOOR", "index.html", js_api=Api(), resizable=True)  # fullscreen=True if needed
+        webview.start(debug=IGOOR_DEBUG.lower() == 'true')
+    except KeyboardInterrupt:
+        print("KeyboardInterrupt detected. Shutting down...")
+        
+        # Safely close the websocket server
+        websocket_server.stop()  # Make sure you have a stop method to close connections and resources
+        
+        print("WebSocket server has been closed.")    
+        os.exit()
 
 
 if __name__ == "__main__":
