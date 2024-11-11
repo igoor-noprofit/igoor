@@ -10,3 +10,4 @@ python-dotenv==1.0.1
 pywebview==5.0.5
 Requests==2.32.3
 vosk==0.3.45
+websockets==13.1

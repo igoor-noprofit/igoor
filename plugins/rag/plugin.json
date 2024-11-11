@@ -6,7 +6,7 @@
         "part": "hidden",
         "order": 0
     },
-    "is_free" : true,
+    "is_free": true,
     "requires_subscription": false,
     "requires_internet": false
 }

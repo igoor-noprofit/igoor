@@ -186,7 +186,7 @@ class PluginManager:
                         print(f"Error loading plugin '{plugin_name}': {e}")
                         if IGOOR_DEBUG:
                             print("EXIT BECAUSE OF ERROR LOADING PLUGIN")
-                            sys.exit()
+                            os._exit()
             else:
                 print("Excluded baseplugin")
         print("ACTIVATED PLUGINS LIST:", self.activated_plugins)
@@ -270,10 +270,37 @@ class PluginManager:
             # Process each result if necessary
             print(result)
     '''
+    def plugin_has_settings(self, plugin_name):
+        settings = self.settings_manager.get_plugin_settings(plugin_name)
+        # Check if settings is a valid non-empty dictionary
+        if isinstance(settings, dict) and settings:
+            return True
+        return False
+    
+    '''
+    If the plugin has a settings.json file, it will be added to the global settings.json file
+    if it does not already exist
+    '''
+    def set_def_plugin_settings(self, plugin_name):
+        settings_file_path = os.path.join('plugins', plugin_name, 'settings.json')
+        print("Searching for: " + settings_file_path)
+        if os.path.exists(settings_file_path):
+            with open(settings_file_path, 'r', encoding='utf-8') as f:
+                try:
+                    plugin_settings = json.load(f)
+                    self.settings_manager.update_plugin_settings(plugin_name, plugin_settings)
+                except json.JSONDecodeError:
+                    print(f"Invalid JSON in {settings_file_path}.")
+        else:
+            print(f"Settings file not found for plugin: {plugin_name}")
             
     def activate_plugin(self, plugin_name):
         """Activates a plugin by setting its 'active' status to True in its plugin.json."""
         self._set_plugin_active_status(plugin_name, True)
+        if not self.plugin_has_settings(plugin_name):
+            self.set_def_plugin_settings(plugin_name)
+        else:
+            print("Keeping original settings")
         self._trigger_plugin_hook(plugin_name, 'activate')
 
     def deactivate_plugin(self, plugin_name):

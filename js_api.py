@@ -17,6 +17,12 @@ class Api:
     def get_plugins_by_category(self):
         print("Fetching plugins by category")
         return plugin_manager.get_plugins_by_category()
+    
+    def toggle_plugin(self, pn, active):
+        if not active:
+            return plugin_manager.deactivate_plugin(plugin_name=pn)
+        else:
+            return plugin_manager.activate_plugin(plugin_name=pn)
 
     async def askAI(self, assistant_type, query):
         print("received query = " + query)
