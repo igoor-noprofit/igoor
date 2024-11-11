@@ -18,6 +18,10 @@ class Api:
         print("Fetching plugins by category")
         return plugin_manager.get_plugins_by_category()
     
+    def get_plugin_settings(self,plugin_name):
+        print("Fetching plugin settings")
+        return plugin_manager.plugin_has_settings(plugin_name,True)
+    
     def toggle_plugin(self, pn, active):
         if not active:
             return plugin_manager.deactivate_plugin(plugin_name=pn)

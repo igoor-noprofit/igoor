@@ -270,11 +270,14 @@ class PluginManager:
             # Process each result if necessary
             print(result)
     '''
-    def plugin_has_settings(self, plugin_name):
+    def plugin_has_settings(self, plugin_name, return_settings=False):
         settings = self.settings_manager.get_plugin_settings(plugin_name)
         # Check if settings is a valid non-empty dictionary
         if isinstance(settings, dict) and settings:
-            return True
+            if not return_settings:
+                return True
+            else:
+                return settings
         return False
     
     '''

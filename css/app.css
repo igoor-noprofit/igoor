@@ -2,11 +2,28 @@
   background-color: #000;
   color: #fff;
   font-size: 10px;
-  height: 20px;
+  height: 30px;
   width: 100%;
   display: flex;
   justify-content: space-between;
   /* Space between the items */
+}
+#topbar div {
+  border: 1px solid #0f0;
+}
+header,
+main,
+footer {
+  border: 1px solid #f00;
+}
+header {
+  height: 25vh;
+}
+main {
+  height: 50vh;
+}
+footer {
+  height: 25vh;
 }
 #hidden {
   display: none;
@@ -16,4 +33,11 @@
   /* Make each child div take equal space */
   text-align: center;
   /* Optional: to center text within each div */
+}
+.settings field {
+  width: 100%;
+  display: flex;
+}
+.settings label {
+  margin-right: 10px;
 }

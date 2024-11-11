@@ -2,10 +2,25 @@
   background-color: #000;
   color: #fff;
   font-size: 10px;
-  height: 20px;
+  height: 30px;
   width: 100%;
   display: flex;
   justify-content: space-between; /* Space between the items */
+  div{
+    border: 1px solid #0f0;
+  }
+}
+header,main,footer{
+  border: 1px solid #f00;
+}
+header{
+  height: 25vh
+}
+main{
+  height: 50vh
+}
+footer{
+  height: 25vh
 }
 #hidden{
     display: none
@@ -13,4 +28,13 @@
 #topbar > div {
   flex: 1; /* Make each child div take equal space */
   text-align: center; /* Optional: to center text within each div */
+}
+.settings{
+  field{
+    width: 100%;
+    display: flex
+  }
+  label{
+    margin-right: 10px;
+  }
 }

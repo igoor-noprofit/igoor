@@ -6,32 +6,37 @@
         </div>
         <!-- Modal Window for Plugin Settings -->
         <div v-if="showModal" class="modal-overlay" @click.self="showModal = false">
-            <div class="modal-content">
+            <div class="modal-content settings container">
                 <button @click="showModal = false" class="close-button">✖</button>
-                <div v-for="(plugins, category) in pluginData" :key="category">
-                    <h2>{{ category }}</h2>
-                    <div>
-                        <div v-for="plugin in plugins" :key="plugin.name" @click="selectPlugin(category, plugin.name)">
-                            <span>{{ plugin.title }}</span>
-                            <label>
-                                Active:
-                                <input type="checkbox" :checked="plugin.active"
-                                    @change="togglePlugin(category, plugin.name, $event.target.checked)">
-                            </label>
-                        </div>
+                <!-- Tab Navigation -->
+                <div class="tabs">
+                    <button v-for="(plugins, category) in pluginData" :key="category"
+                        :class="{ active: activeTab === category }" @click="activeTab = category">
+                        {{ category.toUpperCase() }}
+                    </button>
+                </div>
+                <!-- Plugins for Active Tab -->
+                <div v-if="activeTab">
+                    <div v-for="plugin in pluginData[activeTab]" :key="plugin.name"
+                        @click="selectPlugin(activeTab, plugin.name)">
+                        <span>{{ plugin.title }}</span>
+                        <label>
+                            <input type="checkbox" :checked="plugin.active"
+                                @change="togglePlugin(activeTab, plugin.name, $event.target.checked)">
+                        </label>
+                    </div>
+                    <div v-if="selectedPlugin">
+                        <!-- Display selected plugin details and settings here -->
+                        <h3>Edit Plugin: {{ selectedPlugin.name }}</h3>
+                        <!-- Dynamically load the component for the selected plugin -->
+                        <component :is="selectedPluginComponent"></component>
                     </div>
                 </div>
-                <div v-if="selectedPlugin">
-                    <!-- Display selected plugin details and settings here -->
-                    <h3>Edit Plugin: {{ selectedPlugin.name }}</h3>
-                    <!-- Dynamically load the component for the selected plugin -->
-                    <component :is="selectedPluginComponent"></component>
-                </div>
+
             </div>
         </div>
     </div>
 </template>
-
 
 <script>
 export default {
@@ -41,7 +46,8 @@ export default {
             pluginData: {},
             selectedPlugin: null,
             showModal: false,
-            selectedPluginComponent: null
+            selectedPluginComponent: null,
+            activeTab: null // New data property for active tab
         };
     },
     mounted() {
@@ -53,6 +59,7 @@ export default {
                 console.log(response)
                 console.table(response)
                 this.pluginData = response;
+                this.activeTab = Object.keys(response)[0]; // Set the first category as the active tab
             });
         },
         togglePlugin(category, pluginName, isActive) {
@@ -66,8 +73,21 @@ export default {
         },
         async loadPluginComponent(pluginName) {
             try {
-                console.log (`/plugins/${pluginName}/frontend/${pluginName}_settings.vue`);
-                this.selectedPluginComponent = async () => await import(`/plugins/${pluginName}/frontend/${pluginName}_settings.vue`);
+                console.log(`/plugins/${pluginName}/frontend/${pluginName}_settings.vue`);
+                const component = await import(`/plugins/${pluginName}/frontend/${pluginName}_settings.vue`);
+                const settings = await window.pywebview.api.get_plugin_settings(pluginName);
+                console.table(settings);
+                this.selectedPluginComponent = component.default || component;
+
+                // Wait for the component to be rendered
+                this.$nextTick(() => {
+                    for (const [key, value] of Object.entries(settings)) {
+                        const input = this.$el.querySelector(`input[name="${key}"]`);
+                        if (input) {
+                            input.value = value;
+                        }
+                    }
+                });
             } catch (error) {
                 console.error(`Failed to load component for plugin: ${pluginName}`, error);
             }
@@ -75,13 +95,13 @@ export default {
     }
 };
 </script>
+
 <style>
 /* Style for the gear icon */
 .settings-gear {
-    font-size: 2rem;
+    font-size: 1.2rem;
     cursor: pointer;
     text-align: center;
-    margin-top: 20px;
 }
 
 /* Modal overlay styles */
@@ -119,5 +139,25 @@ export default {
     border: none;
     font-size: 1.2rem;
     cursor: pointer;
+}
+
+/* Tabs styles */
+.tabs {
+    display: flex;
+    margin-bottom: 20px;
+}
+
+.tabs button {
+    padding: 10px 20px;
+    margin-right: 5px;
+    cursor: pointer;
+    background: #f0f0f0;
+    border: none;
+    border-radius: 4px;
+}
+
+.tabs button.active {
+    background: #007bff;
+    color: #fff;
 }
 </style>

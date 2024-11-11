@@ -4,7 +4,7 @@
     "title": "Weather",
     "layout": {
         "part": "topbar",
-        "order": 300
+        "order": 50
     },
     "is_free": true,
     "requires_subscription": true,

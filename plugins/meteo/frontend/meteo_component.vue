@@ -1,6 +1,6 @@
 <template>
     <div class="meteo-plugin">
-        <button @click="invokeBackend">Invoke Backend</button>
+        
     </div>
 </template>
 
