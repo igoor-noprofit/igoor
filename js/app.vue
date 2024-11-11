@@ -3,7 +3,7 @@
 </div>
 <header>
     <div id="topbar">
-        <clock></clock><settings></settings>
+        <clock></clock><meteo></meteo><settings></settings>
     </div>
     
 </header>
