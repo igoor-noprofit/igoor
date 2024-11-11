@@ -10,10 +10,13 @@ plugin_manager = PluginManager()
 
 class Api:
     def __init__(self):
-        print("************ INIT JS API **************")
         self.language = os.getenv("IGOOR_LANG")
         # self.prompts = AssistantPrompts("locales/", self.language)
         self.igoor_engine = os.getenv("IGOOR_AI_ENGINE")
+        
+    def get_plugins_by_category(self):
+        print("Fetching plugins by category")
+        return plugin_manager.get_plugins_by_category()
 
     async def askAI(self, assistant_type, query):
         print("received query = " + query)

@@ -1,6 +1,7 @@
 {
     "active": true,
     "category": "context",
+    "title": "Weather",
     "layout": {
         "part": "topbar",
         "order": 300

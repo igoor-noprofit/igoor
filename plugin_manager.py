@@ -212,20 +212,25 @@ class PluginManager:
 
     def get_plugins_by_category(self):
         """Returns plugins grouped by categories."""
-        plugins_metadata = self.get_activated_plugins()
-        plugins_by_category = {}
-
-        for plugin_name, metadata in plugins_metadata.items():
-            category = metadata.get("category", "Uncategorized")
-            if category not in plugins_by_category:
-                plugins_by_category[category] = []
-            plugins_by_category[category].append({
-                "name": plugin_name,
-                "active": metadata.get("active", False),
-                # Other metadata you might need
-                "layout": metadata.get("layout", {})
-            })
         
+        plugins_metadata = self.get_all_plugins()
+        plugins_by_category = {}
+        excluded_plugins = ["baseplugin", "settings"]
+        for plugin_name, metadata in plugins_metadata.items():
+            if plugin_name.lower() not in map(str.lower, excluded_plugins):
+                category = metadata.get("category", "Uncategorized")
+                if category not in plugins_by_category:
+                    plugins_by_category[category] = []
+                plugins_by_category[category].append({
+                    "name": plugin_name,
+                    "title": metadata.get("title", False),
+                    "active": metadata.get("active", False),
+                    # Other metadata you might need
+                    "layout": metadata.get("layout", {}),
+                    "is_free": metadata.get("is_free", {}),
+                    "requires_subscription": metadata.get("requires_subscription", {}),
+                    "requires_internet": metadata.get("requires_internet", {}),
+                })
         return plugins_by_category
     
     def get_plugins_metadata(self):

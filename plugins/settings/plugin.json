@@ -1,9 +1,10 @@
 {
-    "active": false,
+    "active": true,
     "category": "core",
+    "title": "Settings",
     "layout": {
-        "part": "hidden",
-        "order": -1
+        "part": "topbar",
+        "order": 100
     },
     "is_free" : true,
     "requires_subscription": false,

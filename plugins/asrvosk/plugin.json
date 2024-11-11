@@ -1,6 +1,7 @@
 {
     "active": false,
     "category": "ASR",
+    "title": "Vosk",
     "layout": {
         "part": "header",
         "order": 0

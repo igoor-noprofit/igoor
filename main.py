@@ -131,7 +131,7 @@ def start_webview():
         websocket_server.stop()  # Make sure you have a stop method to close connections and resources
         
         print("WebSocket server has been closed.")    
-        os.exit()
+        os._exit()
 
 
 if __name__ == "__main__":

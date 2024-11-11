@@ -1,6 +1,7 @@
 {
     "active": false,
     "category": "context",
+    "title": "Flow",
     "layout": {
         "part": "topbar",
         "order": -1

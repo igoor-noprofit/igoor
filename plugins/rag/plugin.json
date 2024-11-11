@@ -1,6 +1,7 @@
 {
     "active": false,
     "category": "rag",
+    "title": "Knowledge base",
     "layout": {
         "part": "hidden",
         "order": 0

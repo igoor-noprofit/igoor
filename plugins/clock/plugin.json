@@ -1,6 +1,7 @@
 {
-    "active": true,
+    "active": false,
     "category": "context",
+    "title": "Clock",
     "layout": {
         "part": "topbar",
         "order": 1

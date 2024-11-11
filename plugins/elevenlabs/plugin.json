@@ -1,6 +1,7 @@
 {
     "active": false,
     "category": "TTS",
+    "title": "ElevenLabs",
     "layout": {
         "part": "topbar",
         "order": 0
