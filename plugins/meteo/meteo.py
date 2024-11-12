@@ -15,8 +15,10 @@ class Meteo(Baseplugin):
     def __init__(self, plugin_name, pm):
         self.pm = pm
         super().__init__(plugin_name,pm)
-        threading.Timer(10.0, self.send_message_to_frontend, args=("test",)).start()
-        
+        timer = threading.Timer(10.0, self.send_message_to_frontend, args=("test",))
+        timer.daemon = True
+        timer.start()
+
     @hookimpl
     def startup(self):
         print ("METEO IS STARTING UP")
@@ -36,7 +38,7 @@ class Meteo(Baseplugin):
                 self.get_meteo()
                 time.sleep(600)  # 600 seconds = 10 minutes
         
-        updater_thread = threading.Thread(target=meteo_updater)
+        updater_thread = threading.Thread(target=meteo_updater,daemon=True)
         updater_thread.daemon = True  # This allows the program to exit even if the thread is running
         updater_thread.start()    
         

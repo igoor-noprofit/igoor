@@ -34,14 +34,29 @@ async function initializeApp() {
       //** JS_COMPONENTS */
     },
     template: appTemplate,
-    /*data: data,
-    
     mounted: function () {
       window.addEventListener("pywebviewready", async function () {
         app.pywebviewready = true;
         console.log("Python is ready!");
       });
+      /*
+      const path = ''; 
+      ws_url = `ws://localhost:9715/${path}`
+      this.websocketUtil = new WebSocketUtil(ws_url, {
+          onMessage: this.handleIncomingMessage,
+          onOpen: () => console.log('WebSocket connection opened at ' + ws_url),
+          onClose: () => console.log('WebSocket connection closed at ' + ws_url),
+          onError: (error) => console.error('WebSocket error in BasePluginComponent:', error)
+      });
+      */
     },
+    methods: {
+      handleIncomingMessage(event) {
+        console.log("APP received message from backend:", event.data);
+      },
+      
+    },
+    /*data: data,
     methods: {
       showDaily() {
         this.daily = true;
@@ -61,7 +76,7 @@ async function initializeApp() {
     },
     */
   });
-  console.log('created');
+  console.log("created");
   app.mount("#app");
 }
 document.addEventListener("DOMContentLoaded", function () {

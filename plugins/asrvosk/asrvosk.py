@@ -15,20 +15,20 @@ class Asrvosk(Baseplugin):
         
     @hookimpl
     def startup(self):
-        print ("ASRVOSK IS REALLY STARTING UP")
+        print ("ASRVOSK IS STARTING UP")
         self.settings = self.get_my_settings()
         self.isloaded = False
         self.wakeword = self.settings.get("wakeword")
         print ("VOSK settings", self.settings)
         # Start a thread to load the model
-        # self.model_thread = threading.Thread(target=self.load_model, daemon=True)
-        # self.model_thread.start()
-        # print("Started loading model in background.")
+        self.model_thread = threading.Thread(target=self.load_model, daemon=True)
+        self.model_thread.start()
+        print("Started loading model in background.")
         # Optionally: Setup a monitor to check when the model is ready
-        # monitor_thread = threading.Thread(target=self.monitor_loading, daemon=True)
-        # monitor_thread.start()
-        self.load_model()
-        self.start()
+        monitor_thread = threading.Thread(target=self.monitor_loading, daemon=True)
+        monitor_thread.start()
+        # self.load_model()
+        # self.start()
 
     def monitor_loading(self):
         while not self.isloaded:

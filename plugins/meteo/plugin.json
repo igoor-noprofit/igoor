@@ -1,5 +1,5 @@
 {
-    "active": true,
+    "active": false,
     "category": "context",
     "title": "Weather",
     "layout": {

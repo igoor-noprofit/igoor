@@ -10,8 +10,17 @@ from js_api import Api
 from settings_manager import SettingsManager
 from prompts import AssistantPrompts
 from websocket_server import websocket_server
+import signal,sys
 
 context_manager = ContextManager()
+
+
+
+def signal_handler(sig, frame):
+    print('Exiting application...')
+    os._exit(0)
+    
+signal.signal(signal.SIGINT, signal_handler)
 
 # VARS HERE
 IGOOR_DEBUG = os.getenv('IGOOR_DEBUG', 'False') 

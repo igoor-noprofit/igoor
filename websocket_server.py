@@ -19,7 +19,7 @@ class WebSocketServer:
         self.active_connections = {}
         self.loop = asyncio.new_event_loop()
         self.initialized = True
-        self.server_thread = threading.Thread(target=self.run_server_thread)
+        self.server_thread = threading.Thread(target=self.run_server_thread, daemon=True)
 
     async def websocket_handler(self, websocket: WebSocketServerProtocol, path: str):
         plugin_name = path.strip("/")
