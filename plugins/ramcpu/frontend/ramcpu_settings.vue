@@ -1,6 +1,5 @@
 <template>
-    <div class="meteo-plugin">
-        
+    <div class="ramcpu-plugin-settings">
     </div>
 </template>
 
@@ -8,12 +7,10 @@
 import BasePluginComponent from '/js/BasePluginComponent.js';
 
 export default {
-    name: "meteo",
+    name: "ramcpuSettings",
     mixins: [BasePluginComponent], // Use the mixin
     data() {
         return {
-            websocket: null,  // Store WebSocket instance
-            websocketPath: 'meteo' // Specify the path for WebSocket connection
         };
     },
     methods: {

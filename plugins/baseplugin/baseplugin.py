@@ -105,13 +105,16 @@ class Baseplugin:
             return False
         
     def send_message_to_frontend(self, message):
-        print (self.plugin_name + " BACKEND starts sending message to FRONTEND via ws")
+        print(self.plugin_name + " BACKEND starts sending message to FRONTEND via ws")
         """
         Sends a message to the designated plugin's frontend channel.
         
         :param message: The message to be sent.
         """
         try:
+            # Ensure the message is a JSON string
+            if isinstance(message, dict):
+                message = json.dumps(message)
             websocket_server.send_message(self.plugin_name, message)
         except Exception as e:
             print(f"Error while sending message to {self.plugin_name} frontend: {e}")

@@ -14,7 +14,6 @@
 
 <script>
 import BasePluginComponent from '/js/BasePluginComponent.js';
-console.log('BasePluginComponent imported:', BasePluginComponent);
 
 export default {
     name: "meteoSettings",
