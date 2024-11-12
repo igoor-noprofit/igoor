@@ -66,8 +66,10 @@ class WebSocketServer:
         if plugin_name in self.active_connections:
             for websocket in self.active_connections[plugin_name]:
                 asyncio.run_coroutine_threadsafe(websocket.send(message), self.loop)
+            return True
         else:
             print("plugin is not actively connected")
+            return False
 
 # Instantiate and start the server
 websocket_server = WebSocketServer()

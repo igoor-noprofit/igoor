@@ -37,7 +37,21 @@ class Asrvosk(Baseplugin):
             time.sleep(1)
         self.model_thread.join()
         print("Model is ready to use.")
+        self.send_status("ready")
         self.start()
+        
+    def send_status(self, status):
+        # Send a JSON message where status=ready
+        message = json.dumps({"status": status})
+        success = self.send_message_to_frontend(message)
+        '''
+        print(f"Initial message send status: {success}")
+        while success is False:
+            print("Message sending failed, retrying...")
+            time.sleep(1)  # Wait 1 second before retrying
+            success = self.send_message_to_frontend(message)
+            print(f"Retry message send status: {success}")
+        '''
     
     def load_model(self):
         global model, rec
@@ -55,6 +69,7 @@ class Asrvosk(Baseplugin):
         
     def start(self):
         print("STARTING WAKEWORD RECOGNITION")
+        self.send_status("listening")
         # Initialize PyAudio and start the audio stream (after model loading)
         self.p = pyaudio.PyAudio()
         self.stream = self.p.open(format=pyaudio.paInt16, channels=1, rate=16000, input=True, frames_per_buffer=8000)

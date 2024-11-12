@@ -115,7 +115,7 @@ class Baseplugin:
             # Ensure the message is a JSON string
             if isinstance(message, dict):
                 message = json.dumps(message)
-            websocket_server.send_message(self.plugin_name, message)
+            return websocket_server.send_message(self.plugin_name, message)
         except Exception as e:
             print(f"Error while sending message to {self.plugin_name} frontend: {e}")
     

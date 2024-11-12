@@ -1,6 +1,14 @@
 var data = {
   pywebviewready: false,
 };
+/*
+if ('AmbientLightSensor' in window) {
+  alert("Ambient Light Sensor detected");
+} else {
+  console.log("No Ambient Light Sensor available");
+}
+*/
+
 
 const options = {
   moduleCache: {
