@@ -5,7 +5,7 @@
     <div id="topbar">
         <ramcpu></ramcpu><settings></settings>
     </div>
-    <asrvosk></asrvosk>
+    
 </header>
 <main>
     

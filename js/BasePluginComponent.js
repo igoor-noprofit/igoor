@@ -9,25 +9,25 @@ module.exports = {
         };
     },
     methods: {
-        commonMethod() {
-            console.log("This is a common method");
-        },
-        invokeBackend() {
+        sendMsgToBackend(data) {
+            console.log("Sending msg to backend");
+            console.log(data);
             if (this.websocketUtil) {
-                this.websocketUtil.send({ type: 'invoke_backend', data: 'some_data' });
+                this.websocketUtil.send(data);
             }
         },
         handleIncomingMessage(event) {
-            console.log("Received message from backend:", event.data);
+            console.log("Default message receiver. Msg from backend:", event.data);
         }
     },
     created() {
         console.log('BasePluginComponent created hook');
         const path = this.websocketPath || ''; // Use the provided path or default to an empty string
         ws_url = `ws://localhost:9715/${path}`
+        self = this;
         this.websocketUtil = new WebSocketUtil(ws_url, {
             onMessage: this.handleIncomingMessage,
-            onOpen: () => console.log('WebSocket connection opened at ' + ws_url),
+            onOpen: () => self.sendMsgToBackend({"socket":"ready"}),
             onClose: () => console.log('WebSocket connection closed at ' + ws_url),
             onError: (error) => console.error('WebSocket error in BasePluginComponent:', error)
         });

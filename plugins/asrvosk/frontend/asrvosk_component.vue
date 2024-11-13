@@ -2,8 +2,8 @@
     <div class="asrvosk">
         <div class="mic" :class="status">
             <img v-if="status !== 'listening'" src="/img/mic.png">
-            <img v-else src="/img/listening.gif">
         </div>
+        <img v-if="status == 'listening'" src="/img/listening.gif">
     </div>
 </template>
 <script>

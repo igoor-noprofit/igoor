@@ -186,7 +186,7 @@ class PluginManager:
                         print(f"Error loading plugin '{plugin_name}': {e}")
                         if IGOOR_DEBUG:
                             print("EXIT BECAUSE OF ERROR LOADING PLUGIN")
-                            os._exit()
+                            os._exit(1)
             else:
                 print("Excluded baseplugin")
         print("ACTIVATED PLUGINS LIST:", self.activated_plugins)

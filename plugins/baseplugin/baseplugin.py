@@ -19,6 +19,7 @@ class Baseplugin:
         self.plugin_name = plugin_name
         self.settings_manager = SettingsManager()
         self.status_manager = StatusManager()
+        self.socket_ready = False
         
         # self.pm = pm
         # Construct the plugin folder path
@@ -31,21 +32,8 @@ class Baseplugin:
             os.makedirs(self.plugin_folder)
         else:
             print("FOLDER EXISTING: " + self.plugin_folder)
-    
-    '''
-    def trigger_hook(self,hook_name,**kwargs):
-        print ("BASEPLUGIN TRIGGER HOOK")
-        if self.pm:
-            try:
-                self.pm.trigger_hook(hook_name, msg="Q: " + "prova")
-            except TypeError as e:
-                print(f"TypeError occurred: {e}")
-            except Exception as e:
-                print(f"An unexpected error occurred: {e}")
-        else:
-            print("Plugin manager is not set.")
-            sys.exit()
-    '''
+        websocket_server.register_message_handler(self.plugin_name, self.process_incoming_message)
+
         
     @hookimpl
     def get_frontend_components(self):
@@ -105,23 +93,63 @@ class Baseplugin:
             return False
         
     def send_message_to_frontend(self, message):
-        print(self.plugin_name + " BACKEND starts sending message to FRONTEND via ws")
+        if (self.socket_ready): 
+            print(self.plugin_name + " BACKEND starts sending message to FRONTEND via ws")
+            """
+            Sends a message to the designated plugin's frontend channel.
+            
+            :param message: The message to be sent.
+            """
+            try:
+                # Ensure the message is a JSON string
+                if isinstance(message, dict):
+                    message = json.dumps(message)
+                return websocket_server.send_message(self.plugin_name, message)
+            except Exception as e:
+                print(f"Error while sending message to {self.plugin_name} frontend: {e}")
+        else:
+            print("Frontend is not ready")
+            
+    def process_incoming_message(self, message):
         """
-        Sends a message to the designated plugin's frontend channel.
+        Process the incoming message.
         
-        :param message: The message to be sent.
+        :param message: The message received from the WebSocket.
         """
+        # Implement your message processing logic here
+        print(f"Default processing message for {self.plugin_name}: {message}")
+        
+        # Check if the message is {"socket":"ready"}
         try:
-            # Ensure the message is a JSON string
-            if isinstance(message, dict):
-                message = json.dumps(message)
-            return websocket_server.send_message(self.plugin_name, message)
-        except Exception as e:
-            print(f"Error while sending message to {self.plugin_name} frontend: {e}")
+        # Attempt to parse the message as JSON
+            message_dict = json.loads(message)
+        except json.JSONDecodeError:
+                print("Received message is not valid JSON.")
+                return
+            
+        # Check if the message is {"socket":"ready"}
+        if message_dict == {"socket": "ready"}:
+            self.socket_ready = True
     
+    '''
     def update_component_a(self,data):
         message = {
             "channel": "plugin_" + self.plugin_name,
             "data": data
         }
         asyncio.run(self.send_to_websocket(message))
+        
+
+    def trigger_hook(self,hook_name,**kwargs):
+        print ("BASEPLUGIN TRIGGER HOOK")
+        if self.pm:
+            try:
+                self.pm.trigger_hook(hook_name, msg="Q: " + "prova")
+            except TypeError as e:
+                print(f"TypeError occurred: {e}")
+            except Exception as e:
+                print(f"An unexpected error occurred: {e}")
+        else:
+            print("Plugin manager is not set.")
+            sys.exit()
+    '''

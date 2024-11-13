@@ -17,6 +17,7 @@ class WebSocketServer:
         if hasattr(self, 'initialized') and self.initialized:
             return
         self.active_connections = {}
+        self.message_handlers = {}
         self.loop = asyncio.new_event_loop()
         self.initialized = True
         self.server_thread = threading.Thread(target=self.run_server_thread, daemon=True)
@@ -30,11 +31,18 @@ class WebSocketServer:
         try:
             async for message in websocket:
                 # Process incoming messages if needed
+                self.message_handlers[plugin_name](message)
                 pass
         finally:
             self.active_connections[plugin_name].remove(websocket)
             if not self.active_connections[plugin_name]:
                 del self.active_connections[plugin_name]
+                
+    def register_message_handler(self, plugin_name, handler):
+        """
+        Register a message handler for a specific plugin.
+        """
+        self.message_handlers[plugin_name] = handler
 
     async def start_server(self):
         # Initialize the WebSocket server

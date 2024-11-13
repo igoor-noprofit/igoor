@@ -39,7 +39,7 @@ async function initializeApp() {
   console.log(appTemplate);
   const app = Vue.createApp({
     components: {
-      'Ramcpu': Vue.defineAsyncComponent(() => loadModule('/plugins/ramcpu/frontend/ramcpu_component.vue',options)), 'Settings': Vue.defineAsyncComponent(() => loadModule('/plugins/settings/frontend/settings_component.vue',options)), 'Asrvosk': Vue.defineAsyncComponent(() => loadModule('/plugins/asrvosk/frontend/asrvosk_component.vue',options))
+      'Ramcpu': Vue.defineAsyncComponent(() => loadModule('/plugins/ramcpu/frontend/ramcpu_component.vue',options)), 'Settings': Vue.defineAsyncComponent(() => loadModule('/plugins/settings/frontend/settings_component.vue',options))
     },
     template: appTemplate,
     mounted: function () {
