@@ -63,11 +63,6 @@ class Rag(Baseplugin):
         print(f"Received prompt : {prompt}")
         asyncio.run(self.query_rag(prompt, "Q: Tu te souviens de l'expo Drosephilia?"))
         
-    @hookimpl
-    def asr_msg(self, msg: str) -> None:
-        print(f"Q: {msg}")
-        # asyncio.run(self.query_rag(msg, "Q: Tu te souviens de l'expo Drosephilia?"))
-        
     def create_folders(self):
         self.medias_folder = self.create_subfolder(self.medias_folder_name)
         self.index_folder = self.create_subfolder(self.index_folder_name)
@@ -130,6 +125,26 @@ class Rag(Baseplugin):
         print(f"DB FAISS index created successfully in : {db_end_time - db_start_time:.2f} seconds")
         return True
     
+    @hookimpl
+    def query_rag(self, query_text: str):
+        try:
+            print("QUERYING INDEX: ", query_text)
+            if (not self.index_loaded):
+                print("Index still loading")
+            while (not self.index_loaded):
+                print(".", end="", flush=True)
+            start_time = time.time()     
+            search_start_time = time.time()
+            results = self.db.similarity_search(query_text)
+            search_end_time = time.time()
+            print(f"DB search time: {search_end_time - search_start_time:.2f} seconds")
+            context_text = "\n\n---\n\n".join([doc.page_content for doc in results])
+        except Exception as e:
+            print(f"An error occurred during query_rag execution: {e}")
+            return False
+        return context_text
+    
+    ''' SAFE
     async def query_rag(self, system_prompt_text: str, query_text: str):
         try:
             print("QUERYING INDEX: ", query_text)
@@ -161,8 +176,7 @@ class Rag(Baseplugin):
         except Exception as e:
             print(f"An error occurred during query_rag execution: {e}")
         return prompt
-
-        '''
+        
         # Generate response
         chat_start_time = time.time()
         chat = ChatGroq(temperature=0, groq_api_key=groq_api_key, model_name=groq_model)
@@ -176,6 +190,5 @@ class Rag(Baseplugin):
         end_time = time.time()  # End the timer
         execution_time = end_time - start_time
         print(f"Total execution time: {execution_time:.2f} seconds")
-        '''
-        # CALL THE HOOK
         return prompt
+        '''

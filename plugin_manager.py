@@ -56,10 +56,10 @@ class MyAppSpec:
         pass
     
     @pluggy.HookspecMarker(app_name)
-    async def query_rag(self, query):
+    async def query_rag(self, query_text):
         # Gather all results from the async hook implementations
         results = await asyncio.gather(
-            *self.plugin_manager.hook.query_rag(query=query)
+            *self.plugin_manager.hook.query_rag(query_text=query_text)
         )
         return results  # Return the list of results
         

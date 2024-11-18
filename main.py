@@ -34,8 +34,8 @@ def load_settings():
 
 def load_frontend_components():
     manager = PluginManager()
-    active_plugins = ["elevenlabs"]
-    exclude_plugins = []
+    active_plugins = ["asrvosk","rag","flow"]
+    exclude_plugins = ["ramcpu","meteo","clock","elevenlabs"]
     manager.load_plugins(active_list=active_plugins,exclude_list=exclude_plugins)
     plugins_metadata = manager.get_plugins_metadata()
     # print("Plugins metadata:", plugins_metadata)  # Debugging output
