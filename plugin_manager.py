@@ -84,28 +84,7 @@ class PluginManager:
         # Load plugins dynamically from the plugins/ directory based on activation state
 
     
-    '''
-    SAFE
-    def trigger_hook(self, hook_name, *args, **kwargs):
-        print("Hook triggered:", hook_name)
-        """Generic method to trigger any hook by name."""
-        hook = getattr(self.plugin_manager.hook, hook_name, None)
-        if hook:
-            try:
-                # If args contains a dictionary, merge it into kwargs
-                if args and isinstance(args[0], dict):
-                    kwargs.update(args[0])  # Move the dictionary to kwargs
-
-                print(f"Executing hook with kwargs: {kwargs}")
-                results = hook(**kwargs)  # Pass only keyword arguments to the hook
-                for result in results:
-                    print(result)
-            except Exception as e:
-                print(f"Error executing hook '{hook_name}': {e}")
-                if IGOOR_DEBUG:
-                    print("EXIT BECAUSE OF ERROR EXECUTING HOOK")
-                    sys.exit()
-    '''
+    
     async def trigger_hook(self, hook_name, *args, **kwargs):
         print("Hook triggered:", hook_name)
         """Generic method to trigger any hook by name."""
@@ -338,8 +317,6 @@ class PluginManager:
         else:
             print(f"Plugin '{plugin_name}' does not have a valid plugin.json file.")
             
-
-            
     def call_target_function(self, module_name, target_function_name, args):
         print("calling target function", target_function_name, "in", module_name)
         plugin = self.plugin_manager.get_plugin(module_name)
@@ -368,3 +345,26 @@ class PluginManager:
                 self.deactivate_plugin(plugin_name)
             elif not activate_list or plugin_name in activate_list:
                 self.activate_plugin(plugin_name)
+                
+    '''
+    SAFE
+    def trigger_hook(self, hook_name, *args, **kwargs):
+        print("Hook triggered:", hook_name)
+        """Generic method to trigger any hook by name."""
+        hook = getattr(self.plugin_manager.hook, hook_name, None)
+        if hook:
+            try:
+                # If args contains a dictionary, merge it into kwargs
+                if args and isinstance(args[0], dict):
+                    kwargs.update(args[0])  # Move the dictionary to kwargs
+
+                print(f"Executing hook with kwargs: {kwargs}")
+                results = hook(**kwargs)  # Pass only keyword arguments to the hook
+                for result in results:
+                    print(result)
+            except Exception as e:
+                print(f"Error executing hook '{hook_name}': {e}")
+                if IGOOR_DEBUG:
+                    print("EXIT BECAUSE OF ERROR EXECUTING HOOK")
+                    sys.exit()
+    '''

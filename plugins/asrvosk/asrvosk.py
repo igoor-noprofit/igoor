@@ -40,8 +40,8 @@ class Asrvosk(Baseplugin):
         self.model_thread.join()
         print("Model is ready to use.")
         await self.send_status("ready")
-        # await self.start()
-        await self.test_wake_word()
+        await self.start()
+        # await self.test_wake_word()
         
     async def send_status(self, status):
         # Send a JSON message where status=ready

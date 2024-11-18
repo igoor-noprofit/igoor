@@ -2,6 +2,12 @@ import json
 import os
 
 class AssistantPrompts:
+    _instance = None  # Class-level attribute to store the singleton instance
+    def __new__(cls, *args, **kwargs):
+        if cls._instance is None:
+            cls._instance = super(AssistantPrompts, cls).__new__(cls)
+        return cls._instance
+
     def __init__(self, locale_dir, language):
         self.locale_dir = locale_dir + language
         self.assistant_prompts = self.load_prompts()

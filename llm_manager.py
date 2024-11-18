@@ -1,4 +1,4 @@
-from langchain.chat_models import ChatGroq, ChatOpenAI  # Import other chat classes as needed
+from langchain_groq import ChatGroq# Import other chat classes as needed
 
 class LLMManager:
     def __init__(self, provider, api_key, model_name, **kwargs):
@@ -18,12 +18,3 @@ class LLMManager:
 
     def invoke(self, prompt):
         return self.chat_instance.invoke(prompt)
-
-# Usage
-provider = "groq"
-api_key = "your_api_key_here"
-model_name = "your_model_name_here"
-temperature = 0.7  # Optional parameter
-
-chat_manager = LLMManager(provider, api_key, model_name, temperature=temperature)
-response = chat_manager.invoke("Your prompt goes here")

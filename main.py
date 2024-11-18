@@ -12,6 +12,7 @@ from prompts import AssistantPrompts
 from websocket_server import websocket_server
 import signal,sys
 
+prompts=None
 context_manager = ContextManager()
 
 
@@ -34,8 +35,8 @@ def load_settings():
 
 def load_frontend_components():
     manager = PluginManager()
-    active_plugins = ["asrvosk","rag","flow"]
-    exclude_plugins = ["ramcpu","meteo","clock","elevenlabs"]
+    active_plugins = ["asrvosk","rag","meteo","flow"]
+    exclude_plugins = ["ramcpu","clock","elevenlabs"]
     manager.load_plugins(active_list=active_plugins,exclude_list=exclude_plugins)
     plugins_metadata = manager.get_plugins_metadata()
     # print("Plugins metadata:", plugins_metadata)  # Debugging output
@@ -160,8 +161,6 @@ if __name__ == "__main__":
     lang = user.get("lang")
     print ("lang = " + lang)
     prompts = AssistantPrompts("locales/",lang)
-    assistant_type="flow"
-    system_prompt = prompts.get_system_prompt(lang, assistant_type)    
     # LAUNCH WINDOW APP
     if IGOOR_CLI.lower() != 'true':
         start_webview()
