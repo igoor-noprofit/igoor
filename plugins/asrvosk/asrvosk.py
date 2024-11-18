@@ -5,7 +5,7 @@ import threading
 import time
 import pyaudio
 import json
-import os, sys
+import os, sys, asyncio
 from vosk import Model, KaldiRecognizer
 
 class Asrvosk(Baseplugin):
@@ -25,34 +25,30 @@ class Asrvosk(Baseplugin):
         self.model_thread.start()
         print("Started loading model in background.")
         # Optionally: Setup a monitor to check when the model is ready
-        monitor_thread = threading.Thread(target=self.monitor_loading, daemon=True)
+        # asyncio.run_coroutine_threadsafe(self.monitor_loading(), asyncio.get_event_loop())
+        monitor_thread = threading.Thread(target=self.run_monitor_loading, daemon=True)
         monitor_thread.start()
-        # self.load_model()
-        # self.start()
+    
+    def run_monitor_loading(self):
+        asyncio.run(self.monitor_loading())
 
-    def monitor_loading(self):
+    async def monitor_loading(self):
         while not self.isloaded:
             # Wait until the model is loaded
             import time
             time.sleep(1)
         self.model_thread.join()
         print("Model is ready to use.")
-        self.send_status("ready")
-        self.start()
+        await self.send_status("ready")
+        # await self.start()
+        await self.test_wake_word()
         
-    def send_status(self, status):
+    async def send_status(self, status):
         # Send a JSON message where status=ready
         message = json.dumps({"status": status})
         
-        success = self.wait_for_socket_and_send(message)
-        '''
-        print(f"Initial message send status: {success}")
-        while success is False:
-            print("Message sending failed, retrying...")
-            time.sleep(1)  # Wait 1 second before retrying
-            success = self.send_message_to_frontend(message)
-            print(f"Retry message send status: {success}")
-        '''
+        success = await self.wait_for_socket_and_send(message)
+        return success
     
     def load_model(self):
         global model, rec
@@ -64,13 +60,13 @@ class Asrvosk(Baseplugin):
         print(f"Model loaded in {elapsed_time:.2f} seconds.")
         self.isloaded = True
     
-    def handle_wake_word(self,following_text):
+    async def handle_wake_word(self,following_text):
         print(f"Wake word detected! Text: '{following_text}'")
-        self.pm.trigger_hook(hook_name="asr_msg", msg="Q: " + following_text)
-        
-    def start(self):
+        await self.pm.trigger_hook(hook_name="asr_msg", msg="Q: " + following_text)
+    
+    async def start(self):
         print("STARTING WAKEWORD RECOGNITION")
-        self.send_status("listening")
+        await self.send_status("listening")
         # Initialize PyAudio and start the audio stream (after model loading)
         self.p = pyaudio.PyAudio()
         self.stream = self.p.open(format=pyaudio.paInt16, channels=1, rate=16000, input=True, frames_per_buffer=8000)
@@ -87,10 +83,13 @@ class Asrvosk(Baseplugin):
                         print(f"Recognized text (FR): {text}")
                     if self.wakeword.lower() in text.lower():
                         following_text = text.lower().split(self.wakeword.lower(), 1)[1].strip()
-                        self.handle_wake_word(following_text)
+                        await self.handle_wake_word(following_text)
                         
         except KeyboardInterrupt:
             print("\nStopping...")
+    
+    async def test_wake_word(self):
+        await self.handle_wake_word("comment s'appelle ta femme?")
     
     def stop(self):
         self.stream.stop_stream()

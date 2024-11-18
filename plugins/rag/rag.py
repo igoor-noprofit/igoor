@@ -11,17 +11,6 @@ from langchain_community.embeddings import HuggingFaceBgeEmbeddings
 from langchain.prompts import ChatPromptTemplate
 import time, sys, asyncio, threading
 
-PROMPT_TEMPLATE = """
-{system_prompt}
-
-Réponds en utilisant aussi le contexte suivant:
-
-{context}
-
----
-
-Réponds en utilisant aussi le contexte ci-dessus à la question: {question}
-"""
 class Rag(Baseplugin):
     def __init__(self, plugin_name, pm):
         self.pm = pm
@@ -126,69 +115,26 @@ class Rag(Baseplugin):
         return True
     
     @hookimpl
-    def query_rag(self, query_text: str):
+    async def query_rag(self, query_text: str):
         try:
             print("QUERYING INDEX: ", query_text)
-            if (not self.index_loaded):
+            if not self.index_loaded:
                 print("Index still loading")
-            while (not self.index_loaded):
+            while not self.index_loaded:
                 print(".", end="", flush=True)
-            start_time = time.time()     
+                await asyncio.sleep(0.1)
+
+            start_time = time.time()
             search_start_time = time.time()
-            results = self.db.similarity_search(query_text)
+            # Assuming similarity_search is a blocking call, you might need to run it in a thread
+            loop = asyncio.get_event_loop()
+            results = await loop.run_in_executor(None, self.db.similarity_search, query_text)
             search_end_time = time.time()
             print(f"DB search time: {search_end_time - search_start_time:.2f} seconds")
             context_text = "\n\n---\n\n".join([doc.page_content for doc in results])
+            return context_text
         except Exception as e:
             print(f"An error occurred during query_rag execution: {e}")
             return False
-        return context_text
     
-    ''' SAFE
-    async def query_rag(self, system_prompt_text: str, query_text: str):
-        try:
-            print("QUERYING INDEX: ", query_text)
-            if (not self.index_loaded):
-                print("Index still loading")
-            while (not self.index_loaded):
-                print(".", end="", flush=True)
-                # wait 
-            # if not hasattr(self, 'db') or not self.index_loaded:
-            #   self.load_index()
-            #except Exception as e:
-            #    print(f"An error occurred while loading the index: {e}")
-            #    return None
-            start_time = time.time()  # Start the timer    
-            # Search the DB.
-            search_start_time = time.time()
-            results = self.db.similarity_search(query_text)
-            search_end_time = time.time()
-            print(f"DB search time: {search_end_time - search_start_time:.2f} seconds")
-            context_text = "\n\n---\n\n".join([doc.page_content for doc in results])
-            prompt_template = ChatPromptTemplate.from_template(PROMPT_TEMPLATE)
-            prompt_format_start_time = time.time()
-            prompt = prompt_template.format(system_prompt=system_prompt_text, context=context_text, question=query_text)
-            prompt_format_end_time = time.time()
-            print("************** PROMPT *******************")
-            print(prompt)
-            print("************* END PROMPT ****************")
-            print(f"Prompt formatting time: {prompt_format_end_time - prompt_format_start_time:.2f} seconds")
-        except Exception as e:
-            print(f"An error occurred during query_rag execution: {e}")
-        return prompt
-        
-        # Generate response
-        chat_start_time = time.time()
-        chat = ChatGroq(temperature=0, groq_api_key=groq_api_key, model_name=groq_model)
-        response = chat.invoke(prompt)
-        chat_end_time = time.time()
-        print(f"Response generation time: {chat_end_time - chat_start_time:.2f} seconds")
-        print("************** ANSWER *******************")
-        print(response)
-        print("************ END ANSWER *****************")
-        
-        end_time = time.time()  # End the timer
-        execution_time = end_time - start_time
-        print(f"Total execution time: {execution_time:.2f} seconds")
-        return prompt
-        '''
+    

@@ -51,17 +51,14 @@ class MyAppSpec:
         pass
     
     @pluggy.HookspecMarker(app_name)
-    def asr_msg(self, msg: str) -> None:
+    async def asr_msg(self, msg: str) -> None:
         """Hook for plugins to perform actions when speaker has said something via ASR"""
         pass
     
     @pluggy.HookspecMarker(app_name)
     async def query_rag(self, query_text):
         # Gather all results from the async hook implementations
-        results = await asyncio.gather(
-            *self.plugin_manager.hook.query_rag(query_text=query_text)
-        )
-        return results  # Return the list of results
+        return await self.plugin_manager.hook.query_rag(query_text=query_text)
         
 class PluginManager:
     _instance = None
@@ -88,17 +85,7 @@ class PluginManager:
 
     
     '''
-    def _trigger_plugin_hook(self, plugin_name, hook_name):
-        """Triggers a specific hook for a given plugin."""
-        for plugin in self.plugins:
-            if plugin.__class__.__name__.lower() == plugin_name.lower():
-                hook = getattr(self.plugin_manager.hook, hook_name)
-                hook(plugin=plugin)
-                print(f"Triggered '{hook_name}' hook for plugin '{plugin_name}'.")
-                break
-        else:
-            print(f"Plugin '{plugin_name}' not found or not loaded.")
-    ''' 
+    SAFE
     def trigger_hook(self, hook_name, *args, **kwargs):
         print("Hook triggered:", hook_name)
         """Generic method to trigger any hook by name."""
@@ -118,6 +105,40 @@ class PluginManager:
                 if IGOOR_DEBUG:
                     print("EXIT BECAUSE OF ERROR EXECUTING HOOK")
                     sys.exit()
+    '''
+    async def trigger_hook(self, hook_name, *args, **kwargs):
+        print("Hook triggered:", hook_name)
+        """Generic method to trigger any hook by name."""
+        hook = getattr(self.plugin_manager.hook, hook_name, None)
+        if hook:
+            try:
+                # If args contains a dictionary, merge it into kwargs
+                if args and isinstance(args[0], dict):
+                    kwargs.update(args[0])  # Move the dictionary to kwargs
+
+                print(f"Executing hook with kwargs: {kwargs}")
+                results = hook(**kwargs)  # Call the hook
+
+                # Ensure results is an awaitable
+                if asyncio.iscoroutine(results) or isinstance(results, asyncio.Future):
+                    results = await results  # Await if it's a single coroutine or Future
+                elif isinstance(results, list):
+                    # Await each coroutine or Future in the list
+                    results = await asyncio.gather(*[r for r in results if asyncio.iscoroutine(r) or isinstance(r, asyncio.Future)])
+                else:
+                    raise TypeError("The hook result is not awaitable")
+
+                for result in results:
+                    print(result)
+                return results
+            except Exception as e:
+                print(f"Error executing hook '{hook_name}': {e}")
+                if IGOOR_DEBUG:
+                    print("EXIT BECAUSE OF ERROR EXECUTING HOOK")
+                    sys.exit()
+        else:
+            print(f"Hook '{hook_name}' not found.")
+            return None
         
     def is_active(self, plugin_name):
         is_active = self.all_plugins.get(plugin_name, {}).get("active", False)
