@@ -65,6 +65,7 @@ class Asrvosk(Baseplugin):
         await self.pm.trigger_hook(hook_name="asr_msg", msg="Q: " + following_text)
     
     async def start(self):
+        self.wakeword_detected=False
         print("STARTING WAKEWORD RECOGNITION")
         await self.send_status("listening")
         # Initialize PyAudio and start the audio stream (after model loading)
@@ -81,8 +82,11 @@ class Asrvosk(Baseplugin):
                     text = json.loads(result)["text"]
                     if text:
                         print(f"Recognized text (FR): {text}")
+                        if self.wakeword_detected and text != "":
+                            await self.handle_wake_word(text)
                     if self.wakeword.lower() in text.lower():
                         following_text = text.lower().split(self.wakeword.lower(), 1)[1].strip()
+                        self.wakeword_detected=True
                         await self.handle_wake_word(following_text)
                         
         except KeyboardInterrupt:

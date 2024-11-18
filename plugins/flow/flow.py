@@ -54,7 +54,7 @@ class Flow(Baseplugin):
         print(f"FINAL PROMPT : {prompt}")
         llm=LLMManager(self.settings.get("provider"),self.settings.get("api_key"),self.settings.get("model_name"))
         answers=llm.invoke(prompt)
-        print(answers)
+        print(answers.content)
         
     def get_dynamic_context(self):
         return context_manager.get_context()
