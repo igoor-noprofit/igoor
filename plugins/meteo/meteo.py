@@ -40,7 +40,7 @@ class Meteo(Baseplugin):
         
         updater_thread = threading.Thread(target=meteo_updater,daemon=True)
         updater_thread.daemon = True  # This allows the program to exit even if the thread is running
-        updater_thread.start()    
+        updater_thread.start()
         
     def get_meteo(self):
         """

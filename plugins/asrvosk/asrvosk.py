@@ -43,7 +43,8 @@ class Asrvosk(Baseplugin):
     def send_status(self, status):
         # Send a JSON message where status=ready
         message = json.dumps({"status": status})
-        success = self.send_message_to_frontend(message)
+        
+        success = self.wait_for_socket_and_send(message)
         '''
         print(f"Initial message send status: {success}")
         while success is False:
@@ -82,7 +83,8 @@ class Asrvosk(Baseplugin):
                 if rec.AcceptWaveform(data):
                     result = rec.Result()
                     text = json.loads(result)["text"]
-                    print(f"Recognized text (FR): {text}")
+                    if text:
+                        print(f"Recognized text (FR): {text}")
                     if self.wakeword.lower() in text.lower():
                         following_text = text.lower().split(self.wakeword.lower(), 1)[1].strip()
                         self.handle_wake_word(following_text)

@@ -92,6 +92,16 @@ class Baseplugin:
             print(f"Failed to create subfolder {subfolder_path}: {e}")
             return False
         
+    async def wait_for_socket_and_send(self, message):
+        """
+        Waits for the socket to be ready and then sends a message to the frontend.
+        
+        :param message: The message to be sent once the socket is ready.
+        """
+        while not self.socket_ready:
+            await asyncio.sleep(1)  # Wait for 1 second before checking again
+        self.send_message_to_frontend(message)
+        
     def send_message_to_frontend(self, message):
         if (self.socket_ready): 
             print(self.plugin_name + " BACKEND starts sending message to FRONTEND via ws")
@@ -108,7 +118,7 @@ class Baseplugin:
             except Exception as e:
                 print(f"Error while sending message to {self.plugin_name} frontend: {e}")
         else:
-            print("Frontend is not ready")
+            print(f" {self.plugin_name} frontend is not ready")
             
     def process_incoming_message(self, message):
         """

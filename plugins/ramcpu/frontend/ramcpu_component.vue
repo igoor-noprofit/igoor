@@ -13,7 +13,6 @@ export default {
     data() {
         return {
             websocket: null,  // Store WebSocket instance
-            websocketPath: 'ramcpu', // Specify the path for WebSocket connection
             cpuUsage: 0.0, // Initialize CPU usage
             memoryUsage: 0.0 // Initialize memory usage
         };

@@ -6,14 +6,16 @@
 
 <script>
 export default {
+    name: "clock",
     data() {
         return {
             formattedDateTime: '',
+            websocket: null,  // Store WebSocket instance
+            status: 'loading'
         };
     },
     created() {
         this.updateDateTime();
-        console.log('clock created')
     },
     methods: {
         updateDateTime() {

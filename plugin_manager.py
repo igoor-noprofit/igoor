@@ -1,11 +1,10 @@
 import importlib.util
-import os, sys
+import os, sys, asyncio
 import json
 import pluggy
 from settings_manager import SettingsManager
 from dotenv import load_dotenv
 load_dotenv()
-import os
 from typing import Any
 from status_manager import StatusManager
 
@@ -55,6 +54,14 @@ class MyAppSpec:
     def asr_msg(self, msg: str) -> None:
         """Hook for plugins to perform actions when speaker has said something via ASR"""
         pass
+    
+    @pluggy.HookspecMarker(app_name)
+    async def query_rag(self, query):
+        # Gather all results from the async hook implementations
+        results = await asyncio.gather(
+            *self.plugin_manager.hook.query_rag(query=query)
+        )
+        return results  # Return the list of results
         
 class PluginManager:
     _instance = None
@@ -76,9 +83,9 @@ class PluginManager:
         # Load global settings
         self.settings_manager = SettingsManager()
 
+        # self.set_active_plugins SHOULD COME HERE
         # Load plugins dynamically from the plugins/ directory based on activation state
-        self.load_plugins()
-        self.startup_plugins()
+
     
     '''
     def _trigger_plugin_hook(self, plugin_name, hook_name):
@@ -111,56 +118,66 @@ class PluginManager:
                 if IGOOR_DEBUG:
                     print("EXIT BECAUSE OF ERROR EXECUTING HOOK")
                     sys.exit()
-
-    '''
-    def trigger_hook(self, hook_name, plugin_name=None, **kwargs):
-        """Triggers a hook for all plugins or a specific plugin if specified."""
-        if plugin_name:
-            # Trigger hook for a specific plugin
-            for plugin in self.plugins:
-                if plugin.__class__.__name__.lower() == plugin_name.lower():
-                    hook = getattr(self.plugin_manager.hook, hook_name, None)
-                    if hook:
-                        try:
-                            print(f"Executing '{hook_name}' hook for plugin '{plugin_name}'")
-                            results = hook(plugin=plugin, **kwargs)
-                            for result in results:
-                                print(result)
-                        except Exception as e:
-                            print(f"Error executing hook '{hook_name}' for plugin '{plugin_name}': {e}")
-                            if IGOOR_DEBUG:
-                                print("EXIT BECAUSE OF ERROR EXECUTING HOOK")
-                                sys.exit()
-                    else:
-                        print(f"Hook '{hook_name}' not found for plugin '{plugin_name}'.")
-                    break
-            else:
-                print(f"Plugin '{plugin_name}' not found or not loaded.")
-        else:
-            # Trigger hook for all plugins
-            hook = getattr(self.plugin_manager.hook, hook_name, None)
-            if hook:
-                try:
-                    print(f"Executing '{hook_name}' hook for all plugins")
-                    results = hook(**kwargs)
-                    for result in results:
-                        print(result)
-                except Exception as e:
-                    print(f"Error executing hook '{hook_name}': {e}")
-                    if IGOOR_DEBUG:
-                        print("EXIT BECAUSE OF ERROR EXECUTING HOOK")
-                        sys.exit()
-            else:
-                print(f"Hook '{hook_name}' not found.")
-                sys.exit()
-        
-    '''
         
     def is_active(self, plugin_name):
         is_active = self.all_plugins.get(plugin_name, {}).get("active", False)
         print(f"{plugin_name} is {'active' if is_active else 'NOT active'}")
         return is_active
 
+    '''
+    EXPERIMENTAL
+    '''
+    def load_plugins(self, active_list=None, exclude_list=None):
+        print("Loading plugins")
+        self.all_plugins = self.get_all_plugins()
+        print(len(self.all_plugins), " TOTAL PLUGINS")
+        self.activated_plugins = []
+
+        # Default to empty lists if None is provided
+        active_list = active_list or []
+        exclude_list = exclude_list or []
+
+        for plugin_name in os.listdir(self.plugin_folder):
+            if plugin_name != "baseplugin":
+                plugin_path = os.path.join(self.plugin_folder, plugin_name)
+                is_active = self.is_active(plugin_name)
+                
+                # Check if the plugin should be activated or excluded based on the lists
+                if plugin_name in active_list:
+                    print(f"Plugin '{plugin_name}' is in the active_list, overriding is_active to True.")
+                    is_active = True
+                elif plugin_name in exclude_list:
+                    print(f"Plugin '{plugin_name}' is in the exclude_list, overriding is_active to False.")
+                    is_active = False
+
+                if os.path.isdir(plugin_path) and is_active:
+                    print("Plugin to be activated: ", plugin_name)
+                    if plugin_name.lower() not in map(str.lower, self.activated_plugins):
+                        print("Plugin ", plugin_name.lower(), " not already activated")
+                    try:
+                        plugin_module = importlib.import_module(f"plugins.{plugin_name}.{plugin_name}")
+                        plugin_class = getattr(plugin_module, f"{plugin_name.capitalize()}")
+                        plugin_instance = plugin_class(plugin_name, self)
+                        print("Passing plugin instance of class ", plugin_class, " to pm")
+                        self.plugins.append(plugin_instance)
+                        self.plugin_manager.register(plugin_instance)
+                        self.status_manager.register_observer(plugin_instance)
+                        self.activated_plugins.append(plugin_name)
+                    except Exception as e:
+                        print(f"Error loading plugin '{plugin_name}': {e}")
+                        if IGOOR_DEBUG:
+                            print("EXIT BECAUSE OF ERROR LOADING PLUGIN")
+                            os._exit(1)
+                else:
+                    print(f"Skipping plugin '{plugin_name}'")
+            else:
+                print("Excluded baseplugin")
+        
+        print("ACTIVATED PLUGINS LIST:", self.activated_plugins)
+
+
+    '''
+    SAFE VERSION
     def load_plugins(self):
         print("Loading plugins")
         self.all_plugins = self.get_all_plugins()
@@ -190,6 +207,7 @@ class PluginManager:
             else:
                 print("Excluded baseplugin")
         print("ACTIVATED PLUGINS LIST:", self.activated_plugins)
+    '''
 
     def get_all_plugins(self):
         """Gathers activation status and other metadata for all plugins."""
@@ -341,3 +359,23 @@ class PluginManager:
             if func and callable(func):
                 return func(*args)
         raise Exception(f"Function {target_function_name} not found in module {module_name}")
+    
+    '''
+        Experimental
+    '''
+    def set_active_plugins(self, activate_list=None, exclude_list=None):
+        """
+        Activates only the plugins in the activate_list and excludes those in the exclude_list.
+        If activate_list is None, all plugins are considered for activation except those in exclude_list.
+        """
+        activate_list = activate_list or []
+        exclude_list = exclude_list or []
+
+        # Get all plugins
+        all_plugins = self.get_all_plugins()
+
+        for plugin_name in all_plugins:
+            if plugin_name in exclude_list:
+                self.deactivate_plugin(plugin_name)
+            elif not activate_list or plugin_name in activate_list:
+                self.activate_plugin(plugin_name)

@@ -3,9 +3,9 @@
 </div>
 <header>
     <div id="topbar">
-        <ramcpu></ramcpu><settings></settings>
+        <clock></clock><meteo></meteo><ramcpu></ramcpu><settings></settings>
     </div>
-    
+    <asrvosk></asrvosk>
 </header>
 <main>
     
