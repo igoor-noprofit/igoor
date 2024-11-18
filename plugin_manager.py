@@ -174,6 +174,7 @@ class PluginManager:
                 print("Excluded baseplugin")
         
         print("ACTIVATED PLUGINS LIST:", self.activated_plugins)
+        self.startup_plugins()
 
 
     '''
