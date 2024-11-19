@@ -39,7 +39,7 @@ async function initializeApp() {
   console.log(appTemplate);
   const app = Vue.createApp({
     components: {
-      'Clock': Vue.defineAsyncComponent(() => loadModule('/plugins/clock/frontend/clock_component.vue',options)), 'Meteo': Vue.defineAsyncComponent(() => loadModule('/plugins/meteo/frontend/meteo_component.vue',options)), 'Ramcpu': Vue.defineAsyncComponent(() => loadModule('/plugins/ramcpu/frontend/ramcpu_component.vue',options)), 'Settings': Vue.defineAsyncComponent(() => loadModule('/plugins/settings/frontend/settings_component.vue',options)), 'Asrvosk': Vue.defineAsyncComponent(() => loadModule('/plugins/asrvosk/frontend/asrvosk_component.vue',options))
+      'Rag': Vue.defineAsyncComponent(() => loadModule('/plugins/rag/frontend/rag_component.vue',options)), 'Settings': Vue.defineAsyncComponent(() => loadModule('/plugins/settings/frontend/settings_component.vue',options)), 'Asrvosk': Vue.defineAsyncComponent(() => loadModule('/plugins/asrvosk/frontend/asrvosk_component.vue',options)), 'Flow': Vue.defineAsyncComponent(() => loadModule('/plugins/flow/frontend/flow_component.vue',options))
     },
     template: appTemplate,
     mounted: function () {

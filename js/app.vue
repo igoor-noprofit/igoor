@@ -1,14 +1,14 @@
 <div id="hidden">
-    
+    <rag></rag>
 </div>
 <header>
     <div id="topbar">
-        <clock></clock><meteo></meteo><ramcpu></ramcpu><settings></settings>
+        <settings></settings>
     </div>
     <asrvosk></asrvosk>
 </header>
 <main>
-    
+    <flow></flow>
 </main>
 <footer>
     

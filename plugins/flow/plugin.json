@@ -1,10 +1,10 @@
 {
-    "active": false,
+    "active": true,
     "category": "context",
     "title": "Flow",
     "layout": {
-        "part": "topbar",
-        "order": -1
+        "part": "main",
+        "order": 5
     },
     "is_free": true,
     "requires_subscription": true,

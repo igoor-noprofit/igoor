@@ -19,7 +19,6 @@ class Baseplugin:
         self.plugin_name = plugin_name
         self.settings_manager = SettingsManager()
         self.status_manager = StatusManager()
-        self.socket_ready = False
         
         # self.pm = pm
         # Construct the plugin folder path
@@ -98,12 +97,20 @@ class Baseplugin:
         
         :param message: The message to be sent once the socket is ready.
         """
-        while not self.socket_ready:
+        while not websocket_server.is_socket_open(self.plugin_name):
             await asyncio.sleep(1)  # Wait for 1 second before checking again
+            print(".")
         self.send_message_to_frontend(message)
+
+    async def send_status(self, status):
+        # Send a JSON message where status=ready
+        message = json.dumps({"status": status})
+        
+        success = await self.wait_for_socket_and_send(message)
+        return success
         
     def send_message_to_frontend(self, message):
-        if (self.socket_ready): 
+        if websocket_server.is_socket_open(self.plugin_name):
             print(self.plugin_name + " BACKEND starts sending message to FRONTEND via ws")
             """
             Sends a message to the designated plugin's frontend channel.
@@ -138,8 +145,8 @@ class Baseplugin:
                 return
             
         # Check if the message is {"socket":"ready"}
-        if message_dict == {"socket": "ready"}:
-            self.socket_ready = True
+        # if message_dict == {"socket": "ready"}:
+        #    self.socket_ready = True
     
     '''
     def update_component_a(self,data):

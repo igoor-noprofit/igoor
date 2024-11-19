@@ -12,7 +12,15 @@ class WebSocketServer:
         if cls._instance is None:
             cls._instance = super(WebSocketServer, cls).__new__(cls)
         return cls._instance
-
+    
+    def is_socket_open(self, plugin_name: str) -> bool:
+        """
+        Check if a specific WebSocket connection is open for a given plugin.
+        """
+        if plugin_name in self.active_connections:
+            return any(websocket.open for websocket in self.active_connections[plugin_name])
+        return False
+    
     def __init__(self):
         if hasattr(self, 'initialized') and self.initialized:
             return

@@ -1,18 +1,17 @@
 // js/WebSocketUtil.js
 function WebSocketUtil(url, options = {}) {
     this.url = url;
+    console.log('URL stored = ' + url)
     this.websocket = null;
     this.onMessage = options.onMessage || function() {};
     this.onOpen = options.onOpen || function() {};
     this.onClose = options.onClose || function() {};
     this.onError = options.onError || function() {};
-
     this.connect();
 }
 
 WebSocketUtil.prototype.connect = function() {
     this.websocket = new WebSocket(this.url);
-
     this.websocket.onmessage = (event) => {
         console.log("Received message from backend:", event.data);
         this.onMessage(event);
@@ -38,7 +37,7 @@ WebSocketUtil.prototype.send = function(data) {
     if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
         this.websocket.send(JSON.stringify(data));
     } else {
-        console.log('WebSocket is not open');
+        console.log('WebSocket ' + this.url + ' is not open');
     }
 };
 

@@ -3,7 +3,7 @@
         <div class="mic" :class="status">
             <img v-if="status !== 'listening'" src="/img/mic.png">
         </div>
-        <img v-if="status == 'listening'" src="/img/listening.gif">
+        <img v-if="status == 'listening'" src="/img/listening.gif" id="listening">
     </div>
 </template>
 <script>
@@ -14,8 +14,6 @@ export default {
     mixins: [BasePluginComponent], // Use the mixin
     data() {
         return {
-            websocket: null,  // Store WebSocket instance
-            websocketPath: 'asrvosk', // Specify the path for WebSocket connection
             status: 'loading'
         };
     },
@@ -24,7 +22,6 @@ export default {
             console.log("Custom message handler in asrvosk component:", event.data);
             const data = JSON.parse(event.data);
             this.status = data.status;
-            
         }
     },
     created() {
@@ -36,6 +33,9 @@ export default {
 };
 </script>
 <style>
+#listening{
+    max-height: 100px;
+}
 .mic img{
     max-height: 50px;
     max-width: 50px;

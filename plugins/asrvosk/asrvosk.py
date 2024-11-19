@@ -42,13 +42,6 @@ class Asrvosk(Baseplugin):
         await self.send_status("ready")
         await self.start()
         # await self.test_wake_word()
-        
-    async def send_status(self, status):
-        # Send a JSON message where status=ready
-        message = json.dumps({"status": status})
-        
-        success = await self.wait_for_socket_and_send(message)
-        return success
     
     def load_model(self):
         global model, rec
@@ -93,7 +86,7 @@ class Asrvosk(Baseplugin):
             print("\nStopping...")
     
     async def test_wake_word(self):
-        await self.handle_wake_word("comment s'appelle ta femme?")
+        await self.handle_wake_word("est-ce que tu aimes le gateau de riz?")
     
     def stop(self):
         self.stream.stop_stream()

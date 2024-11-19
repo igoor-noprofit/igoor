@@ -18,6 +18,7 @@ class Rag(Baseplugin):
         
     @hookimpl
     def startup(self):
+        # self.clear_all_models()
         print ("RAG IS STARTING UP")
         self.settings = self.get_my_settings()
         self.medias_folder_name = "medias"
@@ -39,6 +40,7 @@ class Rag(Baseplugin):
         print ("LOADING INDEX, PLEASE WAIT...")
         db_start_time = time.time()
         embedding_function = self.get_embedding_function()
+        print("LOADED EMBEDDING FUNCTION")
         try:
             self.db = FAISS.load_local(self.index_folder, embedding_function, allow_dangerous_deserialization=True)
             db_end_time = time.time()
@@ -61,10 +63,31 @@ class Rag(Baseplugin):
         md_text = pymupdf4llm.to_markdown(file_path)
         return md_text
 
+    '''
+        Reset Huggingface embedding models dir
+    '''
+    def clear_all_models(self):
+        import shutil
+        import os
+
+        # Define the path to the Hugging Face cache directory
+        from pathlib import Path
+        user_dir = Path.home()
+        cache_dir = os.path.join(user_dir,".cache","huggingface")
+        
+        # Check if the directory exists
+        if os.path.exists(cache_dir):
+            # Remove the directory and all its contents
+            shutil.rmtree(cache_dir)
+            print(f"Cleared Hugging Face cache at: {cache_dir}")
+        else:
+            print(f"No cache found at: {cache_dir}")
+            
     def get_embedding_function(self):
-        embedding_model = "BAAI/bge-small-en"
+        embedding_model = self.settings.get("embedding_model")
         model_kwargs = {"device": "cpu"}
         encode_kwargs = {"normalize_embeddings": True}
+        
         hf = HuggingFaceBgeEmbeddings(
             model_name=embedding_model, model_kwargs=model_kwargs, encode_kwargs=encode_kwargs
         )
@@ -112,6 +135,7 @@ class Rag(Baseplugin):
         print("FAISS index saved.")
         db_end_time = time.time()
         print(f"DB FAISS index created successfully in : {db_end_time - db_start_time:.2f} seconds")
+        self.load_index()
         return True
     
     @hookimpl

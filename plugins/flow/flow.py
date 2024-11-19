@@ -7,6 +7,7 @@ from context_manager import context_manager
 from prompts import AssistantPrompts
 from settings_manager import SettingsManager
 from llm_manager import LLMManager
+import asyncio
 
 
 PROMPT_TEMPLATE = """
@@ -20,8 +21,8 @@ Réponds en utilisant aussi le contexte statique suivant:
 Si besoin utilise les infos du contexte dynamique suivant :
 
 {dynamic_context}
-
-Réponds en utilisant aussi le contexte ci-dessus à la question: {question}
+---
+Réponds en utilisant aussi les contextes ci-dessus à la question: {question}
 """
 
 class Flow(Baseplugin):  
@@ -31,30 +32,47 @@ class Flow(Baseplugin):
         self.prompts=AssistantPrompts("locales/","fr_FR")
         self.global_settings = SettingsManager();
         self.settings = self.get_my_settings()
+    
+    @hookimpl
+    def startup(self):
+        loop = asyncio.get_event_loop()
+        loop.run_in_executor(None, self._startup_async)
+
+    async def _startup_async(self):
+        print("sending status ready")
+        await self.wait_for_socket_and_send("ready")
+        self.send_test_json()
         
-        # self.status_manager.register_observer(self)  # Register this plugin as an observer
+    def send_test_json(self):
+        print ("Sending test json")
+        self.send_message_to_frontend([{"Joie":"Oui, j'adore le gâteau de riz !"},{"Anticipation":"Je me demande si on peut en manger à la plage ?"},{"Confiance":"Je suis sûr que ma famille en a préparé pour notre sortie"}])
 
     '''
     Receives msg from speaker
     Transmits it to RAG systems
-    
+    Performs query
     '''
     @hookimpl
     async def asr_msg(self, msg: str) -> None:
-        print(f"QUERYING RAG WITH: {msg}")
+        import time
+        start_time = time.time()
+        # print(f"QUERYING RAG WITH: {msg}")
         static_context = await(self.query_rag_async(msg))
-        print(f"STATIC CONTEXT IS : {static_context}")
+        # print(f"STATIC CONTEXT IS : {static_context}")
         dynamic_context = self.get_dynamic_context()
-        print(f"DYNAMIC CONTEXT IS : {dynamic_context}")
-        assistant_type="flow"
+        # print(f"DYNAMIC CONTEXT IS : {dynamic_context}")
+        assistant_type = "flow"
         system_prompt = self.prompts.get_system_prompt("fr_FR", assistant_type) 
-        print(f"SYSTEM PROMPT IS : {system_prompt}")   
-        pm=PromptManager(template=PROMPT_TEMPLATE)
-        prompt=pm.create_prompt(system_prompt=system_prompt,static_context=static_context,dynamic_context=dynamic_context, question=msg)       
+        # print(f"SYSTEM PROMPT IS : {system_prompt}")   
+        pm = PromptManager(template=PROMPT_TEMPLATE)
+        prompt = pm.create_prompt(system_prompt=system_prompt, static_context=static_context, dynamic_context=dynamic_context, question=msg)       
         print(f"FINAL PROMPT : {prompt}")
-        llm=LLMManager(self.settings.get("provider"),self.settings.get("api_key"),self.settings.get("model_name"))
-        answers=llm.invoke(prompt)
+        llm = LLMManager(self.settings.get("provider"), self.settings.get("api_key"), self.settings.get("model_name"))
+        answers = llm.invoke(prompt)
         print(answers.content)
+        end_time = time.time()
+        print(f"Time taken for processing: {end_time - start_time} seconds")
+        self.send_message_to_frontend(answers.content) 
         
     def get_dynamic_context(self):
         return context_manager.get_context()
