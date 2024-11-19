@@ -62,14 +62,24 @@ class Api:
     '''
         Replace with websocket?
         Calls ANY plugin backend function specifically ?
-    '''
     def call_plugin_backend(self, module_name, target_function_name, args):
         print("call backend of plugin", module_name)
         if module_name:
             return plugin_manager.call_target_function(module_name, target_function_name, args)
         else:
             raise ValueError("Module name is required")
+    '''
         
-    def trigger_hook(self, hook_name, *args, **kwargs):
-        print(f"JS : triggering hook {hook_name} with args: {args} and kwargs: {kwargs}")
-        plugin_manager.trigger_hook(hook_name, *args, **kwargs)     
+    async def trigger_hook(self, hook_name, *args, **kwargs):
+        try:
+            print(f"JS : triggering hook {hook_name} with args: {args} and kwargs: {kwargs}")
+            result = await plugin_manager.trigger_hook(hook_name, *args, **kwargs)     
+            # Ensure the result is JSON serializable
+            if isinstance(result, (list, dict, str, int, float, bool, type(None))):
+                return result
+            else:
+                print("Result is not JSON serializable")
+                return None
+        except Exception as e:
+            print(f"Error triggering hook '{hook_name}': {e}")
+            return None

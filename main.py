@@ -11,10 +11,26 @@ from settings_manager import SettingsManager
 from prompts import AssistantPrompts
 from websocket_server import websocket_server
 import signal,sys
+import tkinter as tk
 
 prompts=None
 context_manager = ContextManager()
 
+
+def show_splash_screen(image_path):
+    """Create a simple splash screen with a logo."""
+    splash_root = tk.Tk()
+    splash_root.overrideredirect(True)  # Remove window borders
+    splash_root.geometry('500x200+500+300')  # Set splash size and position
+
+    # Load your logo/image
+    splash_image = tk.PhotoImage(file=image_path)
+    splash_label = tk.Label(splash_root, image=splash_image)
+    splash_label.pack()
+
+    # Display splash screen
+    splash_root.update()  # Refresh the window
+    return splash_root
 
 
 def signal_handler(sig, frame):
@@ -150,6 +166,7 @@ def start_webview():
 
 
 if __name__ == "__main__":
+    splash_screen = show_splash_screen('img/igoor_logo.png')
     settings = load_settings();
     
     if IGOOR_CLI.lower() != 'true':
@@ -165,6 +182,7 @@ if __name__ == "__main__":
     prompts = AssistantPrompts("locales/",lang)
     # LAUNCH WINDOW APP
     if IGOOR_CLI.lower() != 'true':
+        splash_screen.destroy()
         start_webview()
     else:
         print(get_full_context())

@@ -82,8 +82,6 @@ class PluginManager:
 
         # self.set_active_plugins SHOULD COME HERE
         # Load plugins dynamically from the plugins/ directory based on activation state
-
-    
     
     async def trigger_hook(self, hook_name, *args, **kwargs):
         print("Hook triggered:", hook_name)
@@ -248,13 +246,6 @@ class PluginManager:
     def get_plugin_manager(self):
         return self
     
-    '''
-    def call_speak_hook(self, message):
-        """Trigger the speak hook with a message"""
-        for result in self.plugin_manager.hook.speak(message=message):
-            # Process each result if necessary
-            print(result)
-    '''
     def plugin_has_settings(self, plugin_name, return_settings=False):
         settings = self.settings_manager.get_plugin_settings(plugin_name)
         # Check if settings is a valid non-empty dictionary

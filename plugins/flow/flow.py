@@ -7,7 +7,7 @@ from context_manager import context_manager
 from prompts import AssistantPrompts
 from settings_manager import SettingsManager
 from llm_manager import LLMManager
-import asyncio
+import asyncio,json
 
 
 PROMPT_TEMPLATE = """
@@ -47,6 +47,23 @@ class Flow(Baseplugin):
         print ("Sending test json")
         self.send_message_to_frontend([{"Joie":"Oui, j'adore le gâteau de riz !"},{"Anticipation":"Je me demande si on peut en manger à la plage ?"},{"Confiance":"Je suis sûr que ma famille en a préparé pour notre sortie"}])
 
+    def process_incoming_message(self, message):
+        try:
+            print("Received msg: " + message)
+            # Attempt to parse the message as JSON
+            message_dict = json.loads(message)
+            # Output the JSON variables and values
+            for key, value in message_dict.items():
+                print(f"Key: {key}, Value: {value}")
+            # Ensure message_dict is a dictionary
+            if isinstance(message_dict, dict) and message_dict.get("action") == "speak":
+                msg = message_dict.get("msg", "")
+                # Trigger hook in plugin manager with msg
+                asyncio.create_task(self.pm.trigger_hook(hook_name="speak", message=msg))
+            
+        except json.JSONDecodeError:
+            print("Received message is not valid JSON.")
+            return
     '''
     Receives msg from speaker
     Transmits it to RAG systems

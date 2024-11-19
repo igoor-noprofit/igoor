@@ -3,7 +3,7 @@
 </div>
 <header>
     <div id="topbar">
-        <settings></settings>
+        <elevenlabs></elevenlabs><settings></settings>
     </div>
     <asrvosk></asrvosk>
 </header>

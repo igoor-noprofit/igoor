@@ -147,26 +147,3 @@ class Baseplugin:
         # Check if the message is {"socket":"ready"}
         # if message_dict == {"socket": "ready"}:
         #    self.socket_ready = True
-    
-    '''
-    def update_component_a(self,data):
-        message = {
-            "channel": "plugin_" + self.plugin_name,
-            "data": data
-        }
-        asyncio.run(self.send_to_websocket(message))
-        
-
-    def trigger_hook(self,hook_name,**kwargs):
-        print ("BASEPLUGIN TRIGGER HOOK")
-        if self.pm:
-            try:
-                self.pm.trigger_hook(hook_name, msg="Q: " + "prova")
-            except TypeError as e:
-                print(f"TypeError occurred: {e}")
-            except Exception as e:
-                print(f"An unexpected error occurred: {e}")
-        else:
-            print("Plugin manager is not set.")
-            sys.exit()
-    '''

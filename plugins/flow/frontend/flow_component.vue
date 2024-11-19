@@ -27,14 +27,6 @@ import BasePluginComponent from '/js/BasePluginComponent.js';
 module.exports = {
     name: "flow",
     mixins: [BasePluginComponent],
-    methods: {
-        handleIncomingMessage(event) {
-            console.log("Custom message handler in ramcpu component:", event.data);
-            const data = JSON.parse(event.data);
-            this.cpuUsage = data.cpu_usage;
-            this.memoryUsage = data.memory_usage;
-        }
-    },
     data() {
         return {
             selectedCard: null,
@@ -56,11 +48,19 @@ module.exports = {
             this.cpuUsage = data.cpu_usage;
             this.memoryUsage = data.memory_usage;
         },
-        $_chooseAnswer(msg, index) {
+        async $_chooseAnswer(msg, index) {
             let text = Object.values(msg)[0];
             this.selectedCard = index;
+            const json = { action: "speak", msg: text };
+            console.log("sending JSON");
+            console.log(json);
+            this.sendMsgToBackend(json);
+            /* 
+            console.log("Speaking phrase: " + text);
+            
+            
+            result = await window.pywebview.api.trigger_hook("speak", jsonText);
             /*
-            window.speak(text);
             addMessageToDB(text);
             */
         },
@@ -77,6 +77,7 @@ module.exports = {
     padding: 10px;
     border: 1px solid #00796b;
     margin: 10px 0;
+    max-width: 50%;
 }
 
 .card-title{
@@ -85,8 +86,8 @@ module.exports = {
 
 .card-body {
     padding: 6px;
-    min-height: 90px;
     border: 1px solid #000;
+    cursor:pointer
 }
 .fade-out {
     pointer-events: none;
