@@ -42,7 +42,6 @@ class Elevenlabs(Baseplugin):
         success = await self.speak_func(message)
 
     async def speak_func(self, message):
-        await self.pm.trigger_hook(hook_name="pause_asr")
         print("SPEAK FUNC:" + message)
         try:
             # Set generation options
@@ -65,6 +64,7 @@ class Elevenlabs(Baseplugin):
             generation_info = generation_info_future.result()
             audio_data = audio_future.result()
             # Play it back
+            await self.pm.trigger_hook(hook_name="pause_asr")
             play_audio_v2(audio_data)
             self.run_restart_asr()
             return True

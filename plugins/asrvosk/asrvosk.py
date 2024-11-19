@@ -77,11 +77,11 @@ class Asrvosk(Baseplugin):
         self.stream.start_stream()
         try:
             while True:
-                data = self.stream.read(4000, exception_on_overflow=False)
-                if len(data) == 0:
-                    break
-                if rec.AcceptWaveform(data):
-                    if not self.is_paused:
+                if not self.is_paused:
+                    data = self.stream.read(4000, exception_on_overflow=False)
+                    if len(data) == 0:
+                        break
+                    if rec.AcceptWaveform(data):
                         result = rec.Result()
                         text = json.loads(result)["text"]
                         if text:
@@ -93,9 +93,9 @@ class Asrvosk(Baseplugin):
                             following_text = text.lower().split(self.wakeword.lower(), 1)[1].strip()
                             if (following_text != ""):
                                 await self.handle_wake_word(following_text)
-                    else:
-                        print("is paused...")
-                        await asyncio.sleep(0.2)
+                else:
+                    print("is paused...")
+                    await asyncio.sleep(0.5)
                             
         except KeyboardInterrupt:
             print("\nStopping...")
