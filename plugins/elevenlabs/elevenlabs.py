@@ -1,5 +1,6 @@
 from plugin_manager import hookimpl, PluginManager
 from plugins.baseplugin.baseplugin import Baseplugin
+import threading
 from elevenlabslib import *
 from elevenlabslib.helpers import play_audio_v2
 from typing import Any, Dict
@@ -19,6 +20,7 @@ class Elevenlabs(Baseplugin):
         try:
             self.user = User(self.settings.get("api_key"))
             self.voice= self.user.get_voice_by_ID(self.settings.get("voice_id"))   
+            # self.input_streamer=ReusableInputStreamer(self.voice)
         except Exception as e:
             print(f"Error occurred while setting user : {e}")
             return False
@@ -30,21 +32,24 @@ class Elevenlabs(Baseplugin):
         # Schedule the speak_func to run in the background
         asyncio.create_task(self.run_speak_func(message))
 
+    def run_restart_asr(self):
+        asyncio.create_task(self.restart_asr())
+        
+    async def restart_asr(self):
+        await self.pm.trigger_hook(hook_name="restart_asr")
+
     async def run_speak_func(self, message):
         success = await self.speak_func(message)
-        
-        if success:
-            await self.pm.trigger_hook(hook_name="restart_asr")
-            print("Speaking is done.")
-        else:
-            print("Speaking failed.")
 
     async def speak_func(self, message):
         await self.pm.trigger_hook(hook_name="pause_asr")
         print("SPEAK FUNC:" + message)
         try:
             # Set generation options
-            playback_options = PlaybackOptions(runInBackground=True)
+            playback_options = PlaybackOptions(
+                runInBackground=False,
+                onPlaybackEnd=self.run_restart_asr
+            )
             generation_options = GenerationOptions(
                 model_id=self.settings.get("model_id"),
                 latencyOptimizationLevel=0,
@@ -52,13 +57,16 @@ class Elevenlabs(Baseplugin):
                 similarity_boost=0.4,
                 style=0.8
             )
+            # websocket_options = WebsocketOptions(chunk_length_schedule=[125],try_trigger_generation=False)
             # Check if stream_audio_v3 is async
-            # result = self.voice.stream_audio_v3(message, playback_options, generation_options)
+            # result = self.voice.stream_audio_v3(message, playback_options=playback_options, generation_options=generation_options, websocket_options=websocket_options)
+            
             audio_future, generation_info_future = self.voice.generate_audio_v3(message, generation_options)
             generation_info = generation_info_future.result()
             audio_data = audio_future.result()
             # Play it back
             play_audio_v2(audio_data)
+            self.run_restart_asr()
             return True
 
             return True
