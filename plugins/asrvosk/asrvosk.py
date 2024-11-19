@@ -11,6 +11,7 @@ from vosk import Model, KaldiRecognizer
 class Asrvosk(Baseplugin):
     def __init__(self, plugin_name, pm):
         self.pm = pm
+        self.is_paused=False
         super().__init__(plugin_name,pm)
         
     @hookimpl
@@ -28,6 +29,15 @@ class Asrvosk(Baseplugin):
         # asyncio.run_coroutine_threadsafe(self.monitor_loading(), asyncio.get_event_loop())
         monitor_thread = threading.Thread(target=self.run_monitor_loading, daemon=True)
         monitor_thread.start()
+    
+    
+    @hookimpl
+    def pause_asr(self):
+        self.is_paused = True
+        
+    @hookimpl
+    def restart_asr(self):
+        self.is_paused = False
     
     def run_monitor_loading(self):
         asyncio.run(self.monitor_loading())
@@ -71,17 +81,22 @@ class Asrvosk(Baseplugin):
                 if len(data) == 0:
                     break
                 if rec.AcceptWaveform(data):
-                    result = rec.Result()
-                    text = json.loads(result)["text"]
-                    if text:
-                        print(f"Recognized text (FR): {text}")
-                        if self.wakeword_detected and text != "":
-                            await self.handle_wake_word(text)
-                    if self.wakeword.lower() in text.lower():
-                        following_text = text.lower().split(self.wakeword.lower(), 1)[1].strip()
-                        self.wakeword_detected=True
-                        await self.handle_wake_word(following_text)
-                        
+                    if not self.is_paused:
+                        result = rec.Result()
+                        text = json.loads(result)["text"]
+                        if text:
+                            print(f"Recognized text (FR): {text}")
+                            if self.wakeword_detected and text != "":
+                                await self.handle_wake_word(text)
+                        if self.wakeword.lower() in text.lower():
+                            self.wakeword_detected=True
+                            following_text = text.lower().split(self.wakeword.lower(), 1)[1].strip()
+                            if (following_text != ""):
+                                await self.handle_wake_word(following_text)
+                    else:
+                        print("is paused...")
+                        await asyncio.sleep(0.2)
+                            
         except KeyboardInterrupt:
             print("\nStopping...")
     

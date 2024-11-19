@@ -30,6 +30,18 @@ class MyAppSpec:
         self.plugin_manager.hook.speak(message=message)
         pass
     
+    '''
+    Used in continuous listening to pause ASR when speaking
+    and restart it when finished speaking
+    '''
+    @pluggy.HookspecMarker(app_name)
+    def pause_asr(self):
+        pass
+    
+    @pluggy.HookspecMarker(app_name)
+    def restart_asr(self):
+        pass
+    
     @pluggy.HookspecMarker(app_name)
     def process_wake_word(self, text):
         """Hook for processing wake word detected text"""

@@ -45,6 +45,7 @@ module.exports = {
             console.log("Custom message handler in FLOW component:", event.data);
             const data = JSON.parse(event.data);
             this.answers = data;
+            this.selectedCard = null;
             this.cpuUsage = data.cpu_usage;
             this.memoryUsage = data.memory_usage;
         },
