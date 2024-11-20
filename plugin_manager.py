@@ -48,6 +48,11 @@ class MyAppSpec:
         pass
     
     @pluggy.HookspecMarker(app_name)
+    def add_msg_to_conversation(self, msg, author):
+        """Hook for processing wake word detected text"""
+        pass
+    
+    @pluggy.HookspecMarker(app_name)
     def activate(self):
         """Hook for plugins to perform actions upon activation."""
         pass

@@ -36,17 +36,14 @@ class Flow(Baseplugin):
     @hookimpl
     def startup(self):
         print("FLOW STARTUP")
-        self.test_queries()
+        # self.test_queries()
         loop = asyncio.get_event_loop()
         loop.run_in_executor(None, self._startup_async)
 
     async def _startup_async(self):
-        
-        ''' 
         print("sending status ready")
         await self.wait_for_socket_and_send("ready")
         self.send_test_json()
-        '''
         
     def send_test_json(self):
         print ("Sending test json")
@@ -65,6 +62,7 @@ class Flow(Baseplugin):
                 msg = message_dict.get("msg", "")
                 # Trigger hook in plugin manager with msg
                 asyncio.create_task(self.pm.trigger_hook(hook_name="speak", message=msg))
+                asyncio.create_task(self.pm.trigger_hook(hook_name="add_msg_to_conversation", msg=msg, author="master"))
             
         except json.JSONDecodeError:
             print("Received message is not valid JSON.")

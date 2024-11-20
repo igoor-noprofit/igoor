@@ -1,10 +1,10 @@
 {
     "active": true,
-    "category": "ASR",
-    "title": "Vosk",
+    "category": "core",
+    "title": "Conversation",
     "layout": {
         "part": "header",
-        "order": 0
+        "order": 2
     },
     "is_free": true,
     "requires_subscription": false,
