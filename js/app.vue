@@ -3,9 +3,9 @@
 </div>
 <header>
     <div id="topbar">
-        <elevenlabs></elevenlabs><settings></settings>
+        
     </div>
-    <asrvosk></asrvosk>
+    
 </header>
 <main>
     <flow></flow>

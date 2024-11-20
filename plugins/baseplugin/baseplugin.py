@@ -72,7 +72,21 @@ class Baseplugin:
         if not os.path.exists(subfolder_path):
             return False
         return True    
-        
+    
+    def is_folder_empty(self, subfolder_name: str) -> bool:
+        """
+        Check if the specified subfolder is empty.
+
+        :param subfolder_name: The name of the subfolder to check.
+        :return: True if the subfolder is empty, False otherwise.
+        """
+        subfolder_path = os.path.join(self.plugin_folder, subfolder_name)
+        if os.path.exists(subfolder_path) and os.path.isdir(subfolder_path):
+            return not any(os.listdir(subfolder_path))
+        else:
+            print(f"Subfolder {subfolder_path} does not exist or is not a directory.")
+            return False
+    
     def create_subfolder(self, subfolder_name: str):
         """
         Create a subfolder inside the plugin folder if it doesn't exist.

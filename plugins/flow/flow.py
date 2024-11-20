@@ -35,13 +35,18 @@ class Flow(Baseplugin):
     
     @hookimpl
     def startup(self):
+        print("FLOW STARTUP")
+        self.test_queries()
         loop = asyncio.get_event_loop()
         loop.run_in_executor(None, self._startup_async)
 
     async def _startup_async(self):
+        
+        ''' 
         print("sending status ready")
         await self.wait_for_socket_and_send("ready")
         self.send_test_json()
+        '''
         
     def send_test_json(self):
         print ("Sending test json")
@@ -104,10 +109,20 @@ class Flow(Baseplugin):
         print(f"Flow plugin received new status: {status}")
         
     
+    def test_queries(self) -> None:
+        queries = [
+            "Q: Comment s'appelle tes fils",
+            "Q: Tu te souviens de l'expo Drosephilia",
+            "Q: Combien d'enfants tu as",
+            "Q: Comment s'appelle ta femme",
+            "Q: Quels sont tes réalisateurs préférés",
+            "Q: Est-ce que t'aimes Tarantino",
+        ]
+        for query in queries:
+            asyncio.run(self.asr_msg(query))
+    
+    
     '''
-    @hookimpl
-    def startup(self):
-        print("STARTUPSELF")
         
     @hookimpl
     def activate(self):
@@ -117,4 +132,5 @@ class Flow(Baseplugin):
     def deactivate(self):
         print("Deactivating FLOW") 
     '''
+
     

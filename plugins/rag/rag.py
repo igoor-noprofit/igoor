@@ -23,36 +23,46 @@ class Rag(Baseplugin):
         self.settings = self.get_my_settings()
         self.medias_folder_name = "medias"
         self.index_folder_name = "faiss_index"
-        self.index_loaded=False
-        # Check if medias folder exists but index does not
-        if self.subfolder_exists(self.medias_folder_name) and not self.subfolder_exists(self.index_folder_name):
-            print("INDEX FOLDER DOES NOT EXIST, CREATING FROM FOLDER")
+        self.index_loaded = False
+        self.embedding_function=self.get_embedding_function()
+        # Check if medias folder exists
+        if self.subfolder_exists(self.medias_folder_name):
             self.create_folders()
-            self.create_index()
-            # You can add additional logic here if needed
-        else:
-            print("BOTH FOLDERS EXIST")
-            self.create_folders()
-            print ("RAG settings", self.settings)
-            threading.Thread(target=self.load_index).start()
+            # Check if index folder does not exist or is empty
+            if not self.subfolder_exists(self.index_folder_name) or self.is_folder_empty(self.index_folder_name):
+                print("INDEX FOLDER DOES NOT EXIST OR IS EMPTY, CREATING FROM FOLDER")
+                self.create_index()
+            else:
+                print("BOTH FOLDERS EXIST AND INDEX IS NOT EMPTY")
+                print("RAG settings", self.settings)
+                threading.Thread(target=self.load_index).start()
     
     def load_index(self):
         print ("LOADING INDEX, PLEASE WAIT...")
         db_start_time = time.time()
-        embedding_function = self.get_embedding_function()
-        print("LOADED EMBEDDING FUNCTION")
         try:
-            self.db = FAISS.load_local(self.index_folder, embedding_function, allow_dangerous_deserialization=True)
+            self.db = FAISS.load_local(self.index_folder, self.embedding_function, allow_dangerous_deserialization=True)
             db_end_time = time.time()
             print(f"DB FAISS index loaded successfully in : {db_end_time - db_start_time:.2f} seconds")
             self.index_loaded = True  # Set index_loaded to True after successful loading
+            # self.send_prompt("test")
         except Exception as e:
             print(f"Error loading FAISS index: {e}")
         
     @hookimpl
     def send_prompt(self, prompt: str) -> None:
         print(f"Received prompt : {prompt}")
-        asyncio.run(self.query_rag(prompt, "Q: Tu te souviens de l'expo Drosephilia?"))
+        queries = [
+            prompt,
+            "Q: Tu te souviens de l'expo Drosephilia",
+            "Q: Combien d'enfants tu as",
+            "Q: Comment s'appelle ta femme",
+            "Q: Quels sont tes réalisateurs préférés",
+            "Q: Est-ce que t'aimes Tarantino",
+            "Q: Comment s'appelle tes fils"
+        ]
+        for query in queries:
+            asyncio.run(self.query_rag(query))
         
     def create_folders(self):
         self.medias_folder = self.create_subfolder(self.medias_folder_name)
@@ -84,6 +94,7 @@ class Rag(Baseplugin):
             print(f"No cache found at: {cache_dir}")
             
     def get_embedding_function(self):
+        print("LOADING EMBEDDING FUNCTION")
         embedding_model = self.settings.get("embedding_model")
         model_kwargs = {"device": "cpu"}
         encode_kwargs = {"normalize_embeddings": True}
@@ -128,9 +139,8 @@ class Rag(Baseplugin):
                 print(doc.page_content)
                 print("-------")
 
-        # Embedding and FAISS index creation
-        embedding_function = self.get_embedding_function()
-        self.db = FAISS.from_documents(docs, embedding_function)
+        print ("CREATING INDEX")
+        self.db = FAISS.from_documents(docs, self.embedding_function)
         self.db.save_local(self.index_folder)
         print("FAISS index saved.")
         db_end_time = time.time()
