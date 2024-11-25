@@ -18,7 +18,7 @@
         </div>
         <!--div v-show="waitingai">J'attends d'autres réponses possibles</div-->
     </div>
-    <div v-else>Pas de conversation active.</div>
+    <div v-else></div>
 </template>
 
 <script>

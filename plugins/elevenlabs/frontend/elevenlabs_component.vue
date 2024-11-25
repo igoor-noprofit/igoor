@@ -1,7 +1,5 @@
 <template>
     <div class="elevenlabs">
-        <a @click="$_speak('Bonjour, ceci est un test')">Speak</a>
-        <a @click="$_customMethod()">CUSTOM METHOD</a>
     </div>
 </template>
 

@@ -1,10 +1,10 @@
 <div id="hidden">
     <!-- HIDDEN_COMPONENTS -->
 </div>
+<div id="topbar">
+    <!-- TOPBAR_COMPONENTS -->
+</div>
 <header>
-    <div id="topbar">
-        <!-- TOPBAR_COMPONENTS -->
-    </div>
     <!-- HEADER_COMPONENTS -->
 </header>
 <main>

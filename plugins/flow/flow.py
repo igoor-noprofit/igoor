@@ -37,17 +37,23 @@ class Flow(Baseplugin):
     def startup(self):
         print("FLOW STARTUP")
         # self.test_queries()
-        loop = asyncio.get_event_loop()
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
         loop.run_in_executor(None, self._startup_async)
-
+    
     async def _startup_async(self):
         print("sending status ready")
         await self.wait_for_socket_and_send("ready")
         self.send_test_json()
-        
+    
+    '''   
     def send_test_json(self):
         print ("Sending test json")
         self.send_message_to_frontend([{"Joie":"Oui, j'adore le gâteau de riz !"},{"Anticipation":"Je me demande si on peut en manger à la plage ?"},{"Confiance":"Je suis sûr que ma famille en a préparé pour notre sortie"}])
+    ''' 
 
     def process_incoming_message(self, message):
         try:
@@ -85,7 +91,7 @@ class Flow(Baseplugin):
         system_prompt = self.prompts.get_system_prompt("fr_FR", assistant_type) 
         # print(f"SYSTEM PROMPT IS : {system_prompt}")   
         pm = PromptManager(template=PROMPT_TEMPLATE)
-        prompt = pm.create_prompt(system_prompt=system_prompt, static_context=static_context, dynamic_context=dynamic_context, question=msg)       
+        prompt = pm.create_prompt(system_prompt=system_prompt, static_context=static_context, dynamic_context=dynamic_context, question=dynamic_context.get("conversation"))       
         print(f"FINAL PROMPT : {prompt}")
         llm = LLMManager(self.settings.get("provider"), self.settings.get("api_key"), self.settings.get("model_name"))
         answers = llm.invoke(prompt)

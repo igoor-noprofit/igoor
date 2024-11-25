@@ -1,6 +1,5 @@
 <template>
-    <div class="convContainer">
-        <h3>Conversation</h3>
+    <div class="convContainer container">
         <div v-if="thread" id="abandon">
             <input type="button" value="Abandonner la conversation" @click="$_abandonTopic()">
         </div>
@@ -37,11 +36,8 @@ module.exports = {
         },
         $_abandonTopic() {
             console.log('abandon topic');
-            window.abandonTopic();
-        },
-        formatDate(datetime) {
-            const date = new Date(datetime);
-            return date.toLocaleString();
+            this.sendMsgToBackend({"action":"abandon"});
+            this.thread=[];
         },
         scrollToBottom() {
             const scrollableDiv = this.$refs.scrollableConv;
@@ -59,8 +55,8 @@ module.exports = {
 }
 
 .container {
-    height: 100%;
-    display: flex
+    background: #333;
+    border: 1px solid #0f0;
 }
 
 .card-body {

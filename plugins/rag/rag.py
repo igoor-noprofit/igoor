@@ -24,6 +24,7 @@ class Rag(Baseplugin):
         self.medias_folder_name = "medias"
         self.index_folder_name = "faiss_index"
         self.index_loaded = False
+        self.embedding_loaded = False
         self.embedding_function=self.get_embedding_function()
         # Check if medias folder exists
         if self.subfolder_exists(self.medias_folder_name):
@@ -36,6 +37,14 @@ class Rag(Baseplugin):
                 print("BOTH FOLDERS EXIST AND INDEX IS NOT EMPTY")
                 print("RAG settings", self.settings)
                 threading.Thread(target=self.load_index).start()
+    
+    '''
+    def load_embedding_function(self):
+        if not (self.embedding_loaded):
+            self.embedding_function=self.get_embedding_function()
+        else:
+            print("Embedding function already loaded")
+    '''
     
     def load_index(self):
         print ("LOADING INDEX, PLEASE WAIT...")

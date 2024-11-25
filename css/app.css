@@ -4,7 +4,6 @@
   font-size: 10px;
   height: 30px;
   width: 100%;
-  display: flex;
   justify-content: space-between;
   /* Space between the items */
 }
@@ -13,14 +12,23 @@
 }
 header,
 main,
-footer {
+footer,
+#topbar {
   border: 1px solid #f00;
+  display: flex;
 }
 header {
   height: 25vh;
+  background: #ddd;
+}
+header > * {
+  /* Target all direct children of header */
+  flex: 1;
+  /* Allow each child to fill available space equally */
 }
 main {
   height: 50vh;
+  background: #999;
 }
 footer {
   height: 25vh;
