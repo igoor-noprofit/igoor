@@ -1,8 +1,5 @@
 <template>
-    <div class="convContainer container">
-        <div v-if="thread" id="abandon">
-            <input type="button" value="Abandonner la conversation" @click="$_abandonTopic()">
-        </div>
+    <div class="conversation-plugin">
         <div class="scrollableConv" ref="scrollableConv">
             <div v-for="(message, index) in thread" :key="index">
                 <div class="card" :class="message.author">
@@ -34,11 +31,6 @@ module.exports = {
             this.thread.push(data);
             this.scrollToBottom();
         },
-        $_abandonTopic() {
-            console.log('abandon topic');
-            this.sendMsgToBackend({"action":"abandon"});
-            this.thread=[];
-        },
         scrollToBottom() {
             const scrollableDiv = this.$refs.scrollableConv;
             if (scrollableDiv) {
@@ -50,6 +42,10 @@ module.exports = {
 </script>
 
 <style scoped>
+.conversation-plugin{
+    display: flex;
+    flex-direction: column
+}
 #abandon {
     margin: 0 0 30px 0;
 }

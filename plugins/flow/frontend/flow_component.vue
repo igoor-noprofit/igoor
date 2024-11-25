@@ -1,15 +1,14 @@
 <template>
     <div class="flow container flow-plugin" v-if="answers.length > 0" id="answers">
+        <div v-if="answers" id="abandon">
+            <input type="button" value="Abandonner" @click="$_abandonConversation()">
+        </div>
         <div>
             <div class="row">
                 <div class="col-md-6" v-for="(msg, index) in answers" :key="index">
                     <div :class="['card', { 'fade-out': selectedCard !== null && selectedCard !== index }]"
                         @click="$_chooseAnswer(msg, index)">
                         <div class="card-body">
-                            <div class="emotion" v-show="Object.keys(msg)[0].toLowerCase() !== 'std'">
-                                <!--img class="emoticon" @error="$_handleImageError" :src="`/img/icons/emo_${Object.keys(msg)[0].toLowerCase()}.png`" alt="emoticon" /-->
-                                <!--h5 class="card-title">{{ `${Object.keys(msg)[0]}` }}</h5-->
-                            </div>
                             <p class="card-text">{{ $_removeSource(Object.values(msg)[0]) }}</p>
                         </div>
                     </div>
@@ -35,19 +34,23 @@ module.exports = {
         }
     },
     methods: {
-        /*
-        $_handleImageError(event){
-            console.log('no emoticon found');
-            event.target.src = '/img/icons/emo_vide.png';
+        $_abandonConversation() {
+            window.pywebview.api.trigger_hook("abandon").then(response => {
+                console.log(response)
+                console.table(response)
+                this.answers=[];
+            });
         },
-        */
         handleIncomingMessage(event) {
             console.log("Custom message handler in FLOW component:", event.data);
-            const data = JSON.parse(event.data);
-            this.answers = data;
-            this.selectedCard = null;
-            this.cpuUsage = data.cpu_usage;
-            this.memoryUsage = data.memory_usage;
+            try{
+                const data = JSON.parse(event.data);
+                this.answers = data;
+                this.selectedCard = null;
+            }
+            catch(e){
+                console.warn("Error parsing JSON")
+            }
         },
         async $_chooseAnswer(msg, index) {
             let text = Object.values(msg)[0];
@@ -56,18 +59,6 @@ module.exports = {
             console.log("sending JSON");
             console.log(json);
             this.sendMsgToBackend(json);
-            /* 
-            console.log("Speaking phrase: " + text);
-            
-            
-            result = await window.pywebview.api.trigger_hook("speak", jsonText);
-            /*
-            addMessageToDB(text);
-            */
-        },
-        $_removeSource(text) {
-            // Use a regular expression to remove text between 【 and 】, including the brackets
-            return text.replace(/【.*?】/g, '');
         }
     }
 };
@@ -75,12 +66,13 @@ module.exports = {
 
 <style scoped>
 .flow-plugin {
-    padding: 10px;
     border: 1px solid #00796b;
     margin: 10px 0;
-    max-width: 50%;
+    flex-direction: row
 }
-
+#abandon{
+    width: 20%;
+}
 .card-title{
     font-size: 1rem;
 }
