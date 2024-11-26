@@ -92,12 +92,15 @@ class Flow(Baseplugin):
         static_context = await(self.query_rag_async(msg))
         # print(f"STATIC CONTEXT IS : {static_context}")
         dynamic_context = self.get_dynamic_context()
-        # print(f"DYNAMIC CONTEXT IS : {dynamic_context}")
+        # Remove the conversation attribute from dynamic context
+        conversation = dynamic_context.get("conversation")
+        del dynamic_context["conversation"]
         assistant_type = "flow"
         system_prompt = self.prompts.get_system_prompt("fr_FR", assistant_type) 
         # print(f"SYSTEM PROMPT IS : {system_prompt}")   
         pm = PromptManager(template=PROMPT_TEMPLATE)
-        prompt = pm.create_prompt(system_prompt=system_prompt, static_context=static_context, dynamic_context=dynamic_context, conversation=dynamic_context.get("conversation"))       
+        dynamic_context = dynamic_context
+        prompt = pm.create_prompt(system_prompt=system_prompt, static_context=static_context, dynamic_context=dynamic_context, conversation=conversation)       
         print(f"FINAL PROMPT : {prompt}")
         llm = LLMManager(self.settings.get("provider"), self.settings.get("api_key"), self.settings.get("model_name"))
         answers = llm.invoke(prompt)
