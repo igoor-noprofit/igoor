@@ -28,6 +28,7 @@ class Api:
         else:
             return plugin_manager.activate_plugin(plugin_name=pn)
 
+    '''
     async def askAI(self, assistant_type, query):
         print("received query = " + query)
         system_prompt = self.prompts.get_system_prompt(self.language, assistant_type)
@@ -39,6 +40,7 @@ class Api:
             print (response.content)
             print("*** END RESPONSE CONTENT ***")
         return response
+    '''
 
     def minimize_window(self):
         print("Minimizing window")

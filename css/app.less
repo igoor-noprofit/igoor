@@ -1,19 +1,36 @@
+html,body{
+  overflow: hidden;
+}
+@green: #396350;
+@yes_green: #407d1c;
+@no_red: #a8351b;
+@footer_button_bg: #23515b;
+@back_button_bg: #1f474f;
+@phrase_button_bg: #216776;
+@phrase_margin_bottom: 20px;
+@topbar_bg:#1d1d1d;
+@rounded: 20px;
+@conversation_bg: #28373b;
+.rounded{
+  border-radius: @rounded;
+}
+#app{
+  display: flex;
+  flex-direction: column;
+}
 #topbar {
-  background-color: #000;
+  background-color: @topbar_bg;
   color: #fff;
   font-size: 10px;
   height: 30px;
   width: 100%;
   justify-content: space-between; /* Space between the items */
-  div{
-    border: 1px solid #0f0;
-  }
 }
 header,main,footer,#topbar{
-  border: 1px solid #f00;
   display: flex
 }
 header{
+  justify-content: space-evenly;
   height: 25vh;
   background: #ddd;
   > * { /* Target all direct children of header */
@@ -41,5 +58,84 @@ footer{
   }
   label{
     margin-right: 10px;
+  }
+}
+.card{
+  .rounded;
+}
+.asrvosk-plugin{
+  max-width: 100px;
+  background: @green;
+  .mic {
+    padding: @rounded; 
+    &.listening{
+      img{
+        animation: pulse 2s infinite;
+      }
+    }
+  }
+}
+
+
+@keyframes pulse {
+  0% {
+    opacity: 0;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+  100% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+}
+.card{
+  padding: 0 @rounded;
+  color: #fff;
+}
+.conversation-plugin{
+  background: @conversation_bg;
+  .scrollableConv{
+    max-width: 70%;
+    text-align: center;
+    padding: 10px 
+  }
+
+  .card{
+    margin-top: @phrase_margin_bottom;
+    display: inline-block;
+    &.def{
+      background: @phrase_button_bg;
+    }
+    &.master{
+      background: @green;
+    }
+  }
+}
+.flow-plugin{
+  input{
+    color: #fff;
+    display: flex;
+  }
+  .answers{
+    .card{
+      background: @phrase_button_bg;
+      color: #fff;
+      margin-bottom: @phrase_margin_bottom;
+    }
+  }
+  .abandon{
+    min-width: 150px;
+    input{
+      height: 100%;
+      background-color: @back_button_bg;
+      color: #fff;
+      padding: 20px;
+      text-transform: uppercase;
+      font-weight: bold;
+      cursor: pointer;
+    }
   }
 }

@@ -2,7 +2,7 @@
     <rag></rag>
 </div>
 <div id="topbar">
-    <elevenlabs></elevenlabs><settings></settings>
+    <elevenlabs></elevenlabs><clock></clock><meteo></meteo><settings></settings>
 </div>
 <header>
     <asrvosk></asrvosk><conversation></conversation>

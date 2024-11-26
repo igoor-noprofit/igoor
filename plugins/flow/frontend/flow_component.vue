@@ -1,15 +1,15 @@
 <template>
-    <div class="flow container flow-plugin" v-if="answers.length > 0" id="answers">
-        <div v-if="answers" id="abandon">
+    <div class="flow container flow-plugin" v-if="answers.length > 0">
+        <div v-if="answers" class="abandon">
             <input type="button" value="Abandonner" @click="$_abandonConversation()">
         </div>
-        <div>
+        <div class="answers">
             <div class="row">
-                <div class="col-md-6" v-for="(msg, index) in answers" :key="index">
-                    <div :class="['card', { 'fade-out': selectedCard !== null && selectedCard !== index }]"
+                <div v-for="(msg, index) in answers" :key="index">
+                    <div :class="['card', { 'fade-out': selectedCard == index }]"
                         @click="$_chooseAnswer(msg, index)">
                         <div class="card-body">
-                            <p class="card-text">{{ $_removeSource(Object.values(msg)[0]) }}</p>
+                            <p class="card-text">{{ (Object.values(msg)[0]) }}</p>
                         </div>
                     </div>
                 </div>
@@ -66,20 +66,21 @@ module.exports = {
 
 <style scoped>
 .flow-plugin {
-    border: 1px solid #00796b;
     margin: 10px 0;
-    flex-direction: row
+    flex-direction: row;
+    display: flex
 }
-#abandon{
+.abandon{
     width: 20%;
 }
 .card-title{
     font-size: 1rem;
 }
-
+.fade-out{
+    display: none;
+}
 .card-body {
     padding: 6px;
-    border: 1px solid #000;
     cursor:pointer
 }
 .fade-out {

@@ -1,3 +1,3 @@
 - Implement the city method
 - Geoloc is NOT reliable via ip-api.com => user's never @ home
-- Detach geolocalisation from weather with a Weather plugin BASED on geoloc
+- Reduce weather infos in JSON output

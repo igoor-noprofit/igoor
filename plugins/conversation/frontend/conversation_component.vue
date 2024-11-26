@@ -47,14 +47,19 @@ module.exports = {
     flex-direction: column
 }
 #abandon {
-    margin: 0 0 30px 0;
+    min-width: 20%;
+    background: #00f;
+    color: #fff;
 }
-
+.scrollableConv{
+    overflow-y: scroll;
+    height: 100%;
+    overflow-x: hidden;
+}
 .container {
     background: #333;
     border: 1px solid #0f0;
 }
-
 .card-body {
     padding: 6px;
 }

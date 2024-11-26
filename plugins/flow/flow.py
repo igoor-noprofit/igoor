@@ -7,22 +7,21 @@ from context_manager import context_manager
 from prompts import AssistantPrompts
 from settings_manager import SettingsManager
 from llm_manager import LLMManager
-import asyncio,json
-
+import asyncio,json,time
 
 PROMPT_TEMPLATE = """
 {system_prompt}
 
-Réponds en utilisant aussi le contexte statique suivant:
+Pour répondre tu peux utilisers le contexte statique extrait des documents sur la vie de la personne :
 
 {static_context}
 
 ---
-Si besoin utilise les infos du contexte dynamique suivant :
+Si besoin utilise aussi les infos du contexte dynamique suivant :
 
 {dynamic_context}
 ---
-Réponds en utilisant aussi les contextes ci-dessus à la question: {question}
+Réponds en utilisant aussi les contextes ci-dessus à la dernière question de cette conversation: {conversation}
 """
 
 class Flow(Baseplugin):  
@@ -76,13 +75,14 @@ class Flow(Baseplugin):
     '''
     Receives msg from speaker
     Transmits it to RAG systems
-    Performs query
+    Retrieves context
+    Fills prompt
+    Performs LLM query
     '''
     @hookimpl
     async def asr_msg(self, msg: str) -> None:
-        import time
         start_time = time.time()
-        # print(f"QUERYING RAG WITH: {msg}")
+        print(f"QUERYING RAG WITH: {msg}")
         static_context = await(self.query_rag_async(msg))
         # print(f"STATIC CONTEXT IS : {static_context}")
         dynamic_context = self.get_dynamic_context()
@@ -91,11 +91,10 @@ class Flow(Baseplugin):
         system_prompt = self.prompts.get_system_prompt("fr_FR", assistant_type) 
         # print(f"SYSTEM PROMPT IS : {system_prompt}")   
         pm = PromptManager(template=PROMPT_TEMPLATE)
-        prompt = pm.create_prompt(system_prompt=system_prompt, static_context=static_context, dynamic_context=dynamic_context, question=dynamic_context.get("conversation"))       
+        prompt = pm.create_prompt(system_prompt=system_prompt, static_context=static_context, dynamic_context=dynamic_context, conversation=dynamic_context.get("conversation"))       
         print(f"FINAL PROMPT : {prompt}")
         llm = LLMManager(self.settings.get("provider"), self.settings.get("api_key"), self.settings.get("model_name"))
         answers = llm.invoke(prompt)
-        print(answers.content)
         end_time = time.time()
         print(f"Time taken for processing: {end_time - start_time} seconds")
         self.send_message_to_frontend(answers.content) 
@@ -104,7 +103,6 @@ class Flow(Baseplugin):
         return context_manager.get_context()
 
     async def query_rag_async(self, msg: str):
-        # Await the async hook call
         result = await self.pm.trigger_hook(hook_name="query_rag", query_text=msg)
         return result
         

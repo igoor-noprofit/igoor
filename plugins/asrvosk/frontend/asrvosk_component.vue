@@ -1,9 +1,9 @@
 <template>
-    <div class="asrvosk">
+    <div class="asrvosk-plugin">
         <div class="mic" :class="status">
-            <img v-if="status !== 'listening'" src="/img/mic.png">
+            <img src="/img/mic.png">
         </div>
-        <img v-if="status == 'listening'" src="/img/listening.gif" id="listening">
+        <!--img v-if="status == 'listening'" src="/img/listening.gif" id="listening"-->
     </div>
 </template>
 <script>
@@ -33,6 +33,7 @@ export default {
 };
 </script>
 <style>
+
 #listening{
     max-height: 100px;
 }
@@ -41,8 +42,7 @@ export default {
     max-width: 50px;
 }
 .mic.loading{
-    opacity: 0.5;
-    animation: pulse 2s infinite;
+    background: #f00
 }
 .mic.ready{
     opacity: 1;

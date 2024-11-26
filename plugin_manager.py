@@ -15,6 +15,19 @@ hookspec = pluggy.HookspecMarker(app_name)
 hookimpl = pluggy.HookimplMarker(app_name)
 
 class MyAppSpec:
+    '''
+        ************ PLUGINS CYCLE **************
+    '''
+    @pluggy.HookspecMarker(app_name)
+    def activate(self):
+        """Hook for plugins to perform actions upon activation."""
+        pass
+
+    @pluggy.HookspecMarker(app_name)
+    def deactivate(self):
+        """Hook for plugins to perform actions upon deactivation."""
+        pass
+    
     @pluggy.HookspecMarker(app_name)
     def get_frontend_components(self):
         """Hook for plugins to provide frontend components"""
@@ -25,14 +38,17 @@ class MyAppSpec:
         """Hook for plugins to perform startup activities"""
         pass
     
+    '''
+        ************ TTS **************
+    '''
+    
     @pluggy.HookspecMarker(app_name)
     def speak(self,message):
         self.plugin_manager.hook.speak(message=message)
         pass
     
     '''
-    Used in continuous listening to pause ASR when speaking
-    and restart it when finished speaking
+        ************ ASR **************
     '''
     @pluggy.HookspecMarker(app_name)
     def pause_asr(self):
@@ -48,6 +64,19 @@ class MyAppSpec:
         pass
     
     @pluggy.HookspecMarker(app_name)
+    def wakeword_detected(self):
+        """Hook for optional separate wake word mechanism """
+        pass
+    
+    @pluggy.HookspecMarker(app_name)
+    async def asr_msg(self, msg: str) -> None:
+        """Hook for plugins to perform actions when speaker has said something via ASR"""
+        pass
+    
+    '''
+        ************ CONVERSATION **************
+    '''
+    @pluggy.HookspecMarker(app_name)
     def add_msg_to_conversation(self, msg, author):
         """Hook for processing wake word detected text"""
         pass
@@ -57,24 +86,13 @@ class MyAppSpec:
         """Hook for processing wake word detected text"""
         pass
     
-    @pluggy.HookspecMarker(app_name)
-    def activate(self):
-        """Hook for plugins to perform actions upon activation."""
-        pass
-
-    @pluggy.HookspecMarker(app_name)
-    def deactivate(self):
-        """Hook for plugins to perform actions upon deactivation."""
-        pass
     
+    '''
+        ************ AI FLOW AND RAG **************
+    '''
     @pluggy.HookspecMarker(app_name)
     def send_prompt(self, prompt: str) -> None:
         """Hook for plugins to perform actions when sending prompt"""
-        pass
-    
-    @pluggy.HookspecMarker(app_name)
-    async def asr_msg(self, msg: str) -> None:
-        """Hook for plugins to perform actions when speaker has said something via ASR"""
         pass
     
     @pluggy.HookspecMarker(app_name)
@@ -115,7 +133,7 @@ class PluginManager:
                 if args and isinstance(args[0], dict):
                     kwargs.update(args[0])  # Move the dictionary to kwargs
 
-                print(f"Executing hook with kwargs: {kwargs}")
+                print(f"Executing hook {hook_name} with kwargs: {kwargs}")
                 results = hook(**kwargs)  # Call the hook
 
                 # Ensure results is an awaitable

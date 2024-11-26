@@ -1,5 +1,16 @@
+html,
+body {
+  overflow: hidden;
+}
+.rounded {
+  border-radius: 20px;
+}
+#app {
+  display: flex;
+  flex-direction: column;
+}
 #topbar {
-  background-color: #000;
+  background-color: #1d1d1d;
   color: #fff;
   font-size: 10px;
   height: 30px;
@@ -7,17 +18,14 @@
   justify-content: space-between;
   /* Space between the items */
 }
-#topbar div {
-  border: 1px solid #0f0;
-}
 header,
 main,
 footer,
 #topbar {
-  border: 1px solid #f00;
   display: flex;
 }
 header {
+  justify-content: space-evenly;
   height: 25vh;
   background: #ddd;
 }
@@ -48,4 +56,74 @@ footer {
 }
 .settings label {
   margin-right: 10px;
+}
+.card {
+  border-radius: 20px;
+}
+.asrvosk-plugin {
+  max-width: 100px;
+  background: #396350;
+}
+.asrvosk-plugin .mic {
+  padding: 20px;
+}
+.asrvosk-plugin .mic.listening img {
+  animation: pulse 2s infinite;
+}
+@keyframes pulse {
+  0% {
+    opacity: 0;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+  100% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+}
+.card {
+  padding: 0 20px;
+  color: #fff;
+}
+.conversation-plugin {
+  background: #28373b;
+}
+.conversation-plugin .scrollableConv {
+  max-width: 70%;
+  text-align: center;
+  padding: 10px;
+}
+.conversation-plugin .card {
+  margin-top: 20px;
+  display: inline-block;
+}
+.conversation-plugin .card.def {
+  background: #216776;
+}
+.conversation-plugin .card.master {
+  background: #396350;
+}
+.flow-plugin input {
+  color: #fff;
+  display: flex;
+}
+.flow-plugin .answers .card {
+  background: #216776;
+  color: #fff;
+  margin-bottom: 20px;
+}
+.flow-plugin .abandon {
+  min-width: 150px;
+}
+.flow-plugin .abandon input {
+  height: 100%;
+  background-color: #1f474f;
+  color: #fff;
+  padding: 20px;
+  text-transform: uppercase;
+  font-weight: bold;
+  cursor: pointer;
 }
