@@ -34,8 +34,9 @@ class Asrvosk(Baseplugin):
     
     
     @hookimpl
-    def pause_asr(self):
+    async def pause_asr(self):
         self.is_paused = True
+        await(self.send_status("paused"))
     
     '''
     To support external wakeword mechanism
@@ -129,6 +130,7 @@ class Asrvosk(Baseplugin):
             self.is_paused = True
             while self.is_paused:
                 print(".")
+            await self.send_status("listening")
             self.start_stream() 
             while not self.is_paused:
                 data = self.stream.read(4000, exception_on_overflow=False)

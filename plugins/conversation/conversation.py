@@ -20,30 +20,19 @@ class Conversation(Baseplugin):
     async def new_conversation(self):
         self.thread=[]
         context_manager.update_context("conversation","")
+        
+    @hookimpl
+    async def abandon_conversation(self):
+        self.thread=[]
+        context_manager.update_context("conversation","")
+        self.run_new_conversation()
     
     def run_new_conversation(self):
         if not asyncio.get_event_loop().is_running():
             asyncio.run(self.new_conversation())
         else:
             asyncio.create_task(self.new_conversation())
-
-    '''
-    ABANDON CONVERSATION EVENT
-    '''
-    def process_incoming_message(self, message):
-        try:
-            print("Received msg: " + message)
-            # Attempt to parse the message as JSON
-            message_dict = json.loads(message)
-            # Output the JSON variables and values
-            for key, value in message_dict.items():
-                print(f"Key: {key}, Value: {value}")
-            # Ensure message_dict is a dictionary
-            if isinstance(message_dict, dict) and message_dict.get("action") == "abandon":
-                self.run_new_conversation()
-        except json.JSONDecodeError:
-            print("Received message is not valid JSON.")
-            return
+            self.run_new_conversation()
 
     @hookimpl
     async def add_msg_to_conversation(self, msg: str, author: str) -> None:

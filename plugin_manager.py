@@ -86,6 +86,10 @@ class MyAppSpec:
         """Hook for processing wake word detected text"""
         pass
     
+    @pluggy.HookspecMarker(app_name)
+    def abandon_conversation(self):
+        """Hook for abandoning current conversation"""
+        pass
     
     '''
         ************ AI FLOW AND RAG **************

@@ -64,6 +64,7 @@ def load_frontend_components():
         'hidden': [],
         'topbar': [],
         'header': [],
+        'after_header': [],
         'main': [],
         'footer': []
     }

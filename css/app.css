@@ -1,9 +1,14 @@
+@font-face {
+  font-family: 'Public Sans';
+  src: url('fonts/PublicSans-VariableFont_wght.ttf') format('truetype');
+}
 html,
 body {
   overflow: hidden;
+  font-family: 'Public Sans';
 }
 .rounded {
-  border-radius: 20px;
+  border-radius: 15px;
 }
 #app {
   display: flex;
@@ -18,6 +23,11 @@ body {
   justify-content: space-between;
   /* Space between the items */
 }
+header > div,
+main > div,
+footer > div {
+  padding: 10px;
+}
 header,
 main,
 footer,
@@ -25,9 +35,9 @@ footer,
   display: flex;
 }
 header {
+  background: #396350;
   justify-content: space-evenly;
-  height: 25vh;
-  background: #ddd;
+  height: 20vh;
 }
 header > * {
   /* Target all direct children of header */
@@ -35,11 +45,11 @@ header > * {
   /* Allow each child to fill available space equally */
 }
 main {
-  height: 50vh;
+  height: 60vh;
   background: #999;
 }
 footer {
-  height: 25vh;
+  height: 20vh;
 }
 #hidden {
   display: none;
@@ -58,14 +68,18 @@ footer {
   margin-right: 10px;
 }
 .card {
-  border-radius: 20px;
+  border-radius: 15px;
 }
 .asrvosk-plugin {
-  max-width: 100px;
-  background: #396350;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  max-width: 120px;
 }
 .asrvosk-plugin .mic {
-  padding: 20px;
+  text-align: center;
+  border-radius: 15px;
+  padding: 15px;
 }
 .asrvosk-plugin .mic.listening img {
   animation: pulse 2s infinite;
@@ -85,8 +99,9 @@ footer {
   }
 }
 .card {
-  padding: 0 20px;
+  padding: 0 15px;
   color: #fff;
+  display: inline-block;
 }
 .conversation-plugin {
   background: #28373b;
@@ -98,7 +113,6 @@ footer {
 }
 .conversation-plugin .card {
   margin-top: 20px;
-  display: inline-block;
 }
 .conversation-plugin .card.def {
   background: #216776;
@@ -106,9 +120,20 @@ footer {
 .conversation-plugin .card.master {
   background: #396350;
 }
+.flow-plugin {
+  width: 100%;
+}
+.flow-plugin .abandon,
+.flow-plugin .answers {
+  display: flex;
+  justify-content: center;
+}
 .flow-plugin input {
   color: #fff;
   display: flex;
+}
+.flow-plugin .answers {
+  width: 100%;
 }
 .flow-plugin .answers .card {
   background: #216776;
@@ -119,6 +144,7 @@ footer {
   min-width: 150px;
 }
 .flow-plugin .abandon input {
+  border-radius: 15px;
   height: 100%;
   background-color: #1f474f;
   color: #fff;

@@ -75,7 +75,8 @@ class Api:
     async def trigger_hook(self, hook_name, *args, **kwargs):
         try:
             print(f"JS : triggering hook {hook_name} with args: {args} and kwargs: {kwargs}")
-            result = await plugin_manager.trigger_hook(hook_name, *args, **kwargs)     
+            result = await plugin_manager.trigger_hook(hook_name, *args, **kwargs)
+            print(result)     
             # Ensure the result is JSON serializable
             if isinstance(result, (list, dict, str, int, float, bool, type(None))):
                 return result
@@ -85,3 +86,5 @@ class Api:
         except Exception as e:
             print(f"Error triggering hook '{hook_name}': {e}")
             return None
+        
+        

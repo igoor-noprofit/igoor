@@ -7,6 +7,7 @@
 <header>
     <asrvosk></asrvosk><conversation></conversation>
 </header>
+<!-- AFTER_HEADER_COMPONENTS -->
 <main>
     <flow></flow>
 </main>

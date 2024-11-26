@@ -42,7 +42,10 @@ export default {
     max-width: 50px;
 }
 .mic.loading{
-    background: #f00
+    opacity:0.5;
+}
+.mic.paused{
+    background: #A8351B !important;
 }
 .mic.ready{
     opacity: 1;

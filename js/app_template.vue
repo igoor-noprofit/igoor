@@ -7,6 +7,7 @@
 <header>
     <!-- HEADER_COMPONENTS -->
 </header>
+<!-- AFTER_HEADER_COMPONENTS -->
 <main>
     <!-- MAIN_COMPONENTS -->
 </main>
