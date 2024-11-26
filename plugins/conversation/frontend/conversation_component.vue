@@ -36,34 +36,51 @@ module.exports = {
             }
         },
         scrollToBottom() {
+            console.log("scrolling");
             const scrollableDiv = this.$refs.scrollableConv;
             if (scrollableDiv) {
                 scrollableDiv.scrollTop = scrollableDiv.scrollHeight;
+                console.log(scrollableDiv.scrollTop,scrollableDiv.scrollHeight);
             }
+            else{
+                console.warn("cannot scroll")
+            }
+        }
+    },
+    watch: {
+        thread() {
+            console.log("thread has changed");
+            this.$nextTick(() => {
+                this.scrollToBottom();
+            });
         }
     }
 };
 </script>
 
 <style scoped>
-.conversation-plugin{
+.conversation-plugin {
     display: flex;
     flex-direction: column
 }
+
 #abandon {
     min-width: 20%;
     background: #00f;
     color: #fff;
 }
-.scrollableConv{
+
+.scrollableConv {
     overflow-y: scroll;
     height: 100%;
     overflow-x: hidden;
 }
+
 .container {
     background: #333;
     border: 1px solid #0f0;
 }
+
 .card-body {
     padding: 6px;
 }

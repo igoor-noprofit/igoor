@@ -41,7 +41,7 @@ class Asrvosk(Baseplugin):
     @hookimpl
     async def abandon_conversation(self):
         self.wakeword_detected=False
-        self.send_status("listening")
+        await self.send_status("listening")
         
     
     '''
