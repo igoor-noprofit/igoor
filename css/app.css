@@ -8,20 +8,20 @@ body {
   font-family: 'Public Sans';
 }
 .rounded {
-  border-radius: 15px;
+  border-radius: 10px;
 }
 #app {
   display: flex;
   flex-direction: column;
 }
 #topbar {
-  background-color: #1d1d1d;
+  background-color: #121617;
   color: #fff;
   font-size: 10px;
   height: 30px;
   width: 100%;
   justify-content: space-between;
-  /* Space between the items */
+  align-items: center;
 }
 header > div,
 main > div,
@@ -35,7 +35,7 @@ footer,
   display: flex;
 }
 header {
-  background: #396350;
+  background: linear-gradient(to bottom, #2A4A51, #1A2223);
   justify-content: space-evenly;
   height: 20vh;
 }
@@ -68,7 +68,7 @@ footer {
   margin-right: 10px;
 }
 .card {
-  border-radius: 15px;
+  border-radius: 10px;
 }
 .asrvosk-plugin {
   display: flex;
@@ -78,11 +78,24 @@ footer {
 }
 .asrvosk-plugin .mic {
   text-align: center;
-  border-radius: 15px;
-  padding: 15px;
+  border-radius: 10px;
+  padding: 10px;
 }
-.asrvosk-plugin .mic.listening img {
+.asrvosk-plugin .mic.listening,
+.asrvosk-plugin .mic.recording {
+  background: #396350;
+}
+.asrvosk-plugin .mic.recording img {
   animation: pulse 2s infinite;
+}
+.asrvosk-plugin .mic.paused {
+  background: #A8351B;
+}
+.asrvosk-plugin .mic.loading {
+  background: #3E5E65;
+}
+.asrvosk-plugin .mic.loading img {
+  opacity: 0.2;
 }
 @keyframes pulse {
   0% {
@@ -99,12 +112,9 @@ footer {
   }
 }
 .card {
-  padding: 0 15px;
+  padding: 0 10px;
   color: #fff;
   display: inline-block;
-}
-.conversation-plugin {
-  background: #28373b;
 }
 .conversation-plugin .scrollableConv {
   max-width: 70%;
@@ -128,12 +138,15 @@ footer {
   display: flex;
   justify-content: center;
 }
+.flow-plugin .abandon {
+  justify-content: flex-start;
+}
 .flow-plugin input {
   color: #fff;
   display: flex;
 }
 .flow-plugin .answers {
-  width: 100%;
+  width: 50%;
 }
 .flow-plugin .answers .card {
   background: #216776;
@@ -144,7 +157,7 @@ footer {
   min-width: 150px;
 }
 .flow-plugin .abandon input {
-  border-radius: 15px;
+  border-radius: 10px;
   height: 100%;
   background-color: #1f474f;
   color: #fff;

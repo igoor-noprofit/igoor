@@ -35,9 +35,14 @@ module.exports = {
     methods: {
         async $_abandonConversation() {
             try {
+                /*
+                this method bugs because of not serializable JSON result ?
                 window.pywebview.api.trigger_hook("abandon_conversation").then(function(){
                     this.answers = [];
                 })
+                    */
+                this.sendMsgToBackend({"action":"abandon_conversation"});
+                this.answers=[]
             } catch (error) {
                 console.error("Error abandoning conversation:", error);
             }

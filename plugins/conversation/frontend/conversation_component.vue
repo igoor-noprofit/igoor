@@ -28,8 +28,12 @@ module.exports = {
             console.log("Custom message handler in CONVERSATION component:", event.data);
             const data = JSON.parse(event.data);
             console.table(data);
-            this.thread.push(data);
-            this.scrollToBottom();
+            if (data.action == "abandon_conversation") {
+                this.thread = [];
+            } else {
+                this.thread.push(data);
+                this.scrollToBottom();
+            }
         },
         scrollToBottom() {
             const scrollableDiv = this.$refs.scrollableConv;

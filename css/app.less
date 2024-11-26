@@ -1,6 +1,6 @@
 @font-face {
   font-family: 'Public Sans';
-  src: url('/fonts/PublicSans-VariableFont_wght.ttf') format('truetype');
+  src: url('fonts/PublicSans-VariableFont_wght.ttf') format('truetype');
 }
 html,body{
   overflow: hidden;
@@ -24,7 +24,7 @@ html,body{
 @phrase_button_bg: #216776;
 @phrase_margin_bottom: 20px;
 @topbar_bg:#1d1d1d;
-@rounded: 15px;
+@rounded: 10px;
 @conversation_bg: #28373b;
 .rounded{
   border-radius: @rounded;
@@ -34,12 +34,13 @@ html,body{
   flex-direction: column;
 }
 #topbar {
-  background-color: @topbar_bg;
+  background-color: @darkest;
   color: #fff;
   font-size: 10px;
   height: 30px;
   width: 100%;
-  justify-content: space-between; /* Space between the items */
+  justify-content: space-between;
+  align-items: center;
 }
 header > div, main > div, footer > div {
   padding: 10px;
@@ -48,7 +49,7 @@ header, main, footer, #topbar {
   display: flex;
 }
 header{
-  background: @
+  background: @bg_gradient;
   justify-content: space-evenly;
   height: 20vh;
   > * { /* Target all direct children of header */
@@ -92,9 +93,21 @@ footer{
     text-align: center;
     .rounded;
     padding: @rounded; 
-    &.listening{
+    &.listening,&.recording{
+      background: @green;
+    }
+    &.recording{
       img{
         animation: pulse 2s infinite;
+      }
+    }
+    &.paused{
+      background: @warning;
+    }
+    &.loading{
+      background: @gray_900;
+      img{
+        opacity: 0.2;
       }
     }
   }
@@ -121,7 +134,6 @@ footer{
   display: inline-block;
 }
 .conversation-plugin{
-  background: @conversation_bg;
   .scrollableConv{
     max-width: 70%;
     text-align: center;
@@ -143,7 +155,10 @@ footer{
 .flow-plugin{
   .abandon,.answers{
     display: flex;
-    justify-content: center;
+    justify-content: center; 
+  }
+  .abandon{
+    justify-content: flex-start
   }
   width: 100%;
   input{
@@ -151,7 +166,7 @@ footer{
     display: flex;
   }
   .answers{
-    width: 100%;
+    width: 50%;
     .card{
       background: @phrase_button_bg;
       color: #fff;

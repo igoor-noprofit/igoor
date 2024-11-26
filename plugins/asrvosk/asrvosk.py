@@ -37,6 +37,11 @@ class Asrvosk(Baseplugin):
     async def pause_asr(self):
         self.is_paused = True
         await(self.send_status("paused"))
+        
+    @hookimpl
+    async def abandon_conversation(self):
+        self.stop_asr()
+        
     
     '''
     To support external wakeword mechanism
@@ -50,6 +55,7 @@ class Asrvosk(Baseplugin):
         self.stream.stop_stream()
         self.stream.close()
         self.p.terminate()
+        self.send_message_to_frontend("listening")
         
     @hookimpl
     def restart_asr(self):
@@ -58,10 +64,10 @@ class Asrvosk(Baseplugin):
         try:
             loop = asyncio.get_running_loop()
             # If there's a running loop, create a task
-            loop.create_task(self.send_status("listening"))
+            loop.create_task(self.send_status("recording"))
         except RuntimeError:
             # If no running loop, use asyncio.run
-            asyncio.run(self.send_status("listening"))
+            asyncio.run(self.send_status("recording"))
     
     def run_monitor_loading(self):
         asyncio.run(self.monitor_loading())
@@ -96,6 +102,7 @@ class Asrvosk(Baseplugin):
         self.stream = self.p.open(format=pyaudio.paInt16, channels=1, rate=16000, input=True, frames_per_buffer=8000)
         self.stream.start_stream()
         
+        
     async def start(self):
         if (self.continuous):
             self.wakeword_detected=False
@@ -118,6 +125,7 @@ class Asrvosk(Baseplugin):
                                     await self.handle_wake_word(text)
                             if self.wakeword.lower() in text.lower():
                                 self.wakeword_detected=True
+                                await self.send_status("recording")
                                 following_text = text.lower().split(self.wakeword.lower(), 1)[1].strip()
                                 if (following_text != ""):
                                     await self.handle_wake_word(following_text)

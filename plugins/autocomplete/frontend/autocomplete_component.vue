@@ -1,5 +1,5 @@
 <template>
-    <div class="flow container flow-plugin" v-if="answers.length > 0">
+    <div class="autocomplete plugin" v-if="answers.length > 0">
         <div v-if="answers" class="abandon">
             <input type="button" value="Abandonner" @click="$_abandonConversation()">
         </div>
@@ -23,7 +23,7 @@
 import BasePluginComponent from '/js/BasePluginComponent.js';
 
 module.exports = {
-    name: "flow",
+    name: "autocomplete",
     mixins: [BasePluginComponent],
     data() {
         return {

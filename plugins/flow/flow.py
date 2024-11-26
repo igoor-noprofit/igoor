@@ -63,12 +63,18 @@ class Flow(Baseplugin):
             for key, value in message_dict.items():
                 print(f"Key: {key}, Value: {value}")
             # Ensure message_dict is a dictionary
-            if isinstance(message_dict, dict) and message_dict.get("action") == "speak":
-                msg = message_dict.get("msg", "")
-                # Trigger hook in plugin manager with msg
-                asyncio.create_task(self.pm.trigger_hook(hook_name="speak", message=msg))
-                asyncio.create_task(self.pm.trigger_hook(hook_name="add_msg_to_conversation", msg=msg, author="master"))
-            
+            if isinstance(message_dict, dict):
+                action = message_dict.get("action")
+                if  action == "speak":
+                    msg = message_dict.get("msg", "")
+                    # Trigger hook in plugin manager with msg
+                    asyncio.create_task(self.pm.trigger_hook(hook_name="speak", message=msg))
+                    asyncio.create_task(self.pm.trigger_hook(hook_name="add_msg_to_conversation", msg=msg, author="master"))
+                elif action == "abandon_conversation":
+                    asyncio.create_task(self.pm.trigger_hook(hook_name="abandon_conversation"))
+                else:
+                    print("Unrecognized action in incoming message.")
+                    
         except json.JSONDecodeError:
             print("Received message is not valid JSON.")
             return

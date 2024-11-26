@@ -33,21 +33,8 @@ export default {
 };
 </script>
 <style>
-
-#listening{
-    max-height: 100px;
-}
 .mic img{
     max-height: 50px;
     max-width: 50px;
-}
-.mic.loading{
-    opacity:0.5;
-}
-.mic.paused{
-    background: #A8351B !important;
-}
-.mic.ready{
-    opacity: 1;
 }
 </style>

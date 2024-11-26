@@ -25,6 +25,7 @@ class Conversation(Baseplugin):
     async def abandon_conversation(self):
         self.thread=[]
         context_manager.update_context("conversation","")
+        self.send_message_to_frontend({"action":"abandon_conversation"})
         self.run_new_conversation()
     
     def run_new_conversation(self):
@@ -32,7 +33,6 @@ class Conversation(Baseplugin):
             asyncio.run(self.new_conversation())
         else:
             asyncio.create_task(self.new_conversation())
-            self.run_new_conversation()
 
     @hookimpl
     async def add_msg_to_conversation(self, msg: str, author: str) -> None:
