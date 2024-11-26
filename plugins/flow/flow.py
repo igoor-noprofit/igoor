@@ -10,8 +10,6 @@ from llm_manager import LLMManager
 import asyncio,json,time
 
 PROMPT_TEMPLATE = """
-{system_prompt}
-
 Pour répondre tu peux utilisers le contexte statique extrait des documents sur la vie de la personne :
 
 {static_context}
@@ -100,10 +98,10 @@ class Flow(Baseplugin):
         # print(f"SYSTEM PROMPT IS : {system_prompt}")   
         pm = PromptManager(template=PROMPT_TEMPLATE)
         dynamic_context = dynamic_context
-        prompt = pm.create_prompt(system_prompt=system_prompt, static_context=static_context, dynamic_context=dynamic_context, conversation=conversation)       
+        prompt = pm.create_prompt(static_context=static_context, dynamic_context=dynamic_context, conversation=conversation)       
         print(f"FINAL PROMPT : {prompt}")
         llm = LLMManager(self.settings.get("provider"), self.settings.get("api_key"), self.settings.get("model_name"))
-        answers = llm.invoke(prompt)
+        answers = llm.invoke(system_prompt,prompt)
         end_time = time.time()
         print(f"Time taken for processing: {end_time - start_time} seconds")
         self.send_message_to_frontend(answers.content) 

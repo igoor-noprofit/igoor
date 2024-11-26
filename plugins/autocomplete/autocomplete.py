@@ -10,9 +10,7 @@ from llm_manager import LLMManager
 import asyncio,json,time
 
 PROMPT_TEMPLATE = """
-{system_prompt}
-
-Pour répondre tu peux utiliser le contexte statique extrait des documents sur la vie de la personne :
+Pour prédire tu peux utiliser le contexte statique extrait des documents sur la vie de la personne :
 
 {static_context}
 
@@ -49,7 +47,7 @@ class Autocomplete(Baseplugin):
             if isinstance(message_dict, dict) and message_dict.get("msg"):
                 input_value = message_dict.get("msg")
                 if input_value:
-                    asyncio.create_task(self.asr_msg(input_value))
+                    asyncio.create_task(self.predict(input_value))
                 else:
                     print("Input key is present but empty.")
             
@@ -64,22 +62,22 @@ class Autocomplete(Baseplugin):
     Fills prompt
     Performs LLM query
     '''
-    @hookimpl
-    async def asr_msg(self, msg: str) -> None:
+    async def predict(self, msg: str) -> None:
         start_time = time.time()
-        print(f"QUERYING RAG WITH: {msg}")
+        print("PREDICTING:")
+        dynamic_context = self.get_dynamic_context()
+        conversation = dynamic_context.get("conversation")
+        print(f"CONVERSATION IS : {conversation}")
+        assistant_type = "autocomplete"
         static_context = await(self.query_rag_async(msg))
         # print(f"STATIC CONTEXT IS : {static_context}")
-        dynamic_context = self.get_dynamic_context()
-        # print(f"DYNAMIC CONTEXT IS : {dynamic_context}")
-        assistant_type = "autocomplete"
         system_prompt = self.prompts.get_system_prompt("fr_FR", assistant_type) 
         # print(f"SYSTEM PROMPT IS : {system_prompt}")   
         pm = PromptManager(template=PROMPT_TEMPLATE)
-        prompt = pm.create_prompt(system_prompt=system_prompt, static_context=static_context, dynamic_context=dynamic_context, input=msg)       
-        print(f"FINAL PROMPT : {prompt}")
+        prompt = pm.create_prompt(static_context=static_context, dynamic_context=dynamic_context, input=msg)       
+        print(f"FINAL HUMAN PROMPT : {prompt}")
         llm = LLMManager(self.settings.get("provider"), self.settings.get("api_key"), self.settings.get("model_name"))
-        answers = llm.invoke(prompt)
+        answers = llm.invoke(system_prompt,prompt)
         end_time = time.time()
         print(f"Time taken for processing: {end_time - start_time} seconds")
         self.send_message_to_frontend(answers.content) 

@@ -16,5 +16,12 @@ class LLMManager:
         else:
             raise ValueError(f"Unsupported provider: {self.provider}")
 
-    def invoke(self, prompt):
-        return self.chat_instance.invoke(prompt)
+    def invoke(self, system_prompt, prompt):
+        messages = [
+            (
+                "system",
+                system_prompt
+            ),
+            ("human", prompt),
+        ]
+        return self.chat_instance.invoke(messages)

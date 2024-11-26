@@ -160,7 +160,7 @@ class Rag(Baseplugin):
     @hookimpl
     async def query_rag(self, query_text: str):
         try:
-            print("QUERYING INDEX: ", query_text)
+            print("QUERYING INDEX with text: ", query_text)
             if not self.index_loaded:
                 print("Index still loading")
             while not self.index_loaded:

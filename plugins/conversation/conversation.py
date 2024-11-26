@@ -40,6 +40,7 @@ class Conversation(Baseplugin):
         self.thread.append(newmsg)
         self.send_message_to_frontend(json.dumps(newmsg))
         conv = await self.get_conversation(format="raw")
+        print("Current conversation " + conv)
         context_manager.update_context("conversation", conv)
     
     @hookimpl
