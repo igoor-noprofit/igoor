@@ -2,12 +2,14 @@
     <rag></rag>
 </div>
 <div id="topbar">
-    <elevenlabs></elevenlabs><clock></clock><meteo></meteo><settings></settings>
+    <elevenlabs></elevenlabs><clock></clock><settings></settings>
 </div>
 <header>
     <asrvosk></asrvosk><conversation></conversation>
 </header>
-<!-- AFTER_HEADER_COMPONENTS -->
+<div class="after_header">
+    <autocomplete></autocomplete>
+</div>
 <main>
     <flow></flow>
 </main>

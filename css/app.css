@@ -44,6 +44,9 @@ header > * {
   flex: 1;
   /* Allow each child to fill available space equally */
 }
+.after_header {
+  background: #121617;
+}
 main {
   height: 60vh;
   background: #999;
@@ -96,6 +99,12 @@ footer {
 }
 .asrvosk-plugin .mic.loading img {
   opacity: 0.2;
+}
+.autocomplete.plugin .completion {
+  background: #216776;
+  color: #fff;
+  border-radius: 10px;
+  padding: 10px;
 }
 @keyframes pulse {
   0% {

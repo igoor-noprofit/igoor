@@ -1,22 +1,8 @@
 <template>
-    <div class="autocomplete plugin" v-if="answers.length > 0">
-        <div v-if="answers" class="abandon">
-            <input type="button" value="Abandonner" @click="$_abandonConversation()">
-        </div>
-        <div class="answers">
-            <div class="row">
-                <div v-for="(msg, index) in answers" :key="index">
-                    <div :class="['card', { 'fade-out': selectedCard == index }]" @click="$_chooseAnswer(msg, index)">
-                        <div class="card-body">
-                            <p class="card-text">{{ (Object.values(msg)[0]) }}</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <!--div v-show="waitingai">J'attends d'autres réponses possibles</div-->
+    <div class="autocomplete plugin">
+        <input type="text" v-model="userInput" autocomplete="off" name="autocomplete" placeholder="dis quelque chose">
+        <a v-html="completion" v-if="completion" @click="$_speak()" class="completion"></a>
     </div>
-    <div v-else></div>
 </template>
 
 <script>
@@ -27,69 +13,51 @@ module.exports = {
     mixins: [BasePluginComponent],
     data() {
         return {
-            selectedCard: null,
-            answers: [],
-            waitingai: true
+            completion: "",
+            waitingai: true,
+            userInput: ""
         }
     },
     methods: {
-        async $_abandonConversation() {
-            try {
-                window.pywebview.api.trigger_hook("abandon_conversation").then(function(){
-                    this.answers = [];
-                })
-            } catch (error) {
-                console.error("Error abandoning conversation:", error);
-            }
+        $_speak(){
+            const json = { action: "speak", msg: this.completion[0] };
+            console.log("sending JSON");
+            console.log(json);
+            this.sendMsgToBackend(json);
+            this.completion="";
         },
         handleIncomingMessage(event) {
-            console.log("Custom message handler in FLOW component:", event.data);
+            console.log("Custom message handler in " + this.name  + " component:", event.data);
             try {
                 const data = JSON.parse(event.data);
-                this.answers = data;
-                this.selectedCard = null;
+                this.completion = data;
             }
             catch (e) {
                 console.warn("Error parsing JSON")
             }
-        },
-        async $_chooseAnswer(msg, index) {
-            let text = Object.values(msg)[0];
-            this.selectedCard = index;
-            const json = { action: "speak", msg: text };
-            console.log("sending JSON");
-            console.log(json);
-            this.sendMsgToBackend(json);
+        }
+    },
+    watch: {
+        userInput: function(newInput) {
+            if (newInput != ''){
+                clearTimeout(this.inputTimeout); // Clear any existing timeout
+                this.inputTimeout = setTimeout(() => {
+                    const json = { msg: newInput };
+                    this.sendMsgToBackend(json);
+                }, 1500); // Replace 500 with your desired delay in milliseconds
+            }   
+            else{
+                this.completion=""
+            }
         }
     }
 };
 </script>
 
 <style scoped>
-.flow-plugin {
-    margin: 10px 0;
-    flex-direction: row;
-    display: flex
-}
-
-.abandon {
-    width: 20%;
-}
-
-.card-title {
-    font-size: 1rem;
-}
-
-.fade-out {
-    display: none;
-}
-
-.card-body {
-    padding: 6px;
-    cursor: pointer
-}
-
-.fade-out {
-    pointer-events: none;
+.autocomplete.plugin {
+    width: 100%;
+    text-align: center;
+    border: 1px solid #f00;
 }
 </style>

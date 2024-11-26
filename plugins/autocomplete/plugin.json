@@ -1,10 +1,10 @@
 {
-    "active": false,
+    "active": true,
     "category": "AI",
     "title": "Autocomplete",
     "layout": {
         "part": "after_header",
-        "order": 5
+        "order": 100
     },
     "is_free": true,
     "requires_subscription": true,

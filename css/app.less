@@ -56,6 +56,9 @@ header{
     flex: 1; /* Allow each child to fill available space equally */
   }
 }
+.after_header{
+  background: @darkest;
+}
 main{
   height: 60vh;
   background: #999;
@@ -112,7 +115,14 @@ footer{
     }
   }
 }
-
+.autocomplete.plugin{
+  .completion{
+    background: @phrase_button_bg;
+    color: #fff;
+    .rounded;
+    padding: @rounded;
+  }
+}
 
 @keyframes pulse {
   0% {

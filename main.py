@@ -110,6 +110,7 @@ def load_frontend_components():
         '<!-- HIDDEN_COMPONENTS -->': ''.join(f'<{comp["name"].lower()}></{comp["name"].lower()}>' for comp in components_by_category['hidden']),
         '<!-- TOPBAR_COMPONENTS -->': ''.join(f'<{comp["name"].lower()}></{comp["name"].lower()}>' for comp in components_by_category['topbar']),
         '<!-- HEADER_COMPONENTS -->': ''.join(f'<{comp["name"].lower()}></{comp["name"].lower()}>' for comp in components_by_category['header']),
+        '<!-- AFTER_HEADER_COMPONENTS -->': ''.join(f'<{comp["name"].lower()}></{comp["name"].lower()}>' for comp in components_by_category['after_header']),
         '<!-- MAIN_COMPONENTS -->': ''.join(f'<{comp["name"].lower()}></{comp["name"].lower()}>' for comp in components_by_category['main']),
         '<!-- FOOTER_COMPONENTS -->': ''.join(f'<{comp["name"].lower()}></{comp["name"].lower()}>' for comp in components_by_category['footer'])
     }
