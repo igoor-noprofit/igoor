@@ -40,7 +40,8 @@ class Asrvosk(Baseplugin):
         
     @hookimpl
     async def abandon_conversation(self):
-        self.stop_asr()
+        self.wakeword_detected=False
+        self.send_status("listening")
         
     
     '''
@@ -52,9 +53,11 @@ class Asrvosk(Baseplugin):
     
     @hookimpl
     def stop_asr(self):
+        print("Stopping ASR")
         self.stream.stop_stream()
         self.stream.close()
         self.p.terminate()
+        self.start()
         self.send_message_to_frontend("listening")
         
     @hookimpl
