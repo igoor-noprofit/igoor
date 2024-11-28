@@ -41,6 +41,10 @@ class Autocomplete(Baseplugin):
     def abandon_conversation(self):
         self.clear_input()
         
+    @hookimpl
+    def restart_asr(self):
+        self.clear_input()
+        
     def clear_input(self):
         self.send_message_to_frontend({"action":"clear"})
         

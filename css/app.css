@@ -1,11 +1,11 @@
 @font-face {
-  font-family: 'Public Sans';
-  src: url('fonts/PublicSans-VariableFont_wght.ttf') format('truetype');
+  font-family: "Public Sans";
+  src: url("fonts/PublicSans-VariableFont_wght.ttf") format("truetype");
 }
 html,
 body {
   overflow: hidden;
-  font-family: 'Public Sans';
+  font-family: "Public Sans";
 }
 .rounded {
   border-radius: 10px;
@@ -35,7 +35,7 @@ footer,
   display: flex;
 }
 header {
-  background: linear-gradient(to bottom, #2A4A51, #1A2223);
+  background: linear-gradient(to bottom, #2a4a51, #1a2223);
   justify-content: space-evenly;
   height: 20vh;
 }
@@ -92,19 +92,31 @@ footer {
   animation: pulse 2s infinite;
 }
 .asrvosk-plugin .mic.paused {
-  background: #A8351B;
+  background: #a8351b;
 }
 .asrvosk-plugin .mic.loading {
-  background: #3E5E65;
+  background: #3e5e65;
 }
 .asrvosk-plugin .mic.loading img {
   opacity: 0.2;
+}
+.autocomplete.plugin {
+  display: flex;
+  flex-direction: column;
+  min-height: 50px;
+  height: auto;
 }
 .autocomplete.plugin .completion {
   background: #216776;
   color: #fff;
   border-radius: 10px;
   padding: 10px;
+}
+.autocomplete.plugin input[name="autocomplete"] {
+  height: 50px;
+  background: none;
+  color: #fff;
+  font-size: 1rem;
 }
 @keyframes pulse {
   0% {
@@ -129,15 +141,22 @@ footer {
   max-width: 70%;
   text-align: center;
   padding: 10px;
+  -ms-overflow-style: none;
+  /* IE and Edge */
+  scrollbar-width: none;
+  /* Firefox */
+}
+.conversation-plugin .scrollableConv::-webkit-scrollbar {
+  display: none;
 }
 .conversation-plugin .card {
   margin-top: 20px;
 }
 .conversation-plugin .card.def {
-  background: #216776;
+  background: #396350;
 }
 .conversation-plugin .card.master {
-  background: #396350;
+  background: #216776;
 }
 .flow-plugin {
   width: 100%;

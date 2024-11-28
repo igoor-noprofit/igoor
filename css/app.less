@@ -1,35 +1,36 @@
 @font-face {
-  font-family: 'Public Sans';
-  src: url('fonts/PublicSans-VariableFont_wght.ttf') format('truetype');
+  font-family: "Public Sans";
+  src: url("fonts/PublicSans-VariableFont_wght.ttf") format("truetype");
 }
-html,body{
+html,
+body {
   overflow: hidden;
-  font-family: 'Public Sans';
+  font-family: "Public Sans";
 }
 @darkest: #121617;
-@bg_gradient: linear-gradient(to bottom, #2A4A51, #1A2223);
+@bg_gradient: linear-gradient(to bottom, #2a4a51, #1a2223);
 @bg_page_light: #edeee7;
-@warning: #A8351B;
+@warning: #a8351b;
 @green: #396350;
 @yes_green: #407d1c;
-@accent_100: #0095C0;
+@accent_100: #0095c0;
 @accent_500: #216776;
 @accent_700: #23515b;
 @accent_900: #1f474f;
 @secondary_accent: #407d1c;
-@gray_100: #A6BFBF;
-@gray_900: #3E5E65;
+@gray_100: #a6bfbf;
+@gray_900: #3e5e65;
 @footer_button_bg: #23515b;
 @back_button_bg: #1f474f;
 @phrase_button_bg: #216776;
 @phrase_margin_bottom: 20px;
-@topbar_bg:#1d1d1d;
+@topbar_bg: #1d1d1d;
 @rounded: 10px;
 @conversation_bg: #28373b;
-.rounded{
+.rounded {
   border-radius: @rounded;
 }
-#app{
+#app {
   display: flex;
   flex-direction: column;
 }
@@ -42,50 +43,56 @@ html,body{
   justify-content: space-between;
   align-items: center;
 }
-header > div, main > div, footer > div {
+header > div,
+main > div,
+footer > div {
   padding: 10px;
 }
-header, main, footer, #topbar {
+header,
+main,
+footer,
+#topbar {
   display: flex;
 }
-header{
+header {
   background: @bg_gradient;
   justify-content: space-evenly;
   height: 20vh;
-  > * { /* Target all direct children of header */
+  > * {
+    /* Target all direct children of header */
     flex: 1; /* Allow each child to fill available space equally */
   }
 }
-.after_header{
+.after_header {
   background: @darkest;
 }
-main{
+main {
   height: 60vh;
   background: #999;
 }
-footer{
-  height: 20vh
+footer {
+  height: 20vh;
 }
-#hidden{
-    display: none
+#hidden {
+  display: none;
 }
 #topbar > div {
   flex: 1; /* Make each child div take equal space */
   text-align: center; /* Optional: to center text within each div */
 }
-.settings{
-  field{
+.settings {
+  field {
     width: 100%;
-    display: flex
+    display: flex;
   }
-  label{
+  label {
     margin-right: 10px;
   }
 }
-.card{
+.card {
   .rounded;
 }
-.asrvosk-plugin{
+.asrvosk-plugin {
   display: flex;
   justify-content: center;
   align-items: center;
@@ -95,32 +102,43 @@ footer{
   .mic {
     text-align: center;
     .rounded;
-    padding: @rounded; 
-    &.listening,&.recording{
+    padding: @rounded;
+    &.listening,
+    &.recording {
       background: @green;
     }
-    &.recording{
-      img{
+    &.recording {
+      img {
         animation: pulse 2s infinite;
       }
     }
-    &.paused{
+    &.paused {
       background: @warning;
     }
-    &.loading{
+    &.loading {
       background: @gray_900;
-      img{
+      img {
         opacity: 0.2;
       }
     }
   }
 }
-.autocomplete.plugin{
-  .completion{
+.autocomplete.plugin {
+  display: flex;
+  flex-direction: column;
+  min-height: 50px;
+  height: auto;
+  .completion {
     background: @phrase_button_bg;
     color: #fff;
     .rounded;
     padding: @rounded;
+  }
+  input[name="autocomplete"] {
+    height: 50px;
+    background: none;
+    color: #fff;
+    font-size: 1rem;
   }
 }
 
@@ -138,55 +156,60 @@ footer{
     transform: scale(1);
   }
 }
-.card{
+.card {
   padding: 0 @rounded;
   color: #fff;
   display: inline-block;
 }
-.conversation-plugin{
-  .scrollableConv{
+.conversation-plugin {
+  .scrollableConv {
     max-width: 70%;
     text-align: center;
-    padding: 10px 
+    padding: 10px;
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+    &::-webkit-scrollbar {
+      display: none;
+    }
   }
 
-  .card{
+  .card {
     margin-top: @phrase_margin_bottom;
 
-    &.def{
-      background: @phrase_button_bg;
-    }
-    &.master{
+    &.def {
       background: @green;
+    }
+    &.master {
+      background: @phrase_button_bg;
     }
   }
 }
 
-.flow-plugin{
-  .abandon,.answers{
+.flow-plugin {
+  .abandon,
+  .answers {
     display: flex;
-    justify-content: center; 
+    justify-content: center;
   }
-  .abandon{
-    justify-content: flex-start
+  .abandon {
+    justify-content: flex-start;
   }
   width: 100%;
-  input{
+  input {
     color: #fff;
     display: flex;
   }
-  .answers{
+  .answers {
     width: 50%;
-    .card{
+    .card {
       background: @phrase_button_bg;
       color: #fff;
       margin-bottom: @phrase_margin_bottom;
     }
   }
-  .abandon{
-    
+  .abandon {
     min-width: 150px;
-    input{
+    input {
       .rounded;
       height: 100%;
       background-color: @back_button_bg;

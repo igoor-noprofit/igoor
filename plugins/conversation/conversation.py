@@ -4,15 +4,39 @@ from plugin_manager import hookimpl
 from prompt_manager import PromptManager
 from context_manager import context_manager
 import asyncio,json
+from concurrent.futures import ThreadPoolExecutor
 
 class Conversation(Baseplugin):  
-    def __init__(self, plugin_name,pm):
+    def __init__(self, plugin_name, pm):
         self.pm = pm
-        super().__init__(plugin_name,pm)
+        super().__init__(plugin_name, pm)
         self.settings = self.get_my_settings()
         self.run_new_conversation()
+        self.init_timeout()
+        
+    def init_timeout(self):
+        print("INIT TIMEOUT")
+        self.timeout = int(self.settings.get("timeout", 120000)) / 1000  # Convert milliseconds to seconds
+        self.timeout_task = None
+        self.executor = ThreadPoolExecutor(max_workers=1)
+        self.reset_timeout()
+
+    def reset_timeout(self):
+        if self.timeout_task:
+            self.timeout_task.cancel()
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:  # No running event loop
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        self.timeout_task = loop.create_task(self.start_timeout())
+
+    async def start_timeout(self):
+        print("Starting non-blocking timeout")
+        await asyncio.sleep(self.timeout)
+        # await (self.abandon_conversation())        
         # self.test_conversation()
-    
+
     '''
     @hookimpl
     def startup(self):
@@ -26,10 +50,11 @@ class Conversation(Baseplugin):
         context_manager.update_context("conversation","")
         
     @hookimpl
-    async def abandon_conversation(self):
+    async def abandon_conversation(self,cause="timeout"):
         self.thread=[]
         context_manager.update_context("conversation","")
         self.send_message_to_frontend({"action":"abandon_conversation"})
+        print(f"Conversation abandoned for cause:{cause}")
         self.run_new_conversation()
         
     @hookimpl
@@ -41,6 +66,7 @@ class Conversation(Baseplugin):
         conv = await self.get_conversation(format="raw")
         context_manager.update_context("conversation", conv)
         print("Updated context:", context_manager.get_context())
+        self.reset_timeout()
     
     @hookimpl
     async def delete_conversation(self):

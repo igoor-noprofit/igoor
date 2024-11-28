@@ -32,7 +32,9 @@ module.exports = {
                 this.thread = [];
             } else {
                 this.thread.push(data);
-                this.scrollToBottom();
+                this.$nextTick(() => {
+                    this.scrollToBottom();
+                });
             }
         },
         scrollToBottom() {
