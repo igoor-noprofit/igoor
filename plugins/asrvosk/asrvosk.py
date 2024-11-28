@@ -63,6 +63,7 @@ class Asrvosk(Baseplugin):
     @hookimpl
     def restart_asr(self):
         self.is_paused = False
+        self.wakeword_detected = True
         # Check if there's an existing event loop
         try:
             loop = asyncio.get_running_loop()
@@ -71,6 +72,11 @@ class Asrvosk(Baseplugin):
         except RuntimeError:
             # If no running loop, use asyncio.run
             asyncio.run(self.send_status("recording"))
+    
+    def start_stream(self):
+        self.p = pyaudio.PyAudio()
+        self.stream = self.p.open(format=pyaudio.paInt16, channels=1, rate=16000, input=True, frames_per_buffer=4000)
+        self.stream.start_stream()
     
     def run_monitor_loading(self):
         asyncio.run(self.monitor_loading())
@@ -100,10 +106,7 @@ class Asrvosk(Baseplugin):
         await self.pm.trigger_hook(hook_name="add_msg_to_conversation", msg=following_text, author="def")
         await self.pm.trigger_hook(hook_name="asr_msg", msg="Q: " + following_text)
     
-    def start_stream(self):
-        self.p = pyaudio.PyAudio()
-        self.stream = self.p.open(format=pyaudio.paInt16, channels=1, rate=16000, input=True, frames_per_buffer=8000)
-        self.stream.start_stream()
+
         
         
     async def start(self):

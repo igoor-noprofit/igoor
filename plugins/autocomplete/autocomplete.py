@@ -36,7 +36,14 @@ class Autocomplete(Baseplugin):
     @hookimpl
     def startup(self):
         print("AUTOCOMPLETE STARTUP")
-
+        
+    @hookimpl
+    def abandon_conversation(self):
+        self.clear_input()
+        
+    def clear_input(self):
+        self.send_message_to_frontend({"action":"clear"})
+        
     def process_incoming_message(self, message):
         try:
             print("Received msg: " + message)
@@ -46,12 +53,27 @@ class Autocomplete(Baseplugin):
             for key, value in message_dict.items():
                 print(f"Key: {key}, Value: {value}")
             # Ensure message_dict is a dictionary
-            if isinstance(message_dict, dict) and message_dict.get("msg"):
-                input_value = message_dict.get("msg")
-                if input_value:
-                    asyncio.create_task(self.predict(input_value))
-                else:
-                    print("Input key is present but empty.")
+            if isinstance(message_dict, dict):
+                action = message_dict.get("action")
+                if action == "speak":
+                    msg = message_dict.get("msg")
+                    print (f"Speaking {msg}")
+                    if msg:
+                        asyncio.create_task(self.pm.trigger_hook(hook_name="speak", message=msg))
+                        asyncio.create_task(self.pm.trigger_hook(hook_name="add_msg_to_conversation", msg=msg, author="master"))
+                    else:
+                        print("Speak action is present but msg is empty.")
+                elif message_dict.get("msg"):
+                    input_value = message_dict.get("msg")
+                    if input_value:
+                        asyncio.create_task(self.predict(input_value))
+                    else:
+                        print("Input key is present but empty.")
+            else:
+                print("Message is not a valid dictionary.")
+        except json.JSONDecodeError:
+            print("Received message is not valid JSON.")
+            return
             
         except json.JSONDecodeError:
             print("Received message is not valid JSON.")

@@ -31,6 +31,9 @@ module.exports = {
             try {
                 const data = JSON.parse(event.data);
                 this.completion = data;
+                if (data.action && data.action === "clear") {
+                    this.userInput = "";
+                }
             }
             catch (e) {
                 console.warn("Error parsing JSON")
