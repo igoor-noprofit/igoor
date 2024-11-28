@@ -4,7 +4,7 @@ import os
 from pyowm.owm import OWM
 from pyowm.utils.config import get_default_config
 import threading
-import time
+import time,asyncio
 import requests
 from dotenv import load_dotenv
 load_dotenv()
@@ -15,9 +15,6 @@ class Meteo(Baseplugin):
     def __init__(self, plugin_name, pm):
         self.pm = pm
         super().__init__(plugin_name,pm)
-        timer = threading.Timer(10.0, self.send_message_to_frontend, args=("test",))
-        timer.daemon = True
-        timer.start()
 
     @hookimpl
     def startup(self):
@@ -26,8 +23,14 @@ class Meteo(Baseplugin):
         print ("METEO settings", self.settings)
         self.geoloc = self.get_geoloc()
         print(f"GEOlOC",self.geoloc)
-        self.get_meteo()
         self.schedule_meteo_updates()
+        
+        # Use a separate thread to handle the sleep and async call
+        def delayed_meteo():
+            time.sleep(60)  # Sleep for 60 seconds without blocking the main thread
+            asyncio.run(self.get_meteo())
+        
+        threading.Thread(target=delayed_meteo, daemon=True).start()
         # Plugin-specific initialization logic
 
         
@@ -35,14 +38,14 @@ class Meteo(Baseplugin):
         # Use a daemon thread to periodically call get_meteo
         def meteo_updater():
             while True:
-                self.get_meteo()
+                asyncio.run(self.get_meteo())
                 time.sleep(600)  # 600 seconds = 10 minutes
         
         updater_thread = threading.Thread(target=meteo_updater,daemon=True)
         updater_thread.daemon = True  # This allows the program to exit even if the thread is running
         updater_thread.start()
         
-    def get_meteo(self):
+    async def get_meteo(self):
         """
         Retrieve weather information based on the given geolocation data.
 
@@ -108,6 +111,7 @@ class Meteo(Baseplugin):
                 }
                 # print(obj)
                 context_manager.update_context("meteo", obj)
+                self.send_message_to_frontend(obj)
                 return True
             except Exception as error:
                 print("Error fetching weather data:", error)

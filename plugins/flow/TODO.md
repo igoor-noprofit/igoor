@@ -1,0 +1,1 @@
+Pass ENTIRE CONVERSATION instead of query to the rag system ?

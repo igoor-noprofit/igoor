@@ -86,12 +86,12 @@ class Flow(Baseplugin):
     @hookimpl
     async def asr_msg(self, msg: str) -> None:
         start_time = time.time()
-        print(f"QUERYING RAG WITH: {msg}")
-        static_context = await(self.query_rag_async(msg))
-        # print(f"STATIC CONTEXT IS : {static_context}")
-        dynamic_context = self.get_dynamic_context()
+        dynamic_context = self.get_dynamic_context().copy()
+        print(f"DYNAMIC CONTEXT IS {dynamic_context}")
         # Remove the conversation attribute from dynamic context
         conversation = dynamic_context.get("conversation")
+        static_context = await(self.query_rag_async(conversation))
+        # print(f"STATIC CONTEXT IS : {static_context}")
         del dynamic_context["conversation"]
         assistant_type = "flow"
         system_prompt = self.prompts.get_system_prompt("fr_FR", assistant_type) 

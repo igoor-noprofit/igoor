@@ -11,10 +11,14 @@ class Conversation(Baseplugin):
         super().__init__(plugin_name,pm)
         self.settings = self.get_my_settings()
         self.run_new_conversation()
+        # self.test_conversation()
     
+    '''
     @hookimpl
     def startup(self):
         print("CONVERSATION STARTUP")
+    '''
+        
 
     @hookimpl
     async def new_conversation(self):
@@ -27,21 +31,16 @@ class Conversation(Baseplugin):
         context_manager.update_context("conversation","")
         self.send_message_to_frontend({"action":"abandon_conversation"})
         self.run_new_conversation()
-    
-    def run_new_conversation(self):
-        if not asyncio.get_event_loop().is_running():
-            asyncio.run(self.new_conversation())
-        else:
-            asyncio.create_task(self.new_conversation())
-
+        
     @hookimpl
     async def add_msg_to_conversation(self, msg: str, author: str) -> None:
+        print(f"Adding {msg} to conversation")
         newmsg = {"msg": msg, "author": author}
         self.thread.append(newmsg)
         self.send_message_to_frontend(json.dumps(newmsg))
         conv = await self.get_conversation(format="raw")
-        print("Current conversation " + conv)
         context_manager.update_context("conversation", conv)
+        print("Updated context:", context_manager.get_context())
     
     @hookimpl
     async def delete_conversation(self):
@@ -58,8 +57,30 @@ class Conversation(Baseplugin):
                     output.append(f"Q: {message['msg']}")
                 else:
                     output.append(f"R: {message['msg']}")
+            print(output)
             return "\n".join(output)
-        
+    
+    def test_conversation(self):
+        async def run_tasks():
+            await self.add_msg_to_conversation("Comment s'appellent tes enfants ?", "def")
+            await self.get_conversation()
+            conversation_value = context_manager.get_value("conversation")
+            print("Retrieved conversation from context:", conversation_value)
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:  # No running event loop
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            loop.run_until_complete(run_tasks())
+        else:
+            asyncio.create_task(run_tasks())
+    
+    def run_new_conversation(self):
+        if not asyncio.get_event_loop().is_running():
+            asyncio.run(self.new_conversation())
+        else:
+            asyncio.create_task(self.new_conversation())       
+
     '''
         
     @hookimpl

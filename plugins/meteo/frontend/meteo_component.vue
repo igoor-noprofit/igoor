@@ -12,11 +12,20 @@ export default {
     mixins: [BasePluginComponent], // Use the mixin
     data() {
         return {
-            websocket: null
+            
         };
     },
     methods: {
-        
+        handleIncomingMessage(event) {
+            console.log("Custom message handler in METEO component:", event.data);
+            try {
+                const data = JSON.parse(event.data);
+                console.log(data)
+            }
+            catch (e) {
+                console.warn("Error parsing JSON")
+            }
+        }
     },
     created() {
         

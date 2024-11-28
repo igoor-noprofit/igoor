@@ -10,16 +10,18 @@ from llm_manager import LLMManager
 import asyncio,json,time
 
 PROMPT_TEMPLATE = """
-Pour prédire tu peux utiliser le contexte statique extrait des documents sur la vie de la personne :
+Utiliser le contexte statique extrait des documents sur la vie de la personne :
 
 {static_context}
 
 ---
-Si besoin utilise aussi les infos du contexte dynamique suivant, en particulier la conversation en cours :
+Utilise aussi les infos du contexte dynamique suivant :
 
 {dynamic_context}
+
 ---
 
+S'il y a une conversation en cours donne la priorité à la conversation en cours.
 Prédis la suite de: {input}
 """
 
@@ -64,8 +66,9 @@ class Autocomplete(Baseplugin):
     '''
     async def predict(self, msg: str) -> None:
         start_time = time.time()
-        print("PREDICTING:")
+        print("AUTOCOMPLETE PREDICTIONS")
         dynamic_context = self.get_dynamic_context()
+        print(f"DYNAMIC CONTEXT IS {dynamic_context}")
         conversation = dynamic_context.get("conversation")
         print(f"CONVERSATION IS : {conversation}")
         assistant_type = "autocomplete"
