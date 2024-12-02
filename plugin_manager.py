@@ -50,6 +50,17 @@ class MyAppSpec:
     '''
         ************ ASR **************
     '''
+    
+    @pluggy.HookspecMarker(app_name)
+    def wakeword_detected(self):
+        """Hook for optional separate wake word mechanism """
+        pass
+        
+    @pluggy.HookspecMarker(app_name)
+    def process_wake_word(self, text):
+        """Hook for processing wake word detected text"""
+        pass
+    
     @pluggy.HookspecMarker(app_name)
     def pause_asr(self):
         pass
@@ -57,17 +68,7 @@ class MyAppSpec:
     @pluggy.HookspecMarker(app_name)
     def restart_asr(self):
         pass
-    
-    @pluggy.HookspecMarker(app_name)
-    def process_wake_word(self, text):
-        """Hook for processing wake word detected text"""
-        pass
-    
-    @pluggy.HookspecMarker(app_name)
-    def wakeword_detected(self):
-        """Hook for optional separate wake word mechanism """
-        pass
-    
+
     @pluggy.HookspecMarker(app_name)
     async def asr_msg(self, msg: str) -> None:
         """Hook for plugins to perform actions when speaker has said something via ASR"""
@@ -91,6 +92,10 @@ class MyAppSpec:
         """Hook for abandoning current conversation"""
         pass
     
+    def after_conversation_end(self, last_conversation):
+        """Hook to analyze or do other stuff with last conversation"""
+        pass
+    
     '''
         ************ AI FLOW AND RAG **************
     '''
@@ -103,6 +108,16 @@ class MyAppSpec:
     async def query_rag(self, query_text):
         # Gather all results from the async hook implementations
         return await self.plugin_manager.hook.query_rag(query_text=query_text)
+    
+    @pluggy.HookspecMarker(app_name)
+    async def store_memory(self, memory:str):
+        # Gather all results from the async hook implementations
+        return await self.plugin_manager.hook.store_memory(memory=memory)
+    
+    @pluggy.HookspecMarker(app_name)
+    async def store_memory(self, memory:str):
+        # Gather all results from the async hook implementations
+        return await self.plugin_manager.hook.store_memory(memory=memory)
         
 class PluginManager:
     _instance = None
@@ -324,12 +339,12 @@ class PluginManager:
             self.set_def_plugin_settings(plugin_name)
         else:
             print("Keeping original settings")
-        self._trigger_plugin_hook(plugin_name, 'activate')
+        # self._trigger_plugin_hook(plugin_name, 'activate')
 
     def deactivate_plugin(self, plugin_name):
         """Deactivates a plugin by setting its 'active' status to False in its plugin.json."""
         self._set_plugin_active_status(plugin_name, False)
-        self._trigger_plugin_hook(plugin_name, 'deactivate')
+        # self._trigger_plugin_hook(plugin_name, 'deactivate')
 
     def _set_plugin_active_status(self, plugin_name, status):
         """Helper method to update the 'active' status of a plugin."""

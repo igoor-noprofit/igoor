@@ -1,9 +1,9 @@
 {
-    "active": false,
-    "category": "context",
-    "title": "Weather",
+    "active": true,
+    "category": "memory",
+    "title": "Memory",
     "layout": {
-        "part": "topbar",
+        "part": "main",
         "order": 50
     },
     "is_free": true,

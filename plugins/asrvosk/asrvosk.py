@@ -53,6 +53,10 @@ class Asrvosk(Baseplugin):
     
     @hookimpl
     def stop_asr(self):
+        # In the provided code snippet, there is no reference to a variable or function named `pr`. It
+        # seems like `pr` is not defined or used within the context of the code you shared. If you can
+        # provide more information or context about `pr`, I would be happy to help you understand its
+        # purpose or functionality.
         print("Stopping ASR")
         self.stream.stop_stream()
         self.stream.close()
@@ -111,7 +115,7 @@ class Asrvosk(Baseplugin):
         
     async def start(self):
         if (self.continuous):
-            self.wakeword_detected=False
+            self.wakeword_detected=True
             print("STARTING WAKEWORD RECOGNITION")
             await self.send_status("listening")
             # Initialize PyAudio and start the audio stream (after model loading)

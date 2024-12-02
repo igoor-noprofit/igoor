@@ -10,6 +10,7 @@ from langchain.schema import Document  # Ensure all documents are of this type
 from langchain_community.embeddings import HuggingFaceBgeEmbeddings
 from langchain.prompts import ChatPromptTemplate
 import time, sys, asyncio, threading
+import numpy as np
 
 class Rag(Baseplugin):
     def __init__(self, plugin_name, pm):
@@ -68,10 +69,42 @@ class Rag(Baseplugin):
             "Q: Comment s'appelle ta femme",
             "Q: Quels sont tes réalisateurs préférés",
             "Q: Est-ce que t'aimes Tarantino",
-            "Q: Comment s'appelle tes fils"
+            "Q: Comment s'appellent tes fils"
         ]
         for query in queries:
             asyncio.run(self.query_rag(query))
+        
+    @hookimpl
+    async def store_memory(self, memory: str) -> bool:
+        if not self.index_loaded:
+            print("Index still loading")
+        while not self.index_loaded:
+            print(".", end="", flush=True)
+            await asyncio.sleep(0.1)
+            
+        new_doc = Document(
+            page_content=memory,
+            metadata={"source": "memory"}
+        )
+        try:
+            self.db.add_documents([new_doc])
+            return True
+        except Exception as e:
+            print(f"Error adding fact to index: {e}")
+            return False
+        
+    @hookimpl
+    async def save_index(self) -> bool:
+        if not self.index_loaded:
+            print("Index is not loaded, cannot save.")
+            return False
+        try:
+            self.db.save_local(self.index_folder)
+            print("Index saved successfully.")
+            return True
+        except Exception as e:
+            print(f"Error saving FAISS index: {e}")
+            return False
         
     def create_folders(self):
         self.medias_folder = self.create_subfolder(self.medias_folder_name)

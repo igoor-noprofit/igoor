@@ -1,7 +1,8 @@
 <template>
     <div class="autocomplete plugin">
         <input type="text" v-model="userInput" autocomplete="off" name="autocomplete" placeholder="dis quelque chose">
-        <a v-html="completion" v-if="completion !== ''" @click="$_speak()" class="completion"></a>
+        <button @click="$_speakInput()">ENVOYER</button>
+        <a v-html="completion" v-if="completion !== ''" @click="$_speak_completion()" class="completion"></a>
     </div>
 </template>
 
@@ -19,13 +20,19 @@ module.exports = {
         }
     },
     methods: {
-        $_speak() {
+        $_speak(msg) {
             this.$_clean();
-            const json = { action: "speak", msg: this.completion[0] };
+            const json = { action: "speak", msg: msg};
             console.log("sending JSON");
             console.log(json);
             this.completion = "";
             this.sendMsgToBackend(json);
+        },
+        $_speakInput(){
+            this.$_speak(this.userInput)
+        },
+        $_speak_completion(){
+            this.$_speak(this.completion[0])
         },
         $_clean() {
             this.userInput = ""; // Force refresh of this.input

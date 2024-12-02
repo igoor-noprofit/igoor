@@ -2,6 +2,7 @@
     <!-- HIDDEN_COMPONENTS -->
 </div>
 <div id="topbar">
+    <img src="img/igoor_logo.png" id="igoor_logo">
     <!-- TOPBAR_COMPONENTS -->
 </div>
 <header>

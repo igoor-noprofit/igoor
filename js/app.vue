@@ -2,7 +2,8 @@
     <rag></rag>
 </div>
 <div id="topbar">
-    <elevenlabs></elevenlabs><clock></clock><meteo></meteo><settings></settings>
+    <img src="img/igoor_logo.png" id="igoor_logo">
+    <elevenlabs></elevenlabs><clock></clock><settings></settings>
 </div>
 <header>
     <asrvosk></asrvosk><conversation></conversation>
@@ -11,7 +12,7 @@
     <autocomplete></autocomplete>
 </div>
 <main>
-    <flow></flow>
+    <flow></flow><memory></memory>
 </main>
 <footer>
     

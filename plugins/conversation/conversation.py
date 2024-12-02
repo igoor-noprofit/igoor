@@ -11,8 +11,7 @@ class Conversation(Baseplugin):
         self.pm = pm
         super().__init__(plugin_name, pm)
         self.settings = self.get_my_settings()
-        self.run_new_conversation()
-        self.init_timeout()
+        self.conversation_is_open=False
         
     def init_timeout(self):
         print("INIT TIMEOUT")
@@ -37,28 +36,29 @@ class Conversation(Baseplugin):
         # await (self.abandon_conversation())        
         # self.test_conversation()
 
-    '''
-    @hookimpl
-    def startup(self):
-        print("CONVERSATION STARTUP")
-    '''
-        
 
     @hookimpl
     async def new_conversation(self):
         self.thread=[]
+        self.conversation_is_open=True
         context_manager.update_context("conversation","")
+        self.init_timeout()
         
     @hookimpl
     async def abandon_conversation(self,cause="timeout"):
+        txt = await self.get_conversation(format="txt")
+        last_conversation = {"thread": self.thread, "txt": txt}
         self.thread=[]
         context_manager.update_context("conversation","")
         self.send_message_to_frontend({"action":"abandon_conversation"})
+        self.conversation=False
         print(f"Conversation abandoned for cause:{cause}")
-        self.run_new_conversation()
+        await self.pm.trigger_hook("after_conversation_end",last_conversation=last_conversation)
         
     @hookimpl
     async def add_msg_to_conversation(self, msg: str, author: str) -> None:
+        if not(self.conversation_is_open):
+            await self.new_conversation()
         print(f"Adding {msg} to conversation")
         newmsg = {"msg": msg, "author": author}
         self.thread.append(newmsg)
@@ -100,22 +100,4 @@ class Conversation(Baseplugin):
             loop.run_until_complete(run_tasks())
         else:
             asyncio.create_task(run_tasks())
-    
-    def run_new_conversation(self):
-        if not asyncio.get_event_loop().is_running():
-            asyncio.run(self.new_conversation())
-        else:
-            asyncio.create_task(self.new_conversation())       
-
-    '''
-        
-    @hookimpl
-    def activate(self):
-        print ("Activating conversation")  
-        
-    @hookimpl
-    def deactivate(self):
-        print("Deactivating conversation") 
-    '''
-
     

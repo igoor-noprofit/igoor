@@ -30,6 +30,10 @@ body {
 .rounded {
   border-radius: @rounded;
 }
+#igoor_logo{
+  margin-left: 10px;
+  height: 15px;
+}
 #app {
   display: flex;
   flex-direction: column;
@@ -107,9 +111,18 @@ footer {
     &.recording {
       background: @green;
     }
+    
+    &.listening{
+      background: @gray_900;
+      img {
+        opacity: 0.4;
+        animation: pulse_rec 2s infinite;
+      }
+    }
     &.recording {
       img {
-        animation: pulse 2s infinite;
+        opacity: 1;
+        animation: pulse_rec 2s infinite;
       }
     }
     &.paused {
@@ -145,14 +158,25 @@ footer {
 @keyframes pulse {
   0% {
     opacity: 0;
-    transform: scale(1);
+    transform: scale(0.5);
   }
   50% {
-    opacity: 1;
-    transform: scale(1.1);
+    opacity: 0.2;
+    transform: scale(0.7);
   }
   100% {
     opacity: 0.5;
+    transform: scale(1);
+  }
+}
+@keyframes pulse_rec {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
     transform: scale(1);
   }
 }

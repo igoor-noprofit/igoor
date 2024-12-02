@@ -76,6 +76,7 @@ class Flow(Baseplugin):
         except json.JSONDecodeError:
             print("Received message is not valid JSON.")
             return
+        
     '''
     Receives msg from speaker
     Transmits it to RAG systems
@@ -129,17 +130,3 @@ class Flow(Baseplugin):
         ]
         for query in queries:
             asyncio.run(self.asr_msg(query))
-    
-    
-    '''
-        
-    @hookimpl
-    def activate(self):
-        print ("Activating flow")  
-        
-    @hookimpl
-    def deactivate(self):
-        print("Deactivating FLOW") 
-    '''
-
-    
