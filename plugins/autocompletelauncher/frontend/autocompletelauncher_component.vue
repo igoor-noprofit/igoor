@@ -1,36 +1,21 @@
 <template>
-    <div class="autocomplete_launcher plugin">
-        <a @click="$_showAutocomplete()">dire quelque chose</a>
-    </div>
+    <a v-show="appview!=='autocomplete'" class="autocompletelauncher plugin" @click="$_showAutocomplete()">dire quelque chose...</a>
 </template>
 
 <script>
 import BasePluginComponent from '/js/BasePluginComponent.js';
 
 module.exports = {
-    name: "autocomplete_launcher",
+    name: "autocompletelauncher",
     mixins: [BasePluginComponent],
     data() {
         return {
         }
     },
     methods: {
-        $_speak(msg) {
-            this.$_clean();
-            const json = { action: "speak", msg: msg};
-            console.log("sending JSON");
-            console.log(json);
-            this.completion = "";
-            this.sendMsgToBackend(json);
-        },
-        $_speakInput(){
-            this.$_speak(this.userInput)
-        },
-        $_speak_completion(){
-            this.$_speak(this.completion[0])
-        },
-        $_clean() {
-            this.userInput = ""; // Force refresh of this.input
+        $_showAutocomplete(){
+            console.log('emitting autocomplete');
+            this.$emit('show-autocomplete');
         },
         handleIncomingMessage(event) {
             console.log("Custom message handler in " + this.name + " component:", event.data);
@@ -49,6 +34,7 @@ module.exports = {
             }
         }
     },
+    /*
     watch: {
         userInput: function (newInput) {
             if (newInput != '') {
@@ -63,11 +49,12 @@ module.exports = {
             }
         }
     }
+        */
 };
 </script>
 
 <style scoped>
-.autocomplete.plugin {
-    width: 100%;
+a{
+    cursor: pointer;
 }
 </style>

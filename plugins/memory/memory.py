@@ -13,7 +13,7 @@ from pydantic import BaseModel
 from typing import List
 
 MEMORY_SYSTEM_PROMPT= """
-Tu recevras une conversation à analyser.Dans la conversation, Q: est l'interlocuteur, R: est l'utilisateur nommé Igor. Extrais toutes les informations pertinentes sur Igor, sa famille, ses amis, ses préférences (alimentaires, politiques,artistiques etc.),les souvenirs de sa vie. 
+Tu recevras une conversation à analyser.Dans la conversation, Q: est l'interlocuteur, R: est l'utilisateur (nommé Igor). Extrais toutes les informations pertinentes sur l'utilisateur, sa famille, ses amis, ses préférences (alimentaires, politiques,artistiques etc.),les souvenirs de sa vie. 
 Voici quelques exemples de prompt et de output JSON demandé:
 
 ----
@@ -37,6 +37,16 @@ Retourne les faits et opinions dans le format JSON ci-dessus.Si ces infos sont d
 retourne juste :
 
 Output: {{"facts" : []}}
+
+Attention: les opinions exprimées par l'utilisateur sont précédées par R:, et pas par Q:. Par exemple: 
+
+Q: J'aime la glace
+
+Ne veut absolument pas dire que l'utilisateur aime la glace. En revanche:
+
+Q: J'aime la glace R: Moi aussi!
+
+Veut dire que l'utilisateur aime la glace.
 
 """
 

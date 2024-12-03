@@ -9,7 +9,6 @@ if ('AmbientLightSensor' in window) {
 }
 */
 
-
 const options = {
   moduleCache: {
     vue: Vue,
@@ -38,6 +37,14 @@ async function initializeApp() {
   const appTemplate = await options.getFile("/js/app.vue");
   console.log(appTemplate);
   const app = Vue.createApp({
+    data() {
+      return {
+        appview: "flow", // Add this line
+        lastview: "daily",
+        websocketUtil: null,
+        // ... other data properties if needed ...
+      };
+    },
     components: {
       //** JS_COMPONENTS */
     },
@@ -47,22 +54,50 @@ async function initializeApp() {
         app.pywebviewready = true;
         console.log("Python is ready!");
       });
-      /*
-      const path = ''; 
-      ws_url = `ws://localhost:9715/${path}`
-      this.websocketUtil = new WebSocketUtil(ws_url, {
-          onMessage: this.handleIncomingMessage,
-          onOpen: () => console.log('WebSocket connection opened at ' + ws_url),
-          onClose: () => console.log('WebSocket connection closed at ' + ws_url),
-          onError: (error) => console.error('WebSocket error in BasePluginComponent:', error)
-      });
-      */
+      // Create a WebSocket connection
+      this.websocketUtil = new WebSocket("ws://localhost:9715/app");
+
+      // Set up WebSocket event listeners
+      this.websocketUtil.onopen = function () {
+        console.log("WebSocket connection opened");
+      };
+
+      this.websocketUtil.onmessage = (event) => {
+        console.log("WebSocket message received:", event.data);
+        console.log("WebSocket message received:", event.data);
+        // Handle incoming WebSocket messages here
+        try {
+          const message = JSON.parse(event.data);
+          if (message.backend === "addmsg") {
+            this.goBack(); // Trigger goBack method
+          }
+        } catch (error) {
+          console.error("Error parsing WebSocket message:", error);
+        }
+      };
+
+      this.websocketUtil.onclose = function () {
+        console.log("WebSocket connection closed");
+      };
+
+      this.websocketUtil.onerror = function (error) {
+        console.error("WebSocket error:", error);
+      };
     },
     methods: {
       handleIncomingMessage(event) {
         console.log("APP received message from backend:", event.data);
       },
-      
+      showAutocomplete(event) {
+        this.changeView("autocomplete");
+      },
+      changeView(view) {
+        this.lastview = this.appview;
+        this.appview = view;
+      },
+      goBack() {
+        this.appview = this.lastview;
+      },
     },
     /*data: data,
     methods: {

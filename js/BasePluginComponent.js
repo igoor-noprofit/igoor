@@ -3,6 +3,12 @@ const WebSocketUtil = require('./WebSocketUtil.js');
 const BASE_WS_URL = 'ws://localhost:9715/'; // Base WebSocket URL
 
 module.exports = {
+    props: {
+        appview: {
+            type: String,
+            required: false
+        }
+    },
     data() {
         return {
             websocket: null,  // Store WebSocket instance

@@ -3,13 +3,13 @@
     "category": "AI",
     "title": "Autocomplete",
     "layout": {
-        "part": "after_header",
-        "order": 100
+        "part": "header",
+        "order": 2
     },
     "is_free": true,
     "requires_subscription": true,
     "requires_internet": true,
     "depends_on": [
-        "autocomplete_launcher"
+        "autocompletelauncher"
     ]
 }

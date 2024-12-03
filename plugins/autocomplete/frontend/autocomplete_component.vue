@@ -1,8 +1,11 @@
 <template>
-    <div class="autocomplete plugin">
-        <input type="text" v-model="userInput" autocomplete="off" name="autocomplete" placeholder="dis quelque chose">
-        <button @click="$_speakInput()">ENVOYER</button>
-        <a v-html="completion" v-if="completion !== ''" @click="$_speak_completion()" class="completion"></a>
+    <div class="autocomplete plugin" v-if="appview == 'autocomplete'">
+        <div class="autocomplete_input">
+            <input type="text" v-model="userInput" autocomplete="off" name="autocomplete" placeholder="" ref="autocompleteInput">
+        </div>
+        <div class="autocomplete_send">
+            <button @click="$_speakInput()">PARLER ></button>
+        </div>
     </div>
 </template>
 
@@ -20,19 +23,23 @@ module.exports = {
         }
     },
     methods: {
+        focusInputIfNeeded() {
+            if (this.appview === 'autocomplete') {
+                this.$nextTick(() => {
+                    this.$refs.autocompleteInput.focus();
+                });
+            }
+        },
         $_speak(msg) {
             this.$_clean();
-            const json = { action: "speak", msg: msg};
+            const json = { action: "speak", msg: msg };
             console.log("sending JSON");
             console.log(json);
             this.completion = "";
             this.sendMsgToBackend(json);
         },
-        $_speakInput(){
+        $_speakInput() {
             this.$_speak(this.userInput)
-        },
-        $_speak_completion(){
-            this.$_speak(this.completion[0])
         },
         $_clean() {
             this.userInput = ""; // Force refresh of this.input
@@ -56,6 +63,9 @@ module.exports = {
         }
     },
     watch: {
+        appview: function (newView) {
+            this.focusInputIfNeeded();
+        },
         userInput: function (newInput) {
             if (newInput != '') {
                 clearTimeout(this.inputTimeout); // Clear any existing timeout
@@ -75,5 +85,9 @@ module.exports = {
 <style scoped>
 .autocomplete.plugin {
     width: 100%;
+}
+
+button {
+    cursor: pointer;
 }
 </style>

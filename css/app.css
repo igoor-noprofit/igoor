@@ -39,7 +39,7 @@ footer,
   display: flex;
 }
 header {
-  background: linear-gradient(to bottom, #2a4a51, #1a2223);
+  background: linear-gradient(to bottom, #182022, #263437);
   justify-content: space-evenly;
   height: 20vh;
 }
@@ -114,20 +114,46 @@ footer {
 }
 .autocomplete.plugin {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  width: 100%;
   min-height: 50px;
   height: auto;
 }
-.autocomplete.plugin .completion {
-  background: #216776;
-  color: #fff;
-  border-radius: 10px;
-  padding: 10px;
+.autocomplete.plugin .autocomplete_input {
+  justify-content: center;
+  align-items: center;
+  display: flex;
+  width: 90%;
 }
-.autocomplete.plugin input[name="autocomplete"] {
+.autocomplete.plugin .autocomplete_input input[name="autocomplete"] {
+  border-radius: 10px;
   height: 50px;
-  background: none;
+  border: none;
+  background: #28373b;
   color: #fff;
+  font-size: 1rem;
+  width: 33vw;
+}
+.autocomplete.plugin .autocomplete_send {
+  display: flex;
+  width: 10%;
+}
+.autocomplete.plugin .autocomplete_send button {
+  justify-self: flex-end;
+  width: 100%;
+  background-color: #407d1c;
+  border-radius: 10px;
+  border: none;
+  color: #fff;
+  font-weight: bold;
+  font-size: 1rem;
+}
+.autocompletelauncher.plugin {
+  display: flex;
+  height: 50px;
+  align-items: center;
+  justify-content: center;
+  color: #aaa;
   font-size: 1rem;
 }
 @keyframes pulse {

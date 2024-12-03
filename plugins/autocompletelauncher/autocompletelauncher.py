@@ -6,7 +6,7 @@ from settings_manager import SettingsManager
 import asyncio,json,time
 
 
-class Autocomplete(Baseplugin):  
+class Autocompletelauncher(Baseplugin):  
     def __init__(self, plugin_name,pm):
         self.pm = pm
         super().__init__(plugin_name,pm)

@@ -7,6 +7,7 @@ body {
   overflow: hidden;
   font-family: "Public Sans";
 }
+
 @darkest: #121617;
 @bg_gradient: linear-gradient(to bottom, #2a4a51, #1a2223);
 @bg_page_light: #edeee7;
@@ -27,10 +28,11 @@ body {
 @topbar_bg: #1d1d1d;
 @rounded: 10px;
 @conversation_bg: #28373b;
+@header_bg: linear-gradient(to bottom, #182022, #263437);
 .rounded {
   border-radius: @rounded;
 }
-#igoor_logo{
+#igoor_logo {
   margin-left: 10px;
   height: 15px;
 }
@@ -59,7 +61,7 @@ footer,
   display: flex;
 }
 header {
-  background: @bg_gradient;
+  background: @header_bg;
   justify-content: space-evenly;
   height: 20vh;
   > * {
@@ -111,8 +113,8 @@ footer {
     &.recording {
       background: @green;
     }
-    
-    &.listening{
+
+    &.listening {
       background: @gray_900;
       img {
         opacity: 0.4;
@@ -137,24 +139,50 @@ footer {
   }
 }
 .autocomplete.plugin {
+  // border: 1px solid #f00;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  width: 100%;
   min-height: 50px;
   height: auto;
-  .completion {
-    background: @phrase_button_bg;
-    color: #fff;
-    .rounded;
-    padding: @rounded;
+  .autocomplete_input {
+    justify-content: center;
+    align-items: center;
+    display: flex;
+    width: 90%;
+    input[name="autocomplete"] {
+      .rounded;
+      height: 50px;
+      border: none;
+      background: @conversation_bg;
+      color: #fff;
+      font-size: 1rem;
+      width: 33vw;
+    }
   }
-  input[name="autocomplete"] {
-    height: 50px;
-    background: none;
-    color: #fff;
-    font-size: 1rem;
+  .autocomplete_send {
+    display: flex;
+    width: 10%;
+    button {
+      justify-self: flex-end;
+      width: 100%;
+      background-color: @yes_green;
+      .rounded;
+      border: none;
+      color: #fff;
+      font-weight: bold;
+      font-size: 1rem;
+    }
   }
 }
-
+.autocompletelauncher.plugin {
+  display: flex;
+  height: 50px;
+  align-items: center;
+  justify-content: center;
+  color: #aaa;
+  font-size: 1rem;
+}
 @keyframes pulse {
   0% {
     opacity: 0;

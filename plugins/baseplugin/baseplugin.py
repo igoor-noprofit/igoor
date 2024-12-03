@@ -123,6 +123,14 @@ class Baseplugin:
         success = await self.wait_for_socket_and_send(message)
         return success
         
+    def send_message_to_app(self,message):
+        """
+        Wrapper that sends a message to the Vue app
+
+        :param message: The message to be sent.
+        """
+        self.send_message_to_frontend(message,'app')
+            
     def send_message_to_frontend(self, message, plugin_name=None):
         """
         Sends a message to the designated plugin's frontend channel.
@@ -134,7 +142,10 @@ class Baseplugin:
         target_plugin_name = plugin_name or self.plugin_name
 
         if websocket_server.is_socket_open(target_plugin_name):
-            print(f"{target_plugin_name} BACKEND starts sending message to FRONTEND via ws")
+            if not (target_plugin_name=='app'):
+                print(f"{target_plugin_name} BACKEND starts sending message to FRONTEND via ws")
+            else:
+                print(f"BACKEND starts sending message to APP via ws")
             try:
                 # Ensure the message is a JSON string
                 if isinstance(message, dict):

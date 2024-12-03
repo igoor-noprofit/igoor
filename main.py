@@ -51,6 +51,7 @@ def load_settings():
 
 def load_frontend_components():
     manager = PluginManager()
+    
     # active_plugins = ["flow","asrvosk","rag"]
     # exclude_plugins = ["ramcpu","clock","elevenlabs","meteo"]
     active_plugins=[]
@@ -75,11 +76,16 @@ def load_frontend_components():
             print ("Plugin " + plugin_name + " is active")
             component_name = ''.join(word.capitalize() for word in plugin_name.split('_'))
             component_path = f"/plugins/{plugin_name}/frontend/{plugin_name}_component.vue"
-            
+            frontend = metadata.get('frontend', {})
+            events = frontend.get('events', [])
+            event_bindings = ' '.join(
+                f'@{event_name}="{event_function}"' for event in events for event_name, event_function in event.items()
+            )
             component_definition = {
                 'name': component_name,
                 'path': component_path,
-                'order': metadata.get('layout', {}).get('order', 0)
+                'order': metadata.get('layout', {}).get('order', 0),
+                'event_bindings': event_bindings
             }
             
             category = metadata.get('layout', {}).get('part', 'main')
@@ -107,12 +113,11 @@ def load_frontend_components():
         
     # Define the placeholders and their corresponding replacements
     replacements = {
-        '<!-- HIDDEN_COMPONENTS -->': ''.join(f'<{comp["name"].lower()}></{comp["name"].lower()}>' for comp in components_by_category['hidden']),
-        '<!-- TOPBAR_COMPONENTS -->': ''.join(f'<{comp["name"].lower()}></{comp["name"].lower()}>' for comp in components_by_category['topbar']),
-        '<!-- HEADER_COMPONENTS -->': ''.join(f'<{comp["name"].lower()}></{comp["name"].lower()}>' for comp in components_by_category['header']),
-        '<!-- AFTER_HEADER_COMPONENTS -->': ''.join(f'<{comp["name"].lower()}></{comp["name"].lower()}>' for comp in components_by_category['after_header']),
-        '<!-- MAIN_COMPONENTS -->': ''.join(f'<{comp["name"].lower()}></{comp["name"].lower()}>' for comp in components_by_category['main']),
-        '<!-- FOOTER_COMPONENTS -->': ''.join(f'<{comp["name"].lower()}></{comp["name"].lower()}>' for comp in components_by_category['footer'])
+        f'<!-- {category.upper()}_COMPONENTS -->': ''.join(
+            f'<{comp["name"].lower()} {comp["event_bindings"]} :appview="appview"></{comp["name"].lower()}>'
+            for comp in components
+        )
+        for category, components in components_by_category.items()
     }
 
     # Replace all placeholders in the HTML content

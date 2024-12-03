@@ -1,18 +1,18 @@
 <div id="hidden">
-    <rag></rag>
+    <rag  :appview="appview"></rag>
 </div>
 <div id="topbar">
     <img src="img/igoor_logo.png" id="igoor_logo">
-    <elevenlabs></elevenlabs><clock></clock><settings></settings>
+    <elevenlabs  :appview="appview"></elevenlabs><clock  :appview="appview"></clock><settings  :appview="appview"></settings>
 </div>
 <header>
-    <asrvosk></asrvosk><conversation></conversation>
+    <asrvosk  :appview="appview"></asrvosk><autocomplete  :appview="appview"></autocomplete><conversation  :appview="appview"></conversation>
 </header>
 <div class="after_header">
-    <autocomplete></autocomplete>
+    <autocompletelauncher @show-autocomplete="showAutocomplete" :appview="appview"></autocompletelauncher>
 </div>
 <main>
-    <flow></flow><memory></memory>
+    <flow  :appview="appview"></flow><memory  :appview="appview"></memory>
 </main>
 <footer>
     

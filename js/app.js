@@ -9,7 +9,6 @@ if ('AmbientLightSensor' in window) {
 }
 */
 
-
 const options = {
   moduleCache: {
     vue: Vue,
@@ -38,8 +37,16 @@ async function initializeApp() {
   const appTemplate = await options.getFile("/js/app.vue");
   console.log(appTemplate);
   const app = Vue.createApp({
+    data() {
+      return {
+        appview: "flow", // Add this line
+        lastview: "daily",
+        websocketUtil: null,
+        // ... other data properties if needed ...
+      };
+    },
     components: {
-      'Rag': Vue.defineAsyncComponent(() => loadModule('/plugins/rag/frontend/rag_component.vue',options)), 'Elevenlabs': Vue.defineAsyncComponent(() => loadModule('/plugins/elevenlabs/frontend/elevenlabs_component.vue',options)), 'Clock': Vue.defineAsyncComponent(() => loadModule('/plugins/clock/frontend/clock_component.vue',options)), 'Settings': Vue.defineAsyncComponent(() => loadModule('/plugins/settings/frontend/settings_component.vue',options)), 'Asrvosk': Vue.defineAsyncComponent(() => loadModule('/plugins/asrvosk/frontend/asrvosk_component.vue',options)), 'Conversation': Vue.defineAsyncComponent(() => loadModule('/plugins/conversation/frontend/conversation_component.vue',options)), 'Autocomplete': Vue.defineAsyncComponent(() => loadModule('/plugins/autocomplete/frontend/autocomplete_component.vue',options)), 'Flow': Vue.defineAsyncComponent(() => loadModule('/plugins/flow/frontend/flow_component.vue',options)), 'Memory': Vue.defineAsyncComponent(() => loadModule('/plugins/memory/frontend/memory_component.vue',options))
+      'Rag': Vue.defineAsyncComponent(() => loadModule('/plugins/rag/frontend/rag_component.vue',options)), 'Elevenlabs': Vue.defineAsyncComponent(() => loadModule('/plugins/elevenlabs/frontend/elevenlabs_component.vue',options)), 'Clock': Vue.defineAsyncComponent(() => loadModule('/plugins/clock/frontend/clock_component.vue',options)), 'Settings': Vue.defineAsyncComponent(() => loadModule('/plugins/settings/frontend/settings_component.vue',options)), 'Asrvosk': Vue.defineAsyncComponent(() => loadModule('/plugins/asrvosk/frontend/asrvosk_component.vue',options)), 'Autocomplete': Vue.defineAsyncComponent(() => loadModule('/plugins/autocomplete/frontend/autocomplete_component.vue',options)), 'Conversation': Vue.defineAsyncComponent(() => loadModule('/plugins/conversation/frontend/conversation_component.vue',options)), 'Autocompletelauncher': Vue.defineAsyncComponent(() => loadModule('/plugins/autocompletelauncher/frontend/autocompletelauncher_component.vue',options)), 'Flow': Vue.defineAsyncComponent(() => loadModule('/plugins/flow/frontend/flow_component.vue',options)), 'Memory': Vue.defineAsyncComponent(() => loadModule('/plugins/memory/frontend/memory_component.vue',options))
     },
     template: appTemplate,
     mounted: function () {
@@ -47,22 +54,50 @@ async function initializeApp() {
         app.pywebviewready = true;
         console.log("Python is ready!");
       });
-      /*
-      const path = ''; 
-      ws_url = `ws://localhost:9715/${path}`
-      this.websocketUtil = new WebSocketUtil(ws_url, {
-          onMessage: this.handleIncomingMessage,
-          onOpen: () => console.log('WebSocket connection opened at ' + ws_url),
-          onClose: () => console.log('WebSocket connection closed at ' + ws_url),
-          onError: (error) => console.error('WebSocket error in BasePluginComponent:', error)
-      });
-      */
+      // Create a WebSocket connection
+      this.websocketUtil = new WebSocket("ws://localhost:9715/app");
+
+      // Set up WebSocket event listeners
+      this.websocketUtil.onopen = function () {
+        console.log("WebSocket connection opened");
+      };
+
+      this.websocketUtil.onmessage = (event) => {
+        console.log("WebSocket message received:", event.data);
+        console.log("WebSocket message received:", event.data);
+        // Handle incoming WebSocket messages here
+        try {
+          const message = JSON.parse(event.data);
+          if (message.backend === "addmsg") {
+            this.goBack(); // Trigger goBack method
+          }
+        } catch (error) {
+          console.error("Error parsing WebSocket message:", error);
+        }
+      };
+
+      this.websocketUtil.onclose = function () {
+        console.log("WebSocket connection closed");
+      };
+
+      this.websocketUtil.onerror = function (error) {
+        console.error("WebSocket error:", error);
+      };
     },
     methods: {
       handleIncomingMessage(event) {
         console.log("APP received message from backend:", event.data);
       },
-      
+      showAutocomplete(event) {
+        this.changeView("autocomplete");
+      },
+      changeView(view) {
+        this.lastview = this.appview;
+        this.appview = view;
+      },
+      goBack() {
+        this.appview = this.lastview;
+      },
     },
     /*data: data,
     methods: {

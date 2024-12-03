@@ -63,6 +63,8 @@ class Conversation(Baseplugin):
         newmsg = {"msg": msg, "author": author}
         self.thread.append(newmsg)
         self.send_message_to_frontend(json.dumps(newmsg))
+        bms = {"backend": "addmsg"}
+        self.send_message_to_app(json.dumps(bms))
         conv = await self.get_conversation(format="raw")
         context_manager.update_context("conversation", conv)
         self.reset_timeout()
