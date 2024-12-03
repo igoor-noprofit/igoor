@@ -149,7 +149,7 @@ class Memory(Baseplugin):
             "Q: Combien d'enfants tu as",
             "Q: Comment s'appelle ta femme",
             "Q: Quels sont tes réalisateurs préférés",
-            "Q: Est-ce que t'aimes Tarantino",
+            "Q: Est-ce que t'aimes Tarantino"
         ]
         for query in queries:
             asyncio.run(self.asr_msg(query))

@@ -1,0 +1,15 @@
+{
+    "active": true,
+    "category": "AI",
+    "title": "Autocomplete",
+    "layout": {
+        "part": "header",
+        "order": 2
+    },
+    "is_free": true,
+    "requires_subscription": false,
+    "requires_internet": false,
+    "depends_on": [
+        "autocomplete"
+    ]
+}

@@ -1,6 +1,6 @@
-// js/BasePluginComponent.js
-console.log('BasePluginComponent is being imported');
+// console.log('BasePluginComponent is being imported');
 const WebSocketUtil = require('./WebSocketUtil.js');
+const BASE_WS_URL = 'ws://localhost:9715/'; // Base WebSocket URL
 
 module.exports = {
     data() {
