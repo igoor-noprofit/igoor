@@ -109,7 +109,7 @@ class Autocomplete(Baseplugin):
         answers = llm.invoke(system_prompt,prompt)
         end_time = time.time()
         print(f"Time taken for processing: {end_time - start_time} seconds")
-        self.send_message_to_frontend(answers.content) 
+        self.send_message_to_frontend(answers.content, "flow") 
         
     def get_dynamic_context(self):
         return context_manager.get_context()

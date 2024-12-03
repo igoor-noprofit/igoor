@@ -65,7 +65,6 @@ class Conversation(Baseplugin):
         self.send_message_to_frontend(json.dumps(newmsg))
         conv = await self.get_conversation(format="raw")
         context_manager.update_context("conversation", conv)
-        print("Updated context:", context_manager.get_context())
         self.reset_timeout()
     
     @hookimpl

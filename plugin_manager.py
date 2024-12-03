@@ -77,13 +77,14 @@ class MyAppSpec:
     '''
         ************ CONVERSATION **************
     '''
+    
     @pluggy.HookspecMarker(app_name)
-    def add_msg_to_conversation(self, msg, author):
+    def new_conversation(self):
         """Hook for processing wake word detected text"""
         pass
     
     @pluggy.HookspecMarker(app_name)
-    def new_conversation(self):
+    def add_msg_to_conversation(self, msg, author):
         """Hook for processing wake word detected text"""
         pass
     

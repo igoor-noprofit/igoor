@@ -123,23 +123,27 @@ class Baseplugin:
         success = await self.wait_for_socket_and_send(message)
         return success
         
-    def send_message_to_frontend(self, message):
-        if websocket_server.is_socket_open(self.plugin_name):
-            print(self.plugin_name + " BACKEND starts sending message to FRONTEND via ws")
-            """
-            Sends a message to the designated plugin's frontend channel.
-            
-            :param message: The message to be sent.
-            """
+    def send_message_to_frontend(self, message, plugin_name=None):
+        """
+        Sends a message to the designated plugin's frontend channel.
+
+        :param message: The message to be sent.
+        :param plugin_name: (Optional) The plugin name to send the message to. If not provided, uses self.plugin_name.
+        """
+        # Use the provided plugin_name or default to self.plugin_name
+        target_plugin_name = plugin_name or self.plugin_name
+
+        if websocket_server.is_socket_open(target_plugin_name):
+            print(f"{target_plugin_name} BACKEND starts sending message to FRONTEND via ws")
             try:
                 # Ensure the message is a JSON string
                 if isinstance(message, dict):
                     message = json.dumps(message)
-                return websocket_server.send_message(self.plugin_name, message)
+                return websocket_server.send_message(target_plugin_name, message)
             except Exception as e:
-                print(f"Error while sending message to {self.plugin_name} frontend: {e}")
+                print(f"Error while sending message to {target_plugin_name} frontend: {e}")
         else:
-            print(f" {self.plugin_name} frontend is not ready")
+            print(f"{target_plugin_name} frontend is not ready")
             
     def process_incoming_message(self, message):
         """
