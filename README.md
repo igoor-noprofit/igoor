@@ -45,7 +45,7 @@ Example: /plugins/meteo/plugin.json :
 #### AUTOMATIC SPEECH RECOGNITION WITH VOSK
 
 Vosk is a local ASR plugin.
-It expects a model downloaded locally from this page in your language: 
+It expects a model downloaded manually from this page in your language: 
 
 https://alphacephei.com/vosk/models
 
@@ -96,7 +96,3 @@ pyinstaller main.py --add-data --noconsole index.html:.
 ```
 python main.py
 ```
-
-### FOLDER STRUCTURE
-
-

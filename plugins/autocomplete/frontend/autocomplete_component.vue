@@ -1,5 +1,5 @@
 <template>
-    <div class="autocomplete plugin" v-if="appview == 'autocomplete'">
+    <div class="autocomplete plugin" v-show="appview == 'autocomplete'">
         <div class="autocomplete_input">
             <input type="text" v-model="userInput" autocomplete="off" name="autocomplete" placeholder="" ref="autocompleteInput">
         </div>

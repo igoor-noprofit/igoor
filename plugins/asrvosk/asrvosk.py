@@ -13,6 +13,9 @@ class Asrvosk(Baseplugin):
     def __init__(self, plugin_name, pm):
         self.pm = pm
         self.is_paused=False
+        self.samples_folder = os.path.join(os.path.dirname(__file__), "samples")
+        self.on_sample = os.path.join(self.samples_folder,"on.wav")
+        self.off_sample = os.path.join(self.samples_folder,"off.wav")
         super().__init__(plugin_name,pm)
         
     @hookimpl
@@ -32,7 +35,6 @@ class Asrvosk(Baseplugin):
         monitor_thread = threading.Thread(target=self.run_monitor_loading, daemon=True)
         monitor_thread.start()
     
-    
     @hookimpl
     async def pause_asr(self):
         self.is_paused = True
@@ -42,7 +44,6 @@ class Asrvosk(Baseplugin):
     async def abandon_conversation(self):
         self.wakeword_detected=False
         await self.send_status("listening")
-        
     
     '''
     To support external wakeword mechanism
@@ -109,13 +110,12 @@ class Asrvosk(Baseplugin):
         print(f"Wake word detected! Text: '{following_text}'")
         await self.pm.trigger_hook(hook_name="add_msg_to_conversation", msg=following_text, author="def")
         await self.pm.trigger_hook(hook_name="asr_msg", msg="Q: " + following_text)
-    
 
         
         
     async def start(self):
         if (self.continuous):
-            self.wakeword_detected=True
+            self.wakeword_detected=False
             print("STARTING WAKEWORD RECOGNITION")
             await self.send_status("listening")
             # Initialize PyAudio and start the audio stream (after model loading)

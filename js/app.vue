@@ -3,7 +3,7 @@
 </div>
 <div id="topbar">
     <img src="img/igoor_logo.png" id="igoor_logo">
-    <elevenlabs  :appview="appview"></elevenlabs><clock  :appview="appview"></clock><settings  :appview="appview"></settings>
+    <elevenlabs  :appview="appview"></elevenlabs><clock  :appview="appview"></clock><ramcpu  :appview="appview"></ramcpu><settings  :appview="appview"></settings>
 </div>
 <header>
     <asrvosk  :appview="appview"></asrvosk><autocomplete  :appview="appview"></autocomplete><conversation  :appview="appview"></conversation>

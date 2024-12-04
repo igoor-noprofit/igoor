@@ -1,0 +1,22 @@
+{
+    "fr_FR":{
+        "small": {
+            "url":"https://alphacephei.com/vosk/models/vosk-model-small-fr-0.22.zip",
+            "size":"41M"
+        },
+        "big": {
+            "url":"https://alphacephei.com/vosk/models/vosk-model-fr-0.22.zip",
+            "size":"1.4G"
+        }
+    },
+    "en_US":{
+        "small": {
+            "url":"https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip",
+            "size":"40M"
+        },
+        "big": {
+            "url":"https://alphacephei.com/vosk/models/vosk-model-en-us-0.22.zip",
+            "size":"1.8G"
+        }
+    }
+}

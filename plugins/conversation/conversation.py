@@ -12,6 +12,7 @@ class Conversation(Baseplugin):
         super().__init__(plugin_name, pm)
         self.settings = self.get_my_settings()
         self.conversation_is_open=False
+        self.thread=[]
         
     def init_timeout(self):
         print("INIT TIMEOUT")

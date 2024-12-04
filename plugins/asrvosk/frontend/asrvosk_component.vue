@@ -14,8 +14,17 @@ export default {
     mixins: [BasePluginComponent], // Use the mixin
     data() {
         return {
-            status: 'loading'
+            status: 'loading',
+            audio: {}
         };
+    },
+    created() {
+        this.audio = {
+            on: new Audio('/plugins/asrvosk/samples/on.wav'),
+            off: new Audio('/plugins/asrvosk/samples/off.wav')
+        };
+        // Preload all audio files
+        Object.values(this.audio).forEach(audio => audio.load());
     },
     methods: {
         handleIncomingMessage(event) {
@@ -24,16 +33,22 @@ export default {
             this.status = data.status;
         }
     },
-    created() {
-        
+    watch: {
+        status(newStatus, oldStatus) {
+            if (oldStatus === 'loading' && newStatus === 'listening') {
+                console.log("listening");
+            } else if (oldStatus === 'listening' && newStatus === 'recording') {
+                this.audio.on.play();
+            }
+            else if (oldStatus === 'recording' && newStatus === 'listening') {
+                this.audio.off.play();
+            }
+        }
     },
-    beforeDestroy() {
-        
-    }
 };
 </script>
 <style>
-.mic img{
+.mic img {
     max-height: 50px;
     max-width: 50px;
 }
