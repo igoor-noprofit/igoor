@@ -1,28 +1,31 @@
 # IGOOR - v0
 
-## SETUP
-
-## INSTALL PACKAGES
-```
-pip install -r requirements.txt
-```
-
-To update reqs: 
-```
-pipreqs --force
-```
+## REQUIREMENTS
 
 ## SETUP VIRTUAL ENVIRONMENT
 ```
 python -m venv venv
 venv\scripts\activate
 ```
+
+## INSTALLATION
+```
+pip install -r requirements.txt
+```
+
+To update requirements: 
+```
+pipreqs --force
+```
+
 ## USER'S DATA FOLDER
 
 User's data folder is automatically created inside userAppDataFolder (usually C:/Users/username/AppData/).
 IGOOR_FOLDER is :
 
+```
 C:/Users/username/AppData/Roaming/igoor/
+```
 
 The folder contains a settings.json and a plugins data folder, called plugins.
 
@@ -57,7 +60,7 @@ Language and model size are set in the plugin's json, example:
             "lang":"fr_FR",
             "wakeword":"Igor",
             "model_size":"small"
-        },
+        }
 ```
 
 In this case the final path is :
@@ -75,10 +78,24 @@ Allowed formats:
 
 If the index folder (IGOOR_FOLDER/plugins/rag/faiss_index) does not exist but the medias folder exist, at startup the plugin will create the index
 
+## CREATE AN INSTALLER
+
+```
+pyinstaller main.py --add-data index.html:.
+```
+
+Without console: 
+
+```
+pyinstaller main.py --add-data --noconsole index.html:.
+```
+
 
 ## LAUNCH
 
+```
 python main.py
+```
 
 ### FOLDER STRUCTURE
 

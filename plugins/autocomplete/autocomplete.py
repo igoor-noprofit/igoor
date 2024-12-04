@@ -121,3 +121,16 @@ class Autocomplete(Baseplugin):
     def update_status(self, status):
         """This method will be called when the status changes."""
         print(f"Flow plugin received new status: {status}")
+        
+        
+'''
+from pydantic import BaseModel
+from typing import List, Dict
+
+class Answer(BaseModel):
+    emotion: str
+    phrase: str
+
+class Answers(BaseModel):
+    answers: List[Answer]
+'''
