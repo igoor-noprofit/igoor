@@ -1,9 +1,9 @@
 {
-    "active": false,
-    "category": "Knowledge Base",
-    "title": "Static knowledge",
+    "active": true,
+    "category": "core",
+    "title": "Onboarding",
     "layout": {
-        "part": "hidden",
+        "part": "footer",
         "order": 0
     },
     "is_free": true,

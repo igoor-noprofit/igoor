@@ -1,3 +1,6 @@
+''' 
+HANDLES global app settings.json file with all the plugins settings, api keys etc.
+'''
 import json
 import os
 

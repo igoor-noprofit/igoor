@@ -1,0 +1,3 @@
+- Implement the city method
+- Geoloc is NOT reliable via ip-api.com => user's never @ home
+- Reduce weather infos in JSON output

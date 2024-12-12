@@ -38,6 +38,13 @@ class MyAppSpec:
         """Hook for plugins to perform startup activities"""
         pass
     
+    
+    '''
+    '''
+    @pluggy.HookspecMarker(app_name)
+    async def gui_ready(self):
+        pass
+    
     '''
         ************ TTS **************
     '''
@@ -220,6 +227,7 @@ class PluginManager:
                         self.plugin_manager.register(plugin_instance)
                         self.status_manager.register_observer(plugin_instance)
                         self.activated_plugins.append(plugin_name)
+                        self.copy_default_plugin_settings_if_needed(plugin_name)
                     except Exception as e:
                         print(f"Error loading plugin '{plugin_name}': {e}")
                         if IGOOR_DEBUG:
@@ -332,14 +340,18 @@ class PluginManager:
                     print(f"Invalid JSON in {settings_file_path}.")
         else:
             print(f"Settings file not found for plugin: {plugin_name}")
-            
-    def activate_plugin(self, plugin_name):
-        """Activates a plugin by setting its 'active' status to True in its plugin.json."""
-        self._set_plugin_active_status(plugin_name, True)
+    
+    def copy_default_plugin_settings_if_needed(self,plugin_name):
         if not self.plugin_has_settings(plugin_name):
             self.set_def_plugin_settings(plugin_name)
         else:
             print("Keeping original settings")
+            
+    def activate_plugin(self, plugin_name):
+        """Activates a plugin by setting its 'active' status to True in its plugin.json."""
+        print(f"ACTIVATING {plugin_name}")
+        self._set_plugin_active_status(plugin_name, True)
+        self.copy_default_plugin_settings_if_needed(plugin_name)
         # self._trigger_plugin_hook(plugin_name, 'activate')
 
     def deactivate_plugin(self, plugin_name):
@@ -395,26 +407,3 @@ class PluginManager:
                 self.deactivate_plugin(plugin_name)
             elif not activate_list or plugin_name in activate_list:
                 self.activate_plugin(plugin_name)
-                
-    '''
-    SAFE
-    def trigger_hook(self, hook_name, *args, **kwargs):
-        print("Hook triggered:", hook_name)
-        """Generic method to trigger any hook by name."""
-        hook = getattr(self.plugin_manager.hook, hook_name, None)
-        if hook:
-            try:
-                # If args contains a dictionary, merge it into kwargs
-                if args and isinstance(args[0], dict):
-                    kwargs.update(args[0])  # Move the dictionary to kwargs
-
-                print(f"Executing hook with kwargs: {kwargs}")
-                results = hook(**kwargs)  # Pass only keyword arguments to the hook
-                for result in results:
-                    print(result)
-            except Exception as e:
-                print(f"Error executing hook '{hook_name}': {e}")
-                if IGOOR_DEBUG:
-                    print("EXIT BECAUSE OF ERROR EXECUTING HOOK")
-                    sys.exit()
-    '''

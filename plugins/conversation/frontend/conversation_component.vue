@@ -2,7 +2,7 @@
     <div class="conversation-plugin" v-if="appview !== 'autocomplete'">
         <div class="scrollableConv" ref="scrollableConv">
             <div v-for="(message, index) in thread" :key="index">
-                <div class="card" :class="message.author">
+                <div class="card" :class="[message.author, { last: isLastMessage(index) }]">
                     <div class="card-body">
                         <p class="card-text">{{ message.msg }}</p>
                     </div>
@@ -21,6 +21,11 @@ module.exports = {
     data() {
         return {
             thread: []
+        }
+    },
+    computed: {
+        isLastMessage() {
+            return (index) => index === this.thread.length - 1;
         }
     },
     methods: {

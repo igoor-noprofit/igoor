@@ -1,0 +1,18 @@
+{
+    "bio":{
+        "name":"Igor",
+        "pronoun": "He/him",
+        "birth_date": "12/05/1973",
+        "health_state": "Ne peut pas parler"
+    },
+    "prefs":{
+        "lang": "fr_FR",
+        "darklight":"automatic"
+    },
+    "ai":{
+        "provider": "groq",
+        "api_key": "",
+        "model": "llama-3.3-70b-versatile",
+        "temperature": "1"
+    }
+}

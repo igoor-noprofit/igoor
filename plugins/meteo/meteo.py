@@ -10,6 +10,10 @@ from dotenv import load_dotenv
 load_dotenv()
 from context_manager import context_manager
 import math
+# openstreetmap for automatic address to
+# from geopy.geocoders import Nominatim
+
+
 
 class Meteo(Baseplugin):
     def __init__(self, plugin_name, pm):
@@ -18,11 +22,20 @@ class Meteo(Baseplugin):
 
     @hookimpl
     def startup(self):
-        print ("METEO IS STARTING UP")
+        print("METEO IS STARTING UP")
         self.settings = self.get_my_settings()
-        print ("METEO settings", self.settings)
+        print("METEO settings", self.settings)
         self.geoloc = self.get_geoloc()
-        print(f"GEOlOC",self.geoloc)
+        print(f"GEOLOC", self.geoloc)
+
+        # Check if the user has a non-empty api_key, lat_home, and lng_home
+        api_key = self.settings.get("api_key")
+        lat_home = self.settings.get("lat_home")
+        lng_home = self.settings.get("lng_home")
+
+        if not api_key or not lat_home or not lng_home:
+            print("Missing required METEO settings: api_key, lat_home, or lng_home.")
+            return
         self.schedule_meteo_updates()
         
         # Use a separate thread to handle the sleep and async call
@@ -191,3 +204,18 @@ class Meteo(Baseplugin):
     
     def force_update(self, var1,var2):
         print ("force update", var1, var2)
+        
+    '''
+    def get_lat_lng(address):
+        geolocator = Nominatim(user_agent="igoor")
+        location = geolocator.geocode(address)
+        if location:
+            return location.latitude, location.longitude
+        else:
+            return None, None
+
+        address = "76, rue Beaubourg 75003 Paris"
+        lat, lng = get_lat_lng(address)
+        print(f"Latitude: {lat}, Longitude: {lng}")
+
+    '''

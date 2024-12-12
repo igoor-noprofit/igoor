@@ -33,6 +33,10 @@ class Flow(Baseplugin):
     @hookimpl
     def startup(self):
         print("FLOW STARTUP")
+        
+    
+    @hookimpl
+    def gui_ready(self):
         # self.test_queries()
         try:
             loop = asyncio.get_event_loop()
@@ -40,7 +44,7 @@ class Flow(Baseplugin):
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
         loop.run_in_executor(None, self._startup_async)
-    
+        
     async def _startup_async(self):
         print("sending status ready")
         await self.wait_for_socket_and_send("ready")

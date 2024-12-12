@@ -16,9 +16,11 @@ class Ramcpu(Baseplugin):
     @hookimpl
     def startup(self):
         self.settings = self.get_my_settings()
+
+    @hookimpl
+    def gui_ready(self):
         monitor_thread = threading.Thread(target=self.monitor_usage, daemon=True)
         monitor_thread.start()
-        
     # Function to print CPU and RAM usage
     def monitor_usage(self):
         while True:

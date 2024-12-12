@@ -186,6 +186,16 @@ footer {
   color: #fff;
   display: inline-block;
 }
+.onboarding.plugin {
+  top: 0;
+  left: 0;
+  z-index: 1000;
+  position: absolute;
+  width: 100vw;
+  height: 100vh;
+  background: #3e5e65;
+  color: #fff;
+}
 .conversation-plugin .scrollableConv {
   max-width: 70%;
   text-align: center;

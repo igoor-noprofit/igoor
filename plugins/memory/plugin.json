@@ -1,6 +1,6 @@
 {
-    "active": true,
-    "category": "memory",
+    "active": false,
+    "category": "Knowledge Base",
     "title": "Memory",
     "layout": {
         "part": "main",

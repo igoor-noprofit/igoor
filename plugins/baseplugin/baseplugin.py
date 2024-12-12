@@ -105,16 +105,19 @@ class Baseplugin:
             print(f"Failed to create subfolder {subfolder_path}: {e}")
             return False
         
-    async def wait_for_socket_and_send(self, message):
+    async def wait_for_socket_and_send(self, message, plugin_name=None):
         """
         Waits for the socket to be ready and then sends a message to the frontend.
         
         :param message: The message to be sent once the socket is ready.
+        :param plugin_name: (Optional) The plugin name to send the message to. If not provided, uses self.plugin_name.
         """
-        while not websocket_server.is_socket_open(self.plugin_name):
+        target_plugin_name = plugin_name or self.plugin_name
+        print(f"Wait for socket CALLED to send message: {message} to: {target_plugin_name}")
+        while not websocket_server.is_socket_open(target_plugin_name):
             await asyncio.sleep(1)  # Wait for 1 second before checking again
-            print(".")
-        self.send_message_to_frontend(message)
+            print(f"Waiting for socket to open, to send {message} to {target_plugin_name}")
+        self.send_message_to_frontend(message, target_plugin_name)
 
     async def send_status(self, status):
         # Send a JSON message where status=ready
@@ -122,14 +125,19 @@ class Baseplugin:
         
         success = await self.wait_for_socket_and_send(message)
         return success
+    
+    async def send_switch_view_to_app(self,view):
+        print("Switching view to " + view)
+        await self.send_message_to_app({"switchview":view})
         
-    def send_message_to_app(self,message):
+    async def send_message_to_app(self, message):
         """
         Wrapper that sends a message to the Vue app
 
         :param message: The message to be sent.
         """
-        self.send_message_to_frontend(message,'app')
+        success = await self.wait_for_socket_and_send(message, 'app')
+        return success 
             
     def send_message_to_frontend(self, message, plugin_name=None):
         """

@@ -39,7 +39,7 @@ async function initializeApp() {
   const app = Vue.createApp({
     data() {
       return {
-        appview: "flow", // Add this line
+        appview: "onboarding", // Add this line
         lastview: "daily",
         websocketUtil: null,
         // ... other data properties if needed ...
@@ -63,13 +63,16 @@ async function initializeApp() {
       };
 
       this.websocketUtil.onmessage = (event) => {
-        console.log("WebSocket message received:", event.data);
-        console.log("WebSocket message received:", event.data);
+        console.log("APP received message on websocket:", event.data);
         // Handle incoming WebSocket messages here
         try {
           const message = JSON.parse(event.data);
+          console.log("Parsed message:", message); // Log the parsed message
           if (message.backend === "addmsg") {
             this.goBack(); // Trigger goBack method
+          }
+          if (message.switchview && message.switchview != ''){
+            this.changeView(message.switchview)
           }
         } catch (error) {
           console.error("Error parsing WebSocket message:", error);
@@ -92,6 +95,7 @@ async function initializeApp() {
         this.changeView("autocomplete");
       },
       changeView(view) {
+        console.log("Switching view to " + view)
         this.lastview = this.appview;
         this.appview = view;
       },

@@ -21,10 +21,10 @@ class Asrvosk(Baseplugin):
     @hookimpl
     def startup(self):
         print ("ASRVOSK IS STARTING UP")
-        self.settings = self.get_my_settings()
-        self.continuous = self.settings.get("continuous")
         self.isloaded = False
+        self.settings = self.get_my_settings()
         self.wakeword = self.settings.get("wakeword")
+        self.continuous = self.settings.get("continuous")
         print ("VOSK settings", self.settings)
         # Start a thread to load the model
         self.model_thread = threading.Thread(target=self.load_model, daemon=True)

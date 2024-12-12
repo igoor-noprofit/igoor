@@ -12,9 +12,11 @@ from prompts import AssistantPrompts
 from websocket_server import websocket_server
 import signal,sys
 import tkinter as tk
+import asyncio
 
 prompts=None
 context_manager = ContextManager()
+manager = PluginManager()
 
 
 def show_splash_screen(image_path):
@@ -50,7 +52,6 @@ def load_settings():
     return settings
 
 def load_frontend_components():
-    manager = PluginManager()
     
     # active_plugins = ["flow","asrvosk","rag"]
     # exclude_plugins = ["ramcpu","clock","elevenlabs","meteo"]
@@ -158,9 +159,14 @@ def get_full_context():
     """
     return context_manager.get_context()
 
+def on_loaded():
+    print("Window is now loaded and available!")
+    asyncio.run(manager.trigger_hook("gui_ready"))
+
 def start_webview():
     try:
-        webview.create_window("IGOOR", "index.html", js_api=Api(), resizable=True)  # fullscreen=True if needed
+        window = webview.create_window("IGOOR", "index.html", js_api=Api(), resizable=True)  # fullscreen=True if needed
+        window.events.loaded += on_loaded
         webview.start(debug=IGOOR_DEBUG.lower() == 'true')
     except KeyboardInterrupt:
         print("KeyboardInterrupt detected. Shutting down...")
