@@ -13,7 +13,7 @@
     "ai":{
         "provider": "groq",
         "api_key": "",
-        "model": "llama-3.3-70b-versatile",
+        "model_name": "llama-3.3-70b-versatile",
         "temperature": "1"
     }
 }

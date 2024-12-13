@@ -21,7 +21,7 @@ class Onboarding(Baseplugin):
         if it's the case, send message to frontend to hide '''
         mandatory_fields = {
             "bio": ["name", "health_state"],
-            "ai": ["api_key","model","provider"],
+            "ai": ["api_key","model_name","provider"],
             "prefs": ["lang"]
         }
 

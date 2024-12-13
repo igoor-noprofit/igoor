@@ -1,11 +1,14 @@
 from langchain_groq import ChatGroq# Import other chat classes as needed
 import logging,os
+from settings_manager import SettingsManager
 class LLMManager:
     def __init__(self, provider, api_key, model_name, **kwargs):
-        self.provider = provider
-        self.api_key = api_key
-        self.model_name = model_name
-        self.temperature = kwargs.get("temperature", 1)
+        self.global_settings = SettingsManager();
+        ai = self.global_settings.get_nested(["plugins", "onboarding", "ai"], default={})
+        self.provider = provider or ai.get("provider")
+        self.api_key = api_key or ai.get("api_key")
+        self.model_name = model_name or ai.get("model_name")
+        self.temperature = kwargs.get("temperature", 1) or ai.get("temperature")
         self.chat_instance = self._create_chat()
         self.json_schema=False
         self.log_folder = kwargs.get("log_folder", None)
