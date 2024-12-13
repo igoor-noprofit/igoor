@@ -10,6 +10,19 @@ class SettingsManager:
         self.settings = {}
         self.load_settings()
 
+    def get_nested(self, keys, default=None):
+        """Retrieve a nested value from the settings dictionary."""
+        data = self.settings
+        for key in keys:
+            # print(f"Current data: {data}")  # Debugging line
+            try:
+                data = data[key]
+            except (TypeError, KeyError):
+                print(f"Key {key} not found. Returning default: {default}")  # Debugging line
+                return default
+        # print(f"Final data: {data}")  # Debugging line
+        return data
+
     def load_settings(self):
         """Load settings from the JSON file."""
         if os.path.exists(self.settings_file):

@@ -39,14 +39,14 @@ async function initializeApp() {
   const app = Vue.createApp({
     data() {
       return {
-        appview: "onboarding", // Add this line
+        appview: "loading", // Add this line
         lastview: "daily",
         websocketUtil: null,
         // ... other data properties if needed ...
       };
     },
     components: {
-      'Settings': Vue.defineAsyncComponent(() => loadModule('/plugins/settings/frontend/settings_component.vue',options)), 'Asrvosk': Vue.defineAsyncComponent(() => loadModule('/plugins/asrvosk/frontend/asrvosk_component.vue',options)), 'Autocomplete': Vue.defineAsyncComponent(() => loadModule('/plugins/autocomplete/frontend/autocomplete_component.vue',options)), 'Conversation': Vue.defineAsyncComponent(() => loadModule('/plugins/conversation/frontend/conversation_component.vue',options)), 'Autocompletelauncher': Vue.defineAsyncComponent(() => loadModule('/plugins/autocompletelauncher/frontend/autocompletelauncher_component.vue',options)), 'Flow': Vue.defineAsyncComponent(() => loadModule('/plugins/flow/frontend/flow_component.vue',options)), 'Onboarding': Vue.defineAsyncComponent(() => loadModule('/plugins/onboarding/frontend/onboarding_component.vue',options))
+      'Rag': Vue.defineAsyncComponent(() => loadModule('/plugins/rag/frontend/rag_component.vue',options)), 'Elevenlabs': Vue.defineAsyncComponent(() => loadModule('/plugins/elevenlabs/frontend/elevenlabs_component.vue',options)), 'Clock': Vue.defineAsyncComponent(() => loadModule('/plugins/clock/frontend/clock_component.vue',options)), 'Meteo': Vue.defineAsyncComponent(() => loadModule('/plugins/meteo/frontend/meteo_component.vue',options)), 'Ramcpu': Vue.defineAsyncComponent(() => loadModule('/plugins/ramcpu/frontend/ramcpu_component.vue',options)), 'Settings': Vue.defineAsyncComponent(() => loadModule('/plugins/settings/frontend/settings_component.vue',options)), 'Asrvosk': Vue.defineAsyncComponent(() => loadModule('/plugins/asrvosk/frontend/asrvosk_component.vue',options)), 'Autocomplete': Vue.defineAsyncComponent(() => loadModule('/plugins/autocomplete/frontend/autocomplete_component.vue',options)), 'Conversation': Vue.defineAsyncComponent(() => loadModule('/plugins/conversation/frontend/conversation_component.vue',options)), 'Autocompletelauncher': Vue.defineAsyncComponent(() => loadModule('/plugins/autocompletelauncher/frontend/autocompletelauncher_component.vue',options)), 'Flow': Vue.defineAsyncComponent(() => loadModule('/plugins/flow/frontend/flow_component.vue',options)), 'Memory': Vue.defineAsyncComponent(() => loadModule('/plugins/memory/frontend/memory_component.vue',options)), 'Onboarding': Vue.defineAsyncComponent(() => loadModule('/plugins/onboarding/frontend/onboarding_component.vue',options))
     },
     template: appTemplate,
     mounted: function () {
@@ -69,7 +69,7 @@ async function initializeApp() {
           const message = JSON.parse(event.data);
           console.log("Parsed message:", message); // Log the parsed message
           if (message.backend === "addmsg") {
-            this.goBack(); // Trigger goBack method
+            this.changeView('flow')
           }
           if (message.switchview && message.switchview != ''){
             this.changeView(message.switchview)

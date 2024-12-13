@@ -1,3 +1,6 @@
+<div id="apploading" v-show="appview == 'loading'">
+    <img src="img/igoor_logo.png" alt="Igoor Logo">
+</div>
 <div id="hidden">
     <!-- HIDDEN_COMPONENTS -->
 </div>

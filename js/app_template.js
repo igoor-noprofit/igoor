@@ -39,7 +39,7 @@ async function initializeApp() {
   const app = Vue.createApp({
     data() {
       return {
-        appview: "onboarding", // Add this line
+        appview: "loading", // Add this line
         lastview: "daily",
         websocketUtil: null,
         // ... other data properties if needed ...
@@ -69,7 +69,7 @@ async function initializeApp() {
           const message = JSON.parse(event.data);
           console.log("Parsed message:", message); // Log the parsed message
           if (message.backend === "addmsg") {
-            this.goBack(); // Trigger goBack method
+            this.changeView('flow')
           }
           if (message.switchview && message.switchview != ''){
             this.changeView(message.switchview)

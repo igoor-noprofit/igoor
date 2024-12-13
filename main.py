@@ -151,16 +151,8 @@ def load_frontend_components():
 
     return final_html
 
-def get_full_context():
-    """
-    Retrieves the full context from the context manager.
-    Returns:
-        dict: The full context.
-    """
-    return context_manager.get_context()
-
 def on_loaded():
-    print("Window is now loaded and available!")
+    print("GUI window is now loaded and available!")
     asyncio.run(manager.trigger_hook("gui_ready"))
 
 def start_webview():
@@ -186,11 +178,12 @@ if __name__ == "__main__":
         final_html = load_frontend_components()
         if (IGOOR_OUTPUT_HTML.lower() == 'true'):
             print(final_html)
-    
-    s = settings.get_all_settings()    
-    user=s.get("user")
-    print (user)
-    lang = user.get("lang")
+
+    # print(settings.get_all_settings())
+    bio = settings.get_nested(["plugins", "onboarding", "bio"], default={})
+    print(bio)
+    prefs = settings.get_nested(["plugins", "onboarding", "prefs"], default={})
+    lang = prefs.get("lang")
     print ("lang = " + lang)
     prompts = AssistantPrompts("locales/",lang)
     # LAUNCH WINDOW APP
@@ -198,5 +191,4 @@ if __name__ == "__main__":
         splash_screen.destroy()
         start_webview()
     else:
-        print(get_full_context())
-        
+        print("CLI ONLY VERSION")
