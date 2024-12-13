@@ -7,12 +7,11 @@ from context_manager import ContextManager
 context_manager = ContextManager()
 from plugin_manager import PluginManager
 plugin_manager = PluginManager()
+from settings_manager import SettingsManager
 
 class Api:
     def __init__(self):
-        self.language = os.getenv("IGOOR_LANG")
-        # self.prompts = AssistantPrompts("locales/", self.language)
-        self.igoor_engine = os.getenv("IGOOR_AI_ENGINE")
+        print("INIT API")
         
     def get_plugins_by_category(self):
         print("Fetching plugins by category")
@@ -27,20 +26,6 @@ class Api:
             return plugin_manager.deactivate_plugin(plugin_name=pn)
         else:
             return plugin_manager.activate_plugin(plugin_name=pn)
-
-    '''
-    async def askAI(self, assistant_type, query):
-        print("received query = " + query)
-        system_prompt = self.prompts.get_system_prompt(self.language, assistant_type)
-        if (self.igoor_engine == 'openai'):
-            response = await query_rag_openai(system_prompt, query);
-        else:
-            response = await query_rag(system_prompt, query);
-            print("*** RESPONSE CONTENT ***")
-            print (response.content)
-            print("*** END RESPONSE CONTENT ***")
-        return response
-    '''
 
     def minimize_window(self):
         print("Minimizing window")
@@ -61,17 +46,6 @@ class Api:
     def get_context_all(self):
         print(context_manager.get_context())
         
-    '''
-        Replace with websocket?
-        Calls ANY plugin backend function specifically ?
-    def call_plugin_backend(self, module_name, target_function_name, args):
-        print("call backend of plugin", module_name)
-        if module_name:
-            return plugin_manager.call_target_function(module_name, target_function_name, args)
-        else:
-            raise ValueError("Module name is required")
-    '''
-        
     async def trigger_hook(self, hook_name, *args, **kwargs):
         try:
             print(f"JS : triggering hook {hook_name} with args: {args} and kwargs: {kwargs}")
@@ -86,5 +60,3 @@ class Api:
         except Exception as e:
             print(f"Error triggering hook '{hook_name}': {e}")
             return None
-        
-        

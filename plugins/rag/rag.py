@@ -39,34 +39,6 @@ class Rag(Baseplugin):
                 print("RAG settings", self.settings)
                 threading.Thread(target=self.load_index).start()
     
-    '''
-    def load_embedding_function(self):
-        if not (self.embedding_loaded):
-            self.embedding_function=self.get_embedding_function()
-        else:
-            print("Embedding function already loaded")
-    '''
-    
-    '''
-    # Load your FAISS index from a file (replace 'index_file_path' with your actual index path)
-    vectorstore = FAISS.load_local("index_file_path")
-
-    # Access the underlying FAISS index
-    index = vectorstore.index
-
-    # Get the total number of vectors (chunks)
-    n = index.ntotal
-
-    # Retrieve and print all vectors (chunks)
-    vectors = []
-    for i in range(n):
-        vector = index.reconstruct(i)  # Reconstruct the vector at index i
-        vectors.append(vector)
-
-    # Now you have all the vectors (chunks) in the 'vectors' list
-    print(vectors)
-    '''
-    
     def load_index(self):
         print ("LOADING INDEX, PLEASE WAIT...")
         db_start_time = time.time()

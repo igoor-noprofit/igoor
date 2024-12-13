@@ -16,6 +16,7 @@ class Ramcpu(Baseplugin):
     @hookimpl
     def startup(self):
         self.settings = self.get_my_settings()
+        self.timeout = int(self.settings.get("timeout", 1))
 
     @hookimpl
     def gui_ready(self):
@@ -33,7 +34,7 @@ class Ramcpu(Baseplugin):
             }
             
             self.send_message_to_frontend(usage_data)
-            time.sleep(3)  # Print every 5 seconds
+            time.sleep(self.timeout)
     
     # Function to print CPU and RAM usage
     def print_usage():
