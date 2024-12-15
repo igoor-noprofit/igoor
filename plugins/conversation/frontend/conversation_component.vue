@@ -1,5 +1,5 @@
 <template>
-    <div class="conversation-plugin" v-if="appview !== 'autocomplete'">
+    <div class="conversation-plugin" v-if="appview !== 'autocomplete' && appview !== 'onboarding'">
         <div class="scrollableConv" ref="scrollableConv">
             <div v-for="(message, index) in thread" :key="index">
                 <div class="card" :class="[message.author, { last: isLastMessage(index) }]">

@@ -51,6 +51,14 @@ class Asrvosk(Baseplugin):
     @hookimpl
     def wakeword_detected(self):
         self.wakeword_detected = True
+        
+        
+    @hookimpl
+    async def change_view(self,lastview,currentview):
+        print("CHANGE VIEW IN ASRVOSK")
+        if not self.is_paused:
+            if currentview == 'onboarding':
+                await self.pause_asr()
     
     @hookimpl
     def stop_asr(self):

@@ -3,7 +3,7 @@
     "category": "core",
     "title": "Onboarding",
     "layout": {
-        "part": "footer",
+        "part": "main",
         "order": 0
     },
     "is_free": true,

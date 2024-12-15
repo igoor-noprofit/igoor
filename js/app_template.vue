@@ -8,10 +8,11 @@
     <img src="img/igoor_logo.png" id="igoor_logo">
     <!-- TOPBAR_COMPONENTS -->
 </div>
-<header>
+<!-- AFTER_TOPBAR_COMPONENTS -->
+<header v-show="appview !== 'onboarding'">
     <!-- HEADER_COMPONENTS -->
 </header>
-<div class="after_header">
+<div class="after_header" v-show="appview !== 'onboarding'">
     <!-- AFTER_HEADER_COMPONENTS -->
 </div>
 <main>

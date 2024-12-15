@@ -51,6 +51,14 @@ class Baseplugin:
         print("getting settings for ", self.plugin_name)
         return self.settings_manager.get_plugin_settings(self.plugin_name)
 
+    def mass_update_settings(self, json_data):
+        try:
+            # Check if the input is a valid JSON object
+            parsed_data = json.loads(json_data)
+            self.settings_manager.save_settings(parsed_data)
+        except json.JSONDecodeError:
+            print("Invalid JSON data provided for mass update.")
+
     def update_my_settings(self, key: str, value: any):
         """
         Update settings for a specific plugin.

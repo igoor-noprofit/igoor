@@ -199,14 +199,58 @@ footer {
   display: inline-block;
 }
 .onboarding.plugin {
-  top: 0;
-  left: 0;
-  z-index: 1000;
-  position: absolute;
   width: 100vw;
-  height: 100vh;
-  background: #3e5e65;
+  background: linear-gradient(to bottom, #2a4a51, #1a2223);
   color: #fff;
+  height: 75vh;
+}
+.onboarding.plugin .tabs {
+  border-radius: 10px;
+  font-size: 1.5rem;
+}
+.onboarding.plugin .tabs li {
+  background-color: #1f474f;
+  color: #a6bfbf;
+}
+.onboarding.plugin .tabs li.active {
+  background-color: #216776;
+  font-weight: bold;
+  color: #fff;
+}
+.onboarding.plugin label {
+  display: flex;
+  color: #a6bfbf;
+  margin: 20px 0 6px 0;
+}
+.onboarding.plugin input,
+.onboarding.plugin textarea,
+.onboarding.plugin select {
+  border-radius: 10px;
+  background-color: #121617;
+  color: #fff;
+  height: 40px;
+  border: none;
+  width: 100%;
+  max-width: 500px;
+  padding: 10px 20px;
+  font-size: 1.2rem;
+}
+.onboarding.plugin select {
+  height: 50px;
+}
+.onboarding.plugin textarea {
+  height: 50vh;
+}
+.onboarding.plugin button {
+  background-color: #407d1c;
+  color: #fff;
+  border: none;
+  height: 40px;
+  border-radius: 10px;
+  padding: 10px 20px;
+  font-weight: bold;
+  text-transform: uppercase;
+  cursor: pointer;
 }
 .conversation-plugin .scrollableConv {
   max-width: 70%;

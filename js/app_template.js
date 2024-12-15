@@ -98,6 +98,7 @@ async function initializeApp() {
         console.log("Switching view to " + view)
         this.lastview = this.appview;
         this.appview = view;
+        window.pywebview.api.change_view(this.lastview,view);
       },
       goBack() {
         this.appview = this.lastview;

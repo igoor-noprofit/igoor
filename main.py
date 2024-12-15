@@ -65,6 +65,7 @@ def load_frontend_components():
     components_by_category = {
         'hidden': [],
         'topbar': [],
+        'after_topbar': [],
         'header': [],
         'after_header': [],
         'main': [],

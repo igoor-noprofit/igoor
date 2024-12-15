@@ -14,12 +14,12 @@ class Elevenlabs(Baseplugin):
                 
     @hookimpl
     def startup(self):
-        print ("ELEVENLABS IS STARTING UP")
         self.settings = self.get_my_settings()
         print ("ELEVENLABS settings", self.settings)
         try:
             self.user = User(self.settings.get("api_key"))
             self.voice= self.user.get_voice_by_ID(self.settings.get("voice_id"))   
+            self.generation_options = self.settings.get("GenerationOptions")
             # self.input_streamer=ReusableInputStreamer(self.voice)
         except Exception as e:
             print(f"Error occurred while setting user : {e}")

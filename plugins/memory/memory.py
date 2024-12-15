@@ -30,7 +30,7 @@ Input: Q: Tu as eu des nouvelles d'Anatole ? R: Oui, il est rentré à Paris Q: 
 Output: {{"facts" : ["Anatole est rentré à Paris", "Anatole va bien"]}}
 
 Input : Q: Il m'a dit que Claire ne t'en veut pas R: T'es sur de ça ? Q: Oui R: J'en suis très soulagé
-{{"facts" : ["Claire n'en vaut pas à Igor", "Igor est très soulagé que Claire lui en veut pas”]}}
+{{"facts" : ["Claire n'en veut pas à Igor", "Igor est très soulagé que Claire lui en veut pas”]}}
 ----
 
 Retourne les faits et opinions dans le format JSON ci-dessus.Si ces infos sont déjà présentes dans le contexte ci-dessous, 
@@ -87,18 +87,6 @@ class Memory(Baseplugin):
         except RuntimeError:
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
-    
-    '''
-    adds test memory
-    '''
-    async def test_after_conversation_end(self):
-        print("test_after_conversation_end")
-        # Create a mock last_conversation dictionary
-        last_conversation = {
-            "txt": "Q: T'aimes le gateau de riz ? R: Jamais aimé"
-        }
-        # Run the after_conversation_end method with the mock conversation
-        await self.after_conversation_end(last_conversation)
     
     async def _startup_async(self):
         

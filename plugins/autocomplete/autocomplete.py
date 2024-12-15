@@ -10,7 +10,11 @@ from llm_manager import LLMManager
 import asyncio,json,time
 
 PROMPT_TEMPLATE = """
-Utiliser le contexte statique extrait des documents sur la vie de la personne :
+La personne affectée par la maladie s'appelle {bio_name}. Considère son état actuel pour éviter des prédictions incompatibles avec ses capacités physiques:
+
+{health_state}
+
+Utilise le contexte statique extrait des documents sur la vie de {bio_name}:
 
 {static_context}
 
@@ -32,6 +36,8 @@ class Autocomplete(Baseplugin):
         self.prompts=AssistantPrompts("locales/","fr_FR")
         self.global_settings = SettingsManager();
         self.settings = self.get_my_settings()
+        bio = self.global_settings.get_bio()
+        self.bio_name = bio.get("name")
     
     @hookimpl
     def startup(self):
@@ -91,6 +97,8 @@ class Autocomplete(Baseplugin):
     Performs LLM query
     '''
     async def predict(self, msg: str) -> None:
+        health_state=self.global_settings.get_health_state()
+        bio_name=self.bio_name
         start_time = time.time()
         print("AUTOCOMPLETE PREDICTIONS")
         dynamic_context = self.get_dynamic_context()
@@ -103,7 +111,7 @@ class Autocomplete(Baseplugin):
         system_prompt = self.prompts.get_system_prompt("fr_FR", assistant_type) 
         # print(f"SYSTEM PROMPT IS : {system_prompt}")   
         pm = PromptManager(template=PROMPT_TEMPLATE)
-        prompt = pm.create_prompt(static_context=static_context, dynamic_context=dynamic_context, input=msg)       
+        prompt = pm.create_prompt(bio_name=bio_name,health_state=health_state,static_context=static_context, dynamic_context=dynamic_context, input=msg)       
         print(f"FINAL HUMAN PROMPT : {prompt}")
         llm = LLMManager(self.settings.get("provider"), self.settings.get("api_key"), self.settings.get("model_name"))
         answers = llm.invoke(system_prompt,prompt)

@@ -7,12 +7,17 @@ body {
   overflow: hidden;
   font-family: "Public Sans";
 }
-#apploading{
+#apploading {
   background: @darkest;
-  display: flex; justify-content: center; align-items: center; height: 100vh; width: 100vw; 
-  z-index: 9999999; position: absolute;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  width: 100vw;
+  z-index: 9999999;
+  position: absolute;
   top: 0;
-  left: 0
+  left: 0;
 }
 
 @darkest: #121617;
@@ -220,15 +225,58 @@ footer {
   color: #fff;
   display: inline-block;
 }
-.onboarding.plugin{
-  top: 0;
-  left: 0;
-  z-index: 1000;
-  position: absolute;
+.onboarding.plugin {
   width: 100vw;
-  height: 100vh;
-  background: @gray_900;
+  background: @bg_gradient;
   color: #fff;
+  height: 75vh;
+  .tabs {
+    .rounded;
+    font-size: 1.5rem;
+  }
+  .tabs li {
+    background-color: @back_button_bg;
+    color: @gray_100;
+    &.active {
+      background-color: #216776;
+      font-weight: bold;
+      color: #fff;
+    }
+  }
+  label {
+    display: flex;
+    color: @gray_100;
+    margin: 20px 0 6px 0;
+  }
+  input,
+  textarea,select {
+    .rounded;
+    background-color: @darkest;
+    color: #fff;
+    height: 40px;
+    border: none;
+    width: 100%;
+    max-width: 500px;
+    padding: 10px 20px;
+    font-size: 1.2rem;
+  }
+  select{
+    height: 50px;
+  }
+  textarea {
+    height: 50vh;
+  }
+  button {
+    background-color: @yes_green;
+    color: #fff;
+    border: none;
+    height: 40px;
+    .rounded;
+    padding: 10px 20px;
+    font-weight: bold;
+    text-transform: uppercase;
+    cursor: pointer;
+  }
 }
 .conversation-plugin {
   .scrollableConv {

@@ -1,6 +1,4 @@
 import asyncio
-import os
-
 import webview
 # from prompts import AssistantPrompts
 from context_manager import ContextManager
@@ -42,7 +40,10 @@ class Api:
     def maximize_window(self):
         print("MAX window")
         webview.windows[0].resize(screen_width,screen_height)
-        
+    
+    def change_view(self,lastview,currentview):
+        asyncio.run(self.trigger_hook("change_view",lastview=lastview,currentview=currentview))
+    
     def get_context_all(self):
         print(context_manager.get_context())
         

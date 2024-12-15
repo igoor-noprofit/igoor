@@ -9,6 +9,13 @@ class SettingsManager:
         self.settings_file = settings_file or os.path.join(os.getenv('APPDATA'), os.getenv("IGOOR_APPNAME"), 'settings.json')
         self.settings = {}
         self.load_settings()
+    
+    def get_bio(self):
+        return self.get_nested(["plugins", "onboarding", "bio"], default={})
+    
+    def get_health_state(self):
+        bio = self.get_nested(["plugins", "onboarding", "bio"], default={})
+        return bio.get("health_state")
 
     def get_nested(self, keys, default=None):
         """Retrieve a nested value from the settings dictionary."""
@@ -39,8 +46,10 @@ class SettingsManager:
             }
             self.save_settings()
 
-    def save_settings(self):
+    def save_settings(self, settings=None):
         """Save settings to the JSON file."""
+        if settings is not None:
+            self.settings = settings
         os.makedirs(os.path.dirname(self.settings_file), exist_ok=True)
         with open(self.settings_file, 'w', encoding='utf-8') as f:
             json.dump(self.settings, f, indent=4)

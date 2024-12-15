@@ -1,1 +1,2 @@
+- FIX: should not start listening when still in onboarding mode
 - remove blocking using threads

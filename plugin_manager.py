@@ -40,9 +40,14 @@ class MyAppSpec:
     
     
     '''
+        GUI
     '''
     @pluggy.HookspecMarker(app_name)
     async def gui_ready(self):
+        pass
+    
+    @pluggy.HookspecMarker(app_name)
+    async def change_view(self,lastview,currentview):
         pass
     
     '''

@@ -10,7 +10,11 @@ from llm_manager import LLMManager
 import asyncio,json,time
 
 PROMPT_TEMPLATE = """
-Pour répondre tu peux utilisers le contexte statique extrait des documents sur la vie de la personne :
+La personne affectée par la maladie s'appelle {bio_name}. Considère son état actuel pour éviter des prédictions incompatibles avec ses capacités physiques:
+
+{health_state}
+
+Pour répondre tu peux utilisers le contexte statique extrait des documents sur la vie de {bio_name}:
 
 {static_context}
 
@@ -29,6 +33,8 @@ class Flow(Baseplugin):
         self.prompts=AssistantPrompts("locales/","fr_FR")
         self.global_settings = SettingsManager();
         self.settings = self.get_my_settings()
+        bio = self.global_settings.get_bio()
+        self.bio_name = bio.get("name")
     
     @hookimpl
     def startup(self):
@@ -90,6 +96,8 @@ class Flow(Baseplugin):
     '''
     @hookimpl
     async def asr_msg(self, msg: str) -> None:
+        health_state=self.global_settings.get_health_state()
+        bio_name=self.bio_name
         start_time = time.time()
         dynamic_context = self.get_dynamic_context().copy()
         print(f"DYNAMIC CONTEXT IS {dynamic_context}")
@@ -103,7 +111,7 @@ class Flow(Baseplugin):
         # print(f"SYSTEM PROMPT IS : {system_prompt}")   
         pm = PromptManager(template=PROMPT_TEMPLATE)
         dynamic_context = dynamic_context
-        prompt = pm.create_prompt(static_context=static_context, dynamic_context=dynamic_context, conversation=conversation)       
+        prompt = pm.create_prompt(bio_name=bio_name,health_state=health_state,static_context=static_context, dynamic_context=dynamic_context, conversation=conversation)       
         print(f"FINAL PROMPT : {prompt}")
         llm = LLMManager(self.settings.get("provider"), self.settings.get("api_key"), self.settings.get("model_name"))
         answers = llm.invoke(system_prompt,prompt)
