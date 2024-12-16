@@ -13,9 +13,6 @@ class Asrvosk(Baseplugin):
     def __init__(self, plugin_name, pm):
         self.pm = pm
         self.is_paused=False
-        self.samples_folder = os.path.join(os.path.dirname(__file__), "samples")
-        self.on_sample = os.path.join(self.samples_folder,"on.wav")
-        self.off_sample = os.path.join(self.samples_folder,"off.wav")
         super().__init__(plugin_name,pm)
         
     @hookimpl
@@ -42,9 +39,14 @@ class Asrvosk(Baseplugin):
         
     @hookimpl
     async def abandon_conversation(self, cause="timeout"):
-        print("ASRVOSK received ABANDON_CONVERSATION trigger")
-        self.wakeword_detected=False
-        await self.send_status("listening")
+        try:
+            print("ASRVOSK received ABANDON_CONVERSATION trigger")
+            # Your existing logic here
+            self.wakeword_detected = False
+            await self.send_status("listening")
+            print("ASRVOSK after_conversation_end completed successfully")
+        except Exception as e:
+            print(f"Error in ASRVOSK after_conversation_end: {e}")
     
     '''
     To support external wakeword mechanism

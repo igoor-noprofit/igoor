@@ -159,9 +159,9 @@ class Baseplugin:
 
         if websocket_server.is_socket_open(target_plugin_name):
             if not (target_plugin_name=='app'):
-                print(f"{target_plugin_name} BACKEND starts sending message to FRONTEND via ws")
+                print(f"{target_plugin_name} BACKEND => FRONTEND via ws")
             else:
-                print(f"BACKEND starts sending message to APP via ws")
+                print(f"{target_plugin_name} BACKEND => APP via ws")
             try:
                 # Ensure the message is a JSON string
                 if isinstance(message, dict):

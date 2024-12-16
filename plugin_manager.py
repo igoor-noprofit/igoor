@@ -105,6 +105,7 @@ class MyAppSpec:
         """Hook for abandoning current conversation"""
         pass
     
+    @pluggy.HookspecMarker(app_name)
     def after_conversation_end(self, last_conversation):
         """Hook to analyze or do other stuff with last conversation"""
         pass
