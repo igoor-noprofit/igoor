@@ -8,7 +8,7 @@
                 <div v-for="(msg, index) in answers" :key="index">
                     <div :class="['card', { 'fade-out': selectedCard == index }]" @click="$_chooseAnswer(msg, index)">
                         <div class="card-body">
-                            <p class="card-text">{{ (Object.values(msg)[0]) }}</p>
+                            <p class="card-text">{{ msg }}</p>
                         </div>
                     </div>
                 </div>
@@ -35,31 +35,39 @@ module.exports = {
     methods: {
         async $_abandonConversation() {
             try {
-                /*
-                this method bugs because of not serializable JSON result ?
-                window.pywebview.api.trigger_hook("abandon_conversation").then(function(){
-                    this.answers = [];
-                })
-                    */
-                this.sendMsgToBackend({"action":"abandon_conversation"});
-                this.answers=[]
+                console.log("FLOW abandons conversation");
+                this.sendMsgToBackend({ "action": "abandon_conversation" });
+                this.answers = []
             } catch (error) {
                 console.error("Error abandoning conversation:", error);
             }
         },
         handleIncomingMessage(event) {
-            console.log("Custom message handler in FLOW component:", event.data);
+            console.log("FLOW component:", event.data);
+            let data; // Declare the variable 'data'
             try {
-                const data = JSON.parse(event.data);
-                this.answers = data;
-                this.selectedCard = null;
-            }
-            catch (e) {
-                console.warn("Error parsing JSON")
+                data = JSON.parse(event.data);
+                if (data.action) {
+                    switch (data.action) { // Use 'data.action' instead of 'event.data.action'
+                        case 'abandon_conversation':
+                            this.$_abandonConversation();
+                            break;
+                        default:
+                            console.error("No handler for action " + data.action);
+                            break;
+                    }
+                } else {
+                    console.log("************ ANSWERS *********");
+                    console.table(data);
+                    this.answers = data.answers;
+                    this.selectedCard = null;
+                }
+            } catch (e) {
+                console.warn("Error parsing JSON");
             }
         },
         async $_chooseAnswer(msg, index) {
-            let text = Object.values(msg)[0];
+            let text = msg;
             this.selectedCard = index;
             const json = { action: "speak", msg: text };
             console.log("sending JSON");
@@ -67,7 +75,7 @@ module.exports = {
             this.sendMsgToBackend(json);
         }
     }
-};
+}
 </script>
 
 <style scoped>

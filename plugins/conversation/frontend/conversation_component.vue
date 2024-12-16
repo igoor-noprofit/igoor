@@ -9,6 +9,9 @@
                 </div>
             </div>
         </div>
+        <div v-if="showProgressBar" class="progress-bar-container">
+            <div class="progress-bar" :style="{ width: progressBarWidth + '%' }"></div>
+        </div>
     </div>
 </template>
 
@@ -20,7 +23,10 @@ module.exports = {
     mixins: [BasePluginComponent],
     data() {
         return {
-            thread: []
+            thread: [],
+            showProgressBar: false,
+            progressBarWidth: 0,
+            countdownInterval: null
         }
     },
     computed: {
@@ -35,6 +41,14 @@ module.exports = {
             console.table(data);
             if (data.action == "abandon_conversation") {
                 this.thread = [];
+                this.resetProgressBar();
+            } else if (data.action == "startCountdown") {
+                // Handle start countdown logic
+            } else if (data.action == "resetCountdown") {
+                // Handle reset countdown logic
+            } else if (data.action == "showProgressBar") {
+                this.showProgressBar = true;
+                // Logic to show progress bar
             } else {
                 this.thread.push(data);
                 this.$nextTick(() => {
@@ -47,10 +61,32 @@ module.exports = {
             const scrollableDiv = this.$refs.scrollableConv;
             if (scrollableDiv) {
                 scrollableDiv.scrollTop = scrollableDiv.scrollHeight;
-                console.log(scrollableDiv.scrollTop,scrollableDiv.scrollHeight);
+                console.log(scrollableDiv.scrollTop, scrollableDiv.scrollHeight);
             }
-            else{
+            else {
                 console.warn("cannot scroll")
+            }
+        },
+        startProgressBar() {
+            this.showProgressBar = true;
+            this.progressBarWidth = 0;
+            const totalDuration = 5000; // Duration for the progress bar in milliseconds
+            const intervalDuration = 100; // Update interval in milliseconds
+            const increment = 100 / (totalDuration / intervalDuration);
+
+            this.countdownInterval = setInterval(() => {
+                this.progressBarWidth += increment;
+                if (this.progressBarWidth >= 100) {
+                    clearInterval(this.countdownInterval);
+                    this.showProgressBar = false;
+                }
+            }, intervalDuration);
+        },
+        resetProgressBar() {
+            this.showProgressBar = false;
+            this.progressBarWidth = 0;
+            if (this.countdownInterval) {
+                clearInterval(this.countdownInterval);
             }
         }
     },
@@ -90,5 +126,20 @@ module.exports = {
 
 .card-body {
     padding: 6px;
+}
+
+.progress-bar-container {
+    width: 100%;
+    background-color: #f3f3f3;
+    border-radius: 5px;
+    overflow: hidden;
+    margin-top: 10px;
+}
+
+.progress-bar {
+    height: 10px;
+    background-color: #4caf50;
+    width: 0;
+    transition: width 0.1s linear; /* Ensure smooth transition */
 }
 </style>

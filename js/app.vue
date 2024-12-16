@@ -6,17 +6,17 @@
 </div>
 <div id="topbar">
     <img src="img/igoor_logo.png" id="igoor_logo">
-    <weather  :appview="appview"></weather>
+    <elevenlabs  :appview="appview"></elevenlabs>
 </div>
 
 <header v-show="appview !== 'onboarding'">
-    <autocomplete  :appview="appview"></autocomplete><conversation  :appview="appview"></conversation>
+    <asrvosk  :appview="appview"></asrvosk><autocomplete  :appview="appview"></autocomplete><conversation  :appview="appview"></conversation>
 </header>
 <div class="after_header" v-show="appview !== 'onboarding'">
     <autocompletelauncher @show-autocomplete="showAutocomplete" :appview="appview"></autocompletelauncher>
 </div>
 <main>
-    
+    <onboarding  :appview="appview"></onboarding><flow  :appview="appview"></flow>
 </main>
 <footer>
     

@@ -96,3 +96,8 @@ pyinstaller main.py --add-data --noconsole index.html:.
 ```
 python main.py
 ```
+
+## LOGS
+LLM logs are in :
+
+IGOOR_FOLDER/plugins/memory/

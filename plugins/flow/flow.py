@@ -8,18 +8,20 @@ from prompts import AssistantPrompts
 from settings_manager import SettingsManager
 from llm_manager import LLMManager
 import asyncio,json,time
+from pydantic import BaseModel
+from typing import List
 
 PROMPT_TEMPLATE = """
 La personne affectée par la maladie s'appelle {bio_name}. Considère son état actuel pour éviter des prédictions incompatibles avec ses capacités physiques:
 
 {health_state}
 
-Pour répondre tu peux utilisers le contexte statique extrait des documents sur la vie de {bio_name}:
+Pour répondre tu peux utiliser le contexte statique extrait des documents sur la vie de {bio_name}:
 
 {static_context}
 
 ---
-Si besoin utilise aussi les infos du contexte dynamique suivant :
+Si besoin utilises aussi les infos du contexte dynamique suivant :
 
 {dynamic_context}
 ---
@@ -52,10 +54,13 @@ class Flow(Baseplugin):
         # Schedule the coroutine to be run
         asyncio.create_task(self._startup_async())
         
+    @hookimpl
+    def abandon_conversation(self):
+        self.send_message_to_frontend({"action":"abandon_conversation"})
+        
     async def _startup_async(self):
         print("sending status ready")
         await self.wait_for_socket_and_send("ready")
-        self.send_test_json()
     
     '''   
     def send_test_json(self):
@@ -112,13 +117,37 @@ class Flow(Baseplugin):
         # print(f"SYSTEM PROMPT IS : {system_prompt}")   
         pm = PromptManager(template=PROMPT_TEMPLATE)
         dynamic_context = dynamic_context
-        prompt = pm.create_prompt(bio_name=bio_name,health_state=health_state,static_context=static_context, dynamic_context=dynamic_context, conversation=conversation)       
+        prompt = pm.create_prompt(bio_name=bio_name,health_state=health_state,static_context=static_context, dynamic_context=dynamic_context, conversation=conversation,log_folder=self.plugin_folder)       
         print(f"FINAL PROMPT : {prompt}")
         llm = LLMManager(self.settings.get("provider"), self.settings.get("api_key"), self.settings.get("model_name"))
+        llm.set_json_schema(Answers)
         answers = llm.invoke(system_prompt,prompt)
+        print(f"TYPE = {type(answers)}, ANSWERS: {answers}")
+        answers_dict = answers.dict()
+        if answers_dict.get("answers"):
+            self.send_message_to_frontend(answers.json()) 
+        else:
+            print("NO ANSWERS RECEIVED")
+        '''
+        memories = llm.invoke(system_prompt, prompt)
+        print(f"TYPE = {type(memories)}, MEMORIES: {memories}")
+        memories_dict = memories.dict()
+        print(f"TYPE = {type(memories_dict)}, MEMORIES: {memories_dict}")
+        
+        if memories_dict.get("facts"):
+            for memory in memories_dict["facts"]:  # Use "facts" here
+                print(f"storing {memory}")
+                try:
+                    result = await self.pm.trigger_hook(hook_name="store_memory", memory=memory)
+                except Exception as e:
+                    print(f"Exception occurred while storing fact '{memory}': {e}")
+            await self.pm.trigger_hook("save_index")
         end_time = time.time()
         print(f"Time taken for processing: {end_time - start_time} seconds")
-        self.send_message_to_frontend(answers.content) 
+        '''
+        end_time = time.time()
+        print(f"Time taken for processing: {end_time - start_time} seconds")
+        
         
     def get_dynamic_context(self):
         return context_manager.get_context()
@@ -143,3 +172,6 @@ class Flow(Baseplugin):
         ]
         for query in queries:
             asyncio.run(self.asr_msg(query))
+
+class Answers(BaseModel):
+    answers: List[str]

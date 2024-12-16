@@ -17,6 +17,7 @@ class Conversation(Baseplugin):
     def init_timeout(self):
         print("INIT TIMEOUT")
         self.timeout = int(self.settings.get("timeout", 120000)) / 1000  # Convert milliseconds to seconds
+        self.warning_time = self.timeout - int(self.settings.get("warning_time", 5000)) / 1000  # Warning time in seconds
         self.timeout_task = None
         self.executor = ThreadPoolExecutor(max_workers=1)
         self.reset_timeout()
@@ -33,28 +34,31 @@ class Conversation(Baseplugin):
 
     async def start_timeout(self):
         print("Starting non-blocking timeout")
-        await asyncio.sleep(self.timeout)
-        # await (self.abandon_conversation())        
-        # self.test_conversation()
-
+        self.send_message_to_frontend({"action": "startCountdown"})
+        await asyncio.sleep(self.warning_time)  # Wait until the warning time
+        self.send_message_to_frontend({"action": "showProgressBar"})
+        await asyncio.sleep(self.timeout - self.warning_time)  # Wait for the remaining time
+        await self.pm.trigger_hook("abandon_conversation")  # Trigger the abandon_conversation hook
 
     @hookimpl
     async def new_conversation(self):
-        self.thread=[]
-        self.conversation_is_open=True
-        context_manager.update_context("conversation","")
+        self.thread = []
+        self.conversation_is_open = True
+        context_manager.update_context("conversation", "")
         self.init_timeout()
-        
+        self.send_message_to_frontend({"action": "startCountdown"})
+
     @hookimpl
-    async def abandon_conversation(self,cause="timeout"):
+    async def abandon_conversation(self, cause="timeout"):
         txt = await self.get_conversation(format="txt")
         last_conversation = {"thread": self.thread, "txt": txt}
-        self.thread=[]
-        context_manager.update_context("conversation","")
-        self.send_message_to_frontend({"action":"abandon_conversation"})
-        self.conversation=False
-        print(f"Conversation abandoned for cause:{cause}")
-        await self.pm.trigger_hook("after_conversation_end",last_conversation=last_conversation)
+        self.thread = []
+        context_manager.update_context("conversation", "")
+        self.send_message_to_frontend({"action": "abandon_conversation"})
+        self.conversation_is_open = False
+        print(f"Conversation abandoned for cause: {cause}")
+        if self.executor:
+            self.executor.shutdown(wait=False)  # E
         
     @hookimpl
     async def add_msg_to_conversation(self, msg: str, author: str) -> None:
@@ -69,6 +73,7 @@ class Conversation(Baseplugin):
         conv = await self.get_conversation(format="raw")
         context_manager.update_context("conversation", conv)
         self.reset_timeout()
+        self.send_message_to_frontend({"action": "resetCountdown"})
     
     @hookimpl
     async def delete_conversation(self):
