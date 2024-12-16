@@ -23,7 +23,7 @@ class Conversation(Baseplugin):
         self.reset_timeout()
 
     def reset_timeout(self):
-        print("Reset timer")
+        print("RESET TIMEOUT")
         if self.timeout_task:
             print("Cancelling existing timeout task")
             self.timeout_task.cancel()
@@ -33,6 +33,7 @@ class Conversation(Baseplugin):
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
         self.timeout_task = loop.create_task(self.start_timeout())
+        self.send_message_to_frontend({"action": "resetCountdown"})
 
     async def start_timeout(self):
         print("Starting non-blocking timeout")
@@ -93,7 +94,6 @@ class Conversation(Baseplugin):
         conv = await self.get_conversation(format="raw")
         context_manager.update_context("conversation", conv)
         self.reset_timeout()
-        self.send_message_to_frontend({"action": "resetCountdown"})
     
     @hookimpl
     async def delete_conversation(self):

@@ -46,8 +46,10 @@ module.exports = {
                 // Handle start countdown logic
             } else if (data.action == "resetCountdown") {
                 // Handle reset countdown logic
+                this.showProgressBar = false;
             } else if (data.action == "showProgressBar") {
                 this.showProgressBar = true;
+                this.startProgressBar()
                 // Logic to show progress bar
             } else {
                 this.thread.push(data);
@@ -137,7 +139,7 @@ module.exports = {
 }
 
 .progress-bar {
-    height: 10px;
+    height: 20px;
     background-color: #4caf50;
     width: 0;
     transition: width 0.1s linear; /* Ensure smooth transition */

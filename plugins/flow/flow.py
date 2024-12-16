@@ -61,13 +61,8 @@ class Flow(Baseplugin):
     async def _startup_async(self):
         print("sending status ready")
         await self.wait_for_socket_and_send("ready")
-    
-    '''   
-    def send_test_json(self):
-        print ("Sending test json")
-        self.send_message_to_frontend([{"Joie":"Oui, j'adore le gâteau de riz !"},{"Anticipation":"Je me demande si on peut en manger à la plage ?"},{"Confiance":"Je suis sûr que ma famille en a préparé pour notre sortie"}])
-    ''' 
 
+    
     def process_incoming_message(self, message):
         try:
             print("Received msg: " + message)

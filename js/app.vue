@@ -2,7 +2,7 @@
     <img src="img/igoor_logo.png" alt="Igoor Logo">
 </div>
 <div id="hidden">
-    
+    <rag  :appview="appview"></rag>
 </div>
 <div id="topbar">
     <img src="img/igoor_logo.png" id="igoor_logo">
