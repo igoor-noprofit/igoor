@@ -76,6 +76,7 @@ class Autocomplete(Baseplugin):
                     else:
                         print("Speak action is present but msg is empty.")
                 elif message_dict.get("msg"):
+                    asyncio.create_task(self.pm.trigger_hook(hook_name="reset_conversation_timeout"))
                     input_value = message_dict.get("msg")
                     if input_value:
                         asyncio.create_task(self.predict(input_value))

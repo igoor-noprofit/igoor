@@ -110,6 +110,11 @@ class MyAppSpec:
         """Hook to analyze or do other stuff with last conversation"""
         pass
     
+    @pluggy.HookspecMarker(app_name)
+    def reset_conversation_timeout(self):
+        """Hook to reset conversation timeout when user does something"""
+        pass
+    
     '''
         ************ AI FLOW AND RAG **************
     '''
