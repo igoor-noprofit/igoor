@@ -1,7 +1,7 @@
 <template>
     <div class="flow container flow-plugin" v-if="answers.length > 0">
         <div v-if="answers" class="abandon">
-            <input type="button" value="Abandonner" @click="$_abandonConversation()">
+            <input type="button" value="Abandonner" @click="$_abandonConversation(true)">
         </div>
         <div class="answers">
             <div class="row">
@@ -33,14 +33,19 @@ module.exports = {
         }
     },
     methods: {
-        async $_abandonConversation() {
+        async $_abandonConversation(trigger_hook=false) {
             try {
                 console.log("FLOW abandons conversation");
-                this.sendMsgToBackend({ "action": "abandon_conversation" });
-                this.answers = []
+                if(trigger_hook){
+                    this.sendMsgToBackend({ "action": "abandon_conversation" });
+                }   
+                this.$_clearAnswers()
             } catch (error) {
                 console.error("Error abandoning conversation:", error);
             }
+        },
+        $_clearAnswers(){
+            this.answers = []
         },
         handleIncomingMessage(event) {
             console.log("FLOW component:", event.data);
@@ -50,7 +55,11 @@ module.exports = {
                 if (data.action) {
                     switch (data.action) { // Use 'data.action' instead of 'event.data.action'
                         case 'abandon_conversation':
-                            this.$_abandonConversation();
+                            trigger_hook = data.trigger_hook ? true : false
+                            this.$_abandonConversation(data.trigger_hook);
+                            break;
+                        case 'clear_answers':
+                            this.$_clearAnswers();
                             break;
                         default:
                             console.error("No handler for action " + data.action);

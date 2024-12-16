@@ -28,7 +28,7 @@ export default {
     },
     methods: {
         handleIncomingMessage(event) {
-            console.log("Custom message handler in asrvosk component:", event.data);
+            console.log("Received message in asrvosk FRONTEND:", event.data);
             const data = JSON.parse(event.data);
             this.status = data.status;
         }

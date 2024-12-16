@@ -55,8 +55,8 @@ class Flow(Baseplugin):
         asyncio.create_task(self._startup_async())
         
     @hookimpl
-    def abandon_conversation(self):
-        self.send_message_to_frontend({"action":"abandon_conversation"})
+    def abandon_conversation(self,cause="user_abandoned"):
+        self.send_message_to_frontend({"action":"clear_answers"})
         
     async def _startup_async(self):
         print("sending status ready")

@@ -50,6 +50,10 @@ class Conversation(Baseplugin):
 
     @hookimpl
     async def abandon_conversation(self, cause="timeout"):
+        # Cancel the timeout task if it exists
+        if self.timeout_task:
+            self.timeout_task.cancel()
+            self.timeout_task = None  # Clear the reference to the canceled task
         txt = await self.get_conversation(format="txt")
         last_conversation = {"thread": self.thread, "txt": txt}
         self.thread = []

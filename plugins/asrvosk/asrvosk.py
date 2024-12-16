@@ -41,7 +41,8 @@ class Asrvosk(Baseplugin):
         await(self.send_status("paused"))
         
     @hookimpl
-    async def abandon_conversation(self):
+    async def abandon_conversation(self, cause="timeout"):
+        print("ASRVOSK received ABANDON_CONVERSATION trigger")
         self.wakeword_detected=False
         await self.send_status("listening")
     

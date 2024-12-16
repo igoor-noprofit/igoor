@@ -101,7 +101,7 @@ class MyAppSpec:
         pass
     
     @pluggy.HookspecMarker(app_name)
-    def abandon_conversation(self):
+    def abandon_conversation(self, **kwargs):
         """Hook for abandoning current conversation"""
         pass
     
