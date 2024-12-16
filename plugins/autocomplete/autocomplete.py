@@ -8,6 +8,8 @@ from prompts import AssistantPrompts
 from settings_manager import SettingsManager
 from llm_manager import LLMManager
 import asyncio,json,time
+from pydantic import BaseModel
+from typing import List, Dict
 
 PROMPT_TEMPLATE = """
 La personne affectée par la maladie s'appelle {bio_name}. Considère son état actuel pour éviter des prédictions incompatibles avec ses capacités physiques:
@@ -114,10 +116,16 @@ class Autocomplete(Baseplugin):
         prompt = pm.create_prompt(bio_name=bio_name,health_state=health_state,static_context=static_context, dynamic_context=dynamic_context, input=msg)       
         print(f"FINAL HUMAN PROMPT : {prompt}")
         llm = LLMManager(self.settings.get("provider"), self.settings.get("api_key"), self.settings.get("model_name"))
+        llm.set_json_schema(Answers)
         answers = llm.invoke(system_prompt,prompt)
+        print(f"TYPE = {type(answers)}, ANSWERS: {answers}")
+        answers_dict = answers.dict()
+        if answers_dict.get("answers"):
+            self.send_message_to_frontend(answers.json(), "flow") 
+        else:
+            print("NO PREDICTIONS RECEIVED")
         end_time = time.time()
         print(f"Time taken for processing: {end_time - start_time} seconds")
-        self.send_message_to_frontend(answers.content, "flow") 
         
     def get_dynamic_context(self):
         return context_manager.get_context()
@@ -130,7 +138,6 @@ class Autocomplete(Baseplugin):
         """This method will be called when the status changes."""
         print(f"Flow plugin received new status: {status}")
         
-        
 '''
 from pydantic import BaseModel
 from typing import List, Dict
@@ -142,3 +149,6 @@ class Answer(BaseModel):
 class Answers(BaseModel):
     answers: List[Answer]
 '''
+
+class Answers(BaseModel):
+    answers: List[str]

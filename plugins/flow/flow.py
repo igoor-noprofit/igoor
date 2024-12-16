@@ -128,23 +128,6 @@ class Flow(Baseplugin):
             self.send_message_to_frontend(answers.json()) 
         else:
             print("NO ANSWERS RECEIVED")
-        '''
-        memories = llm.invoke(system_prompt, prompt)
-        print(f"TYPE = {type(memories)}, MEMORIES: {memories}")
-        memories_dict = memories.dict()
-        print(f"TYPE = {type(memories_dict)}, MEMORIES: {memories_dict}")
-        
-        if memories_dict.get("facts"):
-            for memory in memories_dict["facts"]:  # Use "facts" here
-                print(f"storing {memory}")
-                try:
-                    result = await self.pm.trigger_hook(hook_name="store_memory", memory=memory)
-                except Exception as e:
-                    print(f"Exception occurred while storing fact '{memory}': {e}")
-            await self.pm.trigger_hook("save_index")
-        end_time = time.time()
-        print(f"Time taken for processing: {end_time - start_time} seconds")
-        '''
         end_time = time.time()
         print(f"Time taken for processing: {end_time - start_time} seconds")
         

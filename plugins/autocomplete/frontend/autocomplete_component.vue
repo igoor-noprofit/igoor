@@ -45,7 +45,7 @@ module.exports = {
             this.userInput = ""; // Force refresh of this.input
         },
         handleIncomingMessage(event) {
-            console.log("Custom message handler in " + this.name + " component:", event.data);
+            console.log("Custom message handler in AUTOCOMPLETE FRONTEND:", event.data);
             try {
                 const data = JSON.parse(event.data);
                 if (Array.isArray(data) && typeof data[0] === 'string') {
