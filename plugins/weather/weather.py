@@ -1,0 +1,229 @@
+from plugins.baseplugin.baseplugin import Baseplugin
+from plugin_manager import hookimpl, PluginManager
+import os
+import threading
+import time,asyncio
+import requests
+from dotenv import load_dotenv
+load_dotenv()
+from context_manager import context_manager
+import math
+import aiopywttr
+from settings_manager import SettingsManager
+# openstreetmap for automatic address to
+# from geopy.geocoders import Nominatim
+
+
+
+class Weather(Baseplugin):
+    def __init__(self, plugin_name, pm):
+        self.pm = pm
+        super().__init__(plugin_name,pm)
+
+    @hookimpl
+    def startup(self):
+        print("WEATHER IS STARTING UP")
+        self.global_settings = SettingsManager();
+        self.settings = self.get_my_settings()
+        print("WEATHER settings", self.settings)
+        self.geoloc = self.get_geoloc()
+        print(f"GEOLOC", self.geoloc)
+        
+        self.language = self.global_settings.get_lang().upper()
+        self.lat_home = self.settings.get("lat_home")
+        self.lng_home = self.settings.get("lng_home")
+
+        if not self.lat_home or not self.lng_home:
+            print("Missing required METEO settings: lat_home and or lng_home.")
+            return
+        self.schedule_weather_updates()
+        
+        # Use a separate thread to handle the sleep and async call
+        def delayed_weather():
+            time.sleep(60)  # Sleep for 60 seconds without blocking the main thread
+            asyncio.run(self.get_weather())
+        
+        threading.Thread(target=delayed_weather, daemon=True).start()
+        # Plugin-specific initialization logic
+
+    async def get_weather_by_coordinates(self,latitude: float, longitude: float, language: aiopywttr.Language = aiopywttr.Language.EN):
+        """Retrieves weather information for given coordinates and language using aiopywttr."""
+        location_string = f"{latitude},{longitude}"
+        try:
+            async with aiopywttr.Wttr() as wttr:
+                weather = await wttr.weather(location_string, language=language)
+                return weather
+        except aiopywttr.errors.NotFoundError:
+            print(f"Location not found: {location_string}")
+            return None
+        except Exception as e:
+            print(f"An error occurred: {e}")
+            return None
+        
+    async def get_weather(self):
+        lat = self.geoloc.get('lat')
+        lng = self.geoloc.get('lon')
+        language=aiopywttr.Language["FR"]
+        try:
+            await self.get_weather_by_coordinates(lat, lng,language)
+            ''' 
+            context_manager.update_context("meteo", obj)
+            self.send_message_to_frontend(obj)
+            '''
+        except Exception as e:
+            print(f"Error fetching weather: {e}")
+        
+    def schedule_weather_updates(self):
+        # Use a daemon thread to periodically call get_meteo
+        def weather_updater():
+            while True:
+                asyncio.run(self.get_weather())
+                time.sleep(600)  # 600 seconds = 10 minutes
+        
+        updater_thread = threading.Thread(target=weather_updater,daemon=True)
+        updater_thread.daemon = True  # This allows the program to exit even if the thread is running
+        updater_thread.start()
+        
+    '''
+    async def get_meteo(self):
+
+        # Configure language
+
+        
+        lat = self.geoloc.get('lat')
+        lng = self.geoloc.get('lon')
+
+        lat_home = float(self.geoloc.get('latHome'))
+        lng_home = float(self.geoloc.get('lngHome'))
+        is_home = self.is_home(lat,lng,lat_home,lng_home)
+        context_manager.update_context("lieu_actuel", is_home)
+        city = self.geoloc.get('city')
+
+        # Determine mode and coordinates
+        if lat is not None and lng is not None:
+            mode = 'coord'
+        elif lat_home is not None and lng_home is not None:
+            mode = 'coordHome'
+            lat = lat_home
+            lng = lng_home
+        elif city is not None:
+            mode = 'city'
+        else:
+            raise ValueError("No lat lng or home or city provided. Cannot retrieve weather infos.")
+
+        # print(f"mode = {mode}")
+
+        if mode == 'city':
+            raise NotImplementedError("City mode is not yet implemented.")
+        else:  # 'coord' or 'coordHome'
+            try:
+                observation = mgr.weather_at_coords(lat, lng)
+                weather = observation.weather
+                obj = {
+                    'status': weather.status,
+                    'detailed_status': weather.detailed_status,
+                    'temperature': weather.temperature('celsius'),
+                    'humidity': weather.humidity,
+                    'wind': weather.wind(),
+                    'rain': weather.rain,
+                    'snow': weather.snow,
+                    'clouds': weather.clouds
+                }
+                # print(obj)
+                context_manager.update_context("meteo", obj)
+                self.send_message_to_frontend(obj)
+                return True
+            except Exception as error:
+                print("Error fetching weather data:", error)
+                raise RuntimeError("Failed to fetch weather data.")
+    '''
+    
+    def is_home(self, lat, lon, lat2, lon2):
+        distanceFromHome = self.calculate_distance(lat, lon, lat2, lon2)
+        print(f"distance from home {distanceFromHome}")
+        if distanceFromHome <= 10:
+            print("Vous etes à la maison")
+            self.isHome = 1
+        elif distanceFromHome <= 100:
+            print("Vous etes à coté de la maison (entre 10 et 100 metres)")
+            self.isHome = 0
+        else:
+            print("Vous n'etes pas à la maison")
+            self.isHome = -1
+        return self.isHome
+    
+    def get_geoloc(self):
+        ip_geo = self.get_ip_geolocation()
+        if ip_geo.get('status') == 'success':
+            ip_geo['latHome'] = self.settings.get("lat_home")
+            ip_geo['lngHome'] = self.settings.get("lng_home")
+            return ip_geo
+        else:
+            return {}
+
+    def get_ip_geolocation(self):
+        """
+        Fetches latitude and longitude using a free IP geolocation API.
+
+        Returns:
+            A dictionary containing latitude and longitude or None if unsuccessful.
+        """
+        # Replace with your preferred free IP geolocation API endpoint
+        try:
+            url = "http://ip-api.com/json/"  # Free tier uses plain HTTP
+
+            # Make the API request
+            response = requests.get(url)
+            response.raise_for_status()  # Raise an exception for unsuccessful requests (check status code)
+
+            # Free tier response is JSON
+            data = response.json()
+            # print(data)
+
+            # Extract latitude and longitude (check if keys exist)
+            latitude = data.get("lat")
+            longitude = data.get("lon")
+
+            if latitude and longitude:
+                return data
+            else:
+                return None
+            
+        except requests.exceptions.RequestException as e:
+            print(f"Error fetching geolocation: {e}")
+            return None
+    
+    def calculate_distance(self,lat1, lon1, lat2, lon2):
+        print ("Calculate distance: ",lat1,lon1,lat2,lon2)
+        R = 6371e3  # meters
+
+        φ1 = math.radians(lat1)
+        φ2 = math.radians(lat2)
+        Δφ = φ2 - φ1
+        λ1 = math.radians(lon1)
+        λ2 = math.radians(lon2)
+        Δλ = λ2 - λ1
+
+        a = (math.sin(Δφ / 2) ** 2 + math.cos(φ1) * math.cos(φ2) * (math.sin(Δλ / 2) ** 2))
+        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+        distance = R * c
+        return distance
+    
+    def force_update(self, var1,var2):
+        print ("force update", var1, var2)
+        
+    '''
+    def get_lat_lng(address):
+        geolocator = Nominatim(user_agent="igoor")
+        location = geolocator.geocode(address)
+        if location:
+            return location.latitude, location.longitude
+        else:
+            return None, None
+
+        address = "76, rue Beaubourg 75003 Paris"
+        lat, lng = get_lat_lng(address)
+        print(f"Latitude: {lat}, Longitude: {lng}")
+
+    '''

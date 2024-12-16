@@ -10,6 +10,13 @@ class SettingsManager:
         self.settings = {}
         self.load_settings()
     
+    def get_prefs(self):
+        return self.get_nested(["plugins", "onboarding", "prefs"], default={})
+    
+    def get_lang(self):
+        prefs = self.get_prefs()
+        return prefs.get("lang")
+    
     def get_bio(self):
         return self.get_nested(["plugins", "onboarding", "bio"], default={})
     

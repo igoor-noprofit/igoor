@@ -49,7 +49,8 @@ class Flow(Baseplugin):
         except RuntimeError:
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
-        loop.run_in_executor(None, self._startup_async)
+        # Schedule the coroutine to be run
+        asyncio.create_task(self._startup_async())
         
     async def _startup_async(self):
         print("sending status ready")

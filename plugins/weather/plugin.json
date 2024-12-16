@@ -1,12 +1,12 @@
 {
     "active": false,
-    "category": "TTS",
-    "title": "ElevenLabs",
+    "category": "context",
+    "title": "Weather",
     "layout": {
         "part": "topbar",
-        "order": 0
+        "order": 50
     },
     "is_free": true,
-    "requires_subscription": true,
+    "requires_subscription": false,
     "requires_internet": true
 }
