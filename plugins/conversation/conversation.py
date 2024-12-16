@@ -24,6 +24,7 @@ class Conversation(Baseplugin):
 
     def reset_timeout(self):
         if self.timeout_task:
+            print("Cancelling existing timeout task")
             self.timeout_task.cancel()
         try:
             loop = asyncio.get_running_loop()
@@ -34,11 +35,17 @@ class Conversation(Baseplugin):
 
     async def start_timeout(self):
         print("Starting non-blocking timeout")
-        self.send_message_to_frontend({"action": "startCountdown"})
-        await asyncio.sleep(self.warning_time)  # Wait until the warning time
-        self.send_message_to_frontend({"action": "showProgressBar"})
-        await asyncio.sleep(self.timeout - self.warning_time)  # Wait for the remaining time
-        await self.pm.trigger_hook("abandon_conversation")  # Trigger the abandon_conversation hook
+        try:
+            self.send_message_to_frontend({"action": "startCountdown"})
+            print(f"Waiting for {self.warning_time} seconds before warning")
+            await asyncio.sleep(self.warning_time)
+            self.send_message_to_frontend({"action": "showProgressBar"})
+            print(f"Waiting for {self.timeout - self.warning_time} seconds until timeout")
+            await asyncio.sleep(self.timeout - self.warning_time)
+            print("Timeout complete, triggering abandon_conversation")
+            await self.pm.trigger_hook("abandon_conversation")
+        except asyncio.CancelledError:
+            print("Timeout task was cancelled")
 
     @hookimpl
     async def new_conversation(self):
