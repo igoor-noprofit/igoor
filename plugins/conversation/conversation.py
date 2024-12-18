@@ -30,7 +30,7 @@ class Conversation(Baseplugin):
         try:
             loop = asyncio.get_running_loop()
         except RuntimeError:  # No running event loop
-            loop = asyncio.new_event_loop()
+            loop = asyncio.new_event_l<oop()
             asyncio.set_event_loop(loop)
         self.timeout_task = loop.create_task(self.start_timeout())
         self.send_message_to_frontend({"action": "resetCountdown"})
@@ -57,7 +57,7 @@ class Conversation(Baseplugin):
         self.thread = []
         self.conversation_is_open = True
         context_manager.update_context("conversation", "")
-        self.init_timeout()
+        # self.init_timeout()
         self.send_message_to_frontend({"action": "startCountdown"})
 
     @hookimpl
@@ -93,7 +93,7 @@ class Conversation(Baseplugin):
         await self.send_message_to_app(json.dumps(bms))
         conv = await self.get_conversation(format="raw")
         context_manager.update_context("conversation", conv)
-        self.reset_timeout()
+        # self.reset_timeout()
     
     @hookimpl
     async def delete_conversation(self):
@@ -101,10 +101,10 @@ class Conversation(Baseplugin):
     
     '''
     Other plugins can reset the timeout
-    '''
     @hookimpl    
     def reset_conversation_timeout(self):
         self.reset_timeout()
+    '''
         
     @hookimpl
     async def get_conversation(self, format="json"):
