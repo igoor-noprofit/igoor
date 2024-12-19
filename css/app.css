@@ -104,6 +104,9 @@ footer {
 .asrvosk-plugin .mic.recording {
   background: #396350;
 }
+.asrvosk-plugin .mic.ready {
+  background: #edeee7;
+}
 .asrvosk-plugin .mic.listening {
   background: #3e5e65;
 }

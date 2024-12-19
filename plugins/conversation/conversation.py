@@ -63,10 +63,12 @@ class Conversation(Baseplugin):
     @hookimpl
     async def abandon_conversation(self, cause="timeout"):
         # Cancel the timeout task if it exists
+        '''
         if self.timeout_task:
             print("Cancelling timeout task")
             self.timeout_task.cancel()
             self.timeout_task = None  # Clear the reference to the canceled task
+        '''
         txt = await self.get_conversation(format="txt")
         last_conversation = {"thread": self.thread, "txt": txt, "cause": cause}
         self.thread = []
@@ -75,10 +77,11 @@ class Conversation(Baseplugin):
         self.conversation_is_open = False
         print(f"Conversation abandoned for cause: {cause}")
         asyncio.create_task(self.pm.trigger_hook("after_conversation_end", last_conversation=last_conversation))
+        '''
         if self.executor:
             self.executor.shutdown(wait=False)  # E
         print("Triggering after_conversation_end hook")
-        
+        '''
         print("after_conversation_end hook triggered")
         
     @hookimpl

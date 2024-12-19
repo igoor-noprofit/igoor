@@ -139,6 +139,8 @@ class Asrvosk(Baseplugin):
                             break
                         if rec.AcceptWaveform(data):
                             result = rec.Result()
+                            print(result)
+                            result_json = json.loads(result)
                             text = json.loads(result)["text"]
                             if text:
                                 print(f"Recognized text (FR): {text}")
@@ -160,7 +162,7 @@ class Asrvosk(Baseplugin):
             while self.is_paused:
                 print(".")
             await self.send_status("listening")
-            self.start_stream() 
+            self.start_stream()
             while not self.is_paused:
                 data = self.stream.read(4000, exception_on_overflow=False)
 
