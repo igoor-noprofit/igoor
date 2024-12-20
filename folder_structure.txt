@@ -1,0 +1,189 @@
+Folder structure for: C:\AIKU\experiments\igoor
+├── .env
+├── .env-example
+├── README.md
+├── TODO.md
+├── context_manager.py
+├── css
+│   ├── app.css
+│   ├── app.less
+│   └── fonts
+│       ├── OFL.txt
+│       ├── PublicSans-Italic-VariableFont_wght.ttf
+│       ├── PublicSans-VariableFont_wght.ttf
+│       └── static
+│           ├── PublicSans-Black.ttf
+│           ├── PublicSans-BlackItalic.ttf
+│           ├── PublicSans-Bold.ttf
+│           ├── PublicSans-BoldItalic.ttf
+│           ├── PublicSans-ExtraBold.ttf
+│           ├── PublicSans-ExtraBoldItalic.ttf
+│           ├── PublicSans-ExtraLight.ttf
+│           ├── PublicSans-ExtraLightItalic.ttf
+│           ├── PublicSans-Italic.ttf
+│           ├── PublicSans-Light.ttf
+│           ├── PublicSans-LightItalic.ttf
+│           ├── PublicSans-Medium.ttf
+│           ├── PublicSans-MediumItalic.ttf
+│           ├── PublicSans-Regular.ttf
+│           ├── PublicSans-SemiBold.ttf
+│           ├── PublicSans-SemiBoldItalic.ttf
+│           ├── PublicSans-Thin.ttf
+│           └── PublicSans-ThinItalic.ttf
+├── folder_structure.txt
+├── img
+│   ├── igoor_logo.png
+│   ├── listening.gif
+│   └── mic.png
+├── index.html
+├── installer.py
+├── js
+│   ├── BasePluginComponent.js
+│   ├── WebSocketUtil.js
+│   ├── app.js
+│   ├── app.vue
+│   ├── app_template.js
+│   ├── app_template.vue
+│   ├── vue3sfcloader.min.js
+│   ├── vue@2.7.16.min.js
+│   ├── vue@3.5.13.js
+│   └── vueloader.min.js
+├── js_api.py
+├── llm_manager.py
+├── locales
+│   ├── en_EN
+│   │   └── prompts.json
+│   └── fr_FR
+│       └── prompts.json
+├── main.py
+├── main.spec
+├── plugin_manager.py
+├── plugins
+│   ├── asrvosk
+│   │   ├── TODO.md
+│   │   ├── asrvosk.py
+│   │   ├── frontend
+│   │   │   ├── asrvosk_component.vue
+│   │   │   └── asrvosk_settings.vue
+│   │   ├── plugin.json
+│   │   ├── samples
+│   │   │   ├── LICENSE.txt
+│   │   │   ├── off.wav
+│   │   │   └── on.wav
+│   │   └── vosk_models.json
+│   ├── autocomplete
+│   │   ├── TODO.md
+│   │   ├── autocomplete.py
+│   │   ├── frontend
+│   │   │   └── autocomplete_component.vue
+│   │   ├── plugin.json
+│   │   └── settings.json
+│   ├── autocompletelauncher
+│   │   ├── TODO.md
+│   │   ├── autocompletelauncher.py
+│   │   ├── frontend
+│   │   │   └── autocompletelauncher_component.vue
+│   │   └── plugin.json
+│   ├── baseplugin
+│   │   ├── __init.py__
+│   │   ├── baseplugin.py
+│   │   ├── default_settings.json
+│   │   ├── frontend
+│   │   │   └── baseplugin_component.vue
+│   │   └── plugin.json
+│   ├── clock
+│   │   ├── clock.py
+│   │   ├── frontend
+│   │   │   └── clock_component.vue
+│   │   ├── plugin.json
+│   │   └── settings.json
+│   ├── conversation
+│   │   ├── conversation.py
+│   │   ├── frontend
+│   │   │   └── conversation_component.vue
+│   │   └── plugin.json
+│   ├── daily
+│   │   ├── TODO.md
+│   │   ├── daily.py
+│   │   ├── frontend
+│   │   │   └── daily_component.vue
+│   │   └── plugin.json
+│   ├── elevenlabs
+│   │   ├── TODO.MD
+│   │   ├── elevenlabs.py
+│   │   ├── frontend
+│   │   │   └── elevenlabs_component.vue
+│   │   └── plugin.json
+│   ├── flow
+│   │   ├── TODO.md
+│   │   ├── flow.py
+│   │   ├── frontend
+│   │   │   └── flow_component.vue
+│   │   ├── plugin.json
+│   │   └── settings.json
+│   ├── memory
+│   │   ├── TODO.md
+│   │   ├── frontend
+│   │   │   └── memory_component.vue
+│   │   ├── memory.py
+│   │   ├── plugin.json
+│   │   └── settings.json
+│   ├── meteo
+│   │   ├── TODO.md
+│   │   ├── frontend
+│   │   │   ├── meteo_component.vue
+│   │   │   └── meteo_settings.vue
+│   │   ├── meteo.py
+│   │   └── plugin.json
+│   ├── notifications
+│   │   └── frontend
+│   │       └── notifications_component.vue
+│   ├── onboarding
+│   │   ├── TODO.md
+│   │   ├── frontend
+│   │   │   └── onboarding_component.vue
+│   │   ├── onboarding.py
+│   │   ├── plugin.json
+│   │   └── settings.json
+│   ├── porcupine
+│   │   └── wakeword
+│   │       └── porcupine
+│   │           ├── Cher-Igor_fr_windows_v3_0_0.ppn
+│   │           └── porcupine_params_fr.pv
+│   ├── rag
+│   │   ├── TODO.md
+│   │   ├── frontend
+│   │   │   └── rag_component.vue
+│   │   ├── plugin.json
+│   │   ├── rag.py
+│   │   └── settings.json
+│   ├── ramcpu
+│   │   ├── TODO.md
+│   │   ├── frontend
+│   │   │   ├── ramcpu_component.vue
+│   │   │   └── ramcpu_settings.vue
+│   │   ├── plugin.json
+│   │   ├── ramcpu.py
+│   │   └── settings.json
+│   ├── settings
+│   │   ├── README.md
+│   │   ├── frontend
+│   │   │   └── settings_component.vue
+│   │   ├── plugin.json
+│   │   └── settings.py
+│   └── weather
+│       ├── TODO.md
+│       ├── frontend
+│       │   ├── weather_component.vue
+│       │   └── weather_settings.vue
+│       ├── plugin.json
+│       ├── settings.json
+│       └── weather.py
+├── prompt_manager.py
+├── prompts.py
+├── requirements.txt
+├── settings_manager.py
+├── status_manager.py
+├── tools
+│   └── folder_structure.py
+└── websocket_server.py

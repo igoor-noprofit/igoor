@@ -15,7 +15,7 @@ pip install -r requirements.txt
 
 To update requirements: 
 ```
-pipreqs --force
+pip freeze > requirements.txt
 ```
 
 ## USER'S DATA FOLDER
@@ -81,7 +81,7 @@ If the index folder (IGOOR_FOLDER/plugins/rag/faiss_index) does not exist but th
 ## CREATE AN INSTALLER
 
 ```
-pyinstaller main.py --add-data index.html:.
+pyinstaller main.py --add-data "css;css" --add-data "img;img" --add-data "js;js" --add-data "locales;locales" --add-data index.html:.
 ```
 
 Without console: 

@@ -122,7 +122,11 @@ class Asrvosk(Baseplugin):
         await self.pm.trigger_hook(hook_name="add_msg_to_conversation", msg=following_text, author="def")
         await self.pm.trigger_hook(hook_name="asr_msg", msg="Q: " + following_text)
 
-        
+    def calculate_volume(data):
+        """Calculate the root mean square (RMS) volume of the audio chunk."""
+        audio_data = np.frombuffer(data, dtype=np.int16)  # Convert to numpy array
+        rms = np.sqrt(np.mean(audio_data**2))  # Root Mean Square
+        return rms    
         
     async def start(self):
         if (self.continuous):
@@ -139,8 +143,6 @@ class Asrvosk(Baseplugin):
                             break
                         if rec.AcceptWaveform(data):
                             result = rec.Result()
-                            print(result)
-                            result_json = json.loads(result)
                             text = json.loads(result)["text"]
                             if text:
                                 print(f"Recognized text (FR): {text}")
