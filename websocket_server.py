@@ -1,5 +1,5 @@
 '''
-Websocket server is used to communicate from plugin backend to to its Vue frontend (or Vue app) 
+Websocket server is used to communicate from plugin backend to to its Vue frontend (or to the Vue app) 
 '''
 import asyncio
 import threading

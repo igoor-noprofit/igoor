@@ -1,4 +1,3 @@
-Folder structure for: C:\AIKU\experiments\igoor
 ├── .env
 ├── .env-example
 ├── README.md
@@ -9,27 +8,7 @@ Folder structure for: C:\AIKU\experiments\igoor
 │   ├── app.less
 │   └── fonts
 │       ├── OFL.txt
-│       ├── PublicSans-Italic-VariableFont_wght.ttf
-│       ├── PublicSans-VariableFont_wght.ttf
 │       └── static
-│           ├── PublicSans-Black.ttf
-│           ├── PublicSans-BlackItalic.ttf
-│           ├── PublicSans-Bold.ttf
-│           ├── PublicSans-BoldItalic.ttf
-│           ├── PublicSans-ExtraBold.ttf
-│           ├── PublicSans-ExtraBoldItalic.ttf
-│           ├── PublicSans-ExtraLight.ttf
-│           ├── PublicSans-ExtraLightItalic.ttf
-│           ├── PublicSans-Italic.ttf
-│           ├── PublicSans-Light.ttf
-│           ├── PublicSans-LightItalic.ttf
-│           ├── PublicSans-Medium.ttf
-│           ├── PublicSans-MediumItalic.ttf
-│           ├── PublicSans-Regular.ttf
-│           ├── PublicSans-SemiBold.ttf
-│           ├── PublicSans-SemiBoldItalic.ttf
-│           ├── PublicSans-Thin.ttf
-│           └── PublicSans-ThinItalic.ttf
 ├── folder_structure.txt
 ├── img
 │   ├── igoor_logo.png

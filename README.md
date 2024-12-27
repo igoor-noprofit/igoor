@@ -2,6 +2,9 @@
 
 ## REQUIREMENTS
 
+Microsoft Windows.
+See requirements.txt
+
 ## SETUP VIRTUAL ENVIRONMENT
 ```
 python -m venv venv
@@ -20,14 +23,14 @@ pip freeze > requirements.txt
 
 ## USER'S DATA FOLDER
 
-User's data folder is automatically created inside userAppDataFolder (usually C:/Users/username/AppData/).
-IGOOR_FOLDER is :
+User's data folder is automatically created inside userAppDataFolder (usually C:/Users/YourUsername/AppData/).
+The application folder (IGOOR_FOLDER) is :
 
 ```
-C:/Users/username/AppData/Roaming/igoor/
+C:/Users/YourUsername/AppData/Roaming/igoor/
 ```
 
-The folder contains a settings.json and a plugins data folder, called plugins.
+The folder contains a settings.json and a plugins data folder, called "plugins".
 
 ### NOTES ABOUT PLUGINS
 
@@ -67,7 +70,7 @@ In this case the final path is :
 
 IGOOR_FOLDER/plugins/asrvosk/models/language/model_size
 
-### Patient documents (RAG, RetrievalAugmentedGeneration)
+### Patient documents (RAG, RetrievalAugmentedGeneration, or Static Knowledge Base)
 
 Documents in IGOOR_FOLDER/plugins/rag/medias/ are scanned by the RAG plugin.
 
@@ -76,12 +79,18 @@ Allowed formats:
 .txt
 .md
 
-If the index folder (IGOOR_FOLDER/plugins/rag/faiss_index) does not exist but the medias folder exist, at startup the plugin will create the index
+If the index folder (IGOOR_FOLDER/plugins/rag/faiss_index) does not exist but the medias folder exist, at startup the plugin will create the index by ingesting all the files in the medias folder.
+
+## LAUNCH
+
+```
+python main.py
+```
 
 ## CREATE AN INSTALLER
 
 ```
-pyinstaller main.py --add-data "css;css" --add-data "img;img" --add-data "js;js" --add-data "locales;locales" --add-data index.html:.
+pyinstaller --onefile --add-data "js;js" --add-data "img;img" --add-data "css;css" --add-data "plugins;plugins" --add-data "index.html;." main.py
 ```
 
 Without console: 
@@ -90,12 +99,12 @@ Without console:
 pyinstaller main.py --add-data --noconsole index.html:.
 ```
 
+## EMBEDDING MODELS FOR RAG
 
-## LAUNCH
+Embedding models for RAG are downloaded automatically in their folders inside:
 
-```
-python main.py
-```
+C:\Users\YourUsername\.cache\huggingface\hub
+
 
 ## LOGS
 LLM logs are in :

@@ -2,6 +2,7 @@
     "active": true,
     "category": "AI",
     "title": "Autocomplete",
+    "description": "Autocomplete based on LLM",
     "layout": {
         "part": "header",
         "order": 2

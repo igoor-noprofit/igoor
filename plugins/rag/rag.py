@@ -26,6 +26,7 @@ class Rag(Baseplugin):
         self.index_folder_name = "faiss_index"
         self.index_loaded = False
         self.embedding_loaded = False
+        # THREAD THIS ONE ?
         self.embedding_function=self.get_embedding_function()
         # Check if medias folder exists
         if self.subfolder_exists(self.medias_folder_name):
@@ -130,7 +131,7 @@ class Rag(Baseplugin):
     def get_embedding_function(self):
         print("LOADING EMBEDDING FUNCTION")
         embedding_model = self.settings.get("embedding_model")
-        model_kwargs = {"device": "cpu"}
+        model_kwargs = {"device": "cpu", 'trust_remote_code': True}
         encode_kwargs = {"normalize_embeddings": True}
         
         hf = HuggingFaceBgeEmbeddings(

@@ -18,6 +18,15 @@ prompts=None
 context_manager = ContextManager()
 manager = PluginManager()
 
+def resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and for PyInstaller """
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+    
+    return os.path.join(base_path, relative_path)
 
 def show_splash_screen(image_path):
     """Create a simple splash screen with a logo."""
@@ -26,7 +35,7 @@ def show_splash_screen(image_path):
     splash_root.geometry('500x200+500+300')  # Set splash size and position
 
     # Load your logo/image
-    splash_image = tk.PhotoImage(file=image_path)
+    splash_image = tk.PhotoImage(file=resource_path(image_path))
     splash_label = tk.Label(splash_root, image=splash_image)
     splash_label.pack()
 
