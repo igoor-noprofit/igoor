@@ -89,14 +89,10 @@ python main.py
 
 ## CREATE AN INSTALLER
 
-```
-pyinstaller --onefile --add-data "js;js" --add-data "img;img" --add-data "css;css" --add-data "plugins;plugins" --add-data "index.html;." main.py
-```
-
-Without console: 
+The pyinstaller uses igoor.spec 
 
 ```
-pyinstaller main.py --add-data --noconsole index.html:.
+pyinstaller igoor.spec --noconfirm
 ```
 
 ## EMBEDDING MODELS FOR RAG

@@ -7,12 +7,18 @@ from dotenv import load_dotenv
 load_dotenv()
 from typing import Any
 from status_manager import StatusManager
-
+from utils import resource_path
 
 IGOOR_DEBUG = os.getenv('IGOOR_DEBUG', 'False') 
 app_name = os.getenv("IGOOR_APPNAME")
 hookspec = pluggy.HookspecMarker(app_name)
 hookimpl = pluggy.HookimplMarker(app_name)
+
+
+if hasattr(sys, '_MEIPASS'):
+    print(f"_MEIPASS directory: {sys._MEIPASS}")
+else:
+    print("Running in Python mode.")
 
 class MyAppSpec:
     '''
@@ -208,9 +214,9 @@ class PluginManager:
         active_list = active_list or []
         exclude_list = exclude_list or []
 
-        for plugin_name in os.listdir(self.plugin_folder):
+        for plugin_name in os.listdir(resource_path(self.plugin_folder)):
             if plugin_name != "baseplugin":
-                plugin_path = os.path.join(self.plugin_folder, plugin_name)
+                plugin_path = resource_path(os.path.join(self.plugin_folder, plugin_name))
                 is_active = self.is_active(plugin_name)
                 
                 # Check if the plugin should be activated or excluded based on the lists
@@ -252,8 +258,9 @@ class PluginManager:
         """Gathers activation status and other metadata for all plugins."""
         plugins_metadata = {}
 
-        for plugin_name in os.listdir(self.plugin_folder):
-            plugin_path = os.path.join(self.plugin_folder, plugin_name)
+        for plugin_name in os.listdir(resource_path(self.plugin_folder)):
+            plugin_path = resource_path(os.path.join(self.plugin_folder, plugin_name))
+            print(f"PLUGIN PATH: {plugin_path}" )
             metadata_file = os.path.join(plugin_path, 'plugin.json')
             if os.path.isdir(plugin_path) and os.path.exists(metadata_file):
                 try:
