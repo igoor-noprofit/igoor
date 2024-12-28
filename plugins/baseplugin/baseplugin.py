@@ -3,6 +3,7 @@ from status_manager import StatusManager
 from plugin_manager import hookimpl, PluginManager
 from websocket_server import websocket_server
 import os,json,asyncio
+from utils import resource_path
 class Baseplugin:
     def __init__(self, plugin_name="baseplugin", pm=None):
         print ("__init__ plugin : " + plugin_name)

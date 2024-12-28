@@ -13,20 +13,11 @@ from websocket_server import websocket_server
 import signal,sys
 import tkinter as tk
 import asyncio
+from utils import resource_path
 
 prompts=None
 context_manager = ContextManager()
 manager = PluginManager()
-
-def resource_path(relative_path):
-    """ Get absolute path to resource, works for dev and for PyInstaller """
-    try:
-        # PyInstaller creates a temp folder and stores path in _MEIPASS
-        base_path = sys._MEIPASS
-    except Exception:
-        base_path = os.path.abspath(".")
-    
-    return os.path.join(base_path, relative_path)
 
 def show_splash_screen(image_path):
     """Create a simple splash screen with a logo."""
@@ -61,7 +52,9 @@ def load_settings():
     return settings
 
 def load_frontend_components():
-    
+    '''
+    Sort of webpack that constructs the final HTML based on the Vue components from the active plugins 
+    '''
     # active_plugins = ["flow","asrvosk","rag"]
     # exclude_plugins = ["ramcpu","clock","elevenlabs","meteo"]
     active_plugins=[]
@@ -118,11 +111,12 @@ def load_frontend_components():
                 f"'{component['name']}': Vue.defineAsyncComponent(() => loadModule('{component['path']}',options))"
             )
 
-    # Load and modify the template HTML
+    # Load and modify the VUE template
     with open('js/app_template.vue', 'r') as f:
         html_content = f.read()
         
     # Define the placeholders and their corresponding replacements
+    # Also passes the appview variable
     replacements = {
         f'<!-- {category.upper()}_COMPONENTS -->': ''.join(
             f'<{comp["name"].lower()} {comp["event_bindings"]} :appview="appview"></{comp["name"].lower()}>'

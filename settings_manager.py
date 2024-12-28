@@ -1,10 +1,10 @@
-''' 
-HANDLES global app settings.json file with all the plugins settings, api keys etc.
-'''
 import json
 import os
 
 class SettingsManager:
+    ''' 
+    HANDLES global app settings.json file with all the plugins settings, api keys etc.
+    '''
     def __init__(self, settings_file=None):
         self.settings_file = settings_file or os.path.join(os.getenv('APPDATA'), os.getenv("IGOOR_APPNAME"), 'settings.json')
         self.settings = {}
