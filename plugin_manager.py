@@ -132,11 +132,6 @@ class MyAppSpec:
     async def store_memory(self, memory:str):
         # Gather all results from the async hook implementations
         return await self.plugin_manager.hook.store_memory(memory=memory)
-    
-    @pluggy.HookspecMarker(app_name)
-    async def store_memory(self, memory:str):
-        # Gather all results from the async hook implementations
-        return await self.plugin_manager.hook.store_memory(memory=memory)
         
 class PluginManager:
     _instance = None
