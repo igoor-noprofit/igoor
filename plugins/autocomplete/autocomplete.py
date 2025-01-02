@@ -40,6 +40,7 @@ class Autocomplete(Baseplugin):
         self.settings = self.get_my_settings()
         bio = self.global_settings.get_bio()
         self.bio_name = bio.get("name")
+        self.is_loaded = True
     
     @hookimpl
     def startup(self):

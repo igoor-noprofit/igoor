@@ -20,6 +20,7 @@ class Elevenlabs(Baseplugin):
             self.user = User(self.settings.get("api_key"))
             self.voice= self.user.get_voice_by_ID(self.settings.get("voice_id"))   
             self.generation_options = self.settings.get("GenerationOptions")
+            self.is_loaded = True
             # self.input_streamer=ReusableInputStreamer(self.voice)
         except Exception as e:
             print(f"Error occurred while setting user : {e}")

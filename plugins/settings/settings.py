@@ -7,6 +7,7 @@ class Settings(Baseplugin):
     @hookimpl
     def startup(self):
         print("STARTUPSELF")
+        self.is_loaded = True
         
     def get_plugins_by_category(self):
         print("Fetching plugins by category in Settings")

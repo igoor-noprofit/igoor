@@ -18,7 +18,6 @@ class Asrvosk(Baseplugin):
     @hookimpl
     def startup(self):
         print ("ASRVOSK IS STARTING UP")
-        self.isloaded = False
         self.settings = self.get_my_settings()
         self.wakeword = self.settings.get("wakeword")
         self.continuous = self.settings.get("continuous")
@@ -98,7 +97,7 @@ class Asrvosk(Baseplugin):
         asyncio.run(self.monitor_loading())
 
     async def monitor_loading(self):
-        while not self.isloaded:
+        while not self.is_loaded:
             # Wait until the model is loaded
             time.sleep(1)
         self.model_thread.join()
@@ -115,7 +114,7 @@ class Asrvosk(Baseplugin):
         rec = KaldiRecognizer(model, 16000)
         elapsed_time = time.time() - start_time
         print(f"Model loaded in {elapsed_time:.2f} seconds.")
-        self.isloaded = True
+        self.is_loaded = True
     
     async def handle_wake_word(self,following_text):
         print(f"Wake word detected! Text: '{following_text}'")

@@ -70,6 +70,7 @@ class Memory(Baseplugin):
         super().__init__(plugin_name,pm)
         self.global_settings = SettingsManager();
         self.settings = self.get_my_settings()
+        self.is_loaded = True
     
     @hookimpl
     def startup(self):

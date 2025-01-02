@@ -14,3 +14,4 @@ class Autocompletelauncher(Baseplugin):
         self.global_settings = SettingsManager();
         self.settings = self.get_my_settings()
         '''
+        self.is_loaded = True

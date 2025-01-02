@@ -6,6 +6,7 @@ import os,json,asyncio
 from utils import resource_path
 class Baseplugin:
     def __init__(self, plugin_name="baseplugin", pm=None):
+        self.is_loaded = False
         print ("__init__ plugin : " + plugin_name)
         self.plugin_name = plugin_name
         if pm is None:

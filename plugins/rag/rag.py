@@ -48,6 +48,7 @@ class Rag(Baseplugin):
             db_end_time = time.time()
             print(f"DB FAISS index loaded successfully in : {db_end_time - db_start_time:.2f} seconds")
             self.index_loaded = True  # Set index_loaded to True after successful loading
+            self.is_loaded = True
             # self.send_prompt("test")
         except Exception as e:
             print(f"Error loading FAISS index: {e}")
@@ -205,6 +206,3 @@ class Rag(Baseplugin):
         except Exception as e:
             print(f"An error occurred during query_rag execution: {e}")
             return False
-    
-
-    
