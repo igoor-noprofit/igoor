@@ -65,6 +65,11 @@ class MyAppSpec:
         self.plugin_manager.hook.speak(message=message)
         pass
     
+    @pluggy.HookspecMarker(app_name)
+    def speak_fallback(self,message):
+        self.plugin_manager.hook.speak(message=message)
+        pass
+    
     '''
         ************ ASR **************
     '''
@@ -218,7 +223,7 @@ class PluginManager:
             if plugin_name != "baseplugin":
                 plugin_path = resource_path(os.path.join(self.plugin_folder, plugin_name))
                 is_active = self.is_active(plugin_name)
-                
+                print (f"Plugin path: {plugin_path}")
                 # Check if the plugin should be activated or excluded based on the lists
                 if plugin_name in active_list:
                     print(f"Plugin '{plugin_name}' is in the active_list, overriding is_active to True.")
@@ -261,7 +266,7 @@ class PluginManager:
         for plugin_name in os.listdir(resource_path(self.plugin_folder)):
             plugin_path = resource_path(os.path.join(self.plugin_folder, plugin_name))
             print(f"PLUGIN PATH: {plugin_path}" )
-            metadata_file = os.path.join(plugin_path, 'plugin.json')
+            metadata_file = resource_path(os.path.join(plugin_path, 'plugin.json'))
             if os.path.isdir(plugin_path) and os.path.exists(metadata_file):
                 try:
                     with open(metadata_file, 'r') as f:
@@ -300,10 +305,10 @@ class PluginManager:
     def get_plugins_metadata(self):
         """Gathers metadata for all plugins from their respective plugin.json files."""
         plugins_metadata = {}
-
+        
         for plugin_name in os.listdir(self.plugin_folder):
-            plugin_path = os.path.join(self.plugin_folder, plugin_name)
-            metadata_file = os.path.join(plugin_path, 'plugin.json')
+            plugin_path = resource_path(os.path.join(self.plugin_folder, plugin_name))
+            metadata_file = resource_path(os.path.join(plugin_path, 'plugin.json'))
             if os.path.isdir(plugin_path) and os.path.exists(metadata_file):
                 try:
                     with open(metadata_file, 'r') as f:
@@ -342,7 +347,7 @@ class PluginManager:
     if it does not already exist
     '''
     def set_def_plugin_settings(self, plugin_name):
-        settings_file_path = os.path.join('plugins', plugin_name, 'settings.json')
+        settings_file_path = resource_path(os.path.join('plugins', plugin_name, 'settings.json'))
         print("Searching for: " + settings_file_path)
         if os.path.exists(settings_file_path):
             with open(settings_file_path, 'r', encoding='utf-8') as f:
@@ -374,7 +379,7 @@ class PluginManager:
 
     def _set_plugin_active_status(self, plugin_name, status):
         """Helper method to update the 'active' status of a plugin."""
-        metadata_file = os.path.join(self.plugin_folder, plugin_name, 'plugin.json')
+        metadata_file = resource_path(os.path.join(self.plugin_folder, plugin_name, 'plugin.json'))
 
         if os.path.exists(metadata_file):
             try:
