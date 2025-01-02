@@ -39,7 +39,16 @@ class Elevenlabs(Baseplugin):
         await self.pm.trigger_hook(hook_name="restart_asr")
 
     async def run_speak_func(self, message):
-        success = await self.speak_func(message)
+        success = await self.safe_speak_func(message)
+
+    async def safe_speak_func(self, message):
+        try:
+            result = await self.speak_func(message)
+            if not result:
+                print("Speak function encountered an issue but handled gracefully.")
+                await self.pm.trigger_hook(hook_name="speak_fallback", message=message)
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
 
     async def speak_func(self, message):
         print("SPEAK FUNC:" + message)
@@ -59,17 +68,21 @@ class Elevenlabs(Baseplugin):
             # websocket_options = WebsocketOptions(chunk_length_schedule=[125],try_trigger_generation=False)
             # Check if stream_audio_v3 is async
             # result = self.voice.stream_audio_v3(message, playback_options=playback_options, generation_options=generation_options, websocket_options=websocket_options)
-            
-            audio_future, generation_info_future = self.voice.generate_audio_v3(message, generation_options)
-            generation_info = generation_info_future.result()
-            audio_data = audio_future.result()
+            try:
+                audio_future, generation_info_future = self.voice.generate_audio_v3(message, generation_options)
+                generation_info = generation_info_future.result()
+                audio_data = audio_future.result()
+            except Exception as inner_e:
+                print(f"Error retrieving audio data: {inner_e}")
+                await self.pm.trigger_hook(hook_name="speak_fallback", message=message)
+                return True    
             # Play it back
             await self.pm.trigger_hook(hook_name="pause_asr")
             play_audio_v2(audio_data)
             self.run_restart_asr()
             return True
 
-            return True
         except Exception as e:
             print(f"Error occurred while speaking: {e}")
+            await self.pm.trigger_hook(hook_name="speak_fallback",message=message) 
             return False

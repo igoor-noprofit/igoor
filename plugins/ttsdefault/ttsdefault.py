@@ -48,6 +48,7 @@ class Ttsdefault(Baseplugin):
         await self.pm.trigger_hook(hook_name="restart_asr")
 
     async def run_speak_func(self, message):
+        await self.pm.trigger_hook(hook_name="pause_asr")
         success = await self.speak_func(message)
 
     async def speak_func(self, message):

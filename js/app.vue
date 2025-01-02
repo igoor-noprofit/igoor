@@ -6,7 +6,7 @@
 </div>
 <div id="topbar">
     <img src="img/igoor_logo.png" id="igoor_logo">
-    <ttsdefault  :appview="appview"></ttsdefault>
+    <elevenlabs  :appview="appview"></elevenlabs><ttsdefault  :appview="appview"></ttsdefault>
 </div>
 
 <header v-show="appview !== 'onboarding'">
