@@ -31,7 +31,7 @@ class Ttsdefault(Baseplugin):
             except Exception as e:
                 print(f"Error occurred while setting voice to : {self.speaker_voice}")
                 self.speaker.Voice = self.speaker.GetVoices().Item(0)
-                return False    
+                return False   
         
     @hookimpl
     def speak(self, message):
@@ -56,6 +56,7 @@ class Ttsdefault(Baseplugin):
     async def run_speak_func(self, message):
         await self.pm.trigger_hook(hook_name="pause_asr")
         success = await self.speak_func(message)
+        await self.pm.trigger_hook(hook_name="restart_asr")
 
     async def speak_func(self, message):
         print("SPEAK FUNC:" + message)

@@ -18,6 +18,8 @@ def _api_tts_with_concurrency(requestFunction:callable, generationID:str, genera
         response_json = e.response.json()
         response_handled = False
 
+Maybe go back to elevenlabs original lib?
+
 - generate_audio is slower, stream_audio is faster but has buffer errors 
 
 FEATURE:

@@ -425,3 +425,20 @@ class PluginManager:
                 self.deactivate_plugin(plugin_name)
             elif not activate_list or plugin_name in activate_list:
                 self.activate_plugin(plugin_name)
+                
+    def are_all_plugins_loaded(self):
+        """
+        Checks if all active plugins have been loaded.
+
+        Returns:
+            tuple:
+                bool: True if all active plugins are loaded, False otherwise.
+                list: List of plugin names that are not loaded.
+                
+        USAGE:
+            all_loaded, unloaded_plugins = plugin_manager.are_all_plugins_loaded()
+        """
+        not_loaded = [plugin.name for plugin in self.plugins if not getattr(plugin, 'is_loaded', False)]
+        if not_loaded:
+            return False, not_loaded
+        return True, []
