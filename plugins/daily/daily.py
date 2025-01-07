@@ -41,10 +41,14 @@ class Daily(Baseplugin):
                 return True
         except FileNotFoundError:
             print ("ERROR DAILY JSON NOT FOUND")
-            self.daily_data = self.get_default_data()
-            # Save default data
+            current_file_dir = os.path.dirname(__file__)
+            default_daily_file = os.path.join(current_file_dir, 'daily.json')
+            print(f"USING DEFAULT DAILY FROM {default_daily_file}")
+            with open(default_daily_file, 'r', encoding='utf-8') as f:
+                self.daily_data = json.load(f)
             with open(daily_file, 'w', encoding='utf-8') as f:
                 json.dump(self.daily_data, f, ensure_ascii=False, indent=4)
+                print(f"Daily.json copied from {current_file_dir} to {self.plugin_folder}")
     
     @hookimpl
     def startup(self):

@@ -16,7 +16,7 @@
     <autocompletelauncher @show-autocomplete="showAutocomplete" :appview="appview"></autocompletelauncher>
 </div>
 <main>
-    <onboarding  :appview="appview"></onboarding><flow  :appview="appview"></flow>
+    <daily  :appview="appview"></daily><onboarding  :appview="appview"></onboarding><flow  :appview="appview"></flow>
 </main>
 <footer>
     
