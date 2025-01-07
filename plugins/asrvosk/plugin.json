@@ -1,5 +1,5 @@
 {
-    "active": true,
+    "active": false,
     "category": "ASR",
     "title": "Vosk",
     "description": "Automatic speech recognition, with continuous listening or on-click listening",

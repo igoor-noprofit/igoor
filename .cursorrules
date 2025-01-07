@@ -1,0 +1,56 @@
+IGOOR is a Python desktop conversational app to provide people with neurodegenerative diseases a smooth and natural means of communication.
+
+BACKEND
+Based on Pluggy to handle plugins, Pywebview to display the main Vue app and its frontend.
+- plugin_manager.py is a singleton loading and activating the different plugins.Each plugin has a JSON file like this :
+{
+    "active": true,
+    "category": "context",
+    "layout": {
+        "part": "topbar",
+        "order": -1
+    }
+}
+- websocket_server.py allows communications between plugins' backend and frontend
+- context_manager.py shares info about the context between main app and plugins (datetime, geoloc, weather etc.)
+- settings_manager.py loads and writes to a simple JSON user settings file located in the user APPDATA folder in Windows. Example:
+{
+"plugins": {
+        "elevenlabs": {
+            "voice_id": "...",
+            "api_key": "..."
+- llm_manager.py handles calls to external LLMs,supporting JSON answers via pydantic
+- status_manager.py is a singleton sharing infos with the plugins about the app(status,etc.)
+- js_api.py contains the API to connect python and javascript through pywebview
+
+PLUGINS OVERVIEW
+- asrvosk:ASR via Vosk
+- autocomplete:autocomplete based on LLM predictions
+- conversation:handles current conversation
+- daily:handles user's daily needs
+- elevenlabs:TTS
+- memory:handles long-term memory writing in FAISS db
+- onboarding:handles basic user preferences and infos
+- rag:indexes user's biography docs in FAISS db
+- weather:retrieves current weather for user's location 
+
+FRONTEND
+Main Vue app is js/app_template.vue. App.js contains Vue components dynamically loaded with httpVueLoader.
+Each plugin has a frontend folder with a corresponding Vue component. Vue components are based on js/Baseplugincomponent.js
+I don't use bundlers for the Vue 3 app: I use httpVueLoader to load SFC.
+
+SIMPLIFIED FOLDER STRUCTURE
+├── context_manager.py
+├── css (frontend css)
+├── img (frontend img)
+├── js (main Vue app, Baseplugincomponent)
+├── llm_manager.py
+├── plugin_manager.py
+├── plugins
+│   ├── asrvosk
+│   │   ├── asrvosk.py
+│   │   ├── frontend
+│   │   │   ├── asrvosk_component.vue
+│   │   │   └── asrvosk_settings.vue
+│   │   ├── plugin.json
+│   ├── other plugin...

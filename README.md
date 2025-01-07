@@ -1,5 +1,22 @@
 # IGOOR - v0
 
+IGOOR is an open-source and free conversational application, controllable by eye-tracking, designed to provide people with neurodegenerative diseases or paralysis a smooth and natural means of communication.
+
+
+## Notice of Development, Confidentiality, and Contribution Terms
+
+This project is currently under private development. While the final version of the software will be released as free/libre under the GPLv3 License, the current codebase is not yet public and is subject to strict confidentiality.
+
+All collaborators and contributors are reminded that:
+
+1. Sharing Prohibited: The code, documentation, and any associated materials must not be shared, distributed, or disclosed to anyone outside of the development team without prior written permission.
+2. Access Restriction: Access to this repository is granted solely for the purpose of contributing to the project's private development phase.
+3. Contribution Licensing: By contributing to this project, you agree that all contributions you make will be licensed under the GPLv3 License upon the software's public release.
+
+Failure to comply with these terms may result in immediate removal from the project and other appropriate actions.
+
+Thank you for your understanding and cooperation in ensuring the successful development of this software.
+
 ## REQUIREMENTS
 
 Microsoft Windows.
@@ -47,7 +64,7 @@ Example: /plugins/meteo/plugin.json :
 
 #### AUTOMATIC SPEECH RECOGNITION WITH VOSK
 
-Vosk is a local ASR plugin.
+Vosk is a local ASR (Automatic Speech Recognition) plugin.
 It expects a model downloaded manually from this page in your language: 
 
 https://alphacephei.com/vosk/models

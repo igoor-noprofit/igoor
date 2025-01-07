@@ -24,3 +24,4 @@ Maybe go back to elevenlabs original lib?
 
 FEATURE:
 - enqueue phrases
+- {"stability": 0.2,"similarity_boost": 0.2,"style": 0.2,"use_speaker_boost": true}}'

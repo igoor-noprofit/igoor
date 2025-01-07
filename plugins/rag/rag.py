@@ -49,24 +49,8 @@ class Rag(Baseplugin):
             print(f"DB FAISS index loaded successfully in : {db_end_time - db_start_time:.2f} seconds")
             self.index_loaded = True  # Set index_loaded to True after successful loading
             self.is_loaded = True
-            # self.send_prompt("test")
         except Exception as e:
             print(f"Error loading FAISS index: {e}")
-        
-    @hookimpl
-    def send_prompt(self, prompt: str) -> None:
-        print(f"Received prompt : {prompt}")
-        queries = [
-            prompt,
-            "Q: Tu te souviens de l'expo Drosephilia",
-            "Q: Combien d'enfants tu as",
-            "Q: Comment s'appelle ta femme",
-            "Q: Quels sont tes réalisateurs préférés",
-            "Q: Est-ce que t'aimes Tarantino",
-            "Q: Comment s'appellent tes fils"
-        ]
-        for query in queries:
-            asyncio.run(self.query_rag(query))
         
     @hookimpl
     async def store_memory(self, memory: str) -> bool:
@@ -74,6 +58,7 @@ class Rag(Baseplugin):
             print("Index still loading")
         while not self.index_loaded:
             print(".", end="", flush=True)
+            # TODO: Communicate to frontend
             await asyncio.sleep(0.1)
             
         new_doc = Document(

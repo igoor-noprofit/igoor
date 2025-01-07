@@ -45,14 +45,17 @@ module.exports = {
         }
     },
     created() {
-        console.log('BasePluginComponent created hook');
+        console.log('BasePluginComponent created hook for ' + this.$options.name + ' plugin');
         const path = this.websocketPath || this.$options.name || ''; 
         this.ws_url = `${BASE_WS_URL}${path}`; // Use the base WebSocket URL
         console.log('Plugin path = ' + this.ws_url);
         self = this;
         this.websocketUtil = new WebSocketUtil(this.ws_url, {
             onMessage: this.handleIncomingMessage,
-            onOpen: () => self.sendMsgToBackend({ socket: "ready" }),
+            onOpen: () => { 
+                self.sendMsgToBackend({ socket: "ready" });
+                console.log(`Socket ready Message sent to backend for ${this.$options.name} plugin`);
+            },
             onClose: () => console.log('WebSocket connection closed at ' + this.ws_url),
             onError: (error) => console.error('WebSocket error in BasePluginComponent:', error)
         });

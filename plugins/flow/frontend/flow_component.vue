@@ -1,5 +1,5 @@
 <template>
-    <div class="flow container flow-plugin" v-if="answers.length > 0">
+    <div class="flow container flow-plugin" v-if="answers && answers.length > 0">
         <div v-if="answers" class="abandon">
             <input type="button" value="Abandonner" @click="$_abandonConversation(true)">
         </div>
@@ -72,7 +72,8 @@ module.exports = {
                     this.selectedCard = null;
                 }
             } catch (e) {
-                console.warn("Error parsing JSON");
+                console.warn("Error parsing JSON in FLOW component");
+                console.log("WRONG JSON:" + event.data)
             }
         },
         async $_chooseAnswer(msg, index) {

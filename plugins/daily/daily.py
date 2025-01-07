@@ -7,7 +7,7 @@ from context_manager import context_manager
 from prompts import AssistantPrompts
 from settings_manager import SettingsManager
 from llm_manager import LLMManager
-import asyncio,json,time
+import asyncio,json,time,os
 
 PROMPT_TEMPLATE = """
 Pour répondre tu peux utilisers le contexte statique extrait des documents sur la vie de la personne :
@@ -22,60 +22,57 @@ Si besoin utilise aussi les infos du contexte dynamique suivant :
 
 """
 
-class Flow(Baseplugin):  
+class Daily(Baseplugin):  
     def __init__(self, plugin_name,pm):
         self.pm = pm
         super().__init__(plugin_name,pm)
         self.prompts=AssistantPrompts("locales/","fr_FR")
         self.global_settings = SettingsManager();
         self.settings = self.get_my_settings()
+        self.daily_data = None
+        
+    def load_daily_data(self):
+        daily_file = os.path.join(self.plugin_folder, 'daily.json')
+        print(f"DAILY FILE PATH: {daily_file}")
+        try:
+            with open(daily_file, 'r', encoding='utf-8') as f:
+                self.daily_data = json.load(f)
+                print(self.daily_data)
+                return True
+        except FileNotFoundError:
+            print ("ERROR DAILY JSON NOT FOUND")
+            self.daily_data = self.get_default_data()
+            # Save default data
+            with open(daily_file, 'w', encoding='utf-8') as f:
+                json.dump(self.daily_data, f, ensure_ascii=False, indent=4)
     
     @hookimpl
     def startup(self):
-        print("FLOW STARTUP")
-        # self.test_queries()
-        try:
-            loop = asyncio.get_event_loop()
-        except RuntimeError:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-        loop.run_in_executor(None, self._startup_async)
+        print("DAILY STARTUP")
+        self.load_daily_data()
     
-    async def _startup_async(self):
-        print("sending status ready")
-        await self.wait_for_socket_and_send("ready")
-        self.send_test_json()
-    
-    '''   
-    def send_test_json(self):
-        print ("Sending test json")
-        self.send_message_to_frontend([{"Joie":"Oui, j'adore le gâteau de riz !"},{"Anticipation":"Je me demande si on peut en manger à la plage ?"},{"Confiance":"Je suis sûr que ma famille en a préparé pour notre sortie"}])
-    ''' 
+    async def startup_async(self):
+        """Async startup tasks"""
+        print("DAILY ASYNC STARTUP")
+        await self.send_message_to_frontend({
+            'dailyData': self.daily_data
+        })
 
     def process_incoming_message(self, message):
         try:
-            print("Received msg: " + message)
-            # Attempt to parse the message as JSON
-            message_dict = json.loads(message)
-            # Output the JSON variables and values
-            for key, value in message_dict.items():
-                print(f"Key: {key}, Value: {value}")
-            # Ensure message_dict is a dictionary
-            if isinstance(message_dict, dict):
-                action = message_dict.get("action")
-                if  action == "speak":
-                    msg = message_dict.get("msg", "")
-                    # Trigger hook in plugin manager with msg
-                    asyncio.create_task(self.pm.trigger_hook(hook_name="speak", message=msg))
-                    asyncio.create_task(self.pm.trigger_hook(hook_name="add_msg_to_conversation", msg=msg, author="master"))
-                elif action == "abandon_conversation":
-                    asyncio.create_task(self.pm.trigger_hook(hook_name="abandon_conversation", cause="user_abandoned"))
-                else:
-                    print("Unrecognized action in incoming message.")
-                    
+            message_data = json.loads(message)
+            print(f"DAILY BACKEND RECEIVED MSG On WS: {message_data}")
+            if message_data.get('socket') == 'ready':
+                print(self.daily_data)
+                # Send daily data to frontend
+                self.send_message_to_frontend({
+                    'dailyData': self.daily_data
+                })
+            elif message_data.get('action') == 'cardClicked':
+                # Handle card click events
+                pass
         except json.JSONDecodeError:
-            print("Received message is not valid JSON.")
-            return
+            print(f"Invalid JSON message received: {message}")
         
     '''
     Receives msg from speaker
@@ -117,16 +114,3 @@ class Flow(Baseplugin):
     def update_status(self, status):
         """This method will be called when the status changes."""
         print(f"Flow plugin received new status: {status}")
-        
-    
-    def test_queries(self) -> None:
-        queries = [
-            "Q: Comment s'appelle tes fils",
-            "Q: Tu te souviens de l'expo Drosephilia",
-            "Q: Combien d'enfants tu as",
-            "Q: Comment s'appelle ta femme",
-            "Q: Quels sont tes réalisateurs préférés",
-            "Q: Est-ce que t'aimes Tarantino",
-        ]
-        for query in queries:
-            asyncio.run(self.asr_msg(query))

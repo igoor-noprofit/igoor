@@ -1,3 +1,6 @@
+# BUGS
+Pyinstaller does not currently work.
+
 # PLUGINS
 - prevent errors when deactivating/activating plugins in settings
 
@@ -9,6 +12,9 @@ trigger_hook
 # HTML
 - Move js,css,index_template and index.html inside /public ? beware of /
 - Problem: plugins frontends are inside the plugins folders, can you access them?
+
+# LLM_MANAGER.py
+Spot rate limits => wait before retry
 
 # DEPLOYMENT
 Tools like pip-chill, pipreqs, or pip-autoremove can help identify or remove unnecessary packages.

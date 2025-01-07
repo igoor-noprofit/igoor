@@ -1,7 +1,9 @@
+├── .cursorrules
 ├── .env
 ├── .env-example
 ├── README.md
 ├── TODO.md
+├── YourAppName.spec
 ├── context_manager.py
 ├── css
 │   ├── app.css
@@ -10,12 +12,13 @@
 │       ├── OFL.txt
 │       └── static
 ├── folder_structure.txt
+├── igoor.spec
+├── igoor_sf.spec
 ├── img
 │   ├── igoor_logo.png
 │   ├── listening.gif
 │   └── mic.png
 ├── index.html
-├── installer.py
 ├── js
 │   ├── BasePluginComponent.js
 │   ├── WebSocketUtil.js
@@ -40,6 +43,7 @@
 ├── plugins
 │   ├── asrvosk
 │   │   ├── TODO.md
+│   │   ├── __init__.py
 │   │   ├── asrvosk.py
 │   │   ├── frontend
 │   │   │   ├── asrvosk_component.vue
@@ -52,6 +56,7 @@
 │   │   └── vosk_models.json
 │   ├── autocomplete
 │   │   ├── TODO.md
+│   │   ├── __init__.py
 │   │   ├── autocomplete.py
 │   │   ├── frontend
 │   │   │   └── autocomplete_component.vue
@@ -64,37 +69,42 @@
 │   │   │   └── autocompletelauncher_component.vue
 │   │   └── plugin.json
 │   ├── baseplugin
-│   │   ├── __init.py__
+│   │   ├── __init__.py
 │   │   ├── baseplugin.py
 │   │   ├── default_settings.json
 │   │   ├── frontend
 │   │   │   └── baseplugin_component.vue
 │   │   └── plugin.json
 │   ├── clock
+│   │   ├── __init__.py
 │   │   ├── clock.py
 │   │   ├── frontend
 │   │   │   └── clock_component.vue
 │   │   ├── plugin.json
 │   │   └── settings.json
 │   ├── conversation
+│   │   ├── __init__.py
 │   │   ├── conversation.py
 │   │   ├── frontend
 │   │   │   └── conversation_component.vue
 │   │   └── plugin.json
 │   ├── daily
 │   │   ├── TODO.md
+│   │   ├── __init__.py
 │   │   ├── daily.py
 │   │   ├── frontend
 │   │   │   └── daily_component.vue
 │   │   └── plugin.json
 │   ├── elevenlabs
 │   │   ├── TODO.MD
+│   │   ├── __init__.py
 │   │   ├── elevenlabs.py
 │   │   ├── frontend
 │   │   │   └── elevenlabs_component.vue
 │   │   └── plugin.json
 │   ├── flow
 │   │   ├── TODO.md
+│   │   ├── __init__.py
 │   │   ├── flow.py
 │   │   ├── frontend
 │   │   │   └── flow_component.vue
@@ -102,6 +112,7 @@
 │   │   └── settings.json
 │   ├── memory
 │   │   ├── TODO.md
+│   │   ├── __init__.py
 │   │   ├── frontend
 │   │   │   └── memory_component.vue
 │   │   ├── memory.py
@@ -109,6 +120,7 @@
 │   │   └── settings.json
 │   ├── meteo
 │   │   ├── TODO.md
+│   │   ├── __init__.py
 │   │   ├── frontend
 │   │   │   ├── meteo_component.vue
 │   │   │   └── meteo_settings.vue
@@ -119,6 +131,7 @@
 │   │       └── notifications_component.vue
 │   ├── onboarding
 │   │   ├── TODO.md
+│   │   ├── __init__.py
 │   │   ├── frontend
 │   │   │   └── onboarding_component.vue
 │   │   ├── onboarding.py
@@ -131,13 +144,16 @@
 │   │           └── porcupine_params_fr.pv
 │   ├── rag
 │   │   ├── TODO.md
+│   │   ├── __init__.py
 │   │   ├── frontend
+│   │   │   ├── TODO.md
 │   │   │   └── rag_component.vue
 │   │   ├── plugin.json
 │   │   ├── rag.py
 │   │   └── settings.json
 │   ├── ramcpu
 │   │   ├── TODO.md
+│   │   ├── __init__.py
 │   │   ├── frontend
 │   │   │   ├── ramcpu_component.vue
 │   │   │   └── ramcpu_settings.vue
@@ -146,10 +162,18 @@
 │   │   └── settings.json
 │   ├── settings
 │   │   ├── README.md
+│   │   ├── __init__.py
 │   │   ├── frontend
 │   │   │   └── settings_component.vue
 │   │   ├── plugin.json
 │   │   └── settings.py
+│   ├── ttsdefault
+│   │   ├── __init__.py
+│   │   ├── frontend
+│   │   │   └── ttsdefault_component.vue
+│   │   ├── plugin.json
+│   │   ├── settings.json
+│   │   └── ttsdefault.py
 │   └── weather
 │       ├── TODO.md
 │       ├── frontend
@@ -160,9 +184,12 @@
 │       └── weather.py
 ├── prompt_manager.py
 ├── prompts.py
+├── pyinstaller.txt
 ├── requirements.txt
 ├── settings_manager.py
 ├── status_manager.py
 ├── tools
-│   └── folder_structure.py
+│   ├── folder_structure.py
+│   └── installer.py
+├── utils.py
 └── websocket_server.py

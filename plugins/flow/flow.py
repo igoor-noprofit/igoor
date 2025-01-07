@@ -61,7 +61,7 @@ class Flow(Baseplugin):
         
     async def _startup_async(self):
         print("sending status ready")
-        await self.wait_for_socket_and_send("ready")
+        await self.send_status("ready")
 
     
     def process_incoming_message(self, message):
@@ -151,6 +151,7 @@ class Flow(Baseplugin):
         ]
         for query in queries:
             asyncio.run(self.asr_msg(query))
+        
 
 class Answers(BaseModel):
     answers: List[str]

@@ -95,8 +95,8 @@ def load_frontend_components():
             category = metadata.get('layout', {}).get('part', 'main')
             if category in components_by_category:
                 components_by_category[category].append(component_definition)
-        else:
-            print(f"The plugin '{plugin_name}' is not activated.")
+        # else:
+            # print(f"The plugin '{plugin_name}' is not activated.")
 
     # Sort components by 'order'
     for category, components in components_by_category.items():
@@ -158,6 +158,22 @@ def load_frontend_components():
 def on_loaded():
     print("GUI window is now loaded and available!")
     asyncio.run(manager.trigger_hook("gui_ready"))
+    return True
+    print("TESTING RAG:::")
+    queries = [
+        "Tu te souviens de l'expo Drosephilia",
+        "Combien d'enfants tu as",
+        "Comment s'appelle ta femme",
+        "Quels sont tes réalisateurs préférés",
+        "Est-ce que t'aimes Tarantino",
+        "Comment s'appellent tes fils",
+        "Combien de fils tu as ?"
+    ]
+    for query in queries:
+        asyncio.run(manager.trigger_hook(hook_name="add_msg_to_conversation", msg=query, author="def"))
+        asyncio.run(manager.trigger_hook(hook_name="asr_msg", msg="Q: " + query))
+        asyncio.run(manager.trigger_hook(hook_name="abandon_conversation"))
+        asyncio.run(asyncio.sleep(5))  # Wait 5 seconds before each query
 
 def start_webview():
     try:

@@ -103,7 +103,7 @@ class MyAppSpec:
     
     @pluggy.HookspecMarker(app_name)
     def new_conversation(self):
-        """Hook for processing wake word detected text"""
+        """Hook for triggering actions related to new conversation"""
         pass
     
     @pluggy.HookspecMarker(app_name)
