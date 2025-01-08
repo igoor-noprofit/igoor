@@ -83,6 +83,7 @@ class Conversation(Baseplugin):
         print("Triggering after_conversation_end hook")
         '''
         print("after_conversation_end hook triggered")
+        await self.send_switch_view_to_app("daily")
         
     @hookimpl
     async def add_msg_to_conversation(self, msg: str, author: str) -> None:

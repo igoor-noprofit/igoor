@@ -8,20 +8,29 @@ from prompts import AssistantPrompts
 from settings_manager import SettingsManager
 from llm_manager import LLMManager
 import asyncio,json,time,os
+from pydantic import BaseModel
+from typing import List
 
 PROMPT_TEMPLATE = """
-Pour répondre tu peux utilisers le contexte statique extrait des documents sur la vie de la personne :
+La personne affectée par la maladie s'appelle {bio_name}. Considère son état actuel pour éviter des prédictions incompatibles avec ses capacités physiques:
+
+{health_state}
+
+---
+Pour répondre tu peux utiliser le contexte statique extrait des documents sur la vie de {bio_name}:
 
 {static_context}
 
 ---
-Si besoin utilise aussi les infos du contexte dynamique suivant :
+Tu peux utiliser aussi les infos du contexte dynamique suivant :
 
 {dynamic_context}
+
 ---
+Voici le contexte du besoin:
+"catégorie":{category}","thème":"{theme}","tags": "{tags}"
 
 """
-
 class Daily(Baseplugin):  
     def __init__(self, plugin_name,pm):
         self.pm = pm
@@ -29,6 +38,8 @@ class Daily(Baseplugin):
         self.prompts=AssistantPrompts("locales/","fr_FR")
         self.global_settings = SettingsManager();
         self.settings = self.get_my_settings()
+        bio = self.global_settings.get_bio()
+        self.bio_name = bio.get("name")
         self.daily_data = None
         
     def load_daily_data(self):
@@ -65,6 +76,7 @@ class Daily(Baseplugin):
     def process_incoming_message(self, message):
         try:
             message_data = json.loads(message)
+            print(f"DAILY RECEIVED MSG:{message_data}")
             print(f"DAILY BACKEND RECEIVED MSG On WS: {message_data}")
             if message_data.get('socket') == 'ready':
                 print(self.daily_data)
@@ -72,41 +84,58 @@ class Daily(Baseplugin):
                 self.send_message_to_frontend({
                     'dailyData': self.daily_data
                 })
-            elif message_data.get('action') == 'cardClicked':
-                # Handle card click events
+            elif message_data.get('action') == 'generatePhrases':
+                asyncio.create_task(self.generate_phrases(message_data))
                 pass
+            elif message_data.get('action') == "speak":
+                    msg = message_data.get("msg", "")
+                    # Trigger hook in plugin manager with msg
+                    asyncio.create_task(self.pm.trigger_hook(hook_name="speak", message=msg))
+                    asyncio.create_task(self.pm.trigger_hook(hook_name="add_msg_to_conversation", msg=msg, author="master"))    
         except json.JSONDecodeError:
             print(f"Invalid JSON message received: {message}")
         
     '''
-    Receives msg from speaker
+    Receives msg from daily
     Transmits it to RAG systems
     Retrieves context
     Fills prompt
     Performs LLM query
-    '''
-    @hookimpl
-    async def asr_msg(self, msg: str) -> None:
+    '''        
+    async def generate_phrases(self, data: dict) -> None:
+        if not isinstance(data, dict):
+            print("Error: Data is not a dictionary")
+            return
+        health_state=self.global_settings.get_health_state()
+        bio_name=self.bio_name
         start_time = time.time()
         dynamic_context = self.get_dynamic_context().copy()
         print(f"DYNAMIC CONTEXT IS {dynamic_context}")
         # Remove the conversation attribute from dynamic context
-        conversation = dynamic_context.get("conversation")
-        static_context = await(self.query_rag_async(conversation))
-        # print(f"STATIC CONTEXT IS : {static_context}")
-        del dynamic_context["conversation"]
-        assistant_type = "flow"
+        # conversation = dynamic_context.get("conversation")
+        category=data.get("category")
+        theme=data.get("theme")
+        static_context = await(self.query_rag_async(category + " " + theme))
+        print(f"STATIC CONTEXT IS : {static_context}")
+        # del dynamic_context["conversation"]
+        assistant_type = "daily"
         system_prompt = self.prompts.get_system_prompt("fr_FR", assistant_type) 
-        # print(f"SYSTEM PROMPT IS : {system_prompt}")   
+        print(f"SYSTEM PROMPT IS : {system_prompt}")   
         pm = PromptManager(template=PROMPT_TEMPLATE)
         dynamic_context = dynamic_context
-        prompt = pm.create_prompt(static_context=static_context, dynamic_context=dynamic_context, conversation=conversation)       
+        prompt = pm.create_prompt(bio_name=bio_name,health_state=health_state,static_context=static_context, dynamic_context=dynamic_context, category=category,theme=theme, tags="",log_folder=self.plugin_folder)       
         print(f"FINAL PROMPT : {prompt}")
         llm = LLMManager(self.settings.get("provider"), self.settings.get("api_key"), self.settings.get("model_name"))
+        llm.set_json_schema(Answers)
         answers = llm.invoke(system_prompt,prompt)
+        print(f"TYPE = {type(answers)}, ANSWERS: {answers}")
+        answers_dict = answers.dict()
+        if answers_dict.get("answers"):
+            self.send_message_to_frontend(answers.json()) 
+        else:
+            print("NO ANSWERS RECEIVED")
         end_time = time.time()
-        print(f"Time taken for processing: {end_time - start_time} seconds")
-        self.send_message_to_frontend(answers.content) 
+        print(f"Time taken for processing: {end_time - start_time} seconds")    
         
     def get_dynamic_context(self):
         return context_manager.get_context()
@@ -118,3 +147,6 @@ class Daily(Baseplugin):
     def update_status(self, status):
         """This method will be called when the status changes."""
         print(f"Flow plugin received new status: {status}")
+
+class Answers(BaseModel):
+    answers: List[str]

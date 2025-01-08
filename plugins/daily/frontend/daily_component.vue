@@ -1,41 +1,42 @@
 <template>
-    <div class="daily container daily-plugin" v-if="appview == 'daily'">
-        <div v-if="currentView === 'main'" class="categories-grid">
-            <div v-for="(category, index) in mainCategories" :key="index" class="category-column">
-                <h3 class="category-title">{{ translateCategory(category.name) }}</h3>
-                <div class="cards-container">
-                    <div v-for="(item, key) in category.items" :key="key" class="card"
-                        :class="{ 'card-large': item.freq >= 8, 'card-small': item.freq < 8 }"
-                        @click="handleCardClick(category.name, key, item)">
-                        {{ translateItem(key) }}
-                    </div>
-                </div>
+    <div class="daily container daily-plugin main" v-if="appview == 'daily'">
+        <!-- Back Arrow -->
+        <div v-if="currentView === 'main'" class="options">
+            <div v-for="(category, index) in mainCategories" :key="index" class="options-col">
+                <h3>{{ translateCategory(category.name) }}</h3>
+                <button v-for="(item, key) in category.items" :key="key" class="btn"
+                    :class="{ 'btn-primary': item.fixed, 'btn-secondary': !item.fixed }"
+                    @click="selectItem(category.name, key, item)">
+                    {{ translateItem(key) }}
+                </button>                
             </div>
-
-            <!-- Navigation Arrow -->
-            <button class="nav-arrow" @click="switchToSecondaryView">
-                <span class="arrow-icon">→</span>
-            </button>
+            <button class="btn btn-side btn-side-right" @click="switchToSecondaryView"><svg class="icon icon-l"><use xlink:href="/img/svgdefs.svg#icon-chevron_right"/></svg></button>
         </div>
 
         <!-- Secondary Categories View -->
-        <div v-else class="categories-grid">
-            <div v-for="(category, index) in secondaryCategories" :key="index" class="category-column">
-                <h3 class="category-title">{{ translateCategory(category.name) }}</h3>
-                <div class="cards-container">
-                    <div v-for="(item, key) in category.items" :key="key" class="card"
-                        :class="{ 'card-large': item.freq >= 8, 'card-small': item.freq < 8 }"
-                        @click="handleCardClick(category.name, key, item)">
-                        {{ translateItem(key) }}
+        <div v-if="currentView === 'secondary'" class="categories-grid options secondary">
+            <button class="btn btn-side btn-side-left" @click="switchToMainView"><svg class="icon icon-l"><use xlink:href="/img/svgdefs.svg#icon-chevron_left"/></svg></button>
+            <div v-for="(category, index) in secondaryCategories" :key="index" class="options-col">
+                <h3>{{ translateCategory(category.name) }}</h3>
+                <button v-for="(item, key) in category.items" :key="key" class="btn"
+                    :class="{ 'btn-primary': item.fixed, 'btn-secondary': !item.fixed }"
+                    @click="selectItem(category.name, key, item)">
+                    {{ translateItem(key) }}
+                </button>             
+            </div>
+        </div>
+
+        <div class="answers secondary" v-if="currentView=='answers'">
+            <button class="btn btn-side btn-side-left" @click="switchToMainView"><svg class="icon icon-l"><use xlink:href="/img/svgdefs.svg#icon-chevron_left"/></svg></button>
+            <div class="row">
+                <div v-for="(msg, index) in answers" :key="index">
+                    <div :class="['msg msg-small']" @click="$_chooseAnswer(msg, index)">
+                        {{ msg }}
                     </div>
                 </div>
+                <a v-show="appview!=='autocomplete'" class="autocompletelauncher plugin" @click="$_showAutocomplete()">...</a>
             </div>
-            <!-- Back Arrow -->
-            <button class="nav-arrow back" @click="switchToMainView">
-                <span class="arrow-icon">←</span>
-            </button>
         </div>
-        <div v-else></div>
     </div>
 </template>
 
@@ -50,14 +51,26 @@ module.exports = {
             currentView: 'main',
             dailyData: [],
             mainCategories: [],
-            secondaryCategories: []
+            secondaryCategories: [],
+            answers: []
         };
     },
     mounted() {
         console.log('DAILY MOUNTED');
         this.sendMsgToBackend({ socket: "ready" });
+        fetch('/plugins/daily/daily.json')
+            .then(response => response.json())
+            .then(data => {
+                this.dailyData = data;
+                this.processCategories();
+            })
+            .catch(error => console.error('Error loading daily.json:', error));
     },
     methods: {
+        $_showAutocomplete(){
+            console.log('emitting autocomplete');
+            this.$emit('show-autocomplete');
+        },
         async $_abandonConversation() {
             try {
                 this.sendMsgToBackend({ "action": "abandon_conversation" });
@@ -75,6 +88,10 @@ module.exports = {
                 if (data.dailyData) {
                     this.dailyData = data.dailyData;
                     this.processCategories();
+                }
+                if (data.answers) {
+                    this.answers = data.answers;
+                    this.currentView = 'answers';
                 }
             } catch (error) {
                 console.error('Error processing message:', error);
@@ -100,13 +117,27 @@ module.exports = {
             // Add your translation logic here
             return item;
         },
-        handleCardClick(category, item, data) {
-            this.sendMsgToBackend({
-                action: 'cardClicked',
-                category,
-                item,
-                data
-            });
+        selectItem(category, item, data) {
+            if (this.currentView == 'main' || this.currentView=='secondary'){
+                this.answers=[];
+                this.sendMsgToBackend({
+                    action: 'generatePhrases',
+                    category: category,
+                    theme: item
+                });
+                this.currentView = 'answers';
+                
+            }
+        },
+        /* Sending final phrase */
+        async $_chooseAnswer(msg, index) {
+            let text = msg;
+            const json = { action: "speak", msg: text };
+            console.log("sending JSON");
+            console.log(json);
+            this.sendMsgToBackend(json);
+            this.currentView='main';
+            this.answers=[];
         },
         switchToSecondaryView() {
             this.currentView = 'secondary';
@@ -119,93 +150,41 @@ module.exports = {
 </script>
 
 <style scoped>
-.daily-plugin {
-    margin: 10px 0;
-    flex-direction: row;
-    display: flex;
-    border: 1px solid #f00;
-}
-
-.daily-container {
+.main {
+    position: relative;
+    z-index: 10;
+    box-shadow: 0rem -0.5rem 1rem 0rem rgba(0, 0, 0, 0.2);
+    overflow: hidden;
     padding: 1rem;
+    margin-bottom: 6rem;
     height: 100%;
     width: 100%;
 }
 
-.categories-grid {
-    display: grid;
-    grid-template-columns: repeat(5, 1fr);
+.options {
+    padding-right: 5rem;
+    display: flex;
     gap: 1rem;
-    position: relative;
-    height: 100%;
+}
+.options.secondary, .answers{
+    padding-left: 5rem;
+}
+.answers .msg{
+    margin-bottom: 10px;
 }
 
-.category-column {
+.options .btn {
+    text-align: left;
+}
+
+.options-col {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.25rem;
+    width: 100%;
 }
 
-.category-title {
-    color: #fff;
-    text-transform: uppercase;
-    font-size: 0.8rem;
-    margin-bottom: 0.5rem;
-}
-
-.cards-container {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-}
-
-.card {
-    background-color: #2F4F4F;
-    color: white;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: background-color 0.2s;
-    padding: 0.8rem;
-}
-
-.card:hover {
-    background-color: #3D6363;
-}
-
-.card-large {
-    font-size: 1.1rem;
-    min-height: 3rem;
-}
-
-.card-small {
-    font-size: 0.9rem;
-    min-height: 2.5rem;
-}
-
-.nav-arrow {
-    position: absolute;
-    right: -1rem;
-    top: 50%;
-    transform: translateY(-50%);
-    background: none;
-    border: none;
-    color: white;
-    font-size: 2rem;
-    cursor: pointer;
-    padding: 1rem;
-}
-
-.nav-arrow.back {
-    left: -1rem;
-    right: auto;
-}
-
-.arrow-icon {
-    display: inline-block;
-    transition: transform 0.2s;
-}
-
-.nav-arrow:hover .arrow-icon {
-    transform: scale(1.2);
+.options-col .btn {
+    width: 100%;
 }
 </style>

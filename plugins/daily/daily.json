@@ -2,12 +2,27 @@
     {
         "inconforts": {
             "gratter nez": {
-                "freq": 0
+                "freq": 0,
+                "fixed": true
             },
             "gratter cheveux": {
-                "freq": 0
+                "freq": 0,
+                "fixed": true
             },
             "gratter visage": {
+                "freq": 0,
+                "fixed": true
+            },
+            "changer de position": {
+                "freq": 0
+            },
+            "coussin de confort": {
+                "freq": 0
+            },
+            "oreiller ergonomique": {
+                "freq": 0
+            },
+            "transfert fauteuil": {
                 "freq": 0
             },
             "gratter corps": {
@@ -28,14 +43,16 @@
         },
         "hygiène": {
             "douche": {
-                "pref": "",
-                "freq": 10
+                "freq": 10,
+                "fixed": true
             },
             "dents": {
-                "freq": 10
+                "freq": 10,
+                "fixed": true
             },
             "cheveux": {
-                "freq": 10
+                "freq": 10,
+                "fixed": true
             },
             "peau": {
                 "freq": 0
@@ -52,11 +69,12 @@
         },
         "se nourrir": {
             "plat": {
-                "pref": "",
-                "freq": 0
+                "freq": 0,
+                "fixed": true
             },
             "boisson": {
-                "freq": 0
+                "freq": 0,
+                "fixed": true
             },
             "courses": {
                 "freq": 0
@@ -66,19 +84,21 @@
             }
         },
         "se soigner": {
-            "massage": {
-                "freq": 0
-            },
             "dormir": {
+                "freq": 0,
+                "fixed": true
+            },
+            "douleur": {
+                "freq": 0,
+                "fixed": true
+            },
+            "massage": {
                 "freq": 0
             },
             "médecin": {
                 "freq": 0
             },
             "médicaments": {
-                "freq": 0
-            },
-            "douleur": {
                 "freq": 0
             },
             "état de santé": {
@@ -99,25 +119,11 @@
                 "freq": 0
             }
         },
-        "confort et posture": {
-            "changer de position": {
-                "freq": 0
-            },
-            "coussin de confort": {
-                "freq": 0
-            },
-            "oreiller ergonomique": {
-                "freq": 0
-            },
-            "transfert fauteuil": {
-                "freq": 0
-            }
-        },
-        "gestion de l'environnement": {
-            "ventilateur / climatisation": {
-                "freq": 0
-            },
+        "environnement": {
             "chauffage": {
+                "freq": 0
+            },
+            "ventilateur / climatisation": {
                 "freq": 0
             },
             "couverture": {
@@ -130,6 +136,19 @@
                 "freq": 0
             },
             "stores": {
+                "freq": 0
+            }
+        }
+    },
+    {
+        "communication": {
+            "appeler quelqu'un": {
+                "freq": 0
+            },
+            "écrire un message": {
+                "freq": 0
+            },
+            "inviter des amis / famille": {
                 "freq": 0
             }
         },
@@ -156,19 +175,6 @@
                 "freq": 0
             },
             "nature / jardin": {
-                "freq": 0
-            }
-        },
-        "communication": {
-            "appeler quelqu'un": {
-                "freq": 0
-            },
-            "écrire un message": {
-                "freq": 0
-            }
-        },
-        "socialisation et interaction": {
-            "inviter des amis / famille": {
                 "freq": 0
             }
         },

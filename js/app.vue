@@ -1,16 +1,16 @@
 <div id="apploading" v-show="appview == 'loading'">
-    <img src="img/igoor_logo.png" alt="Igoor Logo">
+    <img src="img/logo_small.svg" class="logo_small">
 </div>
 <div id="hidden">
-    
+    <rag  :appview="appview"></rag>
 </div>
 <div id="topbar">
     <img src="img/igoor_logo.png" id="igoor_logo">
-    <ttsdefault  :appview="appview"></ttsdefault>
+    <elevenlabs  :appview="appview"></elevenlabs><ttsdefault  :appview="appview"></ttsdefault><clock  :appview="appview"></clock>
 </div>
 
 <header v-show="appview !== 'onboarding'">
-    <autocomplete  :appview="appview"></autocomplete><conversation  :appview="appview"></conversation>
+    <asrvosk  :appview="appview"></asrvosk><autocomplete  :appview="appview"></autocomplete><conversation  :appview="appview"></conversation>
 </header>
 <div class="after_header" v-show="appview !== 'onboarding'">
     <autocompletelauncher @show-autocomplete="showAutocomplete" :appview="appview"></autocompletelauncher>

@@ -343,3 +343,407 @@ footer {
     }
   }
 }
+
+/*************************************************************************
+
+
+                                  ZEN 
+
+
+
+************************************************************************/
+
+/*                      COLORS
+------------------------------------------------------------------------- */
+:root {
+  /* base colors */
+  --basecolor-accent-100: #0095C0;
+  --basecolor-accent-500: #3D6C76;
+  --basecolor-accent-700: #2F535B;
+  --basecolor-accent-900: #25393D;
+  --basecolor-secondary-100: #1A9E44;
+  --basecolor-secondary-500: #1D6634;
+  --basecolor-warning-100: #E53E1A;
+  --basecolor-warning-500: #A8351B;
+  --basecolor-gray-100: #AFBFBF;
+  --basecolor-gray-700: #556265;
+  --basecolor-gray-900: #2D3233;
+  --basecolor-darkest: #121617;
+  --basecolor-white: #FFFFFF;
+  --basecolor-bg-light: #EDEEE7;
+  /* gradient colors */
+  --basecolor-bggrad-0: #374D52;
+  --basecolor-bggrad-1: #1E2223;
+  --basecolor-bggrad-lev2-0: #384042;
+  --basecolor-bggrad-lev2-1: #2C2F30;
+  --basecolor-bggrad-overlay-0: #1F2729;
+  --basecolor-bggrad-overlay-1: #121617;
+}
+
+/* DARK THEME */
+:root {
+  /* label colors */
+  --color-text: var(--basecolor-white);
+  --color-placeholder: var(--basecolor-gray-100);
+  /* button colors */
+  --color-btn-base: var(--basecolor-accent-700);
+  --color-btn-form: var(--basecolor-secondary-500);
+  --color-btn-other: var(--basecolor-secondary-500);
+  --color-btn-hi: var(--basecolor-accent-500);
+  --color-btn-low: var(--basecolor-accent-900);
+  --color-btn-hilite: var(--basecolor-warning-500);
+  --color-btn-rollover-base: var(--basecolor-accent-100);
+  --color-btn-rollover-other: var(--basecolor-secondary-100);
+  --color-btn-rollover-warning: var(--basecolor-warning-100);
+  /* neutral colors */
+  --color-gray100: var(--basecolor-gray-100);
+  --color-gray700: var(--basecolor-gray-700);
+  --color-gray900: var(--basecolor-gray-900);
+  /* form components colors */
+  --color-inputfocus-border: var(--basecolor-accent-100);
+  --color-inputfocus-bg: var(--basecolor-accent-900);
+  /* message colors */
+  --color-msg: var(--basecolor-accent-700);
+  --color-msg-other: var(--basecolor-secondary-500);
+  /* background colors */
+  --color-bgheader: rgba(18, 22, 23, 0.6);
+  --color-bgpage-0: var(--basecolor-bggrad-0);
+  --color-bgpage-1: var(--basecolor-bggrad-1);
+  --color-bglev2-0: var(--basecolor-bggrad-lev2-0);
+  --color-bglev2-1: var(--basecolor-bggrad-lev2-1);
+  --color-bgoverlay-0: var(--basecolor-bggrad-overlay-0);
+  --color-bgoverlay-1: var(--basecolor-bggrad-overlay-1);
+}
+
+/* Remove default margin */
+body,
+h1,
+h2,
+h3,
+h4,
+p,
+ul[class],
+ol[class],
+li,
+figure,
+figcaption,
+blockquote,
+dl,
+dd {
+  margin: 0;
+}
+
+/* Set core body defaults */
+body {
+  min-height: 100vh;
+  scroll-behavior: smooth;
+  text-rendering: optimizeSpeed;
+  line-height: 1.5;
+}
+/*                      FONTS
+------------------------------------------------------------------------- */
+@font-face {
+  font-family: "FontLight";
+  src: url("fonts/PublicSans-VariableFont_wght.woff2") format("woff2");
+  font-weight: 100;
+  font-optical-sizing: auto;
+  font-display: swap;
+}
+@font-face {
+  font-family: "FontBold";
+  src: url("fonts/PublicSans-VariableFont_wght.woff2") format("woff2");
+  font-weight: 400;
+  font-optical-sizing: auto;
+  font-display: swap;
+}
+/*                      MAIN
+------------------------------------------------------------------------- */
+html, body {
+  font-size: 16px;
+}
+@media only screen and (min-width: 90em) {
+  html, body {
+    font-size: 18px;
+  }
+}
+@media only screen and (min-width: 120em) {
+  html, body {
+    font-size: 21px;
+  }
+}
+
+body {
+  background: linear-gradient(180deg, var(--color-bgpage-0), var(--color-bgpage-1));
+  background-attachment: fixed;
+  color: var(--color-text);
+}
+
+/*                      TYPOGRAPHY
+------------------------------------------------------------------------- */
+body, html {
+  font-family: FontLight, sans-serif;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "FontLight";
+  src: url("fonts/PublicSans-VariableFont_wght.woff2") format("woff2");
+  font-weight: 100;
+  font-optical-sizing: auto;
+  font-display: swap;
+}
+@font-face {
+  font-family: "FontBold";
+  src: url("fonts/PublicSans-VariableFont_wght.woff2") format("woff2");
+  font-weight: 400;
+  font-optical-sizing: auto;
+  font-display: swap;
+}
+
+/*                      TYPOGRAPHY: TITLES
+------------------------------------------------------------------------- */
+h1 {
+  font-family: FontBold, sans-serif;
+  font-style: normal;
+  font-weight: normal;
+  font-size: 1.5rem;
+  line-height: 1.25;
+}
+
+h2 {
+  font-family: FontLight, sans-serif;
+  font-style: normal;
+  font-weight: normal;
+  font-size: 1.25rem;
+  line-height: 1.25;
+}
+
+h3 {
+  font-family: FontLight, sans-serif;
+  font-style: normal;
+  font-weight: normal;
+  font-size: 0.75rem;
+  line-height: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.125rem;
+}
+
+/*                      TYPOGRAPHY: LABELS
+------------------------------------------------------------------------- */
+.label-primary,
+.btn-primary,
+.btn-form {
+  font-family: FontBold, sans-serif;
+  font-style: normal;
+  font-weight: normal;
+  font-size: 1.3125rem;
+  line-height: 1.5rem;
+}
+
+.label-secondary,
+.btn-secondary {
+  font-family: FontBold, sans-serif;
+  font-style: normal;
+  font-weight: normal;
+  font-size: 1rem;
+  line-height: 1.25;
+}
+
+.btn-key {
+  font-family: FontBold, sans-serif;
+  font-style: normal;
+  font-weight: normal;
+  font-size: 1.5rem;
+  line-height: 1.5rem;
+}
+
+.label-smallest {
+  font-family: FontLight, sans-serif;
+  font-style: normal;
+  font-weight: normal;
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+
+/*                      LOGO
+------------------------------------------------------------------------- */
+.logo-small {
+  height: 1.25rem;
+}
+
+/*                      BUTTONS
+------------------------------------------------------------------------- */
+button {
+  outline: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -khtml-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+.btn {
+  border-radius: 0.25rem;
+  border: none;
+  color: var(--color-text);
+  box-shadow: inset 0rem 0.0625rem 0.0625rem 0rem rgba(255, 255, 255, 0.25);
+  -webkit-transition: background-color 0.2s;
+  -moz-transition: background-color 0.2s;
+  -o-transition: background-color 0.2s;
+  transition: background-color 0.2s;
+}
+.btn .icon {
+  display: block;
+  stroke: currentColor;
+  fill: none;
+}
+.btn:hover {
+  background-color: var(--color-btn-rollover-base) !important;
+}
+
+.btn-primary {
+  background-color: var(--color-btn-base);
+  padding: 1.5rem 1rem;
+}
+
+.btn-secondary {
+  background-color: var(--color-btn-base);
+  padding: 0.75rem 1rem;
+}
+
+.btn-more {
+  background-color: var(--color-btn-base);
+  padding: 0rem 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.btn-form {
+  background-color: var(--color-btn-form);
+  padding: 1rem 1rem;
+}
+.btn-form:hover {
+  background-color: var(--color-btn-rollover-other) !important;
+}
+
+.btn-key {
+  background-color: var(--color-btn-hi);
+  padding: 1rem 1rem;
+  width: 8.5vw;
+}
+
+.btn-key-func {
+  background-color: var(--color-btn-low);
+}
+
+.btn-key-space {
+  width: calc(42.5vw + 1rem);
+}
+
+.btn-shortcut {
+  background-color: transparent;
+  box-shadow: none;
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.btn-hilite {
+  background-color: var(--color-btn-hilite);
+}
+.btn-hilite:hover {
+  background-color: var(--color-btn-rollover-warning) !important;
+}
+
+/*                      SIDE BUTTONS
+------------------------------------------------------------------------- */
+.btn-side {
+  border-radius: 0;
+  box-shadow: none;
+  background-color: var(--color-btn-base);
+  padding: 1rem;
+  width: 4rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 5;
+}
+.btn-side.btn-side-other {
+  background-color: var(--color-btn-other);
+}
+.btn-side.btn-side-other:hover {
+  background-color: var(--color-btn-rollover-other) !important;
+}
+.btn-side.btn-side-hilite {
+  background-color: var(--color-btn-hilite);
+}
+.btn-side.btn-side-hilite:hover {
+  background-color: var(--color-btn-rollover-warning) !important;
+}
+
+.btn-side-left {
+  left: 0;
+}
+
+.btn-side-right {
+  right: 0;
+}
+
+.btn-header {
+  background: none;
+  width: auto;
+  padding: 0 0.5rem;
+}
+/*                      MESSAGES
+------------------------------------------------------------------------- */
+.msg {
+  font-family: FontBold, sans-serif;
+  font-style: normal;
+  font-weight: normal;
+  font-size: 1.375rem;
+  line-height: 1.2;
+  padding: 1rem 1rem;
+  position: relative;
+  display: inline-block;
+  background-color: var(--color-msg);
+  border-radius: 0.5rem 0.5rem 0rem 0.5rem;
+  border: none;
+  color: var(--color-text);
+  -webkit-transition: all 0.2s;
+  -moz-transition: all 0.2s;
+  -o-transition: all 0.2s;
+  transition: all 0.2s;
+}
+.msg:after {
+  position: absolute;
+  content: "";
+  right: -1rem;
+  bottom: 0;
+  width: 0px;
+  height: 0px;
+  border-style: solid;
+  border-width: 1rem 0 0 1rem;
+  border-color: transparent transparent transparent var(--color-msg);
+}
+.msg.msg-other {
+  background-color: var(--color-msg-other);
+  border-radius: 0.5rem 0.5rem 0.5rem 0rem;
+}
+.msg.msg-other:after {
+  left: -1rem;
+  border-width: 0 0 1rem 1rem;
+  border-color: transparent transparent var(--color-msg-other) transparent;
+}
+.msg.msg-small {
+  font-size: 0.875rem;
+}

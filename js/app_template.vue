@@ -1,5 +1,5 @@
 <div id="apploading" v-show="appview == 'loading'">
-    <img src="img/igoor_logo.png" alt="Igoor Logo">
+    <img src="img/logo_small.svg" class="logo_small">
 </div>
 <div id="hidden">
     <!-- HIDDEN_COMPONENTS -->
