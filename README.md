@@ -1,11 +1,13 @@
-# IGOOR - v0
+![Image](img/logo_fb.png)
+
+# IGOOR
 
 IGOOR is an open-source and free conversational application, controllable by eye-tracking, designed to provide people with neurodegenerative diseases or paralysis a smooth and natural means of communication.
 
 
 ## Notice of Development, Confidentiality, and Contribution Terms
 
-This project is currently under private development. While the final version of the software will be released as free/libre under the GPLv3 License, the current codebase is not yet public and is subject to strict confidentiality.
+**This project is currently under private development. While the final version of the software will be released as free/libre under the GPLv3 License, the current codebase is not yet public and is subject to strict confidentiality.**
 
 All collaborators and contributors are reminded that:
 
@@ -19,14 +21,15 @@ Thank you for your understanding and cooperation in ensuring the successful deve
 
 ## REQUIREMENTS
 
-Microsoft Windows.
-See requirements.txt
+**Microsoft Windows. Tested on Windows 11.**
+
+See requirements.txt for a list of Python libraries needed.
 
 ## INSTALLATION
 
 ### PYTHON VERSION
 
-Currently tested on Python 3.10.6
+Currently tested on **Python 3.10.6**
 
 ### UPGRADE PIP
 ```
