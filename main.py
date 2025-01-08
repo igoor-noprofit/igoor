@@ -177,7 +177,9 @@ def on_loaded():
 
 def start_webview():
     try:
-        window = webview.create_window("IGOOR", "index.html", js_api=Api(), resizable=True)  # fullscreen=True if needed
+        fullscreen = os.getenv('IGOOR_FULLSCREEN', 'False').lower() == 'true'
+        window = webview.create_window("IGOOR", "index.html", js_api=Api(), 
+                                        resizable=True, fullscreen=fullscreen)
         window.events.loaded += on_loaded
         webview.start(debug=IGOOR_DEBUG.lower() == 'true')
     except KeyboardInterrupt:

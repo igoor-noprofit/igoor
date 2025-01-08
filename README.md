@@ -22,13 +22,20 @@ Thank you for your understanding and cooperation in ensuring the successful deve
 Microsoft Windows.
 See requirements.txt
 
-## SETUP VIRTUAL ENVIRONMENT
+## INSTALLATION
+
+### UPGRADE PIP
+```
+python -m pip install --upgrade pip
+```
+
+### SETUP VIRTUAL ENVIRONMENT
 ```
 python -m venv venv
 venv\scripts\activate
 ```
 
-## INSTALLATION
+### INSTALL LIBRARIES
 ```
 pip install -r requirements.txt
 ```
@@ -87,7 +94,7 @@ In this case the final path is :
 
 IGOOR_FOLDER/plugins/asrvosk/models/language/model_size
 
-### Patient documents (RAG, RetrievalAugmentedGeneration, or Static Knowledge Base)
+### Static Knowledge Base from patient documents (RAG, RetrievalAugmentedGeneration)
 
 Documents in IGOOR_FOLDER/plugins/rag/medias/ are scanned by the RAG plugin.
 
