@@ -42,6 +42,7 @@ async function initializeApp() {
         appview: "loading", // Add this line
         lastview: "daily",
         websocketUtil: null,
+        minimized: false
         // ... other data properties if needed ...
       };
     },
@@ -52,7 +53,7 @@ async function initializeApp() {
     mounted: function () {
       window.addEventListener("pywebviewready", async function () {
         app.pywebviewready = true;
-        console.log("Python is ready!");
+        console.log("Pywebview is ready!");
       });
       // Create a WebSocket connection
       this.websocketUtil = new WebSocket("ws://localhost:9715/app");
@@ -100,29 +101,20 @@ async function initializeApp() {
         this.appview = view;
         window.pywebview.api.change_view(this.lastview,view);
       },
+      maximize(){
+        console.log('MAXIMIZE WINDOW');
+        window.pywebview.api.maximize()
+        this.minimized=false;
+      },
+      minimize(){
+        console.log('MINIMIZE WINDOW');
+        window.pywebview.api.minimize()
+        this.minimized=true;
+      },
       goBack() {
         this.appview = this.lastview;
-      },
-    },
-    /*data: data,
-    methods: {
-      showDaily() {
-        this.daily = true;
-      },
-      minimize() {
-        if (!this.minimized) {
-          pywebview.api.minimize_window();
-          this.minimized = true;
-        }
-      },
-      maximize() {
-        if (this.minimized) {
-          pywebview.api.maximize_window();
-          this.minimized = false;
-        }
-      },
-    },
-    */
+      }
+    }
   });
   console.log("created");
   app.mount("#app");

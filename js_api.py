@@ -25,21 +25,21 @@ class Api:
         else:
             return plugin_manager.activate_plugin(plugin_name=pn)
 
-    def minimize_window(self):
+    def minimize(self):
         print("Minimizing window")
-        # Get the screen size
-
-        print("Screen size: {}x{}".format(screen_width, screen_height))
-
+        window = webview.windows[0]
         window_x = 0
-        window_y = 0 # Y position
+        window_y = 0  # Y position
         print(f"Moving to {window_x},{window_y}")
-        webview.windows[0].resize(96,96)
-        webview.windows[0].move(window_x, window_y)
+        window.resize(96, 96)
+        window.move(window_x, window_y)
+        window.on_top = True  # 
 
-    def maximize_window(self):
+    def maximize(self):
         print("MAX window")
-        webview.windows[0].resize(screen_width,screen_height)
+        window = webview.windows[0]
+        window.on_top = False  # Disable on_top when maximizing
+        window.toggle_fullscreen()  # Th
     
     def change_view(self,lastview,currentview):
         asyncio.run(self.trigger_hook("change_view",lastview=lastview,currentview=currentview))

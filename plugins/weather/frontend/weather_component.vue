@@ -1,6 +1,5 @@
 <template>
     <div class="weather-plugin">
-        
     </div>
 </template>
 

@@ -9,7 +9,8 @@ body {
   border: 0;
   margin: 0;
 }
-#apploading {
+#apploading,
+#minimized {
   background: #121617;
   display: flex;
   justify-content: center;
@@ -20,6 +21,10 @@ body {
   position: absolute;
   top: 0;
   left: 0;
+}
+#minimized {
+  align-items: center;
+  justify-content: center;
 }
 .rounded {
   border-radius: 10px;
@@ -33,12 +38,24 @@ body {
   flex-direction: column;
 }
 #topbar {
-  background-color: #121617;
+  /*
+  background-color: @darkest;
   color: #fff;
   font-size: 10px;
   height: 30px;
   width: 100%;
   justify-content: space-between;
+  align-items: center;
+  */
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 40;
+  background-color: var(--color-bgheader);
+  box-shadow: 0rem 0.125rem 0.375rem 0rem rgba(0, 0, 0, 0.4);
+  display: flex
+;
   align-items: center;
 }
 header > div,

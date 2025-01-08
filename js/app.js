@@ -42,17 +42,18 @@ async function initializeApp() {
         appview: "loading", // Add this line
         lastview: "daily",
         websocketUtil: null,
+        minimized: false
         // ... other data properties if needed ...
       };
     },
     components: {
-      'Rag': Vue.defineAsyncComponent(() => loadModule('/plugins/rag/frontend/rag_component.vue',options)), 'Elevenlabs': Vue.defineAsyncComponent(() => loadModule('/plugins/elevenlabs/frontend/elevenlabs_component.vue',options)), 'Ttsdefault': Vue.defineAsyncComponent(() => loadModule('/plugins/ttsdefault/frontend/ttsdefault_component.vue',options)), 'Clock': Vue.defineAsyncComponent(() => loadModule('/plugins/clock/frontend/clock_component.vue',options)), 'Asrvosk': Vue.defineAsyncComponent(() => loadModule('/plugins/asrvosk/frontend/asrvosk_component.vue',options)), 'Autocomplete': Vue.defineAsyncComponent(() => loadModule('/plugins/autocomplete/frontend/autocomplete_component.vue',options)), 'Conversation': Vue.defineAsyncComponent(() => loadModule('/plugins/conversation/frontend/conversation_component.vue',options)), 'Autocompletelauncher': Vue.defineAsyncComponent(() => loadModule('/plugins/autocompletelauncher/frontend/autocompletelauncher_component.vue',options)), 'Daily': Vue.defineAsyncComponent(() => loadModule('/plugins/daily/frontend/daily_component.vue',options)), 'Onboarding': Vue.defineAsyncComponent(() => loadModule('/plugins/onboarding/frontend/onboarding_component.vue',options)), 'Flow': Vue.defineAsyncComponent(() => loadModule('/plugins/flow/frontend/flow_component.vue',options))
+      'Elevenlabs': Vue.defineAsyncComponent(() => loadModule('/plugins/elevenlabs/frontend/elevenlabs_component.vue',options)), 'Ttsdefault': Vue.defineAsyncComponent(() => loadModule('/plugins/ttsdefault/frontend/ttsdefault_component.vue',options)), 'Clock': Vue.defineAsyncComponent(() => loadModule('/plugins/clock/frontend/clock_component.vue',options)), 'Asrvosk': Vue.defineAsyncComponent(() => loadModule('/plugins/asrvosk/frontend/asrvosk_component.vue',options)), 'Autocomplete': Vue.defineAsyncComponent(() => loadModule('/plugins/autocomplete/frontend/autocomplete_component.vue',options)), 'Conversation': Vue.defineAsyncComponent(() => loadModule('/plugins/conversation/frontend/conversation_component.vue',options)), 'Autocompletelauncher': Vue.defineAsyncComponent(() => loadModule('/plugins/autocompletelauncher/frontend/autocompletelauncher_component.vue',options)), 'Daily': Vue.defineAsyncComponent(() => loadModule('/plugins/daily/frontend/daily_component.vue',options)), 'Onboarding': Vue.defineAsyncComponent(() => loadModule('/plugins/onboarding/frontend/onboarding_component.vue',options)), 'Flow': Vue.defineAsyncComponent(() => loadModule('/plugins/flow/frontend/flow_component.vue',options))
     },
     template: appTemplate,
     mounted: function () {
       window.addEventListener("pywebviewready", async function () {
         app.pywebviewready = true;
-        console.log("Python is ready!");
+        console.log("Pywebview is ready!");
       });
       // Create a WebSocket connection
       this.websocketUtil = new WebSocket("ws://localhost:9715/app");
@@ -100,29 +101,20 @@ async function initializeApp() {
         this.appview = view;
         window.pywebview.api.change_view(this.lastview,view);
       },
+      maximize(){
+        console.log('MAXIMIZE WINDOW');
+        window.pywebview.api.maximize()
+        this.minimized=false;
+      },
+      minimize(){
+        console.log('MINIMIZE WINDOW');
+        window.pywebview.api.minimize()
+        this.minimized=true;
+      },
       goBack() {
         this.appview = this.lastview;
-      },
-    },
-    /*data: data,
-    methods: {
-      showDaily() {
-        this.daily = true;
-      },
-      minimize() {
-        if (!this.minimized) {
-          pywebview.api.minimize_window();
-          this.minimized = true;
-        }
-      },
-      maximize() {
-        if (this.minimized) {
-          pywebview.api.maximize_window();
-          this.minimized = false;
-        }
-      },
-    },
-    */
+      }
+    }
   });
   console.log("created");
   app.mount("#app");

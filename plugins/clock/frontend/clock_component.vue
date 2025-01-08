@@ -1,6 +1,6 @@
 <template>
     <div class="datetime-plugin">
-        {{ formattedDateTime }} - <a @click="$parent.js_api('minimize')">MIN</a> 
+        {{ formattedDateTime }}
     </div>
 </template>
 
@@ -11,11 +11,18 @@ export default {
         return {
             formattedDateTime: '',
             websocket: null,  // Store WebSocket instance
-            status: 'loading'
+            status: 'loading',
+            intervalId: null
         };
     },
     created() {
         this.updateDateTime();
+        this.intervalId = setInterval(() => {
+            this.updateDateTime();
+        }, 1000); // update every second
+    },
+    beforeUnmount() {
+        clearInterval(this.intervalId);
     },
     methods: {
         updateDateTime() {

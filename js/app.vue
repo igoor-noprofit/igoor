@@ -1,11 +1,16 @@
 <div id="apploading" v-show="appview == 'loading'">
-    <img src="img/logo_small.svg" class="logo_small">
+    <img src="img/igoor_logo.png" alt="Igoor Logo">
+</div>
+<div id="minimized" v-show="minimized" @click="maximize">
+    <button height="80">
+        <img src="img/igoor_eyes.png" />
+    </button>
 </div>
 <div id="hidden">
-    <rag  :appview="appview"></rag>
+    
 </div>
 <div id="topbar">
-    <img src="img/igoor_logo.png" id="igoor_logo">
+    <a @click="minimize()"><img src="img/logo_small.svg" class="logo_small" id="igoor_logo"></a> 
     <elevenlabs  :appview="appview"></elevenlabs><ttsdefault  :appview="appview"></ttsdefault><clock  :appview="appview"></clock>
 </div>
 
