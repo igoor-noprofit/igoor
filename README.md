@@ -24,6 +24,10 @@ See requirements.txt
 
 ## INSTALLATION
 
+### PYTHON VERSION
+
+Currently tested on Python 3.10.6
+
 ### UPGRADE PIP
 ```
 python -m pip install --upgrade pip
@@ -105,11 +109,29 @@ Allowed formats:
 
 If the index folder (IGOOR_FOLDER/plugins/rag/faiss_index) does not exist but the medias folder exist, at startup the plugin will create the index by ingesting all the files in the medias folder.
 
+### EMBEDDING MODELS FOR RAG
+
+Embedding models for RAG are downloaded automatically in their folders inside:
+
+```
+C:\Users\YourUsername\.cache\huggingface\hub
+```
+
 ## LAUNCH
 
 ```
 python main.py
 ```
+
+This launches in a resizable window, with the browser's debug console opened and the python CLI visible.
+
+Use:
+
+```
+igoor.bat
+```
+
+to open a fullscreen window, without CLI and debug console.
 
 ## CREATE AN INSTALLER
 
@@ -119,14 +141,12 @@ The pyinstaller uses igoor.spec
 pyinstaller igoor.spec --noconfirm
 ```
 
-## EMBEDDING MODELS FOR RAG
 
-Embedding models for RAG are downloaded automatically in their folders inside:
-
-C:\Users\YourUsername\.cache\huggingface\hub
 
 
 ## LOGS
-LLM logs are in :
+LLM logs are in the correspondent plugin's folder, ex. :
 
+```
 IGOOR_FOLDER/plugins/memory/
+```
