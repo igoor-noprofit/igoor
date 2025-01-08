@@ -49,6 +49,14 @@ To update requirements:
 pip freeze > requirements.txt
 ```
 
+### ENV
+Rename environment variables:
+
+```
+rename .env-example .env
+```
+
+
 ## USER'S DATA FOLDER
 
 User's data folder is automatically created inside userAppDataFolder (usually C:/Users/YourUsername/AppData/).
