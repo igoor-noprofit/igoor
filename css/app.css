@@ -149,6 +149,10 @@ main {
   min-height: 50px;
   height: auto;
 }
+.autocomplete.plugin .btn-side-left {
+  height: 20vh;
+  width: 120px;
+}
 .autocomplete.plugin .autocomplete_input {
   justify-content: center;
   align-items: center;

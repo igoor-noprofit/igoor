@@ -49,6 +49,8 @@ body {
 @rounded: 10px;
 @conversation_bg: #28373b;
 @header_bg: linear-gradient(to bottom, #182022, #263437);
+
+@header_height: 20vh;
 .rounded {
   border-radius: @rounded;
 }
@@ -95,7 +97,7 @@ footer,
 header {
   background: @header_bg;
   justify-content: space-evenly;
-  height: 20vh;
+  height: @header_height;
   > * {
     /* Target all direct children of header */
     flex: 1; /* Allow each child to fill available space equally */
@@ -179,6 +181,10 @@ footer {
   width: 100%;
   min-height: 50px;
   height: auto;
+  .btn-side-left{
+    height: @header_height;
+    width: 120px;
+  }
   .autocomplete_input {
     justify-content: center;
     align-items: center;
