@@ -136,7 +136,6 @@ module.exports = {
             console.log("sending JSON");
             console.log(json);
             this.sendMsgToBackend(json);
-            this.currentView='main';
             this.answers=[];
         },
         switchToSecondaryView() {

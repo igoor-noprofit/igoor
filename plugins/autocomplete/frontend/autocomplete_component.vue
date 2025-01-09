@@ -1,5 +1,6 @@
 <template>
     <div class="autocomplete plugin" v-show="appview == 'autocomplete'">
+        <button class="btn btn-side btn-side-left" @click="$_backToDaily()"><svg class="icon icon-l"><use xlink:href="/img/svgdefs.svg#icon-chevron_left"/></svg></button>
         <div class="autocomplete_input">
             <input type="text" v-model="userInput" autocomplete="off" name="autocomplete" placeholder="" ref="autocompleteInput">
         </div>
@@ -23,6 +24,11 @@ module.exports = {
         }
     },
     methods: {
+        $_backToDaily(){
+            console.log("back to daily");
+            const json = { action: "backToDaily" };
+            this.sendMsgToBackend(json);
+        },
         focusInputIfNeeded() {
             if (this.appview === 'autocomplete') {
                 this.$nextTick(() => {

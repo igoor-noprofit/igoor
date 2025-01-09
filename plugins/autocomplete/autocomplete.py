@@ -76,6 +76,8 @@ class Autocomplete(Baseplugin):
                         asyncio.create_task(self.pm.trigger_hook(hook_name="add_msg_to_conversation", msg=msg, author="master"))
                     else:
                         print("Speak action is present but msg is empty.")
+                elif action == "backToDaily":
+                    asyncio.create_task(self.send_switch_view_to_app("daily"))
                 elif message_dict.get("msg"):
                     asyncio.create_task(self.pm.trigger_hook(hook_name="reset_conversation_timeout"))
                     input_value = message_dict.get("msg")
@@ -139,18 +141,6 @@ class Autocomplete(Baseplugin):
     def update_status(self, status):
         """This method will be called when the status changes."""
         print(f"Flow plugin received new status: {status}")
-        
-'''
-from pydantic import BaseModel
-from typing import List, Dict
-
-class Answer(BaseModel):
-    emotion: str
-    phrase: str
-
-class Answers(BaseModel):
-    answers: List[Answer]
-'''
 
 class Answers(BaseModel):
     answers: List[str]

@@ -24,5 +24,5 @@
     <daily  :appview="appview"></daily><onboarding  :appview="appview"></onboarding><flow  :appview="appview"></flow>
 </main>
 <footer>
-    
+    <shortcuts  :appview="appview"></shortcuts>
 </footer>

@@ -1,7 +1,6 @@
 
 BUG:
-- continuous JSON parse problems
-- avoid explicating
+- if click on backtodaily AFTER AI call, AI answers will appear
 
 
 - interface: 

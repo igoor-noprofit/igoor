@@ -106,10 +106,9 @@ header {
 }
 main {
   height: 60vh;
-  background: #999;
 }
 footer {
-  height: 20vh;
+  // height: 20vh;
 }
 #hidden {
   display: none;
@@ -764,4 +763,21 @@ button {
 }
 .msg.msg-small {
   font-size: 0.875rem;
+}
+
+/*                      SHORTCUTS
+------------------------------------------------------------------------- */
+.shortcuts {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  padding: 0.5rem;
+  display: flex;
+  background-color: var(--color-bgheader);
+  box-shadow: 0rem -0.125rem 0.375rem 0rem rgba(0, 0, 0, 0.4);
+}
+.shortcuts .btn {
+  width: 100%;
 }
