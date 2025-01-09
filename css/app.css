@@ -64,7 +64,7 @@ main > div,
 footer > div {
   padding: 10px;
 }
-  */
+*/
 header,
 main,
 footer,
@@ -170,19 +170,9 @@ main {
   font-size: 1rem;
   width: 33vw;
 }
-.autocomplete.plugin .autocomplete_send {
-  display: flex;
-  width: 10%;
-}
-.autocomplete.plugin .autocomplete_send button {
-  justify-self: flex-end;
-  width: 100%;
-  background-color: #407d1c;
-  border-radius: 10px;
-  border: none;
-  color: #fff;
-  font-weight: bold;
-  font-size: 1rem;
+.autocomplete.plugin .speak {
+  height: 20vh;
+  width: auto;
 }
 .autocompletelauncher.plugin {
   display: flex;
@@ -615,6 +605,24 @@ button {
 }
 .btn-hilite:hover {
   background-color: var(--color-btn-rollover-warning) !important;
+}
+/*                      ICONS
+------------------------------------------------------------------------- */
+.icon-xs {
+  width: 0.75rem;
+  height: 0.75rem;
+}
+.icon-s {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+.icon-m {
+  width: 2rem;
+  height: 2rem;
+}
+.icon-l {
+  width: 2.5rem;
+  height: 2.5rem;
 }
 /*                      SIDE BUTTONS
 ------------------------------------------------------------------------- */

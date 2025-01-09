@@ -4,9 +4,7 @@
         <div class="autocomplete_input">
             <input type="text" v-model="userInput" autocomplete="off" name="autocomplete" placeholder="" ref="autocompleteInput">
         </div>
-        <div class="autocomplete_send">
-            <button @click="$_speakInput()">PARLER ></button>
-        </div>
+        <button @click="$_speakInput()" class="btn btn-side btn-side-right speak"><svg class="icon icon-l"><use xlink:href="img/svgdefs.svg#icon-talk"></use></svg><h3>parler</h3></button>
     </div>
 </template>
 

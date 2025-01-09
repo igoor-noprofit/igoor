@@ -120,6 +120,7 @@ class Memory(Baseplugin):
         
         if memories_dict.get("facts"):
             for memory in memories_dict["facts"]:  # Use "facts" here
+                # self.check_memory(memory)
                 print(f"storing {memory}")
                 try:
                     result = await self.pm.trigger_hook(hook_name="store_memory", memory=memory)
@@ -128,7 +129,13 @@ class Memory(Baseplugin):
             await self.pm.trigger_hook("save_index")
         end_time = time.time()
         print(f"Time taken for processing: {end_time - start_time} seconds")
-        
+    
+    ''' 
+    Returns TRUE if memory does not exist in RAG, otherwise FALSE 
+    def check_memory(memory):
+        Calls LLM to double check memory before inserting into RAG    
+    '''
+    
     def get_dynamic_context(self):
         return context_manager.get_context()
 
@@ -138,7 +145,7 @@ class Memory(Baseplugin):
         
     def update_status(self, status):
         """This method will be called when the status changes."""
-        print(f"Flow plugin received new status: {status}")
+        print(f"Memory plugin received new status: {status}")
         
     
     def test_queries(self) -> None:

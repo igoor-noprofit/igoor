@@ -55,6 +55,10 @@
                 </div>
                 <div>
                     <label>API Key</label><input type="text" v-model="ai.api_key">
+                    <p>Groq is our default provider. <a href="https://console.groq.com/login" target="_blank">To obtain a FREE api key sign up here</a>
+
+                        <a href="https://groq.com/privacy-policy/">Our default provider privacy policy</a>
+                    </p>
                 </div>
                 <div>
                     <label>Model Name</label><input type="text" v-model="ai.model_name">

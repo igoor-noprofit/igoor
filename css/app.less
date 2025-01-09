@@ -85,11 +85,13 @@ body {
 ;
   align-items: center;
 }
+/*
 header > div,
 main > div,
 footer > div {
   padding: 10px;
 }
+*/
 header,
 main,
 footer,
@@ -202,19 +204,9 @@ footer {
       width: 33vw;
     }
   }
-  .autocomplete_send {
-    display: flex;
-    width: 10%;
-    button {
-      justify-self: flex-end;
-      width: 100%;
-      background-color: @yes_green;
-      .rounded;
-      border: none;
-      color: #fff;
-      font-weight: bold;
-      font-size: 1rem;
-    }
+  .speak{
+    height: @header_height;
+    width: auto;
   }
 }
 .autocompletelauncher.plugin {
@@ -673,6 +665,28 @@ button {
 }
 .btn-hilite:hover {
   background-color: var(--color-btn-rollover-warning) !important;
+}
+
+/*                      ICONS
+------------------------------------------------------------------------- */
+.icon-xs {
+  width: 0.75rem;
+  height: 0.75rem;
+}
+
+.icon-s {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.icon-m {
+  width: 2rem;
+  height: 2rem;
+}
+
+.icon-l {
+  width: 2.5rem;
+  height: 2.5rem;
 }
 
 /*                      SIDE BUTTONS

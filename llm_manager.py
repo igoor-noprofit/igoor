@@ -1,5 +1,5 @@
 from langchain_groq import ChatGroq# Import other chat classes as needed
-import logging,os
+import logging,os,time
 from settings_manager import SettingsManager
 class LLMManager:
     def __init__(self, provider, api_key, model_name, **kwargs):
@@ -66,10 +66,22 @@ class LLMManager:
                     logging.info(f"Invoking without JSON schema")
                     return self.chat_instance.invoke(messages)
                 logging.info(f"Invocation successful. Result: {result}")
+                
             except Exception as e:
                 attempt += 1
-                logging.error(f"Invocation failed on attempt {attempt}: {e}")
-                if attempt >= retries:
-                    logging.error("Max retries reached. Returning the exception.")
-                    return e
-                # Optionally, you could add a delay here before retrying
+                last_exception = e
+                logging.error(f"Invocation failed on attempt {attempt}: {str(e)}")
+                
+                if attempt < retries:
+                    # Add exponential backoff delay
+                    delay = 0.5 ** attempt  # 2, 4, 8 seconds
+                    logging.info(f"Waiting {delay} seconds before retry...")
+                    time.sleep(delay)
+                else:
+                    logging.error("Max retries reached.")
+                    # Return a dictionary with error information instead of the raw exception
+                    return {
+                        "error": True,
+                        "message": str(last_exception),
+                        "type": type(last_exception).__name__
+                    }
