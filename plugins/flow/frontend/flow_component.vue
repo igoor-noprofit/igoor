@@ -1,15 +1,13 @@
 <template>
     <div class="flow container flow-plugin" v-if="answers && answers.length > 0">
-        <div v-if="answers" class="abandon">
-            <input type="button" value="Abandonner" @click="$_abandonConversation(true)">
-        </div>
+        <button v-if="answers" class="btn btn-side btn-side-left abandon" @click="$_abandonConversation(true)">
+            Abandonner la conversation
+        </button>
         <div class="answers">
             <div class="row">
                 <div v-for="(msg, index) in answers" :key="index">
-                    <div :class="['card', { 'fade-out': selectedCard == index }]" @click="$_chooseAnswer(msg, index)">
-                        <div class="card-body">
-                            <p class="card-text">{{ msg }}</p>
-                        </div>
+                    <div :class="['msg', { 'fade-out': selectedCard == index }]" @click="$_chooseAnswer(msg, index)">
+                        {{ msg }}
                     </div>
                 </div>
             </div>
@@ -95,21 +93,9 @@ module.exports = {
     display: flex
 }
 
-.abandon {
-    width: 20%;
-}
-
-.card-title {
-    font-size: 1rem;
-}
 
 .fade-out {
     display: none;
-}
-
-.card-body {
-    padding: 6px;
-    cursor: pointer
 }
 
 .fade-out {

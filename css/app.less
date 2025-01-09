@@ -51,6 +51,8 @@ body {
 @header_bg: linear-gradient(to bottom, #182022, #263437);
 
 @header_height: 20vh;
+@main_height: 60vh;
+@btn-left-width: 120px;
 .rounded {
   border-radius: @rounded;
 }
@@ -107,7 +109,7 @@ header {
   background: @darkest;
 }
 main {
-  height: 60vh;
+  height: @main_height;
 }
 footer {
   // height: 20vh;
@@ -183,7 +185,7 @@ footer {
   height: auto;
   .btn-side-left{
     height: @header_height;
-    width: 120px;
+    width: @btn-left-width;
   }
   .autocomplete_input {
     justify-content: center;
@@ -336,8 +338,10 @@ footer {
     display: flex;
     justify-content: center;
   }
-  .abandon {
-    justify-content: flex-start;
+  .abandon{
+    margin-top: @header_height;
+    text-transform: uppercase;
+    width: @btn-left-width;
   }
   width: 100%;
   input {
@@ -350,19 +354,6 @@ footer {
       background: @phrase_button_bg;
       color: #fff;
       margin-bottom: @phrase_margin_bottom;
-    }
-  }
-  .abandon {
-    min-width: 150px;
-    input {
-      .rounded;
-      height: 100%;
-      background-color: @back_button_bg;
-      color: #fff;
-      padding: 20px;
-      text-transform: uppercase;
-      font-weight: bold;
-      cursor: pointer;
     }
   }
 }

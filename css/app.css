@@ -58,11 +58,13 @@ body {
 ;
   align-items: center;
 }
+/*
 header > div,
 main > div,
 footer > div {
   padding: 10px;
 }
+  */
 header,
 main,
 footer,
@@ -304,7 +306,9 @@ main {
   justify-content: center;
 }
 .flow-plugin .abandon {
-  justify-content: flex-start;
+  margin-top: 20vh;
+  text-transform: uppercase;
+  width: 120px;
 }
 .flow-plugin input {
   color: #fff;
@@ -317,19 +321,6 @@ main {
   background: #216776;
   color: #fff;
   margin-bottom: 20px;
-}
-.flow-plugin .abandon {
-  min-width: 150px;
-}
-.flow-plugin .abandon input {
-  border-radius: 10px;
-  height: 100%;
-  background-color: #1f474f;
-  color: #fff;
-  padding: 20px;
-  text-transform: uppercase;
-  font-weight: bold;
-  cursor: pointer;
 }
 /*************************************************************************
 
