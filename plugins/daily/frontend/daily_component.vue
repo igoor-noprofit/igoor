@@ -34,7 +34,7 @@
                         {{ msg }}
                     </div>
                 </div>
-                <a v-show="appview!=='autocomplete'" class="autocompletelauncher plugin" @click="$_showAutocomplete()">...</a>
+                <!--a v-show="appview!=='autocomplete'" class="autocompletelauncher plugin" @click="$_showAutocomplete()">...</a-->
             </div>
         </div>
     </div>
@@ -150,6 +150,10 @@ module.exports = {
 </script>
 
 <style scoped>
+.answers.secondary{
+    display:flex;
+    justify-content: center;
+}
 .main {
     position: relative;
     z-index: 10;

@@ -288,6 +288,7 @@ main {
   background: #216776;
 }
 .flow-plugin {
+  justify-content: center;
   width: 100%;
 }
 .flow-plugin .abandon,
@@ -311,6 +312,9 @@ main {
   background: #216776;
   color: #fff;
   margin-bottom: 20px;
+}
+.answers .msg {
+  cursor: pointer;
 }
 /*************************************************************************
 

@@ -20,8 +20,7 @@
                 <input type="text" v-model="userInput" autocomplete="off" name="autocomplete" placeholder=""
                     ref="autocompleteInput" :disabled="isLoading || error">
                 <div class="word-suggestions" v-if="wordSuggestions.length">
-                    <button v-for="word in wordSuggestions" :key="word" @click="selectWord(word)"
-                        class="suggestion-btn">
+                    <button class="btn btn-secondary" v-for="word in wordSuggestions" :key="word" @click="selectWord(word)">
                         {{ word }}
                     </button>
                 </div>
@@ -140,9 +139,21 @@ module.exports = {
                 msg: input.trim()
             };
             this.sendMsgToBackend(json);
+        },
+        $_speak(msg) {
+            this.$_clean();
+            const json = { action: "speak", msg: msg };
+            console.log("sending JSON");
+            console.log(json);
+            this.completion = "";
+            this.sendMsgToBackend(json);
+        },
+        $_speakInput() {
+            this.$_speak(this.userInput)
+        },
+        $_clean() {
+            this.userInput = ""; // Force refresh of this.input
         }
-
-        // ... other existing methods ...
     },
     watch: {
         userInput(newInput, oldInput) {
@@ -205,6 +216,10 @@ module.exports = {
 .autocomplete.plugin {
     width: 100%;
 }
+.answers .msg{
+    margin-bottom: 10px;
+}
+
 
 button {
     cursor: pointer;

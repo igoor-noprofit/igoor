@@ -6,13 +6,12 @@
         <div class="answers">
             <div class="row">
                 <div v-for="(msg, index) in answers" :key="index">
-                    <div :class="['msg', { 'fade-out': selectedCard == index }]" @click="$_chooseAnswer(msg, index)">
+                    <div :class="['msg msg-small']" @click="$_chooseAnswer(msg, index)">
                         {{ msg }}
                     </div>
                 </div>
             </div>
         </div>
-        <!--div v-show="waitingai">J'attends d'autres réponses possibles</div-->
     </div>
     <div v-else></div>
 </template>
@@ -76,7 +75,8 @@ module.exports = {
         },
         async $_chooseAnswer(msg, index) {
             let text = msg;
-            this.selectedCard = index;
+            // Remove the selected answer from the array
+            this.answers.splice(index, 1);
             const json = { action: "speak", msg: text };
             console.log("sending JSON");
             console.log(json);
@@ -93,6 +93,9 @@ module.exports = {
     display: flex
 }
 
+.answers .msg{
+    margin-bottom: 10px;
+}
 
 .fade-out {
     display: none;
