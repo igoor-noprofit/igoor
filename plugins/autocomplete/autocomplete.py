@@ -10,6 +10,7 @@ from llm_manager import LLMManager
 import asyncio,json,time
 from pydantic import BaseModel
 from typing import List, Dict
+import numpy as np
 
 PROMPT_TEMPLATE = """
 La personne affectée par la maladie s'appelle {bio_name}. Considère son état actuel pour éviter des prédictions incompatibles avec ses capacités physiques:
@@ -94,7 +95,21 @@ class Autocomplete(Baseplugin):
         except json.JSONDecodeError:
             print("Received message is not valid JSON.")
             return
+    '''
+    async def predict_word(self, input_text: str) -> List[str]:
+        # Get the last word being typed
+        words = input_text.split()
+        current_word = words[-1] if words else ""
         
+        if len(current_word) < 2:  # Only predict for words longer than 1 character
+            return []
+            
+        # Get similar words using FastText
+        similar_words = self.word_model.get_nearest_neighbors(current_word, k=5)
+        # Return just the words, not the scores
+        return [word for score, word in similar_words]   
+    ''' 
+    
     '''
     Receives msg from autocomplete input
     Transmits it to RAG systems

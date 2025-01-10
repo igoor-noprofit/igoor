@@ -24,8 +24,8 @@ Based on Pluggy to handle plugins, Pywebview to display the main Vue app and its
 - js_api.py contains the API to connect python and javascript through pywebview
 
 PLUGINS OVERVIEW
-- asrvosk:ASR via Vosk
-- autocomplete:autocomplete based on LLM predictions
+- asrvosk:speech recognition via Vosk
+- autocomplete:based on LLM predictions
 - conversation:handles current conversation
 - daily:handles user's daily needs
 - elevenlabs:TTS
@@ -38,6 +38,9 @@ FRONTEND
 Main Vue app is js/app_template.vue. App.js contains Vue components dynamically loaded with httpVueLoader.
 Each plugin has a frontend folder with a corresponding Vue component. Vue components are based on js/Baseplugincomponent.js
 I don't use bundlers for the Vue 3 app: I use httpVueLoader to load SFC.
+
+VUE COMPONENTS
+Syntax for internal methods is $_funcname,in order to avoid confusion with global methods.
 
 SIMPLIFIED FOLDER STRUCTURE
 ├── context_manager.py
