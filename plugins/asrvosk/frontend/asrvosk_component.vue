@@ -1,9 +1,13 @@
 <template>
     <div class="asrvosk-plugin">
-        <div class="mic" :class="status">
+        <div class="mic" :class="status" @click="$_handleMicClick">
             <img src="/img/mic.png">
         </div>
-        <!--img v-if="status == 'listening'" src="/img/listening.gif" id="listening"-->
+        <button class="mode-toggle btn btn-small" 
+            :class="{ 'active': continuous }" 
+            @click="$_toggleMode"
+            title="Toggle continuous mode">EN CONTINU
+        </button>
     </div>
 </template>
 <script>
@@ -15,7 +19,8 @@ export default {
     data() {
         return {
             status: 'loading',
-            audio: {}
+            audio: {},
+            continuous: false
         };
     },
     created() {
@@ -27,10 +32,38 @@ export default {
         Object.values(this.audio).forEach(audio => audio.load());
     },
     methods: {
+        $_toggleMode() {
+            this.continuous = !this.continuous;
+            this.sendMsgToBackend({
+                action: 'set_continuous_mode',
+                continuous: this.continuous
+            });
+        },
         handleIncomingMessage(event) {
-            console.log("Received message in asrvosk FRONTEND:", event.data);
-            const data = JSON.parse(event.data);
-            this.status = data.status;
+            // Let the base component try to handle it first
+            const handled = BasePluginComponent.methods.handleIncomingMessage.call(this, event);
+            if (handled) return;
+
+            // Handle component-specific messages
+            try {
+                const data = JSON.parse(event.data);
+                if (data.type === "settings") {
+                    this.settings = data.settings;
+                    console.log('ASRVOSK SETTINGS:', this.settings);
+                    this.continuous = this.settings.continuous || false;
+                }
+                // Add other specific message handling here
+            } catch (e) {
+                console.error("Error parsing message:", e);
+            }
+        },
+        $_handleMicClick() {
+            // Only handle clicks if not in continuous mode
+            if (!this.continuous) {
+                if (this.status === 'listening') {
+                    this.sendMsgToBackend({action:'start_recording'});
+                }
+            }
         }
     },
     watch: {
@@ -44,12 +77,34 @@ export default {
                 this.audio.off.play();
             }
         }
-    },
+    }
 };
 </script>
 <style>
+.asrvosk-plugin{
+    flex-direction: column;
+}
 .mic img {
     max-height: 50px;
     max-width: 50px;
+}
+.mode-toggle {
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 5px;
+    background: #444;
+    transition: all 0.3s ease;
+}
+
+.mode-toggle.active {
+    background: #2196F3;
+    box-shadow: 0 0 10px rgba(33, 150, 243, 0.5);
+}
+
+.mode-toggle span {
+    font-size: 18px;
+    color: white;
 }
 </style>

@@ -175,21 +175,22 @@ class Baseplugin:
             print(f"{target_plugin_name} frontend is not ready")
             
     def process_incoming_message(self, message):
-        """
-        Process the incoming message.
-        
-        :param message: The message received from the WebSocket.
-        """
-        # Implement your message processing logic here
-        print(f"Default processing message for {self.plugin_name}: {message}")
-        
-        # Check if the message is {"socket":"ready"}
         try:
-        # Attempt to parse the message as JSON
             message_dict = json.loads(message)
-        except json.JSONDecodeError:
-                print("Received message is not valid JSON.")
+            
+            if message_dict.get('action') == 'get_settings':
+                settings = self.get_my_settings()
+                self.send_message_to_frontend({
+                    "type": "settings",
+                    "settings": settings
+                })
                 return
+                
+            print(f"Default processing message for {self.plugin_name}: {message}")
+                
+        except json.JSONDecodeError:
+            print("Received message is not valid JSON.")
+            return
             
         # Check if the message is {"socket":"ready"}
         # if message_dict == {"socket": "ready"}:

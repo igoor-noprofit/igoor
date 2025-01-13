@@ -64,10 +64,6 @@ class Asrvosk(Baseplugin):
     
     @hookimpl
     def stop_asr(self):
-        # In the provided code snippet, there is no reference to a variable or function named `pr`. It
-        # seems like `pr` is not defined or used within the context of the code you shared. If you can
-        # provide more information or context about `pr`, I would be happy to help you understand its
-        # purpose or functionality.
         print("Stopping ASR")
         self.stream.stop_stream()
         self.stream.close()
@@ -121,12 +117,6 @@ class Asrvosk(Baseplugin):
         await self.pm.trigger_hook(hook_name="add_msg_to_conversation", msg=following_text, author="def")
         await self.pm.trigger_hook(hook_name="asr_msg", msg="Q: " + following_text)
 
-    def calculate_volume(data):
-        """Calculate the root mean square (RMS) volume of the audio chunk."""
-        audio_data = np.frombuffer(data, dtype=np.int16)  # Convert to numpy array
-        rms = np.sqrt(np.mean(audio_data**2))  # Root Mean Square
-        return rms
-        
     async def start(self):
         if (self.continuous):
             self.wakeword_detected=False
@@ -159,14 +149,62 @@ class Asrvosk(Baseplugin):
             except KeyboardInterrupt:
                 print("\nStopping...")
         else:
-            self.is_paused = True
-            while self.is_paused:
-                print(".")
             await self.send_status("listening")
             self.start_stream()
-            while not self.is_paused:
-                data = self.stream.read(4000, exception_on_overflow=False)
+            while True:
+                if self.recording:
+                    data = self.stream.read(4000, exception_on_overflow=False)
+                    if len(data) == 0:
+                        break
+                    if rec.AcceptWaveform(data):
+                        result = rec.Result()
+                        text = json.loads(result)["text"]
+                        if text:
+                            print(f"Recognized text: {text}")
+                            await self.handle_wake_word(text)
+                            # After processing text, stop recording
+                            self.recording = False
+                            await self.send_status("listening")
+                else:
+                    await asyncio.sleep(0.1)
 
+    def process_incoming_message(self, message):
+        """Extend the base plugin's message handler with ASR-specific actions"""
+        try:
+            data = json.loads(message)
+            if 'action' in data:
+                # Handle ASR-specific actions
+                if data['action'] == 'set_continuous_mode':
+                    self.continuous = data.get('continuous', False)
+                    self.update_my_settings("continuous", self.continuous)
+                    asyncio.create_task(self.restart_with_new_mode())
+                elif not self.continuous:
+                    if data['action'] == 'start_recording':
+                        self.recording = True
+                        asyncio.create_task(self.send_status("recording"))
+                    elif data['action'] == 'stop_recording':
+                        self.recording = False
+                        asyncio.create_task(self.send_status("listening"))
+                else:
+                    # If not an ASR-specific action, let the base plugin handle it
+                    super().process_incoming_message(message)
+        except json.JSONDecodeError:
+            print("Received invalid JSON message")
+
+    def restart_with_new_mode(self):
+        """Restart ASR with the new mode settings"""
+        # Stop current processing
+        self.stream.stop_stream()
+        self.stream.close()
+        self.p.terminate()
+        
+        # Reset states
+        self.recording = False
+        self.wakeword_detected = False
+        
+        # Restart with new mode
+        asyncio.create_task(self.start())
+    
     
     async def test_wake_word(self):
         await self.handle_wake_word("est-ce que tu aimes le gateau de riz?")

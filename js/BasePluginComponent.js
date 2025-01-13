@@ -15,6 +15,11 @@ module.exports = {
         };
     },
     methods: {
+        requestSettings() {
+            this.sendMsgToBackend({
+                action: 'get_settings'
+            });
+        },
         sendMsgToBackend(data, plugin_name = null) {
             const targetUrl = plugin_name 
                 ? `${BASE_WS_URL}${plugin_name}` 
@@ -41,7 +46,20 @@ module.exports = {
             }
         },
         handleIncomingMessage(event) {
-            console.log("Default message receiver. Msg from backend:", event.data);
+            console.log("Base message receiver for plugin " + this.$options.name + ". Msg from backend:", event.data);
+            try {
+                const data = JSON.parse(event.data);
+                // Handle common cases
+                if (data.status === 'ready') {
+                    this.requestSettings();
+                    return true; // Indicate the message was handled
+                }
+                return false; // Indicate the message wasn't handled by base component
+            }
+            catch(e) {
+                console.warn('Error parsing message:', e);
+                return false;
+            }
         }
     },
     created() {

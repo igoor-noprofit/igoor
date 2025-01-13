@@ -36,7 +36,7 @@ const { loadModule, version } = window["vue3-sfc-loader"];
 async function initializeApp() {
   console.log("initializing app");
   const appTemplate = await options.getFile("/js/app.vue");
-  console.log(appTemplate);
+  // console.log(appTemplate);
   app = Vue.createApp({
     data() {
       return {
