@@ -65,6 +65,7 @@ class Baseplugin:
         """
         Update settings for a specific plugin.
         """
+        print(f"{self.plugin_name} Updating {key} to {value}")
         current_settings = self.get_my_settings()
         current_settings[key] = value
         self.settings_manager.update_plugin_settings(self.plugin_name, current_settings)

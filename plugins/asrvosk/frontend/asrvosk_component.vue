@@ -3,9 +3,7 @@
         <div class="mic" :class="[status, { 'clickable': !continuous }]" @click="$_handleMicClick">
             <img src="/img/mic.png">
         </div>
-        <button class="mode-toggle btn btn-small" 
-            :class="{ 'active': continuous }" 
-            @click="$_toggleMode"
+        <button class="mode-toggle btn btn-small" :class="{ 'active': continuous }" @click="$_toggleMode"
             title="Toggle continuous mode">EN CONTINU
         </button>
     </div>
@@ -52,7 +50,7 @@ export default {
                     console.log('ASRVOSK SETTINGS:', this.settings);
                     this.continuous = this.settings.continuous || false;
                 }
-                if (data.status){
+                if (data.status) {
                     this.status = data.status;
                 }
                 // Add other specific message handling here
@@ -64,42 +62,47 @@ export default {
             // Only handle clicks if not in continuous mode
             if (!this.continuous) {
                 if (this.status === 'listening') {
-                    this.sendMsgToBackend({action:'start_recording'});
+                    this.sendMsgToBackend({ action: 'start_recording' });
                 }
-                else{
+                else {
                     console.warn("No action taken because not in listening mode");
                 }
             }
-            else{
+            else {
                 console.warn("Cannot click when not in continuous mode");
             }
         }
     },
     watch: {
         status(newStatus, oldStatus) {
-            if (oldStatus === 'loading' && newStatus === 'listening') {
-                console.log("listening");
-            } else if (oldStatus === 'listening' && newStatus === 'recording') {
-                this.audio.on.play();
-            }
-            else if (oldStatus === 'recording' && newStatus === 'listening') {
-                this.audio.off.play();
+            if (this.continuous) {
+                if (oldStatus === 'loading' && newStatus === 'listening') {
+                    console.log("listening");
+                } else if (oldStatus === 'listening' && newStatus === 'recording') {
+                    this.audio.on.play();
+                }
+                else if (oldStatus === 'recording' && newStatus === 'listening') {
+                    this.audio.off.play();
+                }
             }
         }
     }
 };
 </script>
 <style>
-.asrvosk-plugin{
+.asrvosk-plugin {
     flex-direction: column;
 }
+
 .mic.clickable {
     cursor: pointer;
 }
+
 .mic img {
     max-height: 50px;
     max-width: 50px;
 }
+
 .mode-toggle {
     cursor: pointer;
     display: flex;

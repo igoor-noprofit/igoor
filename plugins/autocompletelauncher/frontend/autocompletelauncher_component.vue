@@ -33,23 +33,7 @@ module.exports = {
                 this.completion = ""; // Clear completion on error
             }
         }
-    },
-    /*
-    watch: {
-        userInput: function (newInput) {
-            if (newInput != '') {
-                clearTimeout(this.inputTimeout); // Clear any existing timeout
-                this.inputTimeout = setTimeout(() => {
-                    const json = { msg: newInput };
-                    this.sendMsgToBackend(json);
-                }, 1500); // Replace 500 with your desired delay in milliseconds
-            }
-            else {
-                this.completion = ""
-            }
-        }
     }
-        */
 };
 </script>
 

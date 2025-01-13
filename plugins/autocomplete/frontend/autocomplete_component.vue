@@ -18,12 +18,7 @@
             <!-- Input and suggestions -->
             <div v-else>
                 <input type="text" v-model="userInput" autocomplete="off" name="autocomplete" placeholder=""
-                    ref="autocompleteInput" :disabled="isLoading || error">
-                <div class="word-suggestions" v-if="wordSuggestions.length">
-                    <button class="btn btn-secondary" v-for="word in wordSuggestions" :key="word" @click="selectWord(word)">
-                        {{ word }}
-                    </button>
-                </div>
+                    ref="autocompleteInput" :disabled="isLoading || error" @focus="$_showKeyboard">
             </div>
         </div>
 
@@ -32,6 +27,41 @@
                 <use xlink:href="img/svgdefs.svg#icon-talk"></use>
             </svg>
             <h3>parler</h3>
+        </button>
+    </div>
+    <div class="keyboard" v-show="showKeyboard && appview == 'autocomplete'">
+        <div class="word-suggestions" v-if="wordSuggestions.length">
+            <button class="btn btn-secondary" v-for="word in wordSuggestions" :key="word" @click="selectWord(word)">
+                {{ word }}
+            </button>
+        </div>
+        <div class="keyboard-row">
+            <button class="btn btn-key btn-key-func" v-for="num in '1234567890'" :key="num" @click="$_typeKey(num)">{{
+                num }}</button>
+        </div>
+        <div class="keyboard-row">
+            <button class="btn btn-key" v-for="letter in 'qwertyuiop'" :key="letter" @click="$_typeKey(letter)">{{
+                letter }}</button>
+        </div>
+        <div class="keyboard-row">
+            <button class="btn btn-key" v-for="letter in 'asdfghjkl'" :key="letter" @click="$_typeKey(letter)">{{ letter
+                }}</button>
+        </div>
+        <div class="keyboard-row">
+            <button class="btn btn-key" v-for="letter in 'zxcvbnm'" :key="letter" @click="$_typeKey(letter)">{{ letter
+                }}</button>
+        </div>
+        <div class="keyboard-row">
+            <button class="btn btn-key btn-key-func" @click="$_typeKey(':')">:</button>
+            <button class="btn btn-key btn-key-func" @click="$_typeKey(',')">,</button>
+            <button class="btn btn-key btn-key-space" @click="$_typeKey(' ')">space</button>
+            <button class="btn btn-key btn-key-func" @click="$_typeKey('!')">!</button>
+            <button class="btn btn-key btn-key-func" @click="$_typeKey('?')">?</button>
+        </div>
+        <button class="btn btn-side btn-side-right btn-side-hilite" @click="$_backspace">
+            <svg class="icon icon-l">
+                <use xlink:href="img/svgdefs.svg#icon-backspace" />
+            </svg>
         </button>
     </div>
 </template>
@@ -50,22 +80,33 @@ module.exports = {
             isLoading: true,
             error: null,
             retryCount: 0,
-            maxRetries: 3
+            maxRetries: 3,
+            showKeyboard: false
         }
     },
     async mounted() {
         await this.loadDictionary();
     },
     methods: {
+        $_showKeyboard() {
+            this.showKeyboard = true;  // Changed from isInputFocused
+        },
+        $_hideKeyboard() {
+            this.showKeyboard = false;  // Changed from isInputFocused
+        },
         $_backToDaily() {
             console.log("back to daily");
             const json = { action: "backToDaily" };
             this.sendMsgToBackend(json);
             this.$_reset();
         },
+        $_focusInput(){
+            this.$refs.autocompleteInput.focus();
+        },
         $_reset() {
             this.wordSuggestions = [];
-            this.userInput = ''
+            this.userInput = '';
+            this.$_hideKeyboard();
         },
         async loadDictionary() {
             this.isLoading = true;
@@ -117,21 +158,18 @@ module.exports = {
                 return [];
             }
         },
-
         selectWord(word) {
             try {
                 const words = this.userInput.split(' ');
                 words[words.length - 1] = word;
                 this.userInput = words.join(' ') + ' ';
-                this.$refs.autocompleteInput.focus();
-
+                this.$_focusInput()
                 // Trigger full sentence prediction when word is selected
                 // this.predictFullSentence(this.userInput);
             } catch (error) {
                 console.error('Error selecting word:', error);
             }
         },
-
         predictFullSentence(input) {
             // Send the entire input to backend for prediction
             const json = {
@@ -139,6 +177,14 @@ module.exports = {
                 msg: input.trim()
             };
             this.sendMsgToBackend(json);
+        },
+        $_typeKey(key) {
+            this.userInput += key;
+            this.$refs.autocompleteInput.focus(); // Keep focus on input
+        },
+        $_backspace() {
+            this.userInput = this.userInput.slice(0, -1);
+            this.$refs.autocompleteInput.focus(); // Keep focus on input
         },
         $_speak(msg) {
             this.$_clean();
@@ -156,6 +202,14 @@ module.exports = {
         }
     },
     watch: {
+        appview(newView,oldView){
+            console.log('oldView ' + oldView + ' newView ' + newView);
+            if (oldView != 'autocomplete' && newView=='autocomplete'){
+                this.$_focusInput();
+                this.$_reset();
+                this.$_showKeyboard();
+            }
+        },
         userInput(newInput, oldInput) {
             // Word suggestions
             if (newInput && !this.isLoading && !this.error) {
@@ -163,11 +217,17 @@ module.exports = {
             } else {
                 this.wordSuggestions = [];
             }
-
             // Full sentence prediction when space is added
             if (newInput.endsWith(' ') && !oldInput.endsWith(' ')) {
                 // Clear any pending timeout
-                this.predictFullSentence(newInput);
+                if (this.predictionTimeout) {
+                    clearTimeout(this.predictionTimeout);
+                }
+
+                // Set new timeout for prediction
+                this.predictionTimeout = setTimeout(() => {
+                    this.predictFullSentence(newInput);
+                }, 500); // Wait 500ms after space to predict
             }
         }
     }
@@ -209,7 +269,8 @@ module.exports = {
 .autocomplete.plugin {
     width: 100%;
 }
-.answers .msg{
+
+.answers .msg {
     margin-bottom: 10px;
 }
 
