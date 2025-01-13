@@ -109,6 +109,9 @@
             }
         },
         "se vêtir": {
+            "pijama":{
+                "fixed": true
+            },
             "habit": {
                 "freq": 0
             },

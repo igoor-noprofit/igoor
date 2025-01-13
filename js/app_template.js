@@ -1,6 +1,7 @@
 var data = {
   pywebviewready: false,
 };
+let app;
 /*
 if ('AmbientLightSensor' in window) {
   alert("Ambient Light Sensor detected");
@@ -36,7 +37,7 @@ async function initializeApp() {
   console.log("initializing app");
   const appTemplate = await options.getFile("/js/app.vue");
   console.log(appTemplate);
-  const app = Vue.createApp({
+  app = Vue.createApp({
     data() {
       return {
         appview: "loading", // Add this line
@@ -118,6 +119,7 @@ async function initializeApp() {
   });
   console.log("created");
   app.mount("#app");
+  console.log(app);
 }
 document.addEventListener("DOMContentLoaded", function () {
   console.log("ready");

@@ -1,0 +1,77 @@
+inconforts:
+    gratter nez:
+        fixed: true
+    gratter cheveux:
+        fixed: true
+    gratter visage:
+        fixed: true
+    changer de position:
+    coussin de confort:
+    oreiller ergonomique:
+    transfert fauteuil:
+    gratter corps:
+    ajuster vêtements:
+    ajuster accessoires:
+    se moucher:
+    essuyer transpiration:
+hygiène:
+    douche:
+        fixed: true
+    dents:
+        fixed: true
+    cheveux:
+        fixed: true
+    peau:
+    ongles:
+    toilette intime:
+    lunettes:
+se nourrir:
+    plat:
+        fixed: true
+    boisson:
+        fixed: true
+    courses:
+    aide à manger:
+se soigner:
+    dormir:
+        fixed: true
+    douleur:
+        fixed: true
+    massage:
+    médecin:
+    médicaments:
+    état de santé:
+    alerte aux soignants:
+se vêtir:
+    pijama:
+        fixed: true
+    habit:
+    manteau:
+    chaussures:
+environnement:
+    chauffage:
+    ventilateur / climatisation:
+    couverture:
+    télévision:
+    fenêtre:
+    stores:
+
+communication:
+    appeler quelqu'un:
+    écrire un message:
+    inviter des amis / famille:
+se divertir:
+    film:
+    spectacles:
+    art:
+    livres:
+    jeux:
+    musique:
+    radio:
+    nature / jardin:
+se déplacer:
+    voiture:
+    taxi:
+    train:
+    voyage:
+        pref: 

@@ -125,7 +125,7 @@ class Asrvosk(Baseplugin):
         """Calculate the root mean square (RMS) volume of the audio chunk."""
         audio_data = np.frombuffer(data, dtype=np.int16)  # Convert to numpy array
         rms = np.sqrt(np.mean(audio_data**2))  # Root Mean Square
-        return rms    
+        return rms
         
     async def start(self):
         if (self.continuous):
