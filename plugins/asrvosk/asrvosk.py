@@ -12,8 +12,11 @@ from vosk import Model, KaldiRecognizer
 class Asrvosk(Baseplugin):
     def __init__(self, plugin_name, pm):
         self.pm = pm
-        self.is_paused=False
-        super().__init__(plugin_name,pm)
+        self.is_paused = False
+        self.recording = False  # Initialize recording state
+        self.is_loaded = False  # Make sure this is initialized
+        self.wakeword_detected = False  # Initialize wakeword state
+        super().__init__(plugin_name, pm)
         
     @hookimpl
     def startup(self):
@@ -73,16 +76,20 @@ class Asrvosk(Baseplugin):
         
     @hookimpl
     def restart_asr(self):
-        self.is_paused = False
-        self.wakeword_detected = True
-        # Check if there's an existing event loop
+        if (self.continuous):
+            self.is_paused = False
+            self.wakeword_detected = True
+            new_status="recording"
+        else:
+            new_status="listening"
+            # Check if there's an existing event loop
         try:
             loop = asyncio.get_running_loop()
             # If there's a running loop, create a task
-            loop.create_task(self.send_status("recording"))
+            loop.create_task(self.send_status(new_status))
         except RuntimeError:
             # If no running loop, use asyncio.run
-            asyncio.run(self.send_status("recording"))
+            asyncio.run(self.send_status(new_status))
     
     def start_stream(self):
         self.p = pyaudio.PyAudio()
@@ -177,7 +184,9 @@ class Asrvosk(Baseplugin):
                 if data['action'] == 'set_continuous_mode':
                     self.continuous = data.get('continuous', False)
                     self.update_my_settings("continuous", self.continuous)
-                    asyncio.create_task(self.restart_with_new_mode())
+                    # Create the task properly with asyncio
+                    loop = asyncio.get_event_loop()
+                    loop.create_task(self.restart_with_new_mode())
                 elif not self.continuous:
                     if data['action'] == 'start_recording':
                         self.recording = True
@@ -191,19 +200,29 @@ class Asrvosk(Baseplugin):
         except json.JSONDecodeError:
             print("Received invalid JSON message")
 
-    def restart_with_new_mode(self):
+    async def restart_with_new_mode(self):
         """Restart ASR with the new mode settings"""
-        # Stop current processing
-        self.stream.stop_stream()
-        self.stream.close()
-        self.p.terminate()
-        
-        # Reset states
-        self.recording = False
-        self.wakeword_detected = False
-        
-        # Restart with new mode
-        asyncio.create_task(self.start())
+        try:
+            # Stop current processing
+            if hasattr(self, 'stream') and self.stream:
+                self.stream.stop_stream()
+                self.stream.close()
+            if hasattr(self, 'p') and self.p:
+                self.p.terminate()
+            
+            # Reset states
+            self.is_paused = False
+            self.recording = False
+            self.wakeword_detected = False
+            
+            # Send status update before restarting
+            await self.send_status("ready")
+            
+            # Restart with new mode
+            await self.start()
+        except Exception as e:
+            print(f"Error during ASR restart: {e}")
+            await self.send_status("error")
     
     
     async def test_wake_word(self):

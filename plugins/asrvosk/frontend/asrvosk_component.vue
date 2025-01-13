@@ -1,6 +1,6 @@
 <template>
     <div class="asrvosk-plugin">
-        <div class="mic" :class="status" @click="$_handleMicClick">
+        <div class="mic" :class="[status, { 'clickable': !continuous }]" @click="$_handleMicClick">
             <img src="/img/mic.png">
         </div>
         <button class="mode-toggle btn btn-small" 
@@ -52,6 +52,9 @@ export default {
                     console.log('ASRVOSK SETTINGS:', this.settings);
                     this.continuous = this.settings.continuous || false;
                 }
+                if (data.status){
+                    this.status = data.status;
+                }
                 // Add other specific message handling here
             } catch (e) {
                 console.error("Error parsing message:", e);
@@ -63,6 +66,12 @@ export default {
                 if (this.status === 'listening') {
                     this.sendMsgToBackend({action:'start_recording'});
                 }
+                else{
+                    console.warn("No action taken because not in listening mode");
+                }
+            }
+            else{
+                console.warn("Cannot click when not in continuous mode");
             }
         }
     },
@@ -83,6 +92,9 @@ export default {
 <style>
 .asrvosk-plugin{
     flex-direction: column;
+}
+.mic.clickable {
+    cursor: pointer;
 }
 .mic img {
     max-height: 50px;

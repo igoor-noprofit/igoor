@@ -126,7 +126,7 @@ module.exports = {
                 this.$refs.autocompleteInput.focus();
 
                 // Trigger full sentence prediction when word is selected
-                this.predictFullSentence(this.userInput);
+                // this.predictFullSentence(this.userInput);
             } catch (error) {
                 console.error('Error selecting word:', error);
             }
@@ -167,14 +167,7 @@ module.exports = {
             // Full sentence prediction when space is added
             if (newInput.endsWith(' ') && !oldInput.endsWith(' ')) {
                 // Clear any pending timeout
-                if (this.predictionTimeout) {
-                    clearTimeout(this.predictionTimeout);
-                }
-
-                // Set new timeout for prediction
-                this.predictionTimeout = setTimeout(() => {
-                    this.predictFullSentence(newInput);
-                }, 500); // Wait 500ms after space to predict
+                this.predictFullSentence(newInput);
             }
         }
     }
