@@ -12,6 +12,7 @@ module.exports = {
     data() {
         return {
             websocket: null,  // Store WebSocket instance
+            error: false
         };
     },
     methods: {
@@ -46,13 +47,27 @@ module.exports = {
             }
         },
         handleIncomingMessage(event) {
-            console.log("Base message receiver for plugin " + this.$options.name + ". Msg from backend:", event.data);
+            console.log("DEFAULT message receiver for plugin " + this.$options.name + ". Msg from backend:", event.data);
             try {
                 const data = JSON.parse(event.data);
+                // Reset error states when receiving non-error messages
+                if (data.type !== 'error') {
+                    this.resetErrorStates();
+                }
                 // Handle common cases
                 if (data.status === 'ready') {
                     this.requestSettings();
                     return true; // Indicate the message was handled
+                }
+                if (data.type === 'error') {
+                    alert('error');
+                    this.error = {
+                        code: data.error_code,
+                        message: data.message,
+                        details: data.details
+                    };
+                    console.error(`${this.$options.name} error:`, data.message);
+                    return true;
                 }
                 return false; // Indicate the message wasn't handled by base component
             }
@@ -60,6 +75,10 @@ module.exports = {
                 console.warn('Error parsing message:', e);
                 return false;
             }
+        },
+        resetErrorStates() {
+            this.error = false;
+            console.log(`Resetting error states for ${this.$options.name}`);
         }
     },
     created() {

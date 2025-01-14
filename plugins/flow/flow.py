@@ -125,18 +125,12 @@ class Flow(Baseplugin):
                 self.send_message_to_frontend(answers.json()) 
             else:
                 print("NO ANSWERS RECEIVED")
-                self.send_message_to_frontend({
-                    "error": True,
-                    "message": "Désolé, je n'ai pas pu générer une réponse"
-                })
+                self.send_error_to_frontend("llm_error")
             end_time = time.time()
             print(f"Time taken for processing: {end_time - start_time} seconds")
         except Exception as e:
             print(f"Unexpected error in asr_msg: {str(e)}")
-            self.send_message_to_frontend({
-                "error": True,
-                "message": "Une erreur inattendue s'est produite"
-            })
+            self.send_error_to_frontend("llm_error",e)
         
     def get_dynamic_context(self):
         return context_manager.get_context()

@@ -1,5 +1,5 @@
 <template>
-    <div class="daily container daily-plugin main" v-if="appview == 'daily'">
+    <div class="daily container daily-plugin main" :class="{'plugin-error': error}" v-if="appview == 'daily'">
         <!-- Back Arrow -->
         <div v-if="currentView === 'main'" class="options">
             <div v-for="(category, index) in mainCategories" :key="index" class="options-col">
@@ -80,7 +80,9 @@ module.exports = {
             }
         },
         handleIncomingMessage(event) {
-            console.log('DAILY receiving message');
+            const handled = BasePluginComponent.methods.handleIncomingMessage.call(this, event);
+            if (handled) return true;
+            console.log(this.$options.name + ' handling message');
             try {
                 console.log(event.data);
                 const data = JSON.parse(event.data);

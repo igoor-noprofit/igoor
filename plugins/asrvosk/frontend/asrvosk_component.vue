@@ -18,7 +18,8 @@ export default {
         return {
             status: 'loading',
             audio: {},
-            continuous: false
+            continuous: false,
+            keyboardShortcut: 'F4'  // You can change this to any key you prefer
         };
     },
     created() {
@@ -29,7 +30,21 @@ export default {
         // Preload all audio files
         Object.values(this.audio).forEach(audio => audio.load());
     },
+    mounted() {
+        // Add keyboard event listener when component is mounted
+        window.addEventListener('keydown', this.$_handleKeyPress);
+    },
+    beforeDestroy() {
+        // Clean up event listener when component is destroyed
+        window.removeEventListener('keydown', this.$_handleKeyPress);
+    },
     methods: {
+        $_handleKeyPress(event) {
+            // Check if the pressed key matches our shortcut
+            if (event.key === this.keyboardShortcut) {
+                this.$_handleMicClick();
+            }
+        },
         $_toggleMode() {
             this.continuous = !this.continuous;
             this.sendMsgToBackend({

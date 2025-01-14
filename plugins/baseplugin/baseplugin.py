@@ -148,7 +148,37 @@ class Baseplugin:
         :param message: The message to be sent.
         """
         success = await self.wait_for_socket_and_send(message, 'app')
-        return success 
+        return success
+    
+    def send_error_to_frontend(self,error_code,error="",plugin_name=None): 
+        target_plugin_name = plugin_name or self.plugin_name
+        """
+        Wrapper that sends an error message to the frontend.
+
+        :param error: The error message or exception to be sent
+        :param error_code: A specific code to identify the type of error (e.g., 'llm_error', 'file_not_found', etc.)
+        :param plugin_name: (Optional) The plugin name to send the message to. If not provided, uses self.plugin_name
+        """
+        # Get the string representation of the error for user display
+        error_message = str(error)
+        
+        # If it's an exception, get the full traceback
+        if isinstance(error, Exception):
+            import traceback
+            detailed_error = ''.join(traceback.format_exception(type(error), error, error.__traceback__))
+        else:
+            detailed_error = error_message
+        
+        # Create error payload
+        error_data = {
+            "type": "error",
+            "error_code": error_code,
+            "message": error_message,     # User-friendly message
+            "details": detailed_error     # Complete error information
+        }
+        
+        # Send using existing message sending method
+        self.send_message_to_frontend(error_data, target_plugin_name)
             
     def send_message_to_frontend(self, message, plugin_name=None):
         """

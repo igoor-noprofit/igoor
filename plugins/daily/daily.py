@@ -125,18 +125,23 @@ class Daily(Baseplugin):
         dynamic_context = dynamic_context
         prompt = pm.create_prompt(bio_name=bio_name,health_state=health_state,static_context=static_context, dynamic_context=dynamic_context, category=category,theme=theme, tags="",log_folder=self.plugin_folder)       
         print(f"FINAL PROMPT : {prompt}")
-        llm = LLMManager(self.settings.get("provider"), self.settings.get("api_key"), self.settings.get("model_name"))
-        llm.set_json_schema(Answers)
-        answers = llm.invoke(system_prompt,prompt)
-        print(f"TYPE = {type(answers)}, ANSWERS: {answers}")
-        answers_dict = answers.dict()
-        if answers_dict.get("answers"):
-            self.send_message_to_frontend(answers.json()) 
-        else:
-            print("NO ANSWERS RECEIVED")
-        end_time = time.time()
-        print(f"Time taken for processing: {end_time - start_time} seconds")    
-        
+        try:
+            llm = LLMManager(self.settings.get("provider"), self.settings.get("api_key"), self.settings.get("model_name"))
+            llm.set_json_schema(Answers)
+            answers = llm.invoke(system_prompt,prompt)
+            print(f"TYPE = {type(answers)}, ANSWERS: {answers}")
+            answers_dict = answers.dict()
+            if answers_dict.get("answers"):
+                self.send_message_to_frontend(answers.json()) 
+            else:
+                print("NO ANSWERS RECEIVED")
+                self.send_error_to_frontend("llm_error")
+            end_time = time.time()
+            print(f"Time taken for processing: {end_time - start_time} seconds")    
+        except Exception as e:
+            print(f"Unexpected error in asr_msg: {str(e)}")
+            self.send_error_to_frontend("llm_error",e)
+            
     def get_dynamic_context(self):
         return context_manager.get_context()
 
