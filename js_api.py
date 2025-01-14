@@ -6,10 +6,14 @@ context_manager = ContextManager()
 from plugin_manager import PluginManager
 plugin_manager = PluginManager()
 from settings_manager import SettingsManager
+import os,time
 
 class Api:
     def __init__(self):
         print("INIT API")
+        self.was_fullscreen = os.getenv('IGOOR_FULLSCREEN', 'False').lower() == 'true'
+        self.initial_width = 1920  # Or your preferred default width
+        self.initial_height = 1080  # Or your preferred default height
         
     def get_plugins_by_category(self):
         print("Fetching plugins by category")
@@ -26,8 +30,13 @@ class Api:
             return plugin_manager.activate_plugin(plugin_name=pn)
 
     def minimize(self):
-        print("Minimizing window")
+        print("MIN window")
         window = webview.windows[0]
+        # Exit fullscreen if needed
+        if window.fullscreen:
+            window.toggle_fullscreen()
+            # Add a small delay to ensure fullscreen exit completes
+            time.sleep(0.1)
         window_x = 0
         window_y = 0  # Y position
         print(f"Moving to {window_x},{window_y}")
@@ -36,10 +45,20 @@ class Api:
         window.on_top = True  # 
 
     def maximize(self):
-        print("MAX window")
-        window = webview.windows[0]
-        window.on_top = False  # Disable on_top when maximizing
-        window.toggle_fullscreen()  # Th
+        try:
+            print("MAX window")
+            window = webview.windows[0]
+            window.on_top = False  # Disable on_top when maximizing
+            # First restore to normal size
+            window.resize(self.initial_width, self.initial_height)
+            time.sleep(0.1)
+
+            # If it was fullscreen before or should be fullscreen by default
+            if self.was_fullscreen:
+                window.toggle_fullscreen()
+        except Exception as e:
+            print(f"Error during maximize: {e}")
+        
     
     def change_view(self,lastview,currentview):
         asyncio.run(self.trigger_hook("change_view",lastview=lastview,currentview=currentview))

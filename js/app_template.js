@@ -76,6 +76,9 @@ async function initializeApp() {
           if (message.switchview && message.switchview != ''){
             this.changeView(message.switchview)
           }
+          if (message.minimize){
+            this.minimize();
+          }
         } catch (error) {
           console.error("Error parsing WebSocket message:", error);
         }
@@ -106,11 +109,13 @@ async function initializeApp() {
         console.log('MAXIMIZE WINDOW');
         window.pywebview.api.maximize()
         this.minimized=false;
+        console.log('MINIMIZED='+this.minimized);
       },
       minimize(){
         console.log('MINIMIZE WINDOW');
         window.pywebview.api.minimize()
         this.minimized=true;
+        console.log('MINIMIZED='+this.minimized);
       },
       goBack() {
         this.appview = this.lastview;

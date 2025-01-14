@@ -1,6 +1,10 @@
-@echo off
+@echo on
+echo Starting IGOOR...
+echo Activating virtual environment...
 call venv\scripts\activate
-set PYTHONW=1
+echo Setting environment variables...
 set "IGOOR_FULLSCREEN=True"
-set "IGOOR_DEBUG=False"
-start /B pythonw main.py
+set "IGOOR_DEBUG=True"
+echo Starting application...
+python main.py
+pause

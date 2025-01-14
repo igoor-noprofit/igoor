@@ -1,8 +1,5 @@
 <template>
     <div class="flow container flow-plugin" :class="{'plugin-error': error}" v-if="answers && answers.length > 0 && appview != 'daily'">
-        <div v-if="error">
-            Une erreur s'est vérifiée avec l'IA.
-        </div>
         <button v-if="answers" :class="['btn', 'btn-side', 'btn-side-left', 'abandon', appview == 'autocomplete' ? 'autocomplete' : '']" @click="$_abandonConversation(true)">
             Abandonner la conversation
         </button>
