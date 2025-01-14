@@ -44,6 +44,7 @@ signal.signal(signal.SIGINT, signal_handler)
 # VARS HERE
 IGOOR_DEBUG = os.getenv('IGOOR_DEBUG', 'False') 
 IGOOR_CLI = os.getenv('IGOOR_CLI', 'False') 
+IGOOR_ONTOP = os.getenv('IGOOR_ONTOP', 'False') 
 IGOOR_OUTPUT_HTML = os.getenv('IGOOR_OUTPUT_HTML', 'False') 
 
 def load_settings():
@@ -178,8 +179,9 @@ def on_loaded():
 def start_webview():
     try:
         fullscreen = os.getenv('IGOOR_FULLSCREEN', 'False').lower() == 'true'
+        on_top = os.getenv('IGOOR_ONTOP', 'False').lower() == 'true'
         window = webview.create_window("IGOOR", "index.html", js_api=Api(), 
-                                        resizable=True, fullscreen=fullscreen)
+                                        resizable=True, fullscreen=fullscreen,on_top=on_top)
         window.events.loaded += on_loaded
         webview.start(debug=IGOOR_DEBUG.lower() == 'true')
     except KeyboardInterrupt:

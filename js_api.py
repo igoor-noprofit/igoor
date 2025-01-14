@@ -48,7 +48,7 @@ class Api:
         try:
             print("MAX window")
             window = webview.windows[0]
-            window.on_top = False  # Disable on_top when maximizing
+            window.on_top = True  
             # First restore to normal size
             window.resize(self.initial_width, self.initial_height)
             time.sleep(0.1)
