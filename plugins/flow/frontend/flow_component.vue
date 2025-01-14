@@ -1,5 +1,8 @@
 <template>
-    <div class="flow container flow-plugin" v-if="answers && answers.length > 0 && appview != 'daily'">
+    <div class="flow container flow-plugin" :class="{'plugin-error': error}" v-if="answers && answers.length > 0 && appview != 'daily'">
+        <div v-if="error">
+            Une erreur s'est vérifiée avec l'IA.
+        </div>
         <button v-if="answers" :class="['btn', 'btn-side', 'btn-side-left', 'abandon', appview == 'autocomplete' ? 'autocomplete' : '']" @click="$_abandonConversation(true)">
             Abandonner la conversation
         </button>
@@ -45,7 +48,9 @@ module.exports = {
             this.answers = []
         },
         handleIncomingMessage(event) {
-            console.log("FLOW component:", event.data);
+            const handled = BasePluginComponent.methods.handleIncomingMessage.call(this, event);
+            if (handled) return true;
+            console.log(this.$options.name + ' handling message');
             let data; // Declare the variable 'data'
             try {
                 data = JSON.parse(event.data);

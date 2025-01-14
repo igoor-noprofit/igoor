@@ -98,6 +98,14 @@ class Conversation(Baseplugin):
         conv = await self.get_conversation(format="raw")
         context_manager.update_context("conversation", conv)
         # self.reset_timeout()
+        
+    @hookimpl
+    async def remove_last_msg(self) -> None:
+        if self.thread and self.conversation_is_open:
+            self.thread.pop()
+            conv = await self.get_conversation(format="raw")
+            context_manager.update_context("conversation", conv)
+            self.send_message_to_frontend({"action": "removeLastMessage"})
     
     @hookimpl
     async def delete_conversation(self):

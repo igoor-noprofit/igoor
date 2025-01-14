@@ -55,8 +55,8 @@ export default {
         handleIncomingMessage(event) {
             // Let the base component try to handle it first
             const handled = BasePluginComponent.methods.handleIncomingMessage.call(this, event);
-            if (handled) return;
-
+            if (handled) return true;
+            console.log(this.$options.name + ' handling message');
             // Handle component-specific messages
             try {
                 const data = JSON.parse(event.data);

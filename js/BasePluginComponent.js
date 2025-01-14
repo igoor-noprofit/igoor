@@ -60,7 +60,6 @@ module.exports = {
                     return true; // Indicate the message was handled
                 }
                 if (data.type === 'error') {
-                    alert('error');
                     this.error = {
                         code: data.error_code,
                         message: data.message,
