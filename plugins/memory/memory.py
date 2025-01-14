@@ -13,12 +13,18 @@ from pydantic import BaseModel
 from typing import List
 
 MEMORY_SYSTEM_PROMPT= """
-Tu recevras une conversation à analyser.Dans la conversation, Q: est l'interlocuteur, R: est l'utilisateur (nommé Igor). Extrais toutes les informations pertinentes sur l'utilisateur, sa famille, ses amis, ses préférences (alimentaires, politiques,artistiques etc.),les souvenirs de sa vie. 
+Tu recevras une conversation à analyser.Dans la conversation, Q: est l'interlocuteur, R: est l'utilisateur (nommé {bio_name}). Extrais toutes les informations pertinentes de long terme sur l'utilisateur,sa famille,ses amis,ses préférences(alimentaires,politiques,artistiques etc.),les souvenirs de sa vie.
 Voici quelques exemples de prompt et de output JSON demandé:
 
 ----
 Input: Q: Il fait beau aujourd'hui. R: Absolument.
 Output: {{"facts" : []}}
+
+Input: Q: T'as froid? R: Oui.
+Output: {{"facts" : []}}
+
+Input: R: Tu peux fermer la fenetre?Tu sais que je suis frileux. Q: No problem!
+Output: {{"facts" : ["{bio_name} est frileux"]}}
 
 Input: Q: Tu as soif ? R: Oui. Q: Tu veux de l’eau ? R: Avec plaisir.
 Output: {{"facts" : []}}
@@ -70,7 +76,10 @@ class Memory(Baseplugin):
         super().__init__(plugin_name,pm)
         self.global_settings = SettingsManager();
         self.settings = self.get_my_settings()
+        bio = self.global_settings.get_bio()
+        self.bio_name = bio.get("name")
         self.is_loaded = True
+        
     
     @hookimpl
     def startup(self):
@@ -109,7 +118,7 @@ class Memory(Baseplugin):
         system_prompt = MEMORY_SYSTEM_PROMPT
         print(f"SYSTEM PROMPT IS : {system_prompt}")   
         pm = PromptManager(template=PROMPT_TEMPLATE)
-        prompt = pm.create_prompt(static_context=static_context, conversation=conversation)       
+        prompt = pm.create_prompt(static_context=static_context, conversation=conversation, bio_name=self.bio_name)       
         print(f"FINAL MEMORY PROMPT : {prompt}")
         llm = LLMManager(self.settings.get("provider"), self.settings.get("api_key"), self.settings.get("model_name"),log_folder=self.plugin_folder)
         llm.set_json_schema(Facts)
