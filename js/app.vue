@@ -7,11 +7,11 @@
     </button>
 </div>
 <div id="hidden">
-    
+    <rag  :appview="appview"></rag>
 </div>
 <div id="topbar">
     <a @click="minimize()"><img src="img/logo_small.svg" class="logo_small" id="igoor_logo"></a> 
-    <elevenlabs  :appview="appview"></elevenlabs><ttsdefault  :appview="appview"></ttsdefault><clock  :appview="appview"></clock>
+    <elevenlabs  :appview="appview"></elevenlabs><ttsdefault  :appview="appview"></ttsdefault><clock  :appview="appview"></clock><meteo  :appview="appview"></meteo><ramcpu  :appview="appview"></ramcpu>
 </div>
 
 <header v-show="appview !== 'onboarding'">
@@ -21,7 +21,7 @@
     <autocompletelauncher @show-autocomplete="showAutocomplete" :appview="appview"></autocompletelauncher>
 </div>
 <main>
-    <daily  :appview="appview"></daily><onboarding  :appview="appview"></onboarding><flow  :appview="appview"></flow>
+    <daily  :appview="appview"></daily><onboarding  :appview="appview"></onboarding><flow  :appview="appview"></flow><memory  :appview="appview"></memory>
 </main>
 <footer>
     <shortcuts  :appview="appview"></shortcuts>
