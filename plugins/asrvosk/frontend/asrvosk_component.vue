@@ -45,7 +45,9 @@ export default {
                 this.$_handleMicClick();
             }
         },
+        /* DOESN'T WORK ON SECOND TOGGLE */
         $_toggleMode() {
+            return false;
             this.continuous = !this.continuous;
             this.sendMsgToBackend({
                 action: 'set_continuous_mode',

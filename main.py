@@ -54,7 +54,8 @@ def load_settings():
 
 def load_frontend_components():
     '''
-    Sort of webpack that constructs the final HTML based on the Vue components from the active plugins 
+    Sort of webpack that constructs the final HTML frontend,
+    based on the Vue components from the active plugins 
     '''
     # active_plugins = ["flow","asrvosk","rag"]
     # exclude_plugins = ["ramcpu","clock","elevenlabs","meteo"]

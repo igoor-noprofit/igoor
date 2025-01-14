@@ -6,8 +6,8 @@ call venv\scripts\activate
 :loop
 echo Setting environment variables...
 set "IGOOR_FULLSCREEN=True"
-set "IGOOR_DEBUG=True"
-set "IGOOR_ONTOP=True"
+set "IGOOR_DEBUG=False"
+set "IGOOR_ONTOP=False"
 
 echo Starting application...
 :: Launch PowerShell to minimize the window after a brief delay
