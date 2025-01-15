@@ -1,5 +1,5 @@
 <template>
-    <div class="datetime-plugin">
+    <div class="clock-plugin">
         {{ formattedDateTime }}
     </div>
 </template>
@@ -40,7 +40,8 @@ export default {
 </script>
 
 <style scoped>
-.datetime-plugin {
+.clock-plugin {
     color: #fff;
+    font-size: 0.8rem;
 }
 </style>

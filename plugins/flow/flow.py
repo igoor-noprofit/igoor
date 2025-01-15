@@ -16,14 +16,23 @@ La personne affectée par la maladie s'appelle {bio_name}. Considère son état 
 
 {health_state}
 
+---
 Pour répondre tu peux utiliser le contexte statique extrait des documents sur la vie de {bio_name}:
 
 {static_context}
 
 ---
-Si besoin utilises aussi les infos du contexte dynamique suivant :
+Si besoin utilises aussi les infos du contexte dynamique suivant:
 
 {dynamic_context}
+
+---
+Prends en considération le style expressif de {bio_name}:
+
+{bio_style}
+
+Propose des réponses influencés par le style dans la mesure de: {bio_style_weight}.
+
 ---
 Réponds en utilisant aussi les contextes ci-dessus à la dernière question de cette conversation: {conversation}
 """
@@ -37,6 +46,9 @@ class Flow(Baseplugin):
         self.settings = self.get_my_settings()
         bio = self.global_settings.get_bio()
         self.bio_name = bio.get("name")
+        self.bio_style=bio.get("style")
+        self.bio_style_weight=bio.get("style_weight")
+        self.health_state=bio.get("health_state")
         self.is_loaded = True
     
     @hookimpl
@@ -98,8 +110,6 @@ class Flow(Baseplugin):
     '''
     @hookimpl
     async def asr_msg(self, msg: str) -> None:
-        health_state=self.global_settings.get_health_state()
-        bio_name=self.bio_name
         start_time = time.time()
         dynamic_context = self.get_dynamic_context().copy()
         print(f"DYNAMIC CONTEXT IS {dynamic_context}")
@@ -113,7 +123,7 @@ class Flow(Baseplugin):
         # print(f"SYSTEM PROMPT IS : {system_prompt}")   
         pm = PromptManager(template=PROMPT_TEMPLATE)
         dynamic_context = dynamic_context
-        prompt = pm.create_prompt(bio_name=bio_name,health_state=health_state,static_context=static_context, dynamic_context=dynamic_context, conversation=conversation,log_folder=self.plugin_folder)       
+        prompt = pm.create_prompt(bio_name=self.bio_name,bio_style=self.bio_style,bio_style_weight=self.bio_style_weight,health_state=self.health_state,static_context=static_context, dynamic_context=dynamic_context, conversation=conversation,log_folder=self.plugin_folder)       
         print(f"FINAL PROMPT : {prompt}")
         try:
             llm = LLMManager(self.settings.get("provider"), self.settings.get("api_key"), self.settings.get("model_name"))

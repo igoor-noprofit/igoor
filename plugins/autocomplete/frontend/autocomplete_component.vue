@@ -17,8 +17,8 @@
 
             <!-- Input and suggestions -->
             <div v-else>
-                <input type="text" v-model="userInput" autocomplete="off" spellcheck="true" name="autocomplete" placeholder=""
-                    ref="autocompleteInput" :disabled="isLoading || error" @focus="$_showKeyboard">
+                <input type="text" v-model="userInput" autocomplete="off" spellcheck="true" name="autocomplete"
+                    placeholder="" ref="autocompleteInput" :disabled="isLoading || error" @focus="$_showKeyboard">
             </div>
         </div>
 
@@ -29,7 +29,19 @@
             <h3>parler</h3>
         </button>
     </div>
+    <!------------------------------ VIRTUAL KEYBOARD ------------------------>
     <div class="keyboard" v-show="showKeyboard && appview == 'autocomplete'">
+        <button class="btn btn-side btn-side-left btn-side-hilite" @click="$_deleteLastWord" style="color: white;">
+            <svg class="icon icon-l" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+                <g fill="none" stroke="#ffffff">
+                    <path
+                        d="M33.3 10a1.7 1.7 0 0 1 1.7 1.7v16.6a1.7 1.7 0 0 1-1.7 1.7H15l-8.3-8.3a2.5 2.5 0 0 1 0-3.4L15 10h18.3Z"
+                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                    <text x="20" y="23" font-size="10" stroke="none" fill="#ffffff" text-anchor="middle"
+                        style="font-family: sans-serif; font-weight: bold;">ABC</text>
+                </g>
+            </svg>
+        </button>
         <div class="word-suggestions" v-if="wordSuggestions.length">
             <button class="btn btn-secondary" v-for="word in wordSuggestions" :key="word" @click="selectWord(word)">
                 {{ word }}
@@ -40,24 +52,26 @@
                 num }}</button>
         </div>
         <div class="keyboard-row">
-            <button class="btn btn-key" v-for="letter in 'qwertyuiop'" :key="letter" @click="$_typeKey(letter)">{{
+            <button class="btn btn-key" v-for="letter in 'azertyuiop'" :key="letter" @click="$_typeKey(letter)">{{
                 letter }}</button>
         </div>
         <div class="keyboard-row">
-            <button class="btn btn-key" v-for="letter in 'asdfghjkl'" :key="letter" @click="$_typeKey(letter)">{{ letter
+            <button class="btn btn-key" v-for="letter in 'qsdfghjklm'" :key="letter" @click="$_typeKey(letter)">{{
+                letter
                 }}</button>
         </div>
         <div class="keyboard-row">
-            <button class="btn btn-key" v-for="letter in 'zxcvbnm'" :key="letter" @click="$_typeKey(letter)">{{ letter
+            <button class="btn btn-key" v-for="letter in 'wxcvbn'" :key="letter" @click="$_typeKey(letter)">{{ letter
                 }}</button>
         </div>
         <div class="keyboard-row">
             <button class="btn btn-key btn-key-func" @click="$_typeKey(':')">:</button>
             <button class="btn btn-key btn-key-func" @click="$_typeKey(',')">,</button>
-            <button class="btn btn-key btn-key-space" @click="$_typeKey(' ')">space</button>
+            <button class="btn btn-key btn-key-space" @click="$_typeKey(' ')">espace</button>
             <button class="btn btn-key btn-key-func" @click="$_typeKey('!')">!</button>
             <button class="btn btn-key btn-key-func" @click="$_typeKey('?')">?</button>
         </div>
+
         <button class="btn btn-side btn-side-right btn-side-hilite" @click="$_backspace">
             <svg class="icon icon-l">
                 <use xlink:href="img/svgdefs.svg#icon-backspace" />
@@ -100,7 +114,7 @@ module.exports = {
             this.sendMsgToBackend(json);
             this.$_reset();
         },
-        $_focusInput(){
+        $_focusInput() {
             this.$refs.autocompleteInput.focus();
         },
         $_reset() {
@@ -132,7 +146,16 @@ module.exports = {
                 }
             }
         },
-
+        $_deleteLastWord() {
+            const words = this.userInput.trim().split(' ');
+            if (words.length > 0) {
+                words.pop(); // Remove the last word
+                this.userInput = words.join(' ');
+                if (this.userInput) {
+                    this.userInput += ' '; // Add space if there are remaining words
+                }
+            }
+        },
         handleError(error) {
             if (error.name === 'TypeError' && !navigator.onLine) {
                 return "Pas de connexion internet. Vérifiez votre connexion.";
@@ -202,9 +225,9 @@ module.exports = {
         }
     },
     watch: {
-        appview(newView,oldView){
+        appview(newView, oldView) {
             console.log('oldView ' + oldView + ' newView ' + newView);
-            if (oldView != 'autocomplete' && newView=='autocomplete'){
+            if (oldView != 'autocomplete' && newView == 'autocomplete') {
                 this.$_focusInput();
                 this.$_reset();
                 this.$_showKeyboard();

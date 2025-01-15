@@ -1,7 +1,7 @@
 {
     "active": false,
     "category": "context",
-    "title": "Weather",
+    "title": "Weather without API KEY - ONLY BIG CITIES",
     "layout": {
         "part": "topbar",
         "order": 50

@@ -3,7 +3,7 @@
         <div class="mic" :class="[status, { 'clickable': !continuous }]" @click="$_handleMicClick">
             <img src="/img/mic.png">
         </div>
-        <button class="mode-toggle btn btn-small" :class="{ 'active': continuous }" @click="$_toggleMode"
+        <button v-show="continuous" class="mode-toggle btn btn-small" :class="{ 'active': continuous }" @click="$_toggleMode"
             title="Toggle continuous mode">EN CONTINU
         </button>
     </div>
@@ -113,6 +113,7 @@ export default {
 
 .mic.clickable {
     cursor: pointer;
+    margin-top: 20px;
 }
 
 .mic img {

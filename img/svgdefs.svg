@@ -20,7 +20,6 @@
     <symbol id="icon-more" viewBox="0 0 24 24"><path d="M4 12a1 1 0 1 0 2 0 1 1 0 0 0-2 0ZM11 12a1 1 0 1 0 2 0 1 1 0 0 0-2 0ZM18 12a1 1 0 1 0 2 0 1 1 0 0 0-2 0Z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
 
     <symbol id="icon-backspace" viewBox="0 0 40 40"><path d="m20 16.7 6.7 6.6m0-6.6L20 23.3M33.3 10a1.7 1.7 0 0 1 1.7 1.7v16.6a1.7 1.7 0 0 1-1.7 1.7H15l-8.3-8.3a2.5 2.5 0 0 1 0-3.4L15 10h18.3Z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
-
     <symbol id="icon-dropdown" viewBox="0 0 24 24"><path d="M18 9a1 1 0 0 1 .8 1.6v.1l-6 6a1 1 0 0 1-1.4 0h-.1l-6-6-.1-.2H5V10.1L5 10v-.5l.2-.1v-.2h.2v-.1l.2-.1h.2L6 9H18Z" /></symbol>
 
     <symbol id="icon-keyboard" viewBox="0 0 40 40"><path d="M10 16.7v0m6.7 0v0m6.6 0v0m6.7 0v0m-20 6.6v0m20 0v0m-13.3 0h6.6m-20-10A3.3 3.3 0 0 1 6.7 10h26.6a3.3 3.3 0 0 1 3.4 3.3v13.4a3.3 3.3 0 0 1-3.4 3.3H6.7a3.3 3.3 0 0 1-3.4-3.3V13.3Z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
