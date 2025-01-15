@@ -17,7 +17,7 @@
 
             <!-- Input and suggestions -->
             <div v-else>
-                <input type="text" v-model="userInput" autocomplete="off" name="autocomplete" placeholder=""
+                <input type="text" v-model="userInput" autocomplete="off" spellcheck="true" name="autocomplete" placeholder=""
                     ref="autocompleteInput" :disabled="isLoading || error" @focus="$_showKeyboard">
             </div>
         </div>

@@ -1,4 +1,6 @@
-IGOOR is a Python desktop conversational app to provide people with neurodegenerative diseases a smooth and natural means of communication.
+IGOOR is a free/libre Python desktop conversational app to provide people with neurodegenerative diseases a smooth and natural means of communication.
+
+REQUIREMENTS: Currently Windows 10/11.
 
 BACKEND
 Based on Pluggy to handle plugins, Pywebview to display the main Vue app and its frontend.
@@ -16,11 +18,11 @@ Based on Pluggy to handle plugins, Pywebview to display the main Vue app and its
         "elevenlabs": {
             "voice_id": "...",
             "api_key": "..."
-- llm_manager.py handles calls to external LLMs,supporting JSON answers via pydantic
+- llm_manager.py handles calls to external LLMs,supporting JSON answers via pydantic and using langchain
 - status_manager.py is a singleton sharing infos with the plugins about the app(status,etc.)
 - js_api.py contains the API to connect python and javascript through pywebview
 
-PLUGINS OVERVIEW
+MOST IMPORTANT PLUGINS OVERVIEW
 - asrvosk:speech recognition via Vosk (supports continuous listening or on click listening)
 - autocomplete:based on LLM predictions
 - conversation:handles current conversation
@@ -34,7 +36,7 @@ PLUGINS OVERVIEW
 FRONTEND
 Main Vue app is js/app_template.vue. App.js contains Vue components dynamically loaded with httpVueLoader.
 Each plugin has a frontend folder with a corresponding Vue component. Vue components are based on js/Baseplugincomponent.js
-I don't use bundlers for the Vue 3 app: I use httpVueLoader to load SFC.
+I don't use bundlers for the Vue 3 app,I use httpVueLoader to load SFC.
 
 VUE COMPONENTS
 Syntax for internal methods is $_funcname,in order to avoid confusion with global methods.
