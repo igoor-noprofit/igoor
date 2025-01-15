@@ -15,3 +15,7 @@ start /B powershell -window minimized -Command "Start-Sleep -Seconds 2; (Get-Pro
 
 :: Start the Python application
 python main.py
+
+echo Application stopped or crashed. Restarting in 5 seconds...
+timeout /t 5 /nobreak
+goto loop
