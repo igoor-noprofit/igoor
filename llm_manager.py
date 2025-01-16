@@ -1,5 +1,5 @@
 from langchain_groq import ChatGroq# Import other chat classes as needed
-import logging,os,time
+import logging,os,time,json
 from settings_manager import SettingsManager
 class LLMManager:
     def __init__(self, provider, api_key, model_name, **kwargs):
@@ -61,11 +61,20 @@ class LLMManager:
         while attempt < retries:
             try:
                 if(self.json_schema):
-                    return self.structured_chat_instance.invoke(messages)
+                    result = self.structured_chat_instance.invoke(messages)
+                    # Generic conversion of any Pydantic model to dict
+                    if hasattr(result, 'model_dump'):  # For Pydantic v2
+                        result_dict = result.model_dump()
+                    elif hasattr(result, 'dict'):      # For Pydantic v1
+                        result_dict = result.dict()
+                    else:
+                        result_dict = str(result)
+                    logging.info(f"Invocation successful. Result:\n{json.dumps(result_dict, indent=2, ensure_ascii=False)}")
                 else:
                     logging.info(f"Invoking without JSON schema")
-                    return self.chat_instance.invoke(messages)
-                logging.info(f"Invocation successful. Result: {result}")
+                    result = self.chat_instance.invoke(messages)
+                    logging.info(f"Invocation successful. Result:\n{json.dumps(str(result), indent=2, ensure_ascii=False)}")
+                return result
                 
             except Exception as e:
                 attempt += 1

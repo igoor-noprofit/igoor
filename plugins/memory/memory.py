@@ -12,7 +12,7 @@ from langchain_core.messages.ai import AIMessage
 from pydantic import BaseModel
 from typing import List
 
-MEMORY_SYSTEM_PROMPT= """
+MEMORY_SYSTEM_PROMPT = """
 Tu dois analyser une conversation pour en extraire d'éventuelles mémoires: 
 
 - Mémoire à court terme : Événements récents ou ponctuels.
@@ -21,12 +21,12 @@ Tu dois analyser une conversation pour en extraire d'éventuelles mémoires:
 Dans la conversation, Q: est l'interlocuteur, R: est l'utilisateur (nommé {bio_name}). 
 Retourne un JSON avec:
 
-“theme”: synthétise le thème de la conversation; 
-“facts”: un array contenant toutes les informations pertinentes sur {bio_name}, sa famille,ses amis,ses préférences (alimentaires, politiques,artistiques etc.), les souvenirs de sa vie. Pour chaque fact, précise s'il s'agit d'une information de court terme ou de long terme.Il peut ne pas y avoir des faits à sauvegarder.
-“tags”: étiquettes pour classer la conversation et la mieux la retrouver ensuite.
+"theme": synthétise le thème de la conversation; 
+"facts": un array contenant toutes les informations pertinentes sur {bio_name}, sa famille,ses amis,ses préférences (alimentaires, politiques,artistiques etc.), les souvenirs de sa vie. Pour chaque fact, précise s'il s'agit d'une information de court terme ou de long terme.Il peut ne pas y avoir des faits à sauvegarder.
+"tags": étiquettes pour classer la conversation et la mieux la retrouver ensuite.
 
 Critères importants : 
-- Un “fact” est une information objective et vérifiable concernant l'utilisateur ou son entourage.
+- Un "fact" est une information objective et vérifiable concernant l'utilisateur ou son entourage.
 - Les faits doivent être explicitement exprimés ou déduits de manière évidente dans la conversation.
 - Les opinions temporaires ou contextuelles ne sont pas des faits de long terme, sauf si elles révèlent une préférence ou un état persistant.
 - Si une information est incertaine ou non essentielle, ne la considère pas comme un fait.
@@ -35,25 +35,25 @@ Voici quelques exemples de prompt et de output JSON demandé:
 
 ----
 Input: Q: Il fait beau aujourd'hui. R: Absolument.
-Output: {"theme": "météo", "tags": ["beau temps"], "facts": []}
+Output: {{"theme": "météo", "tags": ["beau temps"], "facts": []}}
 
 Input: Q: Tu as soif ? R: Oui. Q: Tu veux de l'eau ? R: Avec plaisir.
-Output:  {"theme": "soif", "tags": ["eau"], "facts": []}
+Output: {{"theme": "soif", "tags": ["eau"], "facts": []}}
 
 Input: Q: Tu veux prendre un goûter ? R: Oui, un yaourt. Q: Nature ou aux fruits ? R: Nature, avec un peu de sucre.
-{"theme":"goûter","tags":["yaourt","préférences alimentaires"],"facts":[{"fact":"{bio_name} veut prendre un goûter","type":"short"}]}
+Output: {{"theme":"goûter","tags":["yaourt","préférences alimentaires"],"facts":[{{"fact":"{bio_name} veut prendre un goûter","type":"short"}}]}}
 
 Input: R: Tu peux fermer la fenetre?Tu sais que je suis frileux. Q: No problem!
-Output: {{"facts" : ["{bio_name} est frileux"]}}
+Output: {{"theme": "froid", "facts" : [{{"fact":"{bio_name} est frileux"]}}
 
 Input: Q: T'aime le gâteau de riz ? R: J'aime pas du tout ! Q: Je pensais que tu l'aimais ! R: Je l'aime plus !
-Output: {"theme":"gâteau de riz","facts":[{"fact":"{bio_name} n'aime plus le gâteau de riz","type":"long"}],"tags":["Préférences alimentaires","gâteau","dessert"]}
+Output: {{"theme":"gâteau de riz","facts":[{{"fact":"{bio_name} n'aime plus le gâteau de riz","type":"long"}}],"tags":["Préférences alimentaires","gâteau","dessert"]}}
 
 Input: Q: Tu as eu des nouvelles d'Anatole ? R: Oui, il est rentré à Paris Q: Il va bien ? R: Oui
-Output: {"theme":"famille","tags":["Anatole","Paris","enfants"],"facts":[{"fact":"Anatole est rentré à Paris","type":"short"},{"fact":"Anatole va bien","type":"short"}]}
+Output: {{"theme":"famille","tags":["Anatole","Paris","enfants"],"facts":[{{"fact":"Anatole est rentré à Paris","type":"short"}},{{"fact":"Anatole va bien","type":"short"}}]}}
 
 Input : Q: Il m'a dit que Claire ne t'en veut pas R: T'es sur de ça ? Q: Oui R: J'en suis très soulagé
-Output : {"theme":"relations familiales","tags":["Claire","famille","enfants","Anton","Anatole","Paloma"],"facts":[{"fact":"Claire ne lui en veut pas","type":"short"},{"fact":"{bio_name} est très soulagé que Claire ne lui en veut pas","type":"short"}]}
+Output : {{"theme":"relations familiales","tags":["Claire","famille","enfants","Anton","Anatole","Paloma"],"facts":[{{"fact":"Claire ne lui en veut pas","type":"short"}},{{"fact":"{bio_name} est très soulagé que Claire ne lui en veut pas","type":"short"}}]}}
 ----
 
 Attention: les opinions exprimées par l'utilisateur sont précédées par R:, et pas par Q:. Par exemple: 
@@ -162,6 +162,7 @@ class Memory(Baseplugin):
         except RuntimeError:
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
+        self.test_plugin()
     
     async def _startup_async(self):
         # await self.wait_for_socket_and_send("ready")
@@ -177,11 +178,14 @@ class Memory(Baseplugin):
     @hookimpl
     async def after_conversation_end(self, last_conversation: dict) -> None:
         start_time = time.time()
-        conversation = last_conversation.get("txt")
+        # SYSTEM PROMPT
         system_prompt = MEMORY_SYSTEM_PROMPT
         sys_pm=PromptManager(template=MEMORY_SYSTEM_PROMPT)
         system_prompt=sys_pm.create_prompt(bio_name=self.bio_name)
-        print(f"SYSTEM PROMPT IS : {system_prompt}")   
+        print(f"SYSTEM PROMPT IS : {system_prompt}")
+        
+        # HUMAN PROMPT
+        conversation = last_conversation.get("txt")   
         pm = PromptManager(template=PROMPT_TEMPLATE)
         prompt = pm.create_prompt(conversation=conversation)       
         print(f"FINAL MEMORY PROMPT : {prompt}")
@@ -208,8 +212,66 @@ class Memory(Baseplugin):
         
         print(f"Time taken for processing: {end_time - start_time} seconds")
     
-    def test(self):
+
+    def test_plugin(self):
+        print("BEGINNING MEMORY TESTS")
+        """Test the memory plugin with sample conversations"""
+        test_conversations = [
+            "Q: T'aime le gâteau de riz ? R: J'aime pas du tout ! Q: Je pensais que tu l'aimais ! R: Je l'aime plus !",
+            "Q: Tu as eu des nouvelles d'Anatole ? R: Oui, il est rentré à Paris Q: Il va bien ? R: Oui",
+            "Q: Il fait beau aujourd'hui. R: Absolument."
+        ]
         
+        def txt_to_thread(conversation_txt):
+            """Convert text conversation format to thread format"""
+            thread = []
+            # Split by Q: or R: but keep the delimiters
+            parts = [p.strip() for p in conversation_txt.replace("Q:", "\nQ:").replace("R:", "\nR:").split("\n") if p.strip()]
+            
+            for part in parts:
+                if part.startswith("Q:"):
+                    thread.append({"msg": part[2:].strip(), "author": "def"})
+                elif part.startswith("R:"):
+                    thread.append({"msg": part[2:].strip(), "author": "master"})  # Changed from "user" to "master"
+            return thread
+
+        async def run_tests():
+            for conversation in test_conversations:
+                # Convert to the expected dictionary format
+                thread = txt_to_thread(conversation)
+                last_conversation = {
+                    "thread": thread,
+                    "txt": conversation,
+                    "cause": "test"
+                }
+                
+                print(f"\nTesting conversation: {conversation}")
+                try:
+                    print("Converted thread:")
+                    for msg in thread:
+                        print(f"  {msg['author']}: {msg['msg']}")
+                except Exception as e:
+                    print(f"Error printing thread: {e}")
+                
+                try:
+                    await self.after_conversation_end(last_conversation=last_conversation)
+                    print("Test completed successfully")
+                except Exception as e:
+                    print(f"Test failed with error: {e}")
+                    # Print more detailed error information
+                    import traceback
+                    print("Full error traceback:")
+                    print(traceback.format_exc())
+
+        # Run the tests
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        
+        loop.run_until_complete(run_tests())
+            
     
     
     ''' 
@@ -217,7 +279,7 @@ class Memory(Baseplugin):
     def check_memory(memory):
         Calls LLM to double check memory before inserting into RAG    
     '''
-    async def check_memory(self,conversation,memory):
+    async def memory_review(self,conversation,memory):
         start_time = time.time()
         rag = await(self.query_rag_async(memory.fact))
         memory_to_be_checked=dict(conversation=conversation,memory=memory)

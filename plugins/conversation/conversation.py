@@ -87,6 +87,11 @@ class Conversation(Baseplugin):
         
     @hookimpl
     async def add_msg_to_conversation(self, msg: str, author: str) -> None:
+        '''
+        author can be:
+            def     speaker
+            master  IGOOR user
+        '''
         if not(self.conversation_is_open):
             await self.new_conversation()
         print(f"Adding {msg} to conversation")
