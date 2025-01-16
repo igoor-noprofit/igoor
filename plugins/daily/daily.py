@@ -129,7 +129,10 @@ class Daily(Baseplugin):
             llm = LLMManager(self.settings.get("provider"), self.settings.get("api_key"), self.settings.get("model_name"))
             llm.set_json_schema(Answers)
             answers = llm.invoke(system_prompt,prompt)
-            print(f"TYPE = {type(answers)}, ANSWERS: {answers}")
+            has_error, answers = self.handle_llm_error(answers)
+            if has_error:
+                return answers
+                
             answers_dict = answers.dict()
             if answers_dict.get("answers"):
                 self.send_message_to_frontend(answers.json()) 

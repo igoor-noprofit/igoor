@@ -58,14 +58,20 @@ Output : {{"theme":"relations familiales","tags":["Claire","famille","enfants","
 
 Attention: les opinions exprimées par l'utilisateur sont précédées par R:, et pas par Q:. Par exemple: 
 
-Q: J'aime la glace
+Input: Q: J'aime la glace
+Output: {{"theme":"préférences alimentaires","tags":["glace"],"facts":[]}}
 
-Ne veut absolument pas dire que l'utilisateur aime la glace. En revanche:
+En revanche:
 
 Q: J'aime la glace R: Moi aussi!
+Output: {{"theme":"préférences alimentaires","tags":["glace"],"facts":[{{"fact":"{bio_name} aime la glace","type":"long"}}]}}
 
-Veut dire que l'utilisateur aime la glace.
+Aussi,des questions posées par l'interlocuteur et qui restent sans réponses ne sont PAS des mémoires: 
 
+Input: Q: Est-ce que tu aime les spaghetti ?
+Output: {{"theme":"préférences alimentaires","tags":["spaghetti"],"facts":[]}}
+
+---
 Retourne seulement les faits et opinions dans le format JSON,sans aucune explication.
 """
 
@@ -161,7 +167,7 @@ class Memory(Baseplugin):
         except RuntimeError:
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
-        self.test_plugin()
+        # self.test_plugin()
     
     async def _startup_async(self):
         # await self.wait_for_socket_and_send("ready")
@@ -181,7 +187,6 @@ class Memory(Baseplugin):
         # SYSTEM PROMPT
         sys_pm = PromptManager(template=MEMORY_SYSTEM_PROMPT)
         system_prompt = sys_pm.create_prompt(bio_name=self.bio_name)
-        print(f"SYSTEM PROMPT IS : {system_prompt}")
         
         # HUMAN PROMPT
         conversation = last_conversation.get("txt")   
@@ -192,9 +197,11 @@ class Memory(Baseplugin):
         llm = LLMManager(self.settings.get("provider"), self.settings.get("api_key"), self.settings.get("model_name"), log_folder=self.plugin_folder)
         llm.set_json_schema(DataModel)
         memories = llm.invoke(system_prompt, prompt)
-        
+        has_error, memories = self.handle_llm_error(memories)
+        if has_error:
+            return memories
         # Process each memory
-        if memories and memories.facts:
+        if hasattr(memories, 'facts') and memories.facts:
             for memory in memories.facts:
                 if memory.type == "long":
                     print(f"Reviewing long-term memory: {memory.fact}")
@@ -220,7 +227,7 @@ class Memory(Baseplugin):
         print("BEGINNING MEMORY TESTS")
         """Test the memory plugin with sample conversations"""
         test_conversations = [
-            "R: Paloma a oublié de me dire comment s’est passée son exposé. Q: Je vais lui demander, elle est dans sa chambre. Q: Tu veux qu'elle te raconte ce soir pendant le dîner ? R: Oui, ça me ferait plaisir.",
+            "R: Paloma a oublié de me dire comment s'est passée son exposé. Q: Je vais lui demander, elle est dans sa chambre. Q: Tu veux qu'elle te raconte ce soir pendant le dîner ? R: Oui, ça me ferait plaisir.",
             "Q: Tu veux écouter un peu de musique ? R: Oui, je veux bien. Q: Du jazz ? Tu adores ça. R: Oui, mets un peu de Iiro Rantala.",
             "Q: Il fait beau aujourd'hui. R: Absolument."
         ]
@@ -313,6 +320,10 @@ class Memory(Baseplugin):
         llm = LLMManager(self.settings.get("provider"), self.settings.get("api_key"), self.settings.get("model_name"), log_folder=self.plugin_folder)
         llm.set_json_schema(ValidationResponse)
         validation = llm.invoke(system_prompt, prompt)
+        
+        has_error, validation = self.handle_llm_error(validation)
+        if has_error:
+            return validation
         
         end_time = time.time()
         print(f"Memory review time: {end_time - start_time} seconds")

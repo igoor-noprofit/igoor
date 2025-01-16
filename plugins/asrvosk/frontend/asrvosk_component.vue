@@ -19,7 +19,7 @@ export default {
             status: 'loading',
             audio: {},
             continuous: false,
-            keyboardShortcut: 'F4'  // You can change this to any key you prefer
+            keyboardShortcuts: ['c', 'v']
         };
     },
     created() {
@@ -40,8 +40,8 @@ export default {
     },
     methods: {
         $_handleKeyPress(event) {
-            // Check if the pressed key matches our shortcut
-            if (event.key === this.keyboardShortcut) {
+            if (event.ctrlKey && this.keyboardShortcuts.includes(event.key.toLowerCase())) {
+                event.preventDefault(); // Prevent default Ctrl+C/V behavior
                 this.$_handleMicClick();
             }
         },

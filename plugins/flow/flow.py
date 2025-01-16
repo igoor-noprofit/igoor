@@ -112,24 +112,23 @@ class Flow(Baseplugin):
     async def asr_msg(self, msg: str) -> None:
         start_time = time.time()
         dynamic_context = self.get_dynamic_context().copy()
-        print(f"DYNAMIC CONTEXT IS {dynamic_context}")
         # Remove the conversation attribute from dynamic context
         conversation = dynamic_context.get("conversation")
         static_context = await(self.query_rag_async(conversation))
-        # print(f"STATIC CONTEXT IS : {static_context}")
         del dynamic_context["conversation"]
         assistant_type = "flow"
         system_prompt = self.prompts.get_system_prompt("fr_FR", assistant_type) 
-        # print(f"SYSTEM PROMPT IS : {system_prompt}")   
         pm = PromptManager(template=PROMPT_TEMPLATE)
-        dynamic_context = dynamic_context
         prompt = pm.create_prompt(bio_name=self.bio_name,bio_style=self.bio_style,bio_style_weight=self.bio_style_weight,health_state=self.health_state,static_context=static_context, dynamic_context=dynamic_context, conversation=conversation,log_folder=self.plugin_folder)       
         print(f"FINAL PROMPT : {prompt}")
         try:
             llm = LLMManager(self.settings.get("provider"), self.settings.get("api_key"), self.settings.get("model_name"))
             llm.set_json_schema(Answers)
             answers = llm.invoke(system_prompt,prompt)
-            print(f"TYPE = {type(answers)}, ANSWERS: {answers}")
+            has_error, answers = self.handle_llm_error(answers)
+            if has_error:
+                return answers
+                
             answers_dict = answers.dict()
             if answers_dict.get("answers"):
                 self.send_message_to_frontend(answers.json()) 

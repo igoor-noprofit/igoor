@@ -50,8 +50,17 @@ class LLMManager:
             print("Exception setting JSON schema")
             return e
         
-    # ... existing code ...
     def invoke(self, system_prompt, prompt, retries=3):
+        ''' TEST ERROR 
+        error_message = "Error code: 429 - {'error': {'message': 'Rate limit reached for model `llama-3.3-70b-versatile`. Please try again in 15m2.651s.', 'type': '', 'code': 'rate_limit_exceeded'}}"
+        wait_time = 15 * 60
+        return {
+            "error": True,
+            "type": "RateLimitError",
+            "message": error_message,
+            "wait_time": wait_time
+        }
+        '''
         messages = [
             ("system", system_prompt),
             ("human", prompt)
@@ -79,7 +88,31 @@ class LLMManager:
             except Exception as e:
                 attempt += 1
                 last_exception = e
-                logging.error(f"Invocation failed on attempt {attempt}: {str(e)}")
+                error_message = str(e)
+                
+                # Check if this is a rate limit error
+                is_rate_limit = (
+                    "rate limit" in error_message.lower() or 
+                    "429" in error_message
+                )
+                if is_rate_limit:
+                    # Extract wait time from error message if available
+                    import re
+                    wait_time = 15 * 60  # default 15 minutes in seconds
+                    time_match = re.search(r'try again in (\d+)m([\d.]+)s', error_message)
+                    if time_match:
+                        minutes, seconds = time_match.groups()
+                        wait_time = int(minutes) * 60 + float(seconds)
+                    
+                    logging.warning(f"Rate limit reached. Suggested wait time: {wait_time} seconds")
+                    return {
+                        "error": True,
+                        "type": "RateLimitError",
+                        "message": error_message,
+                        "wait_time": wait_time
+                    }
+                
+                logging.error(f"Invocation failed on attempt {attempt}: {error_message}")
                 
                 if attempt < retries:
                     # Add exponential backoff delay
@@ -91,6 +124,21 @@ class LLMManager:
                     # Return a dictionary with error information instead of the raw exception
                     return {
                         "error": True,
-                        "message": str(last_exception),
+                        "message": error_message,
                         "type": type(last_exception).__name__
                     }
+                    
+    @staticmethod                   
+    def is_error_response(response) -> tuple[bool, dict]:
+        """
+        Checks if the LLM response is an error dictionary.
+        Returns a tuple of (is_error: bool, error_info: dict)
+        """
+        if isinstance(response, dict) and response.get("error"):
+            error_info = {
+                "type": response.get("type"),
+                "message": response.get("message"),
+                "wait_time": response.get("wait_time")  # Will be None for non-rate-limit errors
+            }
+            return True, error_info
+        return False, {}

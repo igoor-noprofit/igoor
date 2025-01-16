@@ -4,6 +4,7 @@ from plugin_manager import hookimpl, PluginManager
 from websocket_server import websocket_server
 import os,json,asyncio
 from utils import resource_path
+from llm_manager import LLMManager
 class Baseplugin:
     def __init__(self, plugin_name="baseplugin", pm=None):
         self.is_loaded = False
@@ -149,6 +150,31 @@ class Baseplugin:
         """
         success = await self.wait_for_socket_and_send(message, 'app')
         return success
+    
+    def handle_llm_error(self, llm_response):
+        """
+        Common handler for LLM errors across all plugins.
+        Returns (is_error: bool, response: Any)
+        """
+        is_error, error_info = LLMManager.is_error_response(llm_response)
+        if is_error:
+            if error_info["type"] == "RateLimitError":
+                print(f"Rate limit reached. Please wait {error_info['wait_time']} seconds before trying again.")
+                self.send_error_to_frontend(
+                    error_code="rate_limit",
+                    error=error_info
+                )
+            else:
+                print(f"LLM error: {error_info['message']}")
+                self.send_error_to_frontend(
+                    error_code="llm_error",
+                    error=error_info["message"]
+                )
+            return True, llm_response
+        return False, llm_response
+    
+    def send_rate_limit_error_to_frontend(self):
+        self.send_error_to_frontend('rate_limit')
     
     def send_error_to_frontend(self,error_code,error="",plugin_name=None): 
         target_plugin_name = plugin_name or self.plugin_name
