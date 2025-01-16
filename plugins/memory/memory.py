@@ -78,14 +78,14 @@ Tu reçois un JSON avec:
 2) la mémoire que l'IA a détecté.
 
 Ex: 
-{
+{{
     "conversation": " Q: T'aimes le gâteau de riz ? R: J'aime pas du tout ! Q: Je pensais que tu l'aimais ! R: Je l'aime plus ,!",
-    "memory": {
+    "memory": {{
         "fact": "{bio_name} n'aime plus le gâteau de riz",
         "type": "long"
-    }
+    }},
     "rag":"---{bio_name} aime les plats asiatiques,en particulier les soupes"
-}
+}}
 
 Dans la conversation, Q: est l'interlocuteur, R: est l'utilisateur (nommé {bio_name}). 
 Dans cet exemple, l'IA reconnait justement qu'un nouvelle mémoire à long terme est à sauvegarder, 
@@ -95,8 +95,8 @@ Aussi,les informations déjà dans la base de connaissances (rag) n'indiquent pa
 L'IA a détecte l'information à mémoriser selon ces critères:
 
 ---
-- “fact” est une information pertinente sur l'utilisateur,sa famille,ses amis,ses préférences (alimentaires, politiques,artistiques etc.), les souvenirs de sa vie. 
-- Un “fact” est une information objective et vérifiable concernant l'utilisateur ou son entourage
+- "fact" est une information pertinente sur l'utilisateur,sa famille,ses amis,ses préférences (alimentaires, politiques,artistiques etc.), les souvenirs de sa vie. 
+- Un "fact" est une information objective et vérifiable concernant l'utilisateur ou son entourage
 - Les faits doivent être explicitement exprimés ou déduits de manière évidente dans la conversation.
 - Les opinions temporaires ou contextuelles ne sont pas des faits de long terme, sauf si elles révèlent une préférence ou un état persistant.
 - Si une information est incertaine ou non essentielle, ne la considère pas comme un fait
@@ -106,7 +106,7 @@ L'IA a détecte l'information à mémoriser selon ces critères:
 
 Retourne exclusivement un JSON avec:
 
-{"valid":true}
+{{"valid":true}}
 
 si la mémoire est validée par toi.
 
@@ -120,17 +120,16 @@ Exemple de mémoire non validée:
 
 ---
 Input: 
-{
+{{
     "conversation": " Q: Tu veux qu'on prépare une soupe ce soir ? R: Oui, une soupe aux légumes. Q: Avec des croûtons ? R: Oui, et un peu de fromage râpé.",
-    "memory": {
+    "memory": {{
         "fact": "{bio_name} aime les croûtons dans sa soupe",
         "type": "long"
-    },
+    }},
     "rag": "---{bio_name} aime les plats asiatiques---"
-}
+}}
 Output:
-{"valid":false,"reason":"Nous ne savons pas si {bio_name} en général aime les croutons dans sa soupe ou si il voulait juste essayer"}
-
+{{"valid":false,"reason":"Nous ne savons pas si {bio_name} en général aime les croutons dans sa soupe ou si il voulait juste essayer"}}
 """
 
 MEMORY_REVIEW_PROMPT_TEMPLATE = """{memory_to_be_checked}"""
@@ -178,47 +177,51 @@ class Memory(Baseplugin):
     @hookimpl
     async def after_conversation_end(self, last_conversation: dict) -> None:
         start_time = time.time()
+        
         # SYSTEM PROMPT
-        system_prompt = MEMORY_SYSTEM_PROMPT
-        sys_pm=PromptManager(template=MEMORY_SYSTEM_PROMPT)
-        system_prompt=sys_pm.create_prompt(bio_name=self.bio_name)
+        sys_pm = PromptManager(template=MEMORY_SYSTEM_PROMPT)
+        system_prompt = sys_pm.create_prompt(bio_name=self.bio_name)
         print(f"SYSTEM PROMPT IS : {system_prompt}")
         
         # HUMAN PROMPT
         conversation = last_conversation.get("txt")   
         pm = PromptManager(template=PROMPT_TEMPLATE)
         prompt = pm.create_prompt(conversation=conversation)       
-        print(f"FINAL MEMORY PROMPT : {prompt}")
-        llm = LLMManager(self.settings.get("provider"), self.settings.get("api_key"), self.settings.get("model_name"),log_folder=self.plugin_folder)
+        
+        # Get memories from first LLM call
+        llm = LLMManager(self.settings.get("provider"), self.settings.get("api_key"), self.settings.get("model_name"), log_folder=self.plugin_folder)
         llm.set_json_schema(DataModel)
         memories = llm.invoke(system_prompt, prompt)
-        print(f"TYPE = {type(memories)}, MEMORIES: {memories}")
         
-        '''
-        memories_dict = memories.dict()
-        print(f"TYPE = {type(memories_dict)}, MEMORIES: {memories_dict}")
-        
-        if memories_dict.get("facts"):
-            for memory in memories_dict["facts"]:  # Use "facts" here
-                if (self.check_memory(conversation,memory))
-                print(f"storing {memory}")
-                try:
-                    result = await self.pm.trigger_hook(hook_name="store_memory", memory=memory)
-                except Exception as e:
-                    print(f"Exception occurred while storing fact '{memory}': {e}")
+        # Process each memory
+        if memories and memories.facts:
+            for memory in memories.facts:
+                if memory.type == "long":
+                    print(f"Reviewing long-term memory: {memory.fact}")
+                    validation = await self.memory_review(conversation, memory)
+                    
+                    if validation.valid:
+                        print(f"Memory validated, storing: {memory.fact}")
+                        try:
+                            await self.pm.trigger_hook(hook_name="store_memory", memory=memory.fact)
+                        except Exception as e:
+                            print(f"Error storing memory: {e}")
+                    else:
+                        print(f"Memory not validated: {validation.reason}")
+            
+            # Save index after all memories are processed
             await self.pm.trigger_hook("save_index")
-        '''
-        end_time = time.time()
         
-        print(f"Time taken for processing: {end_time - start_time} seconds")
+        end_time = time.time()
+        print(f"Total processing time: {end_time - start_time} seconds")
     
 
     def test_plugin(self):
         print("BEGINNING MEMORY TESTS")
         """Test the memory plugin with sample conversations"""
         test_conversations = [
-            "Q: T'aime le gâteau de riz ? R: J'aime pas du tout ! Q: Je pensais que tu l'aimais ! R: Je l'aime plus !",
-            "Q: Tu as eu des nouvelles d'Anatole ? R: Oui, il est rentré à Paris Q: Il va bien ? R: Oui",
+            "R: Paloma a oublié de me dire comment s’est passée son exposé. Q: Je vais lui demander, elle est dans sa chambre. Q: Tu veux qu'elle te raconte ce soir pendant le dîner ? R: Oui, ça me ferait plaisir.",
+            "Q: Tu veux écouter un peu de musique ? R: Oui, je veux bien. Q: Du jazz ? Tu adores ça. R: Oui, mets un peu de Iiro Rantala.",
             "Q: Il fait beau aujourd'hui. R: Absolument."
         ]
         
@@ -279,34 +282,41 @@ class Memory(Baseplugin):
     def check_memory(memory):
         Calls LLM to double check memory before inserting into RAG    
     '''
-    async def memory_review(self,conversation,memory):
+    async def memory_review(self, conversation, memory):
+        """Reviews a memory to determine if it should be stored"""
         start_time = time.time()
-        rag = await(self.query_rag_async(memory.fact))
-        memory_to_be_checked=dict(conversation=conversation,memory=memory)
-        system_prompt = MEMORY_REVIEW_SYSTEM_PROMPT
         
-        print(f"SYSTEM PROMPT IS : {system_prompt}")   
-        pm = PromptManager(template=PROMPT_TEMPLATE)
-        prompt = pm.create_prompt(static_context=static_context, conversation=conversation, bio_name=self.bio_name)       
-        print(f"FINAL MEMORY PROMPT : {prompt}")
-        llm = LLMManager(self.settings.get("provider"), self.settings.get("api_key"), self.settings.get("model_name"),log_folder=self.plugin_folder)
-        llm.set_json_schema(DataModel)
-        memories = llm.invoke(system_prompt, prompt)
-        print(f"TYPE = {type(memories)}, MEMORIES: {memories}")
-        memories_dict = memories.dict()
-        print(f"TYPE = {type(memories_dict)}, MEMORIES: {memories_dict}")
+        # Get RAG context
+        rag = await self.query_rag_async(memory.fact)
         
-        if memories_dict.get("facts"):
-            for memory in memories_dict["facts"]:  # Use "facts" here
-                # self.check_memory(memory)
-                print(f"storing {memory}")
-                try:
-                    result = await self.pm.trigger_hook(hook_name="store_memory", memory=memory)
-                except Exception as e:
-                    print(f"Exception occurred while storing fact '{memory}': {e}")
-            await self.pm.trigger_hook("save_index")
+        # Convert Pydantic Fact object to dict
+        memory_dict = {
+            "fact": memory.fact,
+            "type": memory.type
+        }
+        
+        # Create the memory review package
+        memory_to_be_checked = {
+            "conversation": conversation,
+            "memory": memory_dict,  # Use the dict version instead of Pydantic model
+            "rag": rag
+        }
+        
+        # Set up prompts
+        sys_pm = PromptManager(template=MEMORY_REVIEW_SYSTEM_PROMPT)
+        system_prompt = sys_pm.create_prompt(bio_name=self.bio_name)
+        
+        pm = PromptManager(template=MEMORY_REVIEW_PROMPT_TEMPLATE)
+        prompt = pm.create_prompt(memory_to_be_checked=json.dumps(memory_to_be_checked))
+
+        # Call LLM with ValidationResponse schema
+        llm = LLMManager(self.settings.get("provider"), self.settings.get("api_key"), self.settings.get("model_name"), log_folder=self.plugin_folder)
+        llm.set_json_schema(ValidationResponse)
+        validation = llm.invoke(system_prompt, prompt)
+        
         end_time = time.time()
-        print(f"Time taken for processing: {end_time - start_time} seconds")
+        print(f"Memory review time: {end_time - start_time} seconds")
+        return validation
     
     def get_dynamic_context(self):
         return context_manager.get_context()
@@ -318,19 +328,6 @@ class Memory(Baseplugin):
     def update_status(self, status):
         """This method will be called when the status changes."""
         print(f"Memory plugin received new status: {status}")
-        
-    
-    def test_queries(self) -> None:
-        queries = [
-            "Q: Comment s'appelle tes fils",
-            "Q: Tu te souviens de l'expo Drosephilia",
-            "Q: Combien d'enfants tu as",
-            "Q: Comment s'appelle ta femme",
-            "Q: Quels sont tes réalisateurs préférés",
-            "Q: Est-ce que t'aimes Tarantino"
-        ]
-        for query in queries:
-            asyncio.run(self.asr_msg(query))
 
 # Pydantic
 # MEMORY TEMPLATE
@@ -346,4 +343,4 @@ class DataModel(BaseModel):
 # MEMORY REVIEWER TEMPLATE
 class ValidationResponse(BaseModel):
     valid: bool
-    reason: str
+    reason: str = ""
