@@ -23,15 +23,35 @@ def show_splash_screen(image_path):
     """Create a simple splash screen with a logo."""
     splash_root = tk.Tk()
     splash_root.overrideredirect(True)  # Remove window borders
-    splash_root.geometry('500x200+500+300')  # Set splash size and position
-
+    
+    # Get screen dimensions
+    screen_width = splash_root.winfo_screenwidth()
+    screen_height = splash_root.winfo_screenheight()
+    
+    # Set window dimensions
+    window_width = 500
+    window_height = 200
+    
+    # Calculate center position
+    x = (screen_width - window_width) // 2
+    y = (screen_height - window_height) // 2
+    
+    splash_root.geometry(f'{window_width}x{window_height}+{x}+{y}')
+    
+    # Configure grid weight to enable centering
+    splash_root.grid_rowconfigure(0, weight=1)
+    splash_root.grid_columnconfigure(0, weight=1)
+    
     # Load your logo/image
     splash_image = tk.PhotoImage(file=resource_path(image_path))
-    splash_label = tk.Label(splash_root, image=splash_image)
-    splash_label.pack()
-
+    splash_label = tk.Label(splash_root, image=splash_image, bg='white')
+    splash_label.grid(row=0, column=0, sticky='nsew')  # Use grid with sticky to center
+    
+    # Configure window background
+    splash_root.configure(bg='white')
+    
     # Display splash screen
-    splash_root.update()  # Refresh the window
+    splash_root.update()
     return splash_root
 
 
