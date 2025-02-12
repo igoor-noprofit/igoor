@@ -103,7 +103,7 @@ module.exports = {
     },
     methods: {
         $_showKeyboard() {
-            this.showKeyboard = true;  // Changed from isInputFocused
+            this.showKeyboard = false;  // Changed from isInputFocused
         },
         $_hideKeyboard() {
             this.showKeyboard = false;  // Changed from isInputFocused
