@@ -62,7 +62,7 @@ class Elevenlabs(Baseplugin):
             generation_options = GenerationOptions(
                 model_id=self.settings.get("model_id"),
                 latencyOptimizationLevel=0,
-                stability=0.42,
+                stability=0.65,
                 similarity_boost=0.4,
                 style=0.8
             )

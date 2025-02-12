@@ -1,5 +1,12 @@
 # BUGS
-Pyinstaller does not currently work.
+- ne pas ouvrir le CLI => tout logger
+- FLOW window does not change automatically when recording a new phrase;
+if on keyboard mode, it does not go back to predictions 
+
+- FORCE sur la meteo le prompt du flow
+
+
+- Pyinstaller does not currently work.
 
 # PLUGINS
 - prevent errors when deactivating/activating plugins in settings

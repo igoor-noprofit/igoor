@@ -40,7 +40,7 @@ class Api:
         window_x = 0
         window_y = 0  # Y position
         print(f"Moving to {window_x},{window_y}")
-        window.resize(96, 96)
+        window.resize(96, 192)
         window.move(window_x, window_y)
         window.on_top = True  # 
 
