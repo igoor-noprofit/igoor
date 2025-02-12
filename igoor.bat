@@ -5,7 +5,7 @@ call venv\scripts\activate
 
 :loop
 echo Setting environment variables...
-set "IGOOR_FULLSCREEN=True"
+set "IGOOR_FULLSCREEN=False"
 set "IGOOR_DEBUG=False"
 set "IGOOR_ONTOP=False"
 
