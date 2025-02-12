@@ -228,9 +228,11 @@ module.exports = {
         appview(newView, oldView) {
             console.log('oldView ' + oldView + ' newView ' + newView);
             if (oldView != 'autocomplete' && newView == 'autocomplete') {
-                this.$_focusInput();
                 this.$_reset();
                 this.$_showKeyboard();
+                this.$nextTick(() => {
+                    this.$_focusInput();  // Focus input after Vue has updated the DOM
+                });
             }
         },
         userInput(newInput, oldInput) {

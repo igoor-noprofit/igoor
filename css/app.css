@@ -193,7 +193,7 @@ main {
 }
 .autocompletelauncher.plugin {
   display: flex;
-  height: 50px;
+  height: 70px;
   align-items: center;
   justify-content: center;
   color: #aaa;
