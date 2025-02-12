@@ -1,6 +1,9 @@
 <template>
-    <div class="flow container flow-plugin" :class="{'plugin-error': error}" v-if="answers && answers.length > 0 && appview != 'daily'">
-        <button v-if="answers" :class="['btn', 'btn-side', 'btn-side-left', 'abandon', appview == 'autocomplete' ? 'autocomplete' : '']" @click="$_abandonConversation(true)">
+    <div class="flow container flow-plugin" :class="{ 'plugin-error': error }"
+        v-if="answers && answers.length > 0 && appview != 'daily'">
+        <button v-if="answers"
+            :class="['btn', 'btn-side', 'btn-side-left', 'abandon', appview == 'autocomplete' ? 'autocomplete' : '']"
+            @click="$_abandonConversation(true)">
             Abandonner la conversation
         </button>
         <div class="answers">
@@ -10,6 +13,7 @@
                         {{ msg }}
                     </div>
                 </div>
+                <a class="autocompletelauncher" @click="$_showAutocomplete()">...</a>
             </div>
         </div>
     </div>
@@ -30,18 +34,18 @@ module.exports = {
         }
     },
     methods: {
-        async $_abandonConversation(trigger_hook=false) {
+        async $_abandonConversation(trigger_hook = false) {
             try {
                 console.log("FLOW abandons conversation");
-                if(trigger_hook){
+                if (trigger_hook) {
                     this.sendMsgToBackend({ "action": "abandon_conversation" });
-                }   
+                }
                 this.$_clearAnswers()
             } catch (error) {
                 console.error("Error abandoning conversation:", error);
             }
         },
-        $_clearAnswers(){
+        $_clearAnswers() {
             this.answers = []
         },
         handleIncomingMessage(event) {
@@ -83,19 +87,28 @@ module.exports = {
             console.log("sending JSON");
             console.log(json);
             this.sendMsgToBackend(json);
+        },
+        $_showAutocomplete() {
+            console.log('emitting autocomplete');
+            this.$emit('show-autocomplete');
         }
     }
 }
 </script>
 
 <style scoped>
+.autocompletelauncher {
+    cursor: pointer;
+    margin-top: 10px;
+    display: block;
+}
 .flow-plugin {
     margin: 10px 0;
     flex-direction: row;
     display: flex
 }
 
-.answers .msg{
+.answers .msg {
     margin-bottom: 10px;
 }
 

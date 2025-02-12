@@ -4,6 +4,8 @@ Pyinstaller does not currently work.
 # PLUGINS
 - prevent errors when deactivating/activating plugins in settings
 
+
+
 # FRONTEND
 
 ## VUE 
