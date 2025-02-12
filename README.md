@@ -47,11 +47,6 @@ venv\scripts\activate
 pip install -r requirements.txt
 ```
 
-To update requirements: 
-```
-pip freeze > requirements.txt
-```
-
 ### ENV
 Rename environment variables:
 
@@ -151,7 +146,10 @@ The pyinstaller uses igoor.spec
 ```
 pyinstaller igoor.spec --noconfirm
 ```
-
+To update requirements: 
+```
+pip freeze > requirements.txt
+```
 
 
 
@@ -161,3 +159,5 @@ LLM logs are in the correspondent plugin's folder, ex. :
 ```
 IGOOR_FOLDER/plugins/memory/
 ```
+
+
