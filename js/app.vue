@@ -11,7 +11,7 @@
 </div>
 <div id="topbar">
     <a @click="minimize()"><img src="img/logo_small.svg" class="logo_small" id="igoor_logo"></a> 
-    <elevenlabs  :appview="appview"></elevenlabs><ttsdefault  :appview="appview"></ttsdefault><clock  :appview="appview"></clock><meteo  :appview="appview"></meteo><settings  :appview="appview"></settings>
+    <elevenlabs  :appview="appview"></elevenlabs><ttsdefault  :appview="appview"></ttsdefault><clock  :appview="appview"></clock><meteo  :appview="appview"></meteo><ramcpu  :appview="appview"></ramcpu><settings  :appview="appview"></settings>
 </div>
 
 <header v-show="appview !== 'onboarding'">

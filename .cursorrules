@@ -56,3 +56,26 @@ SIMPLIFIED FOLDER STRUCTURE
 │   │   │   └── asrvosk_settings.vue
 │   │   ├── plugin.json
 │   ├── other plugin...
+
+COMMUNICATION BETWEEN PLUGIN BACKENDS
+This happens via the triggers provided by Pluggy, example : 
+
+await self.pm.trigger_hook(hook_name="asr_msg", msg="Q: " + following_text)	
+
+COMMUNICATION BETWEEN PLUGIN FRONTENDS AND BACKENDS
+Method: 
+
+sendMsgToBackend(data)
+
+Via a websocket on port 
+
+ws://localhost:9715/plugin_name (ex. meteo)
+
+where both frontend and backend are listening by default on creation.
+
+Vue component frontend communicates its 
+
+{“status”: “ready”}
+
+to the backend, which in turn can start sending updates to the frontend. 
+Everything should be passed in JSON mode.

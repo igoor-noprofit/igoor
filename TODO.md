@@ -5,7 +5,6 @@ if on keyboard mode, it does not go back to predictions
 
 - FORCE sur la meteo le prompt du flow
 
-
 - Pyinstaller does not currently work.
 
 # PLUGINS

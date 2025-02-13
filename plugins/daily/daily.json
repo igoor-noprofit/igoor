@@ -5,24 +5,24 @@
                 "freq": 0,
                 "fixed": true
             },
-            "gratter cheveux": {
+            "gratter tete": {
                 "freq": 0,
                 "fixed": true
             },
-            "gratter visage": {
+            "cheveux sur le visage": {
                 "freq": 0,
                 "fixed": true
             },
-            "changer de position": {
+            "coussin pour les mains": {
+                "fixed": true
+            },
+            "décharger coude:": {
                 "freq": 0
             },
-            "coussin de confort": {
+            "repositionner sur le fauteuil": {
                 "freq": 0
             },
             "oreiller ergonomique": {
-                "freq": 0
-            },
-            "transfert fauteuil": {
                 "freq": 0
             },
             "gratter corps": {

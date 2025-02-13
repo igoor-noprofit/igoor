@@ -23,6 +23,18 @@
                     </div>
                 </div>
             </div>
+            <div class="usage-item">
+                <div class="label">Batterie</div>
+                <div class="progress-bar">
+                    <div class="progress-total"
+                        :class="{ 'low-battery': percentage <= batteryThreshold && !powerPlugged }"
+                        :style="{ width: `${percentage}%` }">
+                    </div>
+                    <div class="usage-text">
+                        {{ percentage }}% {{ powerPlugged ? '🔌' : '🔋' }}
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </template>
@@ -41,7 +53,10 @@ export default {
             memoryUsage: 0.0,
             totalMemoryUsed: 0.0,
             totalMemory: 1,  // Default to 1 to avoid division by zero
-            memoryPercent: 0.0
+            memoryPercent: 0.0,
+            percentage: 100,
+            powerPlugged: true,
+            batteryThreshold: 20  // Default value until backend sends the real threshold
         };
     },
     methods: {
@@ -54,8 +69,11 @@ export default {
                 this.totalMemoryUsed = data.total_memory_used;
                 this.totalMemory = data.total_memory;
                 this.memoryPercent = data.memory_percent;
+                this.percentage = data.percentage;
+                this.powerPlugged = data.power_plugged;
+                this.batteryThreshold = data.battery_threshold;
             }
-            catch(e){
+            catch (e) {
                 console.log('Error in RAMCPU data incoming');
             }
         }
@@ -86,6 +104,10 @@ export default {
     display: flex;
     flex-direction: column;
     gap: 2px;
+}
+
+.progress-total.low-battery {
+    background: #ff4444;
 }
 
 .label {
@@ -121,7 +143,7 @@ export default {
     transform: translate(-50%, -50%);
     color: white;
     font-size: 0.7em;
-    text-shadow: 0 0 2px rgba(0,0,0,0.5);
+    text-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
     white-space: nowrap;
 }
 </style>

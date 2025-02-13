@@ -1,6 +1,6 @@
 from plugins.baseplugin.baseplugin import Baseplugin
 from plugin_manager import hookimpl
-import psutil, os, time, threading
+import psutil, os, time, threading,asyncio
 from dotenv import load_dotenv
 load_dotenv()
 from context_manager import context_manager
@@ -17,6 +17,9 @@ class Ramcpu(Baseplugin):
     def startup(self):
         self.settings = self.get_my_settings()
         self.timeout = int(self.settings.get("timeout", 1))
+        self.battery_threshold = int(self.settings.get("battery_threshold", 20))
+        self.warning_timeout = int(self.settings.get("warning_timeout", 300))  # 5 minutes default
+        self.last_battery_warning = 0
 
     @hookimpl
     def gui_ready(self):
@@ -45,6 +48,31 @@ class Ramcpu(Baseplugin):
                 "total_memory": total_memory,
                 "memory_percent": memory_percent
             }
+            
+            # Add battery monitoring
+            battery = psutil.sensors_battery()
+            battery_data = {
+                "percentage": 0,
+                "power_plugged": True,
+                "battery_threshold": self.battery_threshold  # Pass the threshold to frontend
+            }
+            
+            if battery:
+                battery_data["percentage"] = battery.percent
+                battery_data["power_plugged"] = battery.power_plugged
+                
+                # Check if battery is below threshold and not plugged in
+                current_time = time.time()
+            if (battery.percent <= self.battery_threshold and 
+                not battery.power_plugged and 
+                current_time - self.last_battery_warning > self.warning_timeout):
+                print ("************* WARNING THE USER")
+                self.last_battery_warning = current_time
+                asyncio.run(self.pm.trigger_hook(hook_name="speak", message="Attention: batterie faible. S'il vous plait, branchez la tablette"))
+
+            usage_data.update(battery_data)
+            self.send_message_to_frontend(usage_data)
+            time.sleep(self.timeout)
             
             self.send_message_to_frontend(usage_data)
             time.sleep(self.timeout)
