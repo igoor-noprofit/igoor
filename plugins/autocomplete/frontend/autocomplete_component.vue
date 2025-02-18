@@ -22,11 +22,11 @@
             </div>
         </div>
 
-        <button @click="$_speakInput()" class="btn btn-side btn-side-right speak" :disabled="isLoading || error">
+        <button @click="$_speakInput()" class="btn btn-side btn-side-right speak" :disabled="isLoading || error || !userInput.trim()">
             <svg class="icon icon-l">
                 <use xlink:href="img/svgdefs.svg#icon-talk"></use>
             </svg>
-            <h3>parler</h3>
+            <h3>dire la phrase</h3>
         </button>
     </div>
     <!------------------------------ VIRTUAL KEYBOARD ------------------------>
@@ -299,6 +299,19 @@ module.exports = {
     margin-bottom: 10px;
 }
 
+
+.btn-side-right.speak:disabled svg {
+    opacity: 0.6;
+}
+
+.btn-side-right.speak:disabled svg use {
+    stroke: #666666;
+    fill: #666666;
+}
+
+.btn-side-right.speak:disabled h3 {
+    color: #666666;
+}
 
 button {
     cursor: pointer;
