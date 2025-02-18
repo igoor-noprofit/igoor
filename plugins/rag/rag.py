@@ -19,47 +19,56 @@ class Rag(Baseplugin):
         
     @hookimpl
     def startup(self):
-        # self.clear_all_models()
         print ("RAG IS STARTING UP")
         self.settings = self.get_my_settings()
         self.medias_folder_name = "medias"
         self.index_folder_name = "faiss_index"
         self.index_loaded = False
         self.embedding_loaded = False
-        # THREAD THIS ONE ?
-        self.embedding_function=self.get_embedding_function()
-        # Check if medias folder exists
+        self.loading_event = asyncio.Event()
+        
+        # Start a thread to load both embedding model and index
+        thread = threading.Thread(target=lambda: asyncio.run(self.initialize_resources()))
+        thread.start()
+        
+    async def initialize_resources(self):
+        # Load embedding model in thread pool
+        loop = asyncio.get_event_loop()
+        self.embedding_function = await loop.run_in_executor(None, self.get_embedding_function)
+        
         if self.subfolder_exists(self.medias_folder_name):
             self.create_folders()
-            # Check if index folder does not exist or is empty
             if not self.subfolder_exists(self.index_folder_name) or self.is_folder_empty(self.index_folder_name):
                 self.logger.info("INDEX FOLDER DOES NOT EXIST OR IS EMPTY, CREATING FROM FOLDER")
                 self.create_index()
             else:
                 self.logger.info("BOTH FOLDERS EXIST AND INDEX IS NOT EMPTY")
                 self.logger.info("RAG settings", self.settings)
-                threading.Thread(target=self.load_index).start()
+                await self.load_index()
     
-    def load_index(self):
-        self.logger.info ("LOADING INDEX, PLEASE WAIT...")
+    async def load_index(self):  # Make load_index async
+        self.logger.info("LOADING INDEX, PLEASE WAIT...")
         db_start_time = time.time()
         try:
-            self.db = FAISS.load_local(self.index_folder, self.embedding_function, allow_dangerous_deserialization=True)
+            # Run the CPU-intensive FAISS loading in a thread pool
+            loop = asyncio.get_event_loop()
+            self.db = await loop.run_in_executor(None, 
+                lambda: FAISS.load_local(self.index_folder, self.embedding_function, allow_dangerous_deserialization=True)
+            )
             db_end_time = time.time()
             self.logger.info(f"DB FAISS index loaded successfully in : {db_end_time - db_start_time:.2f} seconds")
-            self.index_loaded = True  # Set index_loaded to True after successful loading
+            self.index_loaded = True
             self.is_loaded = True
+            self.loading_event.set()  # Signal that loading is complete
         except Exception as e:
             self.logger.error(f"Error loading FAISS index: {e}")
+            self.loading_event.set()  # Signal even on error to prevent hanging
         
     @hookimpl
     async def store_memory(self, memory: str) -> bool:
+        await self.loading_event.wait()  # Wait for index to load
         if not self.index_loaded:
-            print("Index still loading")
-        while not self.index_loaded:
-            print(".", end="", flush=True)
-            # TODO: Communicate to frontend
-            await asyncio.sleep(0.1)
+            return False
             
         new_doc = Document(
             page_content=memory,
@@ -173,15 +182,12 @@ class Rag(Baseplugin):
     async def query_rag(self, query_text: str):
         try:
             self.logger.debug(f"QUERYING INDEX with text: {query_text}")
+            await self.loading_event.wait()  # Wait for index to load
             if not self.index_loaded:
-                print("Index still loading")
-            while not self.index_loaded:
-                print(".", end="", flush=True)
-                await asyncio.sleep(0.1)
+                return False
 
             start_time = time.time()
             search_start_time = time.time()
-            # Assuming similarity_search is a blocking call, you might need to run it in a thread
             loop = asyncio.get_event_loop()
             results = await loop.run_in_executor(None, self.db.similarity_search, query_text)
             search_end_time = time.time()
