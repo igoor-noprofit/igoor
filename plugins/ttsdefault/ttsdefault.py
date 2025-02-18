@@ -11,12 +11,12 @@ class Ttsdefault(Baseplugin):
         try: 
             self.speaker = win32com.client.Dispatch("SAPI.SpVoice")
             self.available_voices = self.speaker.GetVoices()
-            print("AVAILABLE VOICES:")
+            self.logger.info("AVAILABLE VOICES:")
             for voice in self.available_voices:
-                print(f"- {voice.GetDescription()}")
+                self.logger.info(f"- {voice.GetDescription()}")
             self.is_loaded = True
         except Exception as e:
-            print(f"ERROR: No available voices for TTS DEFAULT")
+            self.logger.error(f"ERROR: No available voices for TTS DEFAULT")
             return False    
                 
     @hookimpl
@@ -36,16 +36,22 @@ class Ttsdefault(Baseplugin):
     @hookimpl
     def speak(self, message):
         if self.is_loaded and not self.fallback_only:
-            print("§§§§ SPEAKING *********************************************** :", message)
+            self.logger.info("§§§§ SPEAKING *********************************************** :", message)
             # Schedule the speak_func to run in the background
             asyncio.create_task(self.run_speak_func(message))
 
     @hookimpl
     def speak_fallback(self, message):
-        print("§§§§ FALLBACK SPEAKING *********************************************** :", message)
+        self.logger.info("§§§§ FALLBACK SPEAKING *********************************************** :", message)
         # Schedule the speak_func to run in the background
         if (self.fallback_only):
             asyncio.create_task(self.run_speak_func(message))
+            
+    @hookimpl
+    def speak_as_igoor(self, message):
+        self.logger.info(f"§§§§ SPEAKING AS IGOOR *********************************************** : {message}")
+        # Used to speak as the machine
+        asyncio.create_task(self.run_speak_func(message))
 
     def run_restart_asr(self):
         asyncio.create_task(self.restart_asr())
@@ -59,11 +65,11 @@ class Ttsdefault(Baseplugin):
         await self.pm.trigger_hook(hook_name="restart_asr")
 
     async def speak_func(self, message):
-        print("SPEAK FUNC:" + message)
+        self.logger.info("SPEAK FUNC:" + message)
         try:
             self.speaker.Speak(message)
             return True
 
         except Exception as e:
-            print(f"Error occurred while speaking: {e}")
+            self.logger.error(f"Error occurred while speaking: {e}")
             return False

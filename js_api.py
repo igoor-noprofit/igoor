@@ -29,6 +29,10 @@ class Api:
         else:
             return plugin_manager.activate_plugin(plugin_name=pn)
 
+    def win_minimize(self):
+        window = webview.windows[0]
+        window.minimize();
+
     def minimize(self):
         print("MIN window")
         window = webview.windows[0]

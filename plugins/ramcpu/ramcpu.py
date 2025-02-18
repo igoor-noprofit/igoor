@@ -21,6 +21,7 @@ class Ramcpu(Baseplugin):
         self.battery_threshold = int(self.settings.get("battery_threshold", 20))
         self.warning_timeout = int(self.settings.get("warning_timeout", 300))
         self.last_battery_warning = 0
+        self.loop = asyncio.get_event_loop()
         # Send initial settings to frontend
         initial_settings = {
             "type": "settings",
@@ -72,18 +73,26 @@ class Ramcpu(Baseplugin):
                 battery_data["percentage"] = battery.percent
                 battery_data["power_plugged"] = battery.power_plugged
                 
-                # Check if battery is below threshold and not plugged in
+                # Add debug logging
                 current_time = time.time()
+                elapsed_time = current_time - self.last_battery_warning
+                self.logger.debug(f"Battery: {battery.percent}%, Plugged: {battery.power_plugged}, " +
+                               f"Threshold: {self.battery_threshold}, " +
+                               f"Time since last warning: {elapsed_time:.1f}s")
+                
+                # Check if battery is below threshold and not plugged in
                 if (battery.percent <= self.battery_threshold and 
                     not battery.power_plugged and 
                     current_time - self.last_battery_warning > self.warning_timeout):
-                    print ("************* WARNING THE USER")
+                    self.logger.info("Battery warning conditions met - triggering speech")
                     self.last_battery_warning = current_time
-                    # asyncio.create_task(self.pm.trigger_hook(hook_name="speak", message=msg))
-                    # asyncio.run(self.pm.trigger_hook(hook_name="speak", message="OK tests"))
-                else:
-                    elapsed_time = current_time - self.last_battery_warning
-                    print(f"Time since last battery warning: {elapsed_time:.1f} seconds")
+                    
+                    asyncio.run_coroutine_threadsafe(
+                        self.pm.trigger_hook("speak", message="La batterie est en train de se décharger. Pouvez-vous brancher l'alimentation ?"),
+                        self.loop
+                    )
+                    
+                    self.logger.info("Speech hook triggered")
             
             usage_data.update(battery_data)
             self.send_message_to_frontend(usage_data)

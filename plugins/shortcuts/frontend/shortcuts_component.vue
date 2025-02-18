@@ -15,6 +15,11 @@
             </svg>
             <h3>Oui</h3>
         </button>
+        <!--button class="btn btn-shortcut" @click="$_minimise()"><svg class="icon icon-l">
+                <use xlink:href="img/svgdefs.svg#icon-minimize"></use>
+            </svg>
+            <h3>Réduire la fenetre</h3>
+        </button-->
         <button class="btn btn-shortcut" @click="$_speak('Non')"><svg class="icon icon-l">
                 <use xlink:href="img/svgdefs.svg#icon-no"></use>
             </svg>
@@ -55,6 +60,9 @@ export default {
             console.log("sending JSON");
             console.log(json);
             this.sendMsgToBackend(json);
+        },
+        $_minimise(){
+            window.pywebview.api.win_minimize()
         }
     }
 };

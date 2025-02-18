@@ -61,13 +61,15 @@ class MyAppSpec:
     '''
     
     @pluggy.HookspecMarker(app_name)
-    def speak(self,message):
-        self.plugin_manager.hook.speak(message=message)
+    def speak(self,message: str):
         pass
     
     @pluggy.HookspecMarker(app_name)
-    def speak_fallback(self,message):
-        self.plugin_manager.hook.speak(message=message)
+    def speak_fallback(self,message: str):
+        pass
+    
+    @pluggy.HookspecMarker(app_name)
+    def speak_as_igoor(self,message: str):
         pass
     
     '''
