@@ -33,24 +33,24 @@ class Rag(Baseplugin):
             self.create_folders()
             # Check if index folder does not exist or is empty
             if not self.subfolder_exists(self.index_folder_name) or self.is_folder_empty(self.index_folder_name):
-                print("INDEX FOLDER DOES NOT EXIST OR IS EMPTY, CREATING FROM FOLDER")
+                self.logger.info("INDEX FOLDER DOES NOT EXIST OR IS EMPTY, CREATING FROM FOLDER")
                 self.create_index()
             else:
-                print("BOTH FOLDERS EXIST AND INDEX IS NOT EMPTY")
-                print("RAG settings", self.settings)
+                self.logger.info("BOTH FOLDERS EXIST AND INDEX IS NOT EMPTY")
+                self.logger.info("RAG settings", self.settings)
                 threading.Thread(target=self.load_index).start()
     
     def load_index(self):
-        print ("LOADING INDEX, PLEASE WAIT...")
+        self.logger.info ("LOADING INDEX, PLEASE WAIT...")
         db_start_time = time.time()
         try:
             self.db = FAISS.load_local(self.index_folder, self.embedding_function, allow_dangerous_deserialization=True)
             db_end_time = time.time()
-            print(f"DB FAISS index loaded successfully in : {db_end_time - db_start_time:.2f} seconds")
+            self.logger.info(f"DB FAISS index loaded successfully in : {db_end_time - db_start_time:.2f} seconds")
             self.index_loaded = True  # Set index_loaded to True after successful loading
             self.is_loaded = True
         except Exception as e:
-            print(f"Error loading FAISS index: {e}")
+            self.logger.error(f"Error loading FAISS index: {e}")
         
     @hookimpl
     async def store_memory(self, memory: str) -> bool:
@@ -69,20 +69,20 @@ class Rag(Baseplugin):
             self.db.add_documents([new_doc])
             return True
         except Exception as e:
-            print(f"Error adding fact to index: {e}")
+            self.logger.error(f"Error adding fact to index: {e}")
             return False
         
     @hookimpl
     async def save_index(self) -> bool:
         if not self.index_loaded:
-            print("Index is not loaded, cannot save.")
+            self.logger.warning("Index is not loaded, cannot save.")
             return False
         try:
             self.db.save_local(self.index_folder)
-            print("Index saved successfully.")
+            self.logger.info("Index saved successfully.")
             return True
         except Exception as e:
-            print(f"Error saving FAISS index: {e}")
+            self.logger.error(f"Error saving FAISS index: {e}")
             return False
         
     def create_folders(self):
@@ -110,12 +110,12 @@ class Rag(Baseplugin):
         if os.path.exists(cache_dir):
             # Remove the directory and all its contents
             shutil.rmtree(cache_dir)
-            print(f"Cleared Hugging Face cache at: {cache_dir}")
+            self.logger.debug(f"Cleared Hugging Face cache at: {cache_dir}")
         else:
-            print(f"No cache found at: {cache_dir}")
+            self.logger.debug(f"No cache found at: {cache_dir}")
             
     def get_embedding_function(self):
-        print("LOADING EMBEDDING FUNCTION")
+        self.logger.debug("LOADING EMBEDDING FUNCTION")
         embedding_model = self.settings.get("embedding_model")
         model_kwargs = {"device": "cpu", 'trust_remote_code': True}
         encode_kwargs = {"normalize_embeddings": True}
@@ -126,10 +126,10 @@ class Rag(Baseplugin):
         return hf
 
     def create_index(self):
-        print ("CREATING DB, PLEASE WAIT...")
+        self.logger.info("CREATING DB, PLEASE WAIT...")
         db_start_time = time.time()
         folder_path = os.path.join(self.plugin_folder,"medias")
-        print (folder_path)
+        self.logger.info(f"Folder path: {folder_path}")
         # Load all .txt and .pdf files
         documents = []
         for file_name in os.listdir(folder_path):
@@ -148,7 +148,7 @@ class Rag(Baseplugin):
 
         # Check if there are no documents
         if not documents:
-            print("No documents found in the folder. FAISS index cannot be created.")
+            self.logger.warning("No documents found in the folder. FAISS index cannot be created.")
             return False
 
         # Split documents
@@ -160,19 +160,19 @@ class Rag(Baseplugin):
                 print(doc.page_content)
                 print("-------")
 
-        print ("CREATING INDEX")
+        self.logger.info("CREATING INDEX")
         self.db = FAISS.from_documents(docs, self.embedding_function)
         self.db.save_local(self.index_folder)
-        print("FAISS index saved.")
+        self.logger.info("FAISS index saved.")
         db_end_time = time.time()
-        print(f"DB FAISS index created successfully in : {db_end_time - db_start_time:.2f} seconds")
+        self.logger.info(f"DB FAISS index created successfully in : {db_end_time - db_start_time:.2f} seconds")
         self.load_index()
         return True
     
     @hookimpl
     async def query_rag(self, query_text: str):
         try:
-            print("QUERYING INDEX with text: ", query_text)
+            self.logger.debug(f"QUERYING INDEX with text: {query_text}")
             if not self.index_loaded:
                 print("Index still loading")
             while not self.index_loaded:
@@ -185,9 +185,9 @@ class Rag(Baseplugin):
             loop = asyncio.get_event_loop()
             results = await loop.run_in_executor(None, self.db.similarity_search, query_text)
             search_end_time = time.time()
-            print(f"DB search time: {search_end_time - search_start_time:.2f} seconds")
+            self.logger.debug(f"DB search time: {search_end_time - search_start_time:.2f} seconds")
             context_text = "\n\n---\n\n".join([doc.page_content for doc in results])
             return context_text
         except Exception as e:
-            print(f"An error occurred during query_rag execution: {e}")
+            self.logger.error(f"An error occurred during query_rag execution: {e}")
             return False

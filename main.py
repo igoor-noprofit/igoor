@@ -15,7 +15,7 @@ import tkinter as tk
 import asyncio
 from utils import resource_path, setup_logger
 
-logger = setup_logger('igoor.main', os.path.join(os.getenv('APPDATA'), os.getenv('IGOOR_APPNAME')))
+logger = setup_logger('main', os.path.join(os.getenv('APPDATA'), os.getenv('IGOOR_APPNAME')))
 prompts=None
 context_manager = ContextManager()
 manager = PluginManager()

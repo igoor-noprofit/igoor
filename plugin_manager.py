@@ -13,7 +13,7 @@ IGOOR_DEBUG = os.getenv('IGOOR_DEBUG', 'False')
 app_name = os.getenv("IGOOR_APPNAME")
 hookspec = pluggy.HookspecMarker(app_name)
 hookimpl = pluggy.HookimplMarker(app_name)
-logger = setup_logger('igoor.plugin_manager', os.path.join(os.getenv('APPDATA'), os.getenv('IGOOR_APPNAME')))
+logger = setup_logger('pm', os.path.join(os.getenv('APPDATA'), os.getenv('IGOOR_APPNAME')))
 
 if hasattr(sys, '_MEIPASS'):
     print(f"_MEIPASS directory: {sys._MEIPASS}")
@@ -169,7 +169,7 @@ class PluginManager:
         # Load plugins dynamically from the plugins/ directory based on activation state
     
     async def trigger_hook(self, hook_name, *args, **kwargs):
-        self.logger.info("Hook triggered:", hook_name)
+        self.logger.info(f"Hook triggered: {hook_name}")
         """Generic method to trigger any hook by name."""
         hook = getattr(self.plugin_manager.hook, hook_name, None)
         if hook:
@@ -256,7 +256,7 @@ class PluginManager:
             else:
                 print("Excluded baseplugin")
         
-        self.logger.info("ACTIVATED PLUGINS LIST:", self.activated_plugins)
+        self.logger.info(f"ACTIVATED PLUGINS LIST: {self.activated_plugins}")
         self.startup_plugins()
 
 
@@ -349,7 +349,7 @@ class PluginManager:
     '''
     def set_def_plugin_settings(self, plugin_name):
         settings_file_path = resource_path(os.path.join('plugins', plugin_name, 'settings.json'))
-        self.logger.info("Searching for: " + settings_file_path)
+        self.logger.info(f"Searching for: {settings_file_path}")
         if os.path.exists(settings_file_path):
             with open(settings_file_path, 'r', encoding='utf-8') as f:
                 try:

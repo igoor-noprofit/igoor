@@ -13,16 +13,15 @@ class Baseplugin:
         self.plugin_name = plugin_name
         
         self.logger = setup_logger(
-            f'igoor.plugins.{plugin_name}', 
+            f'plugins.{plugin_name}', 
             os.path.join(os.getenv('APPDATA'), os.getenv('IGOOR_APPNAME')),
             separate_plugin_log=True
         )
         
         if pm is None:
-            self.logger.info ("no plugin manager passed")
+            self.logger.warning ("no plugin manager passed")
             # sys.exit()     
         if isinstance(pm, PluginManager):
-            self.logger.info ("Valid PluginManager instance passed.")
             self.pm = pm
         else:
             self.logger.warning("Warning: pm is not a PluginManager instance.")
@@ -38,7 +37,7 @@ class Baseplugin:
         self.plugin_folder = os.path.join(self.appdata_path, self.app_name, 'plugins', plugin_name)
         # Create the directory if it doesn't exist
         if not os.path.exists(self.plugin_folder):
-            print("CREATING FOLDER ", self.plugin_folder)
+            self.logger.info(f"CREATING FOLDER {self.plugin_folder}")
             os.makedirs(self.plugin_folder)
         else:
             print("FOLDER EXISTING: " + self.plugin_folder)
@@ -48,7 +47,7 @@ class Baseplugin:
     @hookimpl
     def get_frontend_components(self):
         vue_component = self.plugin_name + "_component.vue"
-        print("loading vue component ",vue_component)
+        self.logger.info(f"loading vue component {vue_component}")
         return [
             {
                 "vue": vue_component
@@ -59,7 +58,7 @@ class Baseplugin:
         """
         Retrieve settings specific to the plugin.
         """
-        print("getting settings for ", self.plugin_name)
+        self.logger.info(f"getting settings for {self.plugin_name}")
         return self.settings_manager.get_plugin_settings(self.plugin_name)
 
     def mass_update_settings(self, json_data):
@@ -68,20 +67,20 @@ class Baseplugin:
             parsed_data = json.loads(json_data)
             self.settings_manager.save_settings(parsed_data)
         except json.JSONDecodeError:
-            print("Invalid JSON data provided for mass update.")
+            self.logger.error("Invalid JSON data provided for mass update.")
 
     def update_my_settings(self, key: str, value: any):
         """
         Update settings for a specific plugin.
         """
-        print(f"{self.plugin_name} Updating {key} to {value}")
+        self.logger.info(f"{self.plugin_name} Updating {key} to {value}")
         current_settings = self.get_my_settings()
         current_settings[key] = value
         self.settings_manager.update_plugin_settings(self.plugin_name, current_settings)
         self.settings_manager.save_settings()
         
     def update_status(self, status):
-        print(f"Plugin {self.__class__.__name__} received status update: {status}")
+        self.logger.info(f"Plugin {self.__class__.__name__} received status update: {status}")
         # Implement specific status handling logic here
 
     def cleanup(self):
@@ -104,7 +103,7 @@ class Baseplugin:
         if os.path.exists(subfolder_path) and os.path.isdir(subfolder_path):
             return not any(os.listdir(subfolder_path))
         else:
-            print(f"Subfolder {subfolder_path} does not exist or is not a directory.")
+            self.logger.warning(f"Subfolder {subfolder_path} does not exist or is not a directory.")
             return False
     
     def create_subfolder(self, subfolder_name: str):
@@ -115,14 +114,14 @@ class Baseplugin:
         subfolder_path = os.path.join(self.plugin_folder, subfolder_name)
         try:
             if not os.path.exists(subfolder_path):
-                print(f"CREATING SUBFOLDER {subfolder_path}")
+                self.logger.info(f"CREATING SUBFOLDER {subfolder_path}")
                 os.makedirs(subfolder_path)
                 return subfolder_path
             else:
-                print(f"SUBFOLDER ALREADY EXISTS: {subfolder_path}")
+                self.logger.info(f"SUBFOLDER ALREADY EXISTS: {subfolder_path}")
                 return subfolder_path
         except Exception as e:
-            print(f"Failed to create subfolder {subfolder_path}: {e}")
+            self.logger.error(f"Failed to create subfolder {subfolder_path}: {e}")
             return False
         
     async def wait_for_socket_and_send(self, message, plugin_name=None):
@@ -133,10 +132,10 @@ class Baseplugin:
         :param plugin_name: (Optional) The plugin name to send the message to. If not provided, uses self.plugin_name.
         """
         target_plugin_name = plugin_name or self.plugin_name
-        print(f"Wait for socket CALLED to send message: {message} to: {target_plugin_name}")
+        self.logger.info(f"Wait for socket CALLED to send message: {message} to: {target_plugin_name}")
         while not websocket_server.is_socket_open(target_plugin_name):
             await asyncio.sleep(1)  # Wait for 1 second before checking again
-            print(f"Waiting for socket to open, to send {message} to {target_plugin_name}")
+            self.logger.info(f"Waiting for socket to open, to send {message} to {target_plugin_name}")
         self.send_message_to_frontend(message, target_plugin_name)
 
     async def send_status(self, status):
@@ -147,7 +146,7 @@ class Baseplugin:
         return success
     
     async def send_switch_view_to_app(self,view):
-        print("Switching view to " + view)
+        self.logger.info(f"Switching view to {view}")
         await self.send_message_to_app({"switchview":view})
         
     async def send_message_to_app(self, message):
@@ -167,13 +166,13 @@ class Baseplugin:
         is_error, error_info = LLMManager.is_error_response(llm_response)
         if is_error:
             if error_info["type"] == "RateLimitError":
-                print(f"Rate limit reached. Please wait {error_info['wait_time']} seconds before trying again.")
+                self.logger.error(f"Rate limit reached. Please wait {error_info['wait_time']} seconds before trying again.")
                 self.send_error_to_frontend(
                     error_code="rate_limit",
                     error=error_info
                 )
             else:
-                print(f"LLM error: {error_info['message']}")
+                self.logger.error(f"LLM error: {error_info['message']}")
                 self.send_error_to_frontend(
                     error_code="llm_error",
                     error=error_info["message"]
@@ -226,18 +225,18 @@ class Baseplugin:
 
         if websocket_server.is_socket_open(target_plugin_name):
             if not (target_plugin_name=='app'):
-                print(f"{target_plugin_name} BACKEND => FRONTEND via ws")
+                self.logger.info(f"{target_plugin_name} BACKEND => FRONTEND via ws")
             else:
-                print(f"{target_plugin_name} BACKEND => APP via ws")
+                self.logger.info(f"{target_plugin_name} BACKEND => APP via ws")
             try:
                 # Ensure the message is a JSON string
                 if isinstance(message, dict):
                     message = json.dumps(message)
                 return websocket_server.send_message(target_plugin_name, message)
             except Exception as e:
-                print(f"Error while sending message to {target_plugin_name} frontend: {e}")
+                self.logger.error(f"Error while sending message to {target_plugin_name} frontend: {e}")
         else:
-            print(f"{target_plugin_name} frontend is not ready")
+            self.logger.warning(f"{target_plugin_name} frontend is not ready")
             
     def process_incoming_message(self, message):
         try:
@@ -254,7 +253,7 @@ class Baseplugin:
             print(f"Default processing message for {self.plugin_name}: {message}")
                 
         except json.JSONDecodeError:
-            print("Received message is not valid JSON.")
+            self.logger.error("Received message is not valid JSON.")
             return
             
         # Check if the message is {"socket":"ready"}
