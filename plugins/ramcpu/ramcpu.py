@@ -16,10 +16,21 @@ class Ramcpu(Baseplugin):
     @hookimpl
     def startup(self):
         self.settings = self.get_my_settings()
+        print(f"Loaded settings for ramcpu: {self.settings}")  # Debug print
         self.timeout = int(self.settings.get("timeout", 1))
         self.battery_threshold = int(self.settings.get("battery_threshold", 20))
-        self.warning_timeout = int(self.settings.get("warning_timeout", 300))  # 5 minutes default
+        self.warning_timeout = int(self.settings.get("warning_timeout", 300))
         self.last_battery_warning = 0
+        # Send initial settings to frontend
+        initial_settings = {
+            "type": "settings",
+            "settings": {
+                "timeout": self.timeout,
+                "battery_threshold": self.battery_threshold,
+                "warning_timeout": self.warning_timeout
+            }
+        }
+        self.send_message_to_frontend(initial_settings)
 
     @hookimpl
     def gui_ready(self):
@@ -63,22 +74,23 @@ class Ramcpu(Baseplugin):
                 
                 # Check if battery is below threshold and not plugged in
                 current_time = time.time()
-            if (battery.percent <= self.battery_threshold and 
-                not battery.power_plugged and 
-                current_time - self.last_battery_warning > self.warning_timeout):
-                print ("************* WARNING THE USER")
-                self.last_battery_warning = current_time
-                asyncio.run(self.pm.trigger_hook(hook_name="speak", message="Attention: batterie faible. S'il vous plait, branchez la tablette"))
-
-            usage_data.update(battery_data)
-            self.send_message_to_frontend(usage_data)
-            time.sleep(self.timeout)
+                if (battery.percent <= self.battery_threshold and 
+                    not battery.power_plugged and 
+                    current_time - self.last_battery_warning > self.warning_timeout):
+                    print ("************* WARNING THE USER")
+                    self.last_battery_warning = current_time
+                    # asyncio.create_task(self.pm.trigger_hook(hook_name="speak", message=msg))
+                    # asyncio.run(self.pm.trigger_hook(hook_name="speak", message="OK tests"))
+                else:
+                    elapsed_time = current_time - self.last_battery_warning
+                    print(f"Time since last battery warning: {elapsed_time:.1f} seconds")
             
+            usage_data.update(battery_data)
             self.send_message_to_frontend(usage_data)
             time.sleep(self.timeout)
     
     # Function to print CPU and RAM usage
-    def print_usage():
+    def print_usage(self):
         # Get the CPU percentage
         cpu_usage = process.cpu_percent(interval=1)
         
@@ -87,4 +99,3 @@ class Ramcpu(Baseplugin):
         
         print(f"CPU Usage: {cpu_usage}%")
         print(f"Memory Usage: {memory_usage:.2f} MB")
-        

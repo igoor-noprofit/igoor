@@ -28,7 +28,7 @@ class Elevenlabs(Baseplugin):
         
     @hookimpl
     def speak(self, message):
-        print("§§§§ SPEAKING *********************************************** :", message)
+        print("§§§§ ELEVENLABS SPEAKING *********************************************** :", message)
         
         # Schedule the speak_func to run in the background
         asyncio.create_task(self.run_speak_func(message))
