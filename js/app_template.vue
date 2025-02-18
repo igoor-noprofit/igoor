@@ -1,4 +1,4 @@
-<div id="apploading" v-show="appview == 'loading'">
+<div id="apploading" v-show="appview == 'loading' || !pywebviewready">
     <img src="img/igoor_logo.png" alt="Igoor Logo">
 </div>
 <div id="minimized" v-show="minimized" @click="maximize">

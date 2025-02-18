@@ -1,4 +1,4 @@
-<div id="apploading" v-show="appview == 'loading'">
+<div id="apploading" v-show="appview == 'loading' || !pywebviewready">
     <img src="img/igoor_logo.png" alt="Igoor Logo">
 </div>
 <div id="minimized" v-show="minimized" @click="maximize">
@@ -7,7 +7,7 @@
     </button>
 </div>
 <div id="hidden">
-    
+    <rag  :appview="appview"></rag>
 </div>
 <div id="topbar">
     <a @click="minimize()"><img src="img/logo_small.svg" class="logo_small" id="igoor_logo"></a> 

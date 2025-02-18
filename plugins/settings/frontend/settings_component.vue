@@ -47,20 +47,43 @@ export default {
             selectedPlugin: null,
             showModal: false,
             selectedPluginComponent: null,
-            activeTab: null // New data property for active tab
-        };
+            activeTab: null, 
+            pywebviewready: false
+        }
     },
-    mounted() {
-        this.loadPlugins();
+    async mounted() {
+        // Wait for pywebview to be ready before proceeding
+        await new Promise(resolve => {
+            if (window.pywebview && window.pywebview.api) {
+                this.pywebviewready = true;
+                resolve();
+            } else {
+                window.addEventListener("pywebviewready", () => {
+                    this.pywebviewready = true;
+                    console.log("Pywebview is ready in settings component!");
+                    resolve();
+                });
+            }
+        });
+
+        // Now safe to load plugins
+        await this.loadPlugins();
     },
     methods: {
-        loadPlugins() {
-            window.pywebview.api.get_plugins_by_category().then(response => {
-                console.log(response)
-                console.table(response)
+        async loadPlugins() {
+            try {
+                if (!this.pywebviewready) {
+                    console.log("Pywebview not ready, waiting to load plugins...");
+                    return;
+                }
+                const response = await window.pywebview.api.get_plugins_by_category();
+                console.log(response);
+                console.table(response);
                 this.pluginData = response;
-                this.activeTab = Object.keys(response)[0]; // Set the first category as the active tab
-            });
+                this.activeTab = Object.keys(response)[0];
+            } catch (error) {
+                console.error("Error loading plugins:", error);
+            }
         },
         togglePlugin(category, pluginName, isActive) {
             window.pywebview.api.toggle_plugin(pluginName, isActive).then(() => {

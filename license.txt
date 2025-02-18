@@ -1,4 +1,4 @@
-Copyright (c) 2025 Carlo Giordano and IGOOR (not-for-profit organization, see https://igoor.org)
+Copyright (c) 2025 Carlo Giordano, Igor Novitzki and the IGOOR not-for-profit organization (see https://igoor.org)
 All rights reserved.
 This work and all associated content, including but not limited to:
 

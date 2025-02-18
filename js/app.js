@@ -36,25 +36,34 @@ const { loadModule, version } = window["vue3-sfc-loader"];
 async function initializeApp() {
   console.log("initializing app");
   const appTemplate = await options.getFile("/js/app.vue");
-  // console.log(appTemplate);
   app = Vue.createApp({
     data() {
       return {
-        appview: "loading", // Add this line
+        appview: "loading",
         lastview: "daily",
         websocketUtil: null,
         minimized: false,
-        headerExpanded: false 
+        headerExpanded: false,
+        pywebviewready: false  // Add this line
       };
     },
     components: {
-      'Elevenlabs': Vue.defineAsyncComponent(() => loadModule('/plugins/elevenlabs/frontend/elevenlabs_component.vue',options)), 'Ttsdefault': Vue.defineAsyncComponent(() => loadModule('/plugins/ttsdefault/frontend/ttsdefault_component.vue',options)), 'Clock': Vue.defineAsyncComponent(() => loadModule('/plugins/clock/frontend/clock_component.vue',options)), 'Meteo': Vue.defineAsyncComponent(() => loadModule('/plugins/meteo/frontend/meteo_component.vue',options)), 'Ramcpu': Vue.defineAsyncComponent(() => loadModule('/plugins/ramcpu/frontend/ramcpu_component.vue',options)), 'Settings': Vue.defineAsyncComponent(() => loadModule('/plugins/settings/frontend/settings_component.vue',options)), 'Asrvosk': Vue.defineAsyncComponent(() => loadModule('/plugins/asrvosk/frontend/asrvosk_component.vue',options)), 'Autocomplete': Vue.defineAsyncComponent(() => loadModule('/plugins/autocomplete/frontend/autocomplete_component.vue',options)), 'Conversation': Vue.defineAsyncComponent(() => loadModule('/plugins/conversation/frontend/conversation_component.vue',options)), 'Autocompletelauncher': Vue.defineAsyncComponent(() => loadModule('/plugins/autocompletelauncher/frontend/autocompletelauncher_component.vue',options)), 'Daily': Vue.defineAsyncComponent(() => loadModule('/plugins/daily/frontend/daily_component.vue',options)), 'Onboarding': Vue.defineAsyncComponent(() => loadModule('/plugins/onboarding/frontend/onboarding_component.vue',options)), 'Flow': Vue.defineAsyncComponent(() => loadModule('/plugins/flow/frontend/flow_component.vue',options)), 'Memory': Vue.defineAsyncComponent(() => loadModule('/plugins/memory/frontend/memory_component.vue',options)), 'Shortcuts': Vue.defineAsyncComponent(() => loadModule('/plugins/shortcuts/frontend/shortcuts_component.vue',options))
+      'Rag': Vue.defineAsyncComponent(() => loadModule('/plugins/rag/frontend/rag_component.vue',options)), 'Elevenlabs': Vue.defineAsyncComponent(() => loadModule('/plugins/elevenlabs/frontend/elevenlabs_component.vue',options)), 'Ttsdefault': Vue.defineAsyncComponent(() => loadModule('/plugins/ttsdefault/frontend/ttsdefault_component.vue',options)), 'Clock': Vue.defineAsyncComponent(() => loadModule('/plugins/clock/frontend/clock_component.vue',options)), 'Meteo': Vue.defineAsyncComponent(() => loadModule('/plugins/meteo/frontend/meteo_component.vue',options)), 'Ramcpu': Vue.defineAsyncComponent(() => loadModule('/plugins/ramcpu/frontend/ramcpu_component.vue',options)), 'Settings': Vue.defineAsyncComponent(() => loadModule('/plugins/settings/frontend/settings_component.vue',options)), 'Asrvosk': Vue.defineAsyncComponent(() => loadModule('/plugins/asrvosk/frontend/asrvosk_component.vue',options)), 'Autocomplete': Vue.defineAsyncComponent(() => loadModule('/plugins/autocomplete/frontend/autocomplete_component.vue',options)), 'Conversation': Vue.defineAsyncComponent(() => loadModule('/plugins/conversation/frontend/conversation_component.vue',options)), 'Autocompletelauncher': Vue.defineAsyncComponent(() => loadModule('/plugins/autocompletelauncher/frontend/autocompletelauncher_component.vue',options)), 'Daily': Vue.defineAsyncComponent(() => loadModule('/plugins/daily/frontend/daily_component.vue',options)), 'Onboarding': Vue.defineAsyncComponent(() => loadModule('/plugins/onboarding/frontend/onboarding_component.vue',options)), 'Flow': Vue.defineAsyncComponent(() => loadModule('/plugins/flow/frontend/flow_component.vue',options)), 'Memory': Vue.defineAsyncComponent(() => loadModule('/plugins/memory/frontend/memory_component.vue',options)), 'Shortcuts': Vue.defineAsyncComponent(() => loadModule('/plugins/shortcuts/frontend/shortcuts_component.vue',options))
     },
     template: appTemplate,
-    mounted: function () {
-      window.addEventListener("pywebviewready", async function () {
-        app.pywebviewready = true;
-        console.log("Pywebview is ready!");
+    mounted: async function () {
+      // Wait for pywebview to be ready before proceeding
+      await new Promise(resolve => {
+        if (window.pywebview && window.pywebview.api) {
+          this.pywebviewready = true;
+          resolve();
+        } else {
+          window.addEventListener("pywebviewready", () => {
+            this.pywebviewready = true;
+            console.log("Pywebview is ready!");
+            resolve();
+          });
+        }
       });
       // Create a WebSocket connection
       this.websocketUtil = new WebSocket("ws://localhost:9715/app");
@@ -104,11 +113,15 @@ async function initializeApp() {
       showAutocomplete(event) {
         this.changeView("autocomplete");
       },
-      changeView(view) {
-        console.log("Switching view to " + view)
+      async changeView(view) {
+        console.log("Switching view to " + view);
+        if (!this.pywebviewready) {
+          console.log("Waiting for pywebview to be ready...");
+          return;
+        }
         this.lastview = this.appview;
         this.appview = view;
-        window.pywebview.api.change_view(this.lastview,view);
+        await window.pywebview.api.change_view(this.lastview, view);
       },
       maximize(){
         console.log('MAXIMIZE WINDOW');

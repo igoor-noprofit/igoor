@@ -36,25 +36,34 @@ const { loadModule, version } = window["vue3-sfc-loader"];
 async function initializeApp() {
   console.log("initializing app");
   const appTemplate = await options.getFile("/js/app.vue");
-  // console.log(appTemplate);
   app = Vue.createApp({
     data() {
       return {
-        appview: "loading", // Add this line
+        appview: "loading",
         lastview: "daily",
         websocketUtil: null,
         minimized: false,
-        headerExpanded: false 
+        headerExpanded: false,
+        pywebviewready: false  // Add this line
       };
     },
     components: {
       //** JS_COMPONENTS */
     },
     template: appTemplate,
-    mounted: function () {
-      window.addEventListener("pywebviewready", async function () {
-        app.pywebviewready = true;
-        console.log("Pywebview is ready!");
+    mounted: async function () {
+      // Wait for pywebview to be ready before proceeding
+      await new Promise(resolve => {
+        if (window.pywebview && window.pywebview.api) {
+          this.pywebviewready = true;
+          resolve();
+        } else {
+          window.addEventListener("pywebviewready", () => {
+            this.pywebviewready = true;
+            console.log("Pywebview is ready!");
+            resolve();
+          });
+        }
       });
       // Create a WebSocket connection
       this.websocketUtil = new WebSocket("ws://localhost:9715/app");
@@ -104,11 +113,15 @@ async function initializeApp() {
       showAutocomplete(event) {
         this.changeView("autocomplete");
       },
-      changeView(view) {
-        console.log("Switching view to " + view)
+      async changeView(view) {
+        console.log("Switching view to " + view);
+        if (!this.pywebviewready) {
+          console.log("Waiting for pywebview to be ready...");
+          return;
+        }
         this.lastview = this.appview;
         this.appview = view;
-        window.pywebview.api.change_view(this.lastview,view);
+        await window.pywebview.api.change_view(this.lastview, view);
       },
       maximize(){
         console.log('MAXIMIZE WINDOW');
