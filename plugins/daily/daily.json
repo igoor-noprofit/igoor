@@ -22,22 +22,10 @@
             "repositionner sur le fauteuil": {
                 "freq": 0
             },
-            "oreiller ergonomique": {
-                "freq": 0
-            },
-            "gratter corps": {
-                "freq": 0
-            },
-            "ajuster vêtements": {
-                "freq": 0
-            },
-            "ajuster accessoires": {
-                "freq": 0
-            },
             "se moucher": {
                 "freq": 0
             },
-            "essuyer transpiration": {
+            "gratter corps": {
                 "freq": 0
             }
         },
@@ -108,17 +96,18 @@
                 "freq": 0
             }
         },
-        "se vêtir": {
-            "pijama":{
-                "fixed": true
-            },
-            "habit": {
+        "technique": {
+            "calibrer commande oculaire": {
+                "fixed": true,
                 "freq": 0
             },
-            "manteau": {
+            "redemarrer OS": {
                 "freq": 0
             },
-            "chaussures": {
+            "redemarrer TD Control": {
+                "freq": 0
+            },
+            "batterie tablette": {
                 "freq": 0
             }
         },
@@ -144,6 +133,20 @@
         }
     },
     {
+        "se vêtir": {
+            "pijama":{
+                "fixed": true
+            },
+            "habit": {
+                "freq": 0
+            },
+            "manteau": {
+                "freq": 0
+            },
+            "chaussures": {
+                "freq": 0
+            }
+        },
         "communication": {
             "appeler quelqu'un": {
                 "freq": 0

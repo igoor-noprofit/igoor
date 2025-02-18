@@ -2,7 +2,7 @@
     <div class="flow container flow-plugin" :class="{ 'plugin-error': error }"
         v-if="answers && answers.length > 0 && appview != 'daily'">
         <button v-if="answers"
-            :class="['btn', 'btn-side', 'btn-side-left', 'abandon', appview == 'autocomplete' ? 'autocomplete' : '']"
+            :class="['btn', 'btn-side', 'btn-side-left', 'abandon', appview == 'autocomplete' ? 'autocomplete' : '',$root.headerExpanded ? 'expanded' : '']"
             @click="$_abandonConversation(true)">
             Abandonner la conversation
         </button>

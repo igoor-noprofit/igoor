@@ -1,8 +1,10 @@
 <template>
-    <div class="conversation-plugin" v-if="appview !== 'autocomplete' && appview !== 'onboarding'">
+    <div class="conversation-plugin" v-if="appview !== 'autocomplete' && appview !== 'onboarding'"
+        :class="{ 'expanded': isExpanded }">
         <div class="scrollableConv" ref="scrollableConv">
             <div v-for="(message, index) in thread" :key="index">
-                <div class="card" :class="[message.author, { last: isLastMessage(index) }]">
+                <div class="card" :class="[message.author, { last: isLastMessage(index) }]"
+                    @click="handleMessageClick(message)">
                     <div class="card-body">
                         <p class="card-text">{{ message.msg }}</p>
                     </div>
@@ -12,6 +14,11 @@
         <div v-if="showProgressBar" class="progress-bar-container">
             <div class="progress-bar" :style="{ width: progressBarWidth + '%' }"></div>
         </div>
+        <button class="btn btn-side btn-side-right" @click="$_enlargeConversation">
+            <svg class="icon icon-l" :class="{ 'rotated': isExpanded }">
+                <use xlink:href="/img/svgdefs.svg#icon-chevron_down" />
+            </svg>
+        </button>
     </div>
 </template>
 
@@ -26,7 +33,8 @@ module.exports = {
             thread: [],
             showProgressBar: false,
             progressBarWidth: 0,
-            countdownInterval: null
+            countdownInterval: null,
+            isExpanded: false
         }
     },
     computed: {
@@ -35,6 +43,17 @@ module.exports = {
         }
     },
     methods: {
+        $_enlargeConversation() {
+            this.isExpanded = !this.isExpanded;
+            // Emit event to parent app to handle header expansion
+            this.$root.toggleHeaderExpansion(this.isExpanded);
+
+            this.$nextTick(() => {
+                if (this.isExpanded) {
+                    this.scrollToBottom();
+                }
+            });
+        },
         handleIncomingMessage(event) {
             console.log("Custom message handler in CONVERSATION component:", event.data);
             const data = JSON.parse(event.data);
@@ -60,14 +79,16 @@ module.exports = {
         },
         scrollToBottom() {
             console.log("scrolling");
-            const scrollableDiv = this.$refs.scrollableConv;
-            if (scrollableDiv) {
-                scrollableDiv.scrollTop = scrollableDiv.scrollHeight;
-                console.log(scrollableDiv.scrollTop, scrollableDiv.scrollHeight);
-            }
-            else {
-                console.warn("cannot scroll")
-            }
+            this.$nextTick(() => { 
+                const scrollableDiv = this.$refs.scrollableConv;
+                if (scrollableDiv) {
+                    scrollableDiv.scrollTop = scrollableDiv.scrollHeight;
+                    console.log(scrollableDiv.scrollTop, scrollableDiv.scrollHeight);
+                }
+                else {
+                    console.warn("cannot scroll")
+                }
+            });
         },
         startProgressBar() {
             this.showProgressBar = true;
@@ -90,6 +111,15 @@ module.exports = {
             if (this.countdownInterval) {
                 clearInterval(this.countdownInterval);
             }
+        },
+        handleMessageClick(message) {
+            // Only trigger speak for messages from 'master' (IGOOR user)
+            if (message.author === 'master') {
+                this.sendMsgToBackend({
+                    action: 'speak',
+                    message: message.msg
+                });
+            }
         }
     },
     watch: {
@@ -98,6 +128,12 @@ module.exports = {
             this.$nextTick(() => {
                 this.scrollToBottom();
             });
+        },
+        appview(newView) {
+            if (newView === 'autocomplete') {
+                this.isExpanded = false;
+                this.$root.toggleHeaderExpansion(false);
+            }
         }
     }
 };
@@ -106,7 +142,12 @@ module.exports = {
 <style scoped>
 .conversation-plugin {
     display: flex;
-    flex-direction: column
+    flex-direction: column;
+    transition: height 0.3s ease;
+    position: relative;
+}
+.conversation-plugin.expanded {
+  height: 100%;
 }
 
 #abandon {
@@ -117,7 +158,7 @@ module.exports = {
 
 .scrollableConv {
     overflow-y: scroll;
-    height: 100%;
+    height: calc(100% - 40px);
     overflow-x: hidden;
 }
 
@@ -142,6 +183,24 @@ module.exports = {
     height: 20px;
     background-color: #4caf50;
     width: 0;
-    transition: width 0.1s linear; /* Ensure smooth transition */
+    transition: width 0.1s linear;
+    /* Ensure smooth transition */
+}
+
+.master {
+    cursor: pointer;
+}
+
+.master:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.btn-side-right {
+    position: absolute;
+    z-index: 2;
+}
+
+.icon.rotated {
+    transform: rotate(180deg);
 }
 </style>

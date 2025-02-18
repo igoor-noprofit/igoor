@@ -14,7 +14,7 @@
     <!-- TOPBAR_COMPONENTS -->
 </div>
 <!-- AFTER_TOPBAR_COMPONENTS -->
-<header v-show="appview !== 'onboarding'">
+<header v-show="appview !== 'onboarding'" :class="{ 'expanded': headerExpanded }">
     <!-- HEADER_COMPONENTS -->
 </header>
 <div class="after_header" v-show="appview !== 'onboarding'">

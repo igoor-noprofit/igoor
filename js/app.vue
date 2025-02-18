@@ -14,7 +14,7 @@
     <elevenlabs  :appview="appview"></elevenlabs><ttsdefault  :appview="appview"></ttsdefault><clock  :appview="appview"></clock><meteo  :appview="appview"></meteo><ramcpu  :appview="appview"></ramcpu><settings  :appview="appview"></settings>
 </div>
 
-<header v-show="appview !== 'onboarding'">
+<header v-show="appview !== 'onboarding'" :class="{ 'expanded': headerExpanded }">
     <asrvosk  :appview="appview"></asrvosk><autocomplete  :appview="appview"></autocomplete><conversation  :appview="appview"></conversation>
 </header>
 <div class="after_header" v-show="appview !== 'onboarding'">

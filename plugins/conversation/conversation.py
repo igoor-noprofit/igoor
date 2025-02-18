@@ -152,3 +152,25 @@ class Conversation(Baseplugin):
         else:
             asyncio.create_task(run_tasks())
     
+    def process_incoming_message(self, message):
+        try:
+            message_dict = json.loads(message)
+            
+            if message_dict.get('action') == 'get_settings':
+                settings = self.get_my_settings()
+                self.send_message_to_frontend({
+                    "type": "settings",
+                    "settings": settings
+                })
+                return
+            
+            # Add handling for speak action
+            if message_dict.get('action') == 'speak':
+                asyncio.create_task(self.pm.trigger_hook("speak", message=message_dict.get('message')))
+                return
+                
+            print(f"Default processing message for {self.plugin_name}: {message}")
+                
+        except json.JSONDecodeError:
+            self.logger.error("Received message is not valid JSON.")
+            return

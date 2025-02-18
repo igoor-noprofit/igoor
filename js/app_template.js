@@ -43,8 +43,8 @@ async function initializeApp() {
         appview: "loading", // Add this line
         lastview: "daily",
         websocketUtil: null,
-        minimized: false
-        // ... other data properties if needed ...
+        minimized: false,
+        headerExpanded: false 
       };
     },
     components: {
@@ -93,6 +93,11 @@ async function initializeApp() {
       };
     },
     methods: {
+      toggleHeaderExpansion(expanded) {
+        console.log('Toggling header expansion:', expanded);
+        this.headerExpanded = expanded;
+        // Optionally trigger any other UI updates needed
+      },
       handleIncomingMessage(event) {
         console.log("APP received message from backend:", event.data);
       },

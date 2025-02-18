@@ -83,7 +83,16 @@ header > * {
 }
 .after_header {
   background: #121617;
+  transition: margin-top 0.3s ease;
 }
+header.expanded {
+  height: 50vh;
+}
+/*
+header.expanded + .after_header {
+  margin-top: calc(50vh - 150px); /* Adjust for the difference in header height 
+}
+*/
 main {
   height: 60vh;
 }
@@ -315,10 +324,13 @@ main {
 }
 .flow-plugin .abandon {
   margin-top: 20vh;
-  margin-bottom: 42vh;
+  /* margin-bottom: 42vh; */
   text-transform: uppercase;
   width: 120px;
   z-index: 0;
+}
+.flow-plugin .abandon.expanded {
+  margin-top: 50vh;
 }
 .flow-plugin input {
   color: #fff;
