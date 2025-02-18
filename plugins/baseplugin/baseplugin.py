@@ -5,19 +5,27 @@ from websocket_server import websocket_server
 import os,json,asyncio
 from utils import resource_path
 from llm_manager import LLMManager
+from utils import setup_logger
 class Baseplugin:
     def __init__(self, plugin_name="baseplugin", pm=None):
         self.is_loaded = False
         print ("__init__ plugin : " + plugin_name)
         self.plugin_name = plugin_name
+        
+        self.logger = setup_logger(
+            f'igoor.plugins.{plugin_name}', 
+            os.path.join(os.getenv('APPDATA'), os.getenv('IGOOR_APPNAME')),
+            separate_plugin_log=True
+        )
+        
         if pm is None:
-            print ("no plugin manager passed")
+            self.logger.info ("no plugin manager passed")
             # sys.exit()     
         if isinstance(pm, PluginManager):
-            print("Valid PluginManager instance passed.")
+            self.logger.info ("Valid PluginManager instance passed.")
             self.pm = pm
         else:
-            print("Warning: pm is not a PluginManager instance.")
+            self.logger.warning("Warning: pm is not a PluginManager instance.")
         
         self.plugin_name = plugin_name
         self.settings_manager = SettingsManager()

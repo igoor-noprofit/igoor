@@ -7,13 +7,13 @@ from dotenv import load_dotenv
 load_dotenv()
 from typing import Any
 from status_manager import StatusManager
-from utils import resource_path
+from utils import resource_path, setup_logger
 
 IGOOR_DEBUG = os.getenv('IGOOR_DEBUG', 'False') 
 app_name = os.getenv("IGOOR_APPNAME")
 hookspec = pluggy.HookspecMarker(app_name)
 hookimpl = pluggy.HookimplMarker(app_name)
-
+logger = setup_logger('igoor.plugin_manager', os.path.join(os.getenv('APPDATA'), os.getenv('IGOOR_APPNAME')))
 
 if hasattr(sys, '_MEIPASS'):
     print(f"_MEIPASS directory: {sys._MEIPASS}")
@@ -152,6 +152,7 @@ class PluginManager:
         return cls._instance
 
     def __init__(self):
+        self.logger = logger  
         if hasattr(self, '_initialized') and self._initialized:
             return
         self._initialized = True
@@ -168,7 +169,7 @@ class PluginManager:
         # Load plugins dynamically from the plugins/ directory based on activation state
     
     async def trigger_hook(self, hook_name, *args, **kwargs):
-        print("Hook triggered:", hook_name)
+        self.logger.info("Hook triggered:", hook_name)
         """Generic method to trigger any hook by name."""
         hook = getattr(self.plugin_manager.hook, hook_name, None)
         if hook:
@@ -177,7 +178,7 @@ class PluginManager:
                 if args and isinstance(args[0], dict):
                     kwargs.update(args[0])  # Move the dictionary to kwargs
 
-                print(f"Executing hook {hook_name} with kwargs: {kwargs}")
+                self.logger.info(f"Executing hook {hook_name} with kwargs: {kwargs}")
                 results = hook(**kwargs)  # Call the hook
 
                 # Ensure results is an awaitable
@@ -190,29 +191,29 @@ class PluginManager:
                     raise TypeError("The hook result is not awaitable")
 
                 for result in results:
-                    print(result)
+                    self.logger.debug(result)
                 return results
             except Exception as e:
-                print(f"Error executing hook '{hook_name}': {e}")
+                self.logger.error(f"Error executing hook '{hook_name}': {e}")
                 if IGOOR_DEBUG:
-                    print("EXIT BECAUSE OF ERROR EXECUTING HOOK")
+                    self.logger.critical("EXIT BECAUSE OF ERROR EXECUTING HOOK")
                     sys.exit()
         else:
-            print(f"Hook '{hook_name}' not found.")
+            self.logger.warning(f"Hook '{hook_name}' not found.")
             return None
         
     def is_active(self, plugin_name):
         is_active = self.all_plugins.get(plugin_name, {}).get("active", False)
-        print(f"{plugin_name} is {'active' if is_active else 'NOT active'}")
+        self.logger.info(f"{plugin_name} is {'active' if is_active else 'NOT active'}")
         return is_active
 
     '''
     EXPERIMENTAL
     '''
     def load_plugins(self, active_list=None, exclude_list=None):
-        print("Loading plugins")
+        self.logger.info("Loading plugins")
         self.all_plugins = self.get_all_plugins()
-        print(len(self.all_plugins), " TOTAL PLUGINS")
+        self.logger.info(f"{len(self.all_plugins)} TOTAL PLUGINS")
         self.activated_plugins = []
 
         # Default to empty lists if None is provided
@@ -223,19 +224,19 @@ class PluginManager:
             if plugin_name != "baseplugin":
                 plugin_path = resource_path(os.path.join(self.plugin_folder, plugin_name))
                 is_active = self.is_active(plugin_name)
-                print (f"Plugin path: {plugin_path}")
+                self.logger.info (f"Plugin path: {plugin_path}")
                 # Check if the plugin should be activated or excluded based on the lists
                 if plugin_name in active_list:
-                    print(f"Plugin '{plugin_name}' is in the active_list, overriding is_active to True.")
+                    self.logger.info(f"Plugin '{plugin_name}' is in the active_list, overriding is_active to True.")
                     is_active = True
                 elif plugin_name in exclude_list:
-                    print(f"Plugin '{plugin_name}' is in the exclude_list, overriding is_active to False.")
+                    self.logger.info(f"Plugin '{plugin_name}' is in the exclude_list, overriding is_active to False.")
                     is_active = False
 
                 if os.path.isdir(plugin_path) and is_active:
-                    print("Plugin to be activated: ", plugin_name)
+                    self.logger.info(f"Plugin to be activated: {plugin_name}")
                     if plugin_name.lower() not in map(str.lower, self.activated_plugins):
-                        print("Plugin ", plugin_name.lower(), " not already activated")
+                        self.logger.info(f"Plugin {plugin_name.lower()} not already activated")
                     try:
                         plugin_module = importlib.import_module(f"plugins.{plugin_name}.{plugin_name}")
                         plugin_class = getattr(plugin_module, f"{plugin_name.capitalize()}")
@@ -246,16 +247,16 @@ class PluginManager:
                         self.activated_plugins.append(plugin_name)
                         self.copy_default_plugin_settings_if_needed(plugin_name)
                     except Exception as e:
-                        print(f"Error loading plugin '{plugin_name}': {e}")
+                        self.logger.error(f"Error loading plugin '{plugin_name}': {e}")
                         if IGOOR_DEBUG:
-                            print("EXIT BECAUSE OF ERROR LOADING PLUGIN")
+                            self.logger.critical("EXIT BECAUSE OF ERROR LOADING PLUGIN")
                             os._exit(1)
                 else:
-                    print(f"Skipping plugin '{plugin_name}'")
+                    self.logger.info(f"Skipping plugin '{plugin_name}'")
             else:
                 print("Excluded baseplugin")
         
-        print("ACTIVATED PLUGINS LIST:", self.activated_plugins)
+        self.logger.info("ACTIVATED PLUGINS LIST:", self.activated_plugins)
         self.startup_plugins()
 
 
@@ -265,7 +266,7 @@ class PluginManager:
 
         for plugin_name in os.listdir(resource_path(self.plugin_folder)):
             plugin_path = resource_path(os.path.join(self.plugin_folder, plugin_name))
-            print(f"PLUGIN PATH: {plugin_path}" )
+            self.logger.info(f"PLUGIN PATH: {plugin_path}" )
             metadata_file = resource_path(os.path.join(plugin_path, 'plugin.json'))
             if os.path.isdir(plugin_path) and os.path.exists(metadata_file):
                 try:
@@ -273,9 +274,9 @@ class PluginManager:
                         metadata = json.load(f)
                         plugins_metadata[plugin_name] = metadata
                 except (OSError, json.JSONDecodeError) as e:
-                    print(f"Error loading metadata for plugin '{plugin_name}': {e}")
+                    self.logger.error(f"Error loading metadata for plugin '{plugin_name}': {e}")
             else:
-                print(f"Plugin '{plugin_name}' does not have a valid plugin.json file.")
+                self.logger.warning(f"Plugin '{plugin_name}' does not have a valid plugin.json file.")
 
         return plugins_metadata
 
@@ -314,7 +315,7 @@ class PluginManager:
                     with open(metadata_file, 'r') as f:
                         plugins_metadata[plugin_name] = json.load(f)
                 except (OSError, json.JSONDecodeError) as e:
-                    print(f"Error loading metadata for plugin '{plugin_name}': {e}")
+                    self.logger.error(f"Error loading metadata for plugin '{plugin_name}': {e}")
 
         return plugins_metadata
 
@@ -348,16 +349,16 @@ class PluginManager:
     '''
     def set_def_plugin_settings(self, plugin_name):
         settings_file_path = resource_path(os.path.join('plugins', plugin_name, 'settings.json'))
-        print("Searching for: " + settings_file_path)
+        self.logger.info("Searching for: " + settings_file_path)
         if os.path.exists(settings_file_path):
             with open(settings_file_path, 'r', encoding='utf-8') as f:
                 try:
                     plugin_settings = json.load(f)
                     self.settings_manager.update_plugin_settings(plugin_name, plugin_settings)
                 except json.JSONDecodeError:
-                    print(f"Invalid JSON in {settings_file_path}.")
+                    self.logger.error(f"Invalid JSON in {settings_file_path}.")
         else:
-            print(f"Settings file not found for plugin: {plugin_name}")
+            self.logger.warning(f"Settings file not found for plugin: {plugin_name}")
     
     def copy_default_plugin_settings_if_needed(self,plugin_name):
         if not self.plugin_has_settings(plugin_name):
@@ -367,7 +368,7 @@ class PluginManager:
             
     def activate_plugin(self, plugin_name):
         """Activates a plugin by setting its 'active' status to True in its plugin.json."""
-        print(f"ACTIVATING {plugin_name}")
+        self.logger.info(f"ACTIVATING {plugin_name}")
         self._set_plugin_active_status(plugin_name, True)
         self.copy_default_plugin_settings_if_needed(plugin_name)
         # self._trigger_plugin_hook(plugin_name, 'activate')
@@ -391,14 +392,14 @@ class PluginManager:
                 with open(metadata_file, 'w') as f:
                     json.dump(metadata, f, indent=4)
 
-                print(f"Plugin '{plugin_name}' has been {'activated' if status else 'deactivated'}.")
+                self.logger.info(f"Plugin '{plugin_name}' has been {'activated' if status else 'deactivated'}.")
             except (OSError, json.JSONDecodeError) as e:
-                print(f"Error updating active status for plugin '{plugin_name}': {e}")
+                self.logger.error(f"Error updating active status for plugin '{plugin_name}': {e}")
         else:
-            print(f"Plugin '{plugin_name}' does not have a valid plugin.json file.")
+            self.logger.warning(f"Plugin '{plugin_name}' does not have a valid plugin.json file.")
             
     def call_target_function(self, module_name, target_function_name, args):
-        print("calling target function", target_function_name, "in", module_name)
+        self.logger.info("calling target function", target_function_name, "in", module_name)
         plugin = self.plugin_manager.get_plugin(module_name)
         if plugin:
             func = getattr(plugin, target_function_name, None)

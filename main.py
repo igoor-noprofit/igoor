@@ -13,8 +13,9 @@ from websocket_server import websocket_server
 import signal,sys
 import tkinter as tk
 import asyncio
-from utils import resource_path
+from utils import resource_path, setup_logger
 
+logger = setup_logger('igoor.main', os.path.join(os.getenv('APPDATA'), os.getenv('IGOOR_APPNAME')))
 prompts=None
 context_manager = ContextManager()
 manager = PluginManager()
@@ -56,7 +57,7 @@ def show_splash_screen(image_path):
 
 
 def signal_handler(sig, frame):
-    print('Exiting application...')
+    logger.info('Exiting application...')
     os._exit(0)
     
 signal.signal(signal.SIGINT, signal_handler)
@@ -99,7 +100,7 @@ def load_frontend_components():
     # Iterate over plugins metadata
     for plugin_name, metadata in plugins_metadata.items():
         if metadata.get('active', False):  # Check if plugin is active
-            print ("Plugin " + plugin_name + " is active")
+            logger.info ("Plugin " + plugin_name + " is active")
             component_name = ''.join(word.capitalize() for word in plugin_name.split('_'))
             component_path = f"/plugins/{plugin_name}/frontend/{plugin_name}_component.vue"
             frontend = metadata.get('frontend', {})
@@ -178,7 +179,7 @@ def load_frontend_components():
     return final_html
 
 def on_loaded():
-    print("GUI window is now loaded and available!")
+    logger.info("GUI window is now loaded and available!")
     asyncio.run(manager.trigger_hook("gui_ready"))
     return True
     print("TESTING RAG:::")
@@ -206,7 +207,7 @@ def start_webview():
         window.events.loaded += on_loaded
         webview.start(debug=IGOOR_DEBUG.lower() == 'true')
     except KeyboardInterrupt:
-        print("KeyboardInterrupt detected. Shutting down...")
+        logger.warning("KeyboardInterrupt detected. Shutting down...")
         
         # Safely close the websocket server
         websocket_server.stop()  # Make sure you have a stop method to close connections and resources
@@ -226,7 +227,7 @@ if __name__ == "__main__":
 
     # print(settings.get_all_settings())
     bio = settings.get_nested(["plugins", "onboarding", "bio"], default={})
-    print(bio)
+    logger.info(bio)
     prefs = settings.get_nested(["plugins", "onboarding", "prefs"], default={})
     lang = prefs.get("lang")
     print ("lang = " + lang)
