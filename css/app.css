@@ -198,7 +198,7 @@ main {
 }
 .autocomplete.plugin .speak {
   height: 20vh;
-  width: auto;
+  width: 15vw;
 }
 .autocompletelauncher.plugin {
   display: flex;

@@ -19,10 +19,10 @@ class LLMManager:
 
     def _create_chat(self):
         if self.provider == "groq":
-            self.logger.debug(f"Creating Groq chat instance with model: {self.model_name}")
+            self.logger.info(f"Creating Groq chat instance with model: {self.model_name}")
             return ChatGroq(temperature=self.temperature, groq_api_key=self.api_key, model_name=self.model_name)
         elif self.provider == "openai":
-            self.logger.debug(f"Creating OpenAI chat instance with model: {self.model_name}")
+            self.logger.info(f"Creating OpenAI chat instance with model: {self.model_name}")
             return ChatOpenAI(temperature=self.temperature, openai_api_key=self.api_key, model_name=self.model_name)
         else:
             error_msg = f"Unsupported provider: {self.provider}"
@@ -44,8 +44,8 @@ class LLMManager:
             ("human", prompt)
         ]
         self.logger.info(f"Starting LLM invocation")
-        self.logger.debug(f"System prompt: {system_prompt}")
-        self.logger.debug(f"User prompt: {prompt}")
+        self.logger.info(f"System prompt: {system_prompt}")
+        self.logger.info(f"User prompt: {prompt}")
         
         attempt = 0
         while attempt < retries:
