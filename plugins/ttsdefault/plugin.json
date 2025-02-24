@@ -2,7 +2,7 @@
     "active": true,
     "category": "TTS",
     "title": "Default Text-to-speech",
-    "description": "Fallback TTS",
+    "description": "Fallback TTS using Windows OS voices",
     "layout": {
         "part": "topbar",
         "order": 0

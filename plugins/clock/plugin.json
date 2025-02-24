@@ -1,9 +1,9 @@
 {
     "category": "context",
     "title": "Clock",
-    "description": "Improves context with time",
+    "description": "Improves context with datetime infos",
     "layout": {
-        "part": "topbar",
+        "part": "before_logo",
         "order": 1
     },
     "is_free": true,

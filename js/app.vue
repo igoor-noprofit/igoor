@@ -3,15 +3,22 @@
 </div>
 <div id="minimized" v-show="minimized" @click="maximize">
     <button height="80">
-        <img src="img/igoor_eyes.png" />
+        <img src="img/igoor_minimized_icon.png" />
     </button>
 </div>
 <div id="hidden">
     <rag  :appview="appview"></rag>
 </div>
 <div id="topbar">
-    <a @click="minimize()"><img src="img/logo_small.svg" class="logo_small" id="igoor_logo"></a> 
-    <elevenlabs  :appview="appview"></elevenlabs><ttsdefault  :appview="appview"></ttsdefault><clock  :appview="appview"></clock><meteo  :appview="appview"></meteo><ramcpu  :appview="appview"></ramcpu><settings  :appview="appview"></settings>
+    <div class="topbar-left">
+        <clock  :appview="appview"></clock>
+    </div>
+    <div class="topbar-center">
+        <a @click="minimize()"><img src="img/logo_small.svg" class="logo_small" id="igoor_logo"></a>
+    </div>
+    <div class="topbar-right">
+        <meteo  :appview="appview"></meteo><settings  :appview="appview"></settings>
+    </div>
 </div>
 
 <header v-show="appview !== 'onboarding'" :class="{ 'expanded': headerExpanded }">

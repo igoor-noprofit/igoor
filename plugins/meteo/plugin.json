@@ -2,7 +2,7 @@
     "category": "context",
     "title": "Weather",
     "layout": {
-        "part": "topbar",
+        "part": "after_logo",
         "order": 50
     },
     "is_free": true,

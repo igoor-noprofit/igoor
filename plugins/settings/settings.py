@@ -27,6 +27,12 @@ class Settings(Baseplugin):
                 self.logger.info(f"Plugin {plugin_name} activation state: {is_active}")
                 plugin["active"] = is_active
                 
+                # Mark core plugins as locked
+                plugin["is_core"] = (
+                    plugin.get("category", "").lower() == "core" or 
+                    plugin_name in ["conversation", "ttsdefault", "settings", "onboarding"]
+                )
+                
                 # Ensure other metadata is included
                 if "description" not in plugin:
                     plugin["description"] = plugin_manager.all_plugins.get(plugin_name, {}).get("description", "")
@@ -37,6 +43,17 @@ class Settings(Baseplugin):
     def toggle_plugin(self, plugin_name, is_active):
         """Toggle plugin activation state"""
         self.logger.info(f"Toggling plugin {plugin_name} to {is_active}")
+        
+        # Check if plugin is core
+        plugin_metadata = plugin_manager.all_plugins.get(plugin_name, {})
+        is_core = (
+            plugin_metadata.get("category", "").lower() == "core" or 
+            plugin_name in ["conversation", "ttsdefault", "settings", "onboarding"]
+        )
+        
+        if is_core:
+            self.logger.warning(f"Attempted to toggle core plugin {plugin_name}")
+            return False
         
         # Update settings.json
         settings = plugin_manager.settings_manager.get_settings()

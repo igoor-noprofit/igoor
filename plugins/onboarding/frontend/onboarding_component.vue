@@ -141,6 +141,8 @@ export default {
     list-style-type: none;
     padding: 0;
     margin: 0;
+    border: none !important;
+    background: none !important;
 }
 
 .tabs li {
@@ -209,7 +211,7 @@ input:checked+.slider:before {
 }
 .bio-container {
     display: flex;
-    justify-content: space-between;
+    justify-content: space-evenly;
 }
 
 .bio-left, .bio-right {

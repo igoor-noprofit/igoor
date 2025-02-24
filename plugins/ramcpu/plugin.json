@@ -1,6 +1,7 @@
 {
     "category": "monitoring",
     "title": "Ram and CPU usage",
+    "description": "Debugging utility to monitor CPU, RAM usage etc.",
     "layout": {
         "part": "topbar",
         "order": 90

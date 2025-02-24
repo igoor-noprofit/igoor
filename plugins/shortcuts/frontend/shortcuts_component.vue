@@ -1,5 +1,9 @@
 <template>
     <div class="shortcuts shortcuts-plugin">
+        <button class="btn btn-shortcut" @click="$_minimise()">
+            <img src="img/minimize.svg">
+            <h3>Réduire la fenetre</h3>
+        </button>
         <button class="btn btn-shortcut" @click="$_speak('J\'ai soif')"><svg class="icon icon-l">
                 <use xlink:href="img/svgdefs.svg#icon-drink"></use>
             </svg>
@@ -14,11 +18,6 @@
                 <use xlink:href="img/svgdefs.svg#icon-ok"></use>
             </svg>
             <h3>Oui</h3>
-        </button>
-        <button class="btn btn-shortcut" @click="$_minimise()"><svg class="icon icon-l">
-                <use xlink:href="img/svgdefs.svg#icon-minimize"></use>
-            </svg>
-            <h3>Réduire la fenetre</h3>
         </button>
         <button class="btn btn-shortcut" @click="$_speak('Non')"><svg class="icon icon-l">
                 <use xlink:href="img/svgdefs.svg#icon-no"></use>
@@ -85,13 +84,18 @@ export default {
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 8px 4px;  /* Increased vertical padding */
+    padding: 8px 4px;
 }
 
-.btn-shortcut .icon {
-    width: 64px;  /* Increased icon size */
-    height: 64px;  /* Increased icon size */
+.btn-shortcut .icon,
+.btn-shortcut img {
+    width: 100%;
+    height: auto;
+    max-width: 64px;
+    max-height: 64px;
+    object-fit: contain;
 }
+
 
 .btn-shortcut h3 {
     margin: 4px 0 0 0;  /* Slightly increased top margin */

@@ -90,7 +90,8 @@ def load_frontend_components():
     # Components organized by category
     components_by_category = {
         'hidden': [],
-        'topbar': [],
+        'before_logo': [],  # New category
+        'after_logo': [],   # New category
         'after_topbar': [],
         'header': [],
         'after_header': [],

@@ -38,15 +38,6 @@ body {
   flex-direction: column;
 }
 #topbar {
-  /*
-  background-color: @darkest;
-  color: #fff;
-  font-size: 10px;
-  height: 30px;
-  width: 100%;
-  justify-content: space-between;
-  align-items: center;
-  */
   position: fixed;
   top: 0;
   left: 0;
@@ -56,6 +47,35 @@ body {
   box-shadow: 0rem 0.125rem 0.375rem 0rem rgba(0, 0, 0, 0.4);
   display: flex;
   align-items: center;
+  justify-content: space-between;
+}
+#topbar .topbar-left,
+#topbar .topbar-right {
+  flex: 1;
+  /* These will take equal space on either side */
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  /* Add some spacing between components */
+}
+#topbar .topbar-left {
+  justify-content: flex-start;
+  /* Align components to the start */
+  padding-left: 1rem;
+  /* Add some padding from the left edge */
+}
+#topbar .topbar-right {
+  justify-content: flex-end;
+  /* Align components to the end */
+  padding-right: 1rem;
+  /* Add some padding from the right edge */
+}
+#topbar .topbar-center {
+  padding: 0 1rem;
+  /* Add some padding around the logo */
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 /*
 header > div,

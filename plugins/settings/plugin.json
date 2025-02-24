@@ -3,7 +3,7 @@
     "title": "Settings",
     "description": "Handles all plugin settings",
     "layout": {
-        "part": "topbar",
+        "part": "after_logo",
         "order": 100
     },
     "is_free" : true,
