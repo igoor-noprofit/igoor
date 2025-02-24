@@ -53,25 +53,98 @@ class Onboarding(Baseplugin):
         return True, None
 
     
-    def process_incoming_message(self, new_settings):
+    def process_incoming_message(self, message):
         """
-        Process the incoming message.
+        Process the incoming message from the frontend.
         
         :param message: The message received from the WebSocket.
         """        
         try:
-            # Attempt to parse the message as JSON
+            if isinstance(message, str):
+                message = json.loads(message)
+                
+            # Handle structured messages with actions
+            if isinstance(message, dict):
+                if message.get('action') == 'save_settings':
+                    return self.handle_save_settings(message.get('data', {}))
+                
+                # Legacy support for direct settings update
+                return self.handle_save_settings(message)
+                
+        except json.JSONDecodeError as e:
+            print(f"Error processing message: {e}")
+            self.send_message_to_frontend({
+                'type': 'error',
+                'message': 'Invalid message format'
+            })
+    
+    def handle_save_settings(self, new_settings):
+        """
+        Handle saving of new settings.
+        
+        :param new_settings: Dictionary containing the new settings
+        """
+        try:
+            # Debug logging
+            print(f"Settings Manager available: {hasattr(self.pm, 'settings_manager')}")
+            print(f"Received settings to save: {json.dumps(new_settings, indent=2)}")
+            
+            # Validate mandatory fields
             mandatory_check, missing_info = self.check_mandatory_fields(new_settings)
+            print(f"Mandatory check result: {mandatory_check}, Missing info: {missing_info}")
+            
             if mandatory_check:
-                self.mass_update_settings(new_settings)
-                asyncio.create_task(self.send_switch_view_to_app('daily'))
-            else: 
-                self.send_message_to_frontend(missing_info)
-        except json.JSONDecodeError:
-            print("Received message is not valid JSON.")
-            return
-    
-    
+                try:
+                    # Get current settings to preserve any existing values not in new_settings
+                    current_settings = self.pm.settings_manager.get_plugin_settings('onboarding') or {}
+                    
+                    # Update each section separately to preserve structure
+                    for section in ['bio', 'prefs', 'ai']:
+                        if section in new_settings:
+                            if section not in current_settings:
+                                current_settings[section] = {}
+                            current_settings[section].update(new_settings[section])
+                    
+                    # Save the updated settings using update_plugin_settings
+                    self.pm.settings_manager.update_plugin_settings('onboarding', current_settings)
+                    print("Settings saved successfully")
+                    
+                    # Update local settings
+                    self.settings = current_settings
+                    self.onboarding_completed = True
+                    
+                    # Switch view
+                    asyncio.create_task(self.send_switch_view_to_app('daily'))
+                    
+                    # Send success response
+                    self.send_message_to_frontend({
+                        'type': 'success',
+                        'message': 'Settings saved successfully'
+                    })
+                    
+                except Exception as save_error:
+                    print(f"Error during save operation: {str(save_error)}")
+                    import traceback
+                    print(f"Traceback: {traceback.format_exc()}")
+                    raise save_error
+            else:
+                error_msg = f'Missing required field: {missing_info["missing_field"]} in {missing_info["category"]}'
+                print(f"Validation failed: {error_msg}")
+                self.send_message_to_frontend({
+                    'type': 'error',
+                    'message': error_msg
+                })
+                
+        except Exception as e:
+            print(f"Error saving settings: {str(e)}")
+            print(f"Error type: {type(e)}")
+            import traceback
+            print(f"Traceback: {traceback.format_exc()}")
+            self.send_message_to_frontend({
+                'type': 'error',
+                'message': f'Failed to save settings: {str(e)}'
+            })
+        
     @hookimpl
     async def gui_ready(self):
         print("GUI READY!")

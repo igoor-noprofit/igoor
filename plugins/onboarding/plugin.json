@@ -1,6 +1,7 @@
 {
     "category": "core",
     "title": "Onboarding",
+    "description": "New user onboarding module with essential infos",
     "layout": {
         "part": "main",
         "order": 0

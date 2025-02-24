@@ -55,7 +55,8 @@
                 </div>
                 <div>
                     <label>API Key</label><input type="text" v-model="ai.api_key">
-                    <p>Groq is our default provider. <a href="https://console.groq.com/login" target="_blank">To obtain a FREE api key sign up here</a>
+                    <p>Groq is our default provider. <a href="https://console.groq.com/login" target="_blank">To obtain
+                            a FREE api key sign up here</a>
 
                         <a href="https://groq.com/privacy-policy/">Our default provider privacy policy</a>
                     </p>
@@ -72,7 +73,14 @@
                 <p>Plugins settings will go here.</p>
             </div>
         </div>
-        <button @click="saveSettings">Save</button>
+        <div class="save-section">
+            <button @click="saveSettings" :disabled="isSaving">
+                {{ isSaving ? 'Saving...' : 'Save' }}
+            </button>
+            <span v-if="saveStatus" :class="['save-status', saveStatus.type]">
+                {{ saveStatus.message }}
+            </span>
+        </div>
     </div>
 </template>
 
@@ -101,10 +109,53 @@ export default {
                 api_key: "",
                 model_name: "",
                 temperature: ""
-            }
+            },
+            isSaving: false,
+            saveStatus: null
         };
     },
     methods: {
+        async saveSettings() {
+            this.isSaving = true;
+            this.saveStatus = null;
+            
+            try {
+                const dataToSend = {
+                    bio: this.bio,
+                    prefs: this.prefs,
+                    ai: this.ai
+                };
+                
+                await this.sendMsgToBackend({
+                    action: 'save_settings',
+                    data: dataToSend
+                });
+                
+                this.saveStatus = {
+                    type: 'success',
+                    message: 'Settings saved successfully!'
+                };
+                
+                // Emit event for parent components
+                this.$emit('settings-saved', dataToSend);
+                
+            } catch (error) {
+                console.error('Error saving settings:', error);
+                this.saveStatus = {
+                    type: 'error',
+                    message: 'Failed to save settings. Please try again.'
+                };
+            } finally {
+                this.isSaving = false;
+                
+                // Clear success message after 3 seconds
+                if (this.saveStatus?.type === 'success') {
+                    setTimeout(() => {
+                        this.saveStatus = null;
+                    }, 3000);
+                }
+            }
+        },
         handleIncomingMessage(event) {
             console.log("Custom message handler in " + this.name + " component:", event.data);
             try {
@@ -154,6 +205,7 @@ export default {
 .tabs li:hover {
     background-color: #e0e0e0;
 }
+
 .switch {
     position: relative;
     display: inline-block;
@@ -209,16 +261,47 @@ input:checked+.slider:before {
 .slider.round:before {
     border-radius: 50%;
 }
+
 .bio-container {
     display: flex;
     justify-content: space-evenly;
 }
 
-.bio-left, .bio-right {
+.bio-left,
+.bio-right {
     width: 48%;
 }
 
-.bio-left div, .bio-right div {
+.bio-left div,
+.bio-right div {
     margin-bottom: 10px;
+}
+
+.save-section {
+    margin-top: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.save-status {
+    padding: 8px;
+    border-radius: 4px;
+    font-size: 0.9em;
+}
+
+.save-status.success {
+    background-color: #e6ffe6;
+    color: #006600;
+}
+
+.save-status.error {
+    background-color: #ffe6e6;
+    color: #cc0000;
+}
+
+button:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
 }
 </style>

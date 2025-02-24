@@ -1,6 +1,7 @@
 {
     "category": "AI",
     "title": "Flow",
+    "description": "AI-generated answers to interlocutor",
     "layout": {
         "part": "main",
         "order": 5
