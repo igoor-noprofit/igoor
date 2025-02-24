@@ -2,37 +2,46 @@
     <div>
         <!-- Settings Gear Icon -->
         <div @click="showModal = true" class="settings-gear">
-            ⚙️
+            <img src="/img/icons/settings.svg">
         </div>
-        <!-- Modal Window for Plugin Settings -->
-        <div v-if="showModal" class="modal-overlay" @click.self="showModal = false">
+          <!-- Modal Window for Plugin Settings -->
+          <div v-if="showModal" class="modal-overlay" @click.self="showModal = false">
             <div class="modal-content settings container">
                 <button @click="showModal = false" class="close-button">✖</button>
+                
                 <!-- Tab Navigation -->
                 <div class="tabs">
-                    <button v-for="(plugins, category) in pluginData" :key="category"
-                        :class="{ active: activeTab === category }" @click="activeTab = category">
+                    <button v-for="category in categories" :key="category"
+                        :class="{ active: activeTab === category }"
+                        @click="activeTab = category">
                         {{ category.toUpperCase() }}
                     </button>
                 </div>
-                <!-- Plugins for Active Tab -->
-                <div v-if="activeTab">
-                    <div v-for="plugin in pluginData[activeTab]" :key="plugin.name"
-                        @click="selectPlugin(activeTab, plugin.name)">
-                        <span>{{ plugin.title }}</span>
-                        <label>
-                            <input type="checkbox" :checked="plugin.active"
-                                @change="togglePlugin(activeTab, plugin.name, $event.target.checked)">
-                        </label>
-                    </div>
-                    <div v-if="selectedPlugin">
-                        <!-- Display selected plugin details and settings here -->
-                        <h3>Edit Plugin: {{ selectedPlugin.name }}</h3>
-                        <!-- Dynamically load the component for the selected plugin -->
-                        <component :is="selectedPluginComponent"></component>
+                
+                <!-- Plugins Grid for Active Tab -->
+                <div v-if="activeTab" class="plugins-grid">
+                    <div v-for="plugin in pluginsByCategory[activeTab]" :key="plugin.name"
+                        class="plugin-card">
+                        <div class="plugin-header">
+                            <h3 class="plugin-title">{{ plugin.title }}</h3>
+                            <label class="toggle-switch">
+                                <input type="checkbox" 
+                                    :checked="plugin.active"
+                                    @change="togglePlugin(activeTab, plugin.name, $event.target.checked)">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <p class="plugin-description">{{ plugin.description || 'No description available' }}</p>
+                        <div class="plugin-requirements" v-if="plugin.requires_internet || plugin.requires_subscription">
+                            <span v-if="plugin.requires_internet" class="requirement">
+                                🌐 Requires Internet
+                            </span>
+                            <span v-if="plugin.requires_subscription" class="requirement">
+                                ⭐ Requires Subscription
+                            </span>
+                        </div>
                     </div>
                 </div>
-
             </div>
         </div>
     </div>
@@ -44,11 +53,17 @@ export default {
     data() {
         return {
             pluginData: {},
-            selectedPlugin: null,
             showModal: false,
-            selectedPluginComponent: null,
-            activeTab: null, 
+            activeTab: null,
             pywebviewready: false
+        }
+    },
+    computed: {
+        categories() {
+            return Object.keys(this.pluginData)
+        },
+        pluginsByCategory() {
+            return this.pluginData
         }
     },
     async mounted() {
@@ -164,23 +179,132 @@ export default {
     cursor: pointer;
 }
 
-/* Tabs styles */
 .tabs {
     display: flex;
+    gap: 10px;
     margin-bottom: 20px;
+    padding: 10px 0;
+    border-bottom: 1px solid #eee;
+    position: sticky;
+    top: 0;
+    background: white;
 }
 
 .tabs button {
-    padding: 10px 20px;
-    margin-right: 5px;
-    cursor: pointer;
-    background: #f0f0f0;
+    padding: 8px 16px;
     border: none;
     border-radius: 4px;
+    background: #f0f0f0;
+    cursor: pointer;
+    font-weight: 500;
 }
 
 .tabs button.active {
-    background: #007bff;
-    color: #fff;
+    background: #2196F3;
+    color: white;
+}
+
+.plugins-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+    padding: 20px 0;
+}
+
+.plugin-card {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 16px;
+    border: 1px solid #eee;
+    transition: all 0.3s ease;
+}
+
+.plugin-card:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.plugin-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.plugin-title {
+    margin: 0;
+    font-size: 1.1em;
+    font-weight: 600;
+}
+
+.plugin-description {
+    color: #666;
+    font-size: 0.9em;
+    margin: 8px 0;
+    line-height: 1.4;
+}
+
+.plugin-requirements {
+    margin-top: 12px;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.requirement {
+    font-size: 0.8em;
+    color: #666;
+    background: #e9ecef;
+    padding: 4px 8px;
+    border-radius: 4px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+
+/* Toggle switch styles */
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 50px;
+    height: 24px;
+}
+
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: .4s;
+    border-radius: 24px;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 16px;
+    width: 16px;
+    left: 4px;
+    bottom: 4px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+}
+
+input:checked + .slider {
+    background-color: #2196F3;
+}
+
+input:checked + .slider:before {
+    transform: translateX(26px);
 }
 </style>

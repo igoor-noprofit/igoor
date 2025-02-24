@@ -2,6 +2,7 @@
     "active": true,
     "category": "TTS",
     "title": "Default Text-to-speech",
+    "description": "Fallback TTS",
     "layout": {
         "part": "topbar",
         "order": 0

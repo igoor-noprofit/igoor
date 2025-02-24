@@ -1,15 +1,49 @@
 import json
 import os
+from utils import resource_path, setup_logger
 
 class SettingsManager:
     ''' 
     HANDLES global app settings.json file with all the plugins settings, api keys etc.
     '''
-    def __init__(self, settings_file=None):
-        self.settings_file = settings_file or os.path.join(os.getenv('APPDATA'), os.getenv("IGOOR_APPNAME"), 'settings.json')
-        self.settings = {}
-        self.load_settings()
-    
+    def __init__(self):
+        if hasattr(self, '_initialized') and self._initialized:
+            return
+        self._initialized = True
+        
+        self.logger = setup_logger('sm', os.path.join(os.getenv('APPDATA'), os.getenv('IGOOR_APPNAME')))
+        self.settings_file = os.path.join(os.getenv('APPDATA'), os.getenv('IGOOR_APPNAME'), 'settings.json')
+        self.default_settings_file = resource_path('default_settings.json')
+        self.ensure_settings_file_exists()
+        self.settings = self.load_settings()
+
+    def ensure_settings_file_exists(self):
+        """Create settings.json from default if it doesn't exist"""
+        if not os.path.exists(self.settings_file):
+            os.makedirs(os.path.dirname(self.settings_file), exist_ok=True)
+            
+            try:
+                # Load default settings using resource_path
+                with open(self.default_settings_file, 'r', encoding='utf-8') as f:
+                    default_settings = json.load(f)
+                
+                # Create user settings file
+                with open(self.settings_file, 'w', encoding='utf-8') as f:
+                    json.dump(default_settings, f, indent=4)
+                    
+            except Exception as e:
+                self.logger.error(f"Error creating settings file from default: {e}")
+                # Create minimal settings structure if default file can't be loaded
+                default_settings = {
+                    "plugins": {},
+                    "plugins_activation": {
+                        "conversation": True,  # Essential plugins
+                        "ttsdefault": True
+                    }
+                }
+                with open(self.settings_file, 'w', encoding='utf-8') as f:
+                    json.dump(default_settings, f, indent=4)
+
     def get_prefs(self):
         return self.get_nested(["plugins", "onboarding", "prefs"], default={})
     
@@ -49,9 +83,12 @@ class SettingsManager:
                     "lang": "fr_FR",
                     "locale": "fr_FR.UTF-8"
                 },
-                "plugins": {}
+                "plugins": {},
+                "plugins_activation": {}
             }
             self.save_settings()
+        
+        return self.settings  # Make sure to return the settings
 
     def save_settings(self, settings=None):
         """Save settings to the JSON file."""
@@ -60,6 +97,10 @@ class SettingsManager:
         os.makedirs(os.path.dirname(self.settings_file), exist_ok=True)
         with open(self.settings_file, 'w', encoding='utf-8') as f:
             json.dump(self.settings, f, indent=4)
+
+    def get_settings(self):
+        """Return all settings (alias for get_all_settings)."""
+        return self.settings
 
     def get_all_settings(self):
         """Return all settings."""

@@ -1,7 +1,7 @@
 {
-    "active": true,
     "category": "AI",
     "title": "Shortcuts",
+    "description": "Lower buttons for fast access",
     "layout": {
         "part": "footer",
         "order": 0

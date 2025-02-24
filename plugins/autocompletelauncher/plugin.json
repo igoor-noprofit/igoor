@@ -1,7 +1,7 @@
 {
-    "active": true,
     "category": "AI",
     "title": "Autocomplete Launcher",
+    "description": "Big button to launch autocomplete",
     "layout": {
         "part": "after_header",
         "order": 100

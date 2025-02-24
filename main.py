@@ -78,13 +78,14 @@ def load_frontend_components():
     Sort of webpack that constructs the final HTML frontend,
     based on the Vue components from the active plugins 
     '''
-    # active_plugins = ["flow","asrvosk","rag"]
-    # exclude_plugins = ["ramcpu","clock","elevenlabs","meteo"]
     active_plugins=[]
     exclude_plugins=[]
     manager.load_plugins(active_list=active_plugins,exclude_list=exclude_plugins)
     plugins_metadata = manager.get_plugins_metadata()
-    # print("Plugins metadata:", plugins_metadata)  # Debugging output
+    
+    # Get activation states from settings.json
+    settings = SettingsManager()
+    plugins_activation = settings.get_settings().get("plugins_activation", {})
 
     # Components organized by category
     components_by_category = {
@@ -99,8 +100,9 @@ def load_frontend_components():
 
     # Iterate over plugins metadata
     for plugin_name, metadata in plugins_metadata.items():
-        if metadata.get('active', False):  # Check if plugin is active
-            logger.info ("Plugin " + plugin_name + " is active")
+        # Check activation state from settings.json instead of metadata
+        if plugins_activation.get(plugin_name, False):
+            logger.info(f"Plugin {plugin_name} is active")
             component_name = ''.join(word.capitalize() for word in plugin_name.split('_'))
             component_path = f"/plugins/{plugin_name}/frontend/{plugin_name}_component.vue"
             frontend = metadata.get('frontend', {})
