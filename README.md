@@ -84,14 +84,18 @@ And places it in
 
 IGOOR_FOLDER/plugins/asrvosk/models/language/model_size
 
-Language and model size are set in the plugin's json, example:
+Language and model size are set in the global settings file, example:
 
 ```
-"asrvosk":{
-            "lang":"fr_FR",
-            "wakeword":"Igor",
-            "model_size":"small"
-        }
+other plugins...
+"asrvosk": {
+    "lang": "fr_FR",
+    "wakeword": "Igor",
+    "model_size": "small",
+    "continuous": false,
+    "min_confidence": 0.7
+}
+...other plugins
 ```
 
 In this case the final path is :
