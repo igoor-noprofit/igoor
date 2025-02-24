@@ -9,6 +9,9 @@ IGOOR is an open-source and free conversational application, controllable by eye
 
 **This project is currently under private development. While the final version of the software will be released as free/libre under the GPLv3 License, the current codebase is not yet public and is subject to strict confidentiality.**
 
+IGOOR is written by Carlo Giordano, based on a concept by Igor Novitzki.
+UX/UI by Zenoid.
+
 All collaborators and contributors are reminded that:
 
 1. Sharing Prohibited: The code, documentation, and any associated materials must not be shared, distributed, or disclosed to anyone outside of the development team without prior written permission.
@@ -57,8 +60,8 @@ rename .env-example .env
 
 ## USER'S DATA FOLDER
 
-User's data folder is automatically created inside userAppDataFolder (usually C:/Users/YourUsername/AppData/).
-The application folder (IGOOR_FOLDER) is :
+User's data folder is automatically created inside userAppDataFolder (on Windows is usually C:/Users/YourUsername/AppData/).
+The application folder (IGOOR_FOLDER) on Win is :
 
 ```
 C:/Users/YourUsername/AppData/Roaming/igoor/
@@ -68,25 +71,16 @@ The folder contains a settings.json and a plugins data folder, called "plugins".
 
 ### NOTES ABOUT PLUGINS
 
-Plugins are currently activated by manually setting the corresponding variable in the plugin.json file inside 
-
-/plugins/plugin_name/plugins.json
-
-Example: /plugins/meteo/plugin.json :
-
-```
-{
-    "active": true,
-```
+Plugins are currently de/activated by using settings.
 
 #### AUTOMATIC SPEECH RECOGNITION WITH VOSK
 
 Vosk is a local ASR (Automatic Speech Recognition) plugin.
-It expects a model downloaded manually from this page in your language: 
+It automatically downloads a model from this page in the user's language (default "fr"): 
 
 https://alphacephei.com/vosk/models
 
-And placed in 
+And places it in 
 
 IGOOR_FOLDER/plugins/asrvosk/models/language/model_size
 
@@ -113,11 +107,12 @@ Allowed formats:
 .txt
 .md
 
-If the index folder (IGOOR_FOLDER/plugins/rag/faiss_index) does not exist but the medias folder exist, at startup the plugin will create the index by ingesting all the files in the medias folder.
+If the index folder (IGOOR_FOLDER/plugins/rag/faiss_index) does not exist, but the medias folder do exist and it's not empty, at startup the plugin will create the index by ingesting all the files in the medias folder.
 
 ### EMBEDDING MODELS FOR RAG
 
-Embedding models for RAG are downloaded automatically in their folders inside:
+Embedding models for RAG are downloaded automatically in their folders.
+On Win, this is at:
 
 ```
 C:\Users\YourUsername\.cache\huggingface\hub
@@ -137,9 +132,11 @@ Use:
 igoor.bat
 ```
 
-to open a fullscreen window, without CLI and debug console.
+to open a on-top window, without debug console (CLI window will open and then disappear in the system bar).
 
 ## CREATE AN INSTALLER
+
+Currently the pyinstaller does NOT work.
 
 The pyinstaller uses igoor.spec 
 
@@ -151,13 +148,17 @@ To update requirements:
 pip freeze > requirements.txt
 ```
 
-
-
-## LOGS
-LLM logs are in the correspondent plugin's folder, ex. :
+## IGOOR LOGS
+Daily logs are in:
 
 ```
-IGOOR_FOLDER/plugins/memory/
+IGOOR_FOLDER/logs/
+```
+
+Daily plugin logs are in:
+
+```
+IGOOR_FOLDER/logs/plugins/pluginname_date
 ```
 
 
