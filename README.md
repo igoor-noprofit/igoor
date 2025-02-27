@@ -4,10 +4,11 @@
 
 IGOOR is an open-source and free conversational application, controllable by eye-tracking, designed to provide people with neurodegenerative diseases or paralysis a smooth and natural means of communication.
 
+Take a look at the [IGOOR website](https://igoor.org/en) for further infos about our core principles, values and software roadmap.
 
 ## Notice of Development, Confidentiality, and Contribution Terms
 
-**This project is currently under private development. While the final version of the software will be released as free/libre under the GPLv3 License, the current codebase is not yet public and is subject to strict confidentiality.**
+**This project is currently under private development. While the final version of the software WILL BE released as free/libre under the GPLv3 License, the current codebase is not yet public and is subject to strict confidentiality.**
 
 IGOOR is written by Carlo Giordano, based on a concept by Igor Novitzki.
 UX/UI by Zenoid.
