@@ -7,7 +7,7 @@
     </button>
 </div>
 <div id="hidden">
-    
+    <rag  :appview="appview"></rag>
 </div>
 <div id="topbar">
     <div class="topbar-left">
