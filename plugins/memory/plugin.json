@@ -1,7 +1,7 @@
 {
-    "active": true,
     "category": "Knowledge Base",
     "title": "Memory",
+    "description": "Long-term user's memory (requires Knowledge Base activated)",
     "layout": {
         "part": "main",
         "order": 50

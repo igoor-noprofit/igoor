@@ -1,7 +1,7 @@
 {
-    "active": true,
     "category": "Knowledge Base",
     "title": "Static knowledge",
+    "description": "Static knowledge based on uploaded documents",
     "layout": {
         "part": "hidden",
         "order": 0

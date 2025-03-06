@@ -1,7 +1,7 @@
 {
-    "active": true,
     "category": "TTS",
     "title": "ElevenLabs",
+    "description": "TTS using cloud service Elevenlabs for cloned or custom voice",
     "layout": {
         "part": "topbar",
         "order": 0

@@ -1,9 +1,9 @@
 {
-    "active": true,
     "category": "context",
     "title": "Weather",
+    "description": "Improves context via weather info based on your location (IP-based)",
     "layout": {
-        "part": "topbar",
+        "part": "after_logo",
         "order": 50
     },
     "is_free": true,

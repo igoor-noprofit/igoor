@@ -1,5 +1,4 @@
 {
-    "active": true,
     "category": "AI",
     "title": "Autocomplete",
     "description": "Autocomplete based on LLM",

@@ -8,6 +8,9 @@ import json
 import time
 import os, asyncio
 from vosk import Model, KaldiRecognizer
+from utils import setup_logger
+import urllib.request
+import zipfile
 
 class Asrvosk(Baseplugin):
     def __init__(self, plugin_name, pm):
@@ -112,12 +115,74 @@ class Asrvosk(Baseplugin):
     def load_model(self):
         global model, rec
         start_time = time.time()
-        model_path = os.path.join(self.plugin_folder,"models",self.settings.get("lang"),self.settings.get("model_size"))
-        model = Model(model_path)
-        rec = KaldiRecognizer(model, 16000)
-        elapsed_time = time.time() - start_time
-        print(f"Model loaded in {elapsed_time:.2f} seconds.")
-        self.is_loaded = True
+        model_path = os.path.join(self.plugin_folder, "models", self.settings.get("lang"), self.settings.get("model_size"))
+        
+        self.logger.info(f"Attempting to load model from: {model_path}")
+        
+        # Check if model directory exists
+        if not os.path.exists(model_path):
+            self.logger.warning(f"Model not found at {model_path}, attempting to download...")
+            try:
+                # Load vosk_models.json
+                source_dir = os.path.dirname(os.path.abspath(__file__))
+                vosk_models_path = os.path.join(source_dir, "vosk_models.json")
+                self.logger.debug(f"Loading models database from: {vosk_models_path}")
+                
+                with open(vosk_models_path, "r") as f:
+                    models_db = json.load(f)
+                
+                # Get download URL based on language and size
+                lang = self.settings.get("lang")
+                size = self.settings.get("model_size")
+                self.logger.info(f"Looking for model with lang={lang}, size={size}")
+                
+                model_info = models_db[lang][size]
+                download_url = model_info["url"]
+                self.logger.info(f"Found model URL: {download_url}")
+                
+                # Create necessary directories
+                os.makedirs(model_path, exist_ok=True)
+                self.logger.debug(f"Created directory structure: {model_path}")
+                
+                # Download and extract the model
+                temp_zip = os.path.join(os.path.dirname(model_path), "temp_model.zip")
+                self.logger.info(f"Downloading model to temporary file: {temp_zip}")
+                urllib.request.urlretrieve(download_url, temp_zip)
+                
+                self.logger.info("Extracting model...")
+                with zipfile.ZipFile(temp_zip, 'r') as zip_ref:
+                    # Get the name of the first directory in the zip file
+                    zip_root_dir = zip_ref.namelist()[0].split('/')[0]
+                    # Extract to temporary location
+                    temp_extract = os.path.dirname(model_path)
+                    zip_ref.extractall(temp_extract)
+                    
+                    # Move contents from extracted folder to desired location
+                    extracted_path = os.path.join(temp_extract, zip_root_dir)
+                    if os.path.exists(model_path):
+                        import shutil
+                        shutil.rmtree(model_path)
+                    os.rename(extracted_path, model_path)
+                
+                # Remove temporary zip file
+                os.remove(temp_zip)
+                self.logger.info("Model downloaded and extracted successfully")
+                
+            except Exception as e:
+                self.logger.error(f"Error downloading model: {str(e)}", exc_info=True)
+                raise
+            
+        try:
+            # Load the model
+            self.logger.info(f"Loading model from {model_path}")
+            model = Model(model_path)
+            rec = KaldiRecognizer(model, 16000)
+            elapsed_time = time.time() - start_time
+            self.logger.info(f"Model loaded successfully in {elapsed_time:.2f} seconds")
+            self.is_loaded = True
+        except Exception as e:
+            self.logger.error(f"Error loading model: {str(e)}", exc_info=True)
+            raise
     
     async def handle_wake_word(self,following_text):
         print(f"Wake word detected! Text: '{following_text}'")

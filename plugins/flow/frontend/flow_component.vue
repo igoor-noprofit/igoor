@@ -4,8 +4,10 @@
         <button v-if="answers"
             :class="['btn', 'btn-side', 'btn-side-left', 'abandon', appview == 'autocomplete' ? 'autocomplete' : '',$root.headerExpanded ? 'expanded' : '']"
             @click="$_abandonConversation(true)">
-            Abandonner la conversation
+            <svg data-v-c03b73d2a84b39e50bcf45cec4f7bd79="" class="icon icon-l"><use data-v-c03b73d2a84b39e50bcf45cec4f7bd79="" xlink:href="/img/svgdefs.svg#icon-chevron_left"></use></svg>
+            Changer de sujet
         </button>
+        
         <div class="answers">
             <div class="row">
                 <div v-for="(msg, index) in answers" :key="index">

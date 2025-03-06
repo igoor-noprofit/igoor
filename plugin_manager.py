@@ -205,9 +205,18 @@ class PluginManager:
             return None
         
     def is_active(self, plugin_name):
-        is_active = self.all_plugins.get(plugin_name, {}).get("active", False)
-        self.logger.info(f"{plugin_name} is {'active' if is_active else 'NOT active'}")
-        return is_active
+        """Check if a plugin is active based on settings.json"""
+        settings = self.settings_manager.get_settings()
+        plugins_activation = settings.get("plugins_activation", {})
+        
+        # If plugin isn't in settings.json yet, get default from plugin.json (for migration)
+        if plugin_name not in plugins_activation:
+            default_active = self.all_plugins.get(plugin_name, {}).get("active", False)
+            self._set_plugin_active_status(plugin_name, default_active)
+            return default_active
+            
+        return plugins_activation.get(plugin_name, False)
+
 
     '''
     EXPERIMENTAL
@@ -283,26 +292,36 @@ class PluginManager:
         return plugins_metadata
 
     def get_plugins_by_category(self):
-        """Returns plugins grouped by categories."""
-        
-        plugins_metadata = self.get_all_plugins()
+        """Get all plugins organized by category"""
         plugins_by_category = {}
-        excluded_plugins = ["baseplugin", "settings"]
-        for plugin_name, metadata in plugins_metadata.items():
-            if plugin_name.lower() not in map(str.lower, excluded_plugins):
-                category = metadata.get("category", "Uncategorized")
-                if category not in plugins_by_category:
-                    plugins_by_category[category] = []
-                plugins_by_category[category].append({
-                    "name": plugin_name,
-                    "title": metadata.get("title", False),
-                    "active": metadata.get("active", False),
-                    # Other metadata you might need
-                    "layout": metadata.get("layout", {}),
-                    "is_free": metadata.get("is_free", {}),
-                    "requires_subscription": metadata.get("requires_subscription", {}),
-                    "requires_internet": metadata.get("requires_internet", {}),
-                })
+        
+        # Get current activation states
+        settings = self.settings_manager.get_settings()
+        plugins_activation = settings.get("plugins_activation", {})
+        self.logger.info(f"Current activation states: {plugins_activation}")
+        
+        # Get all plugins
+        all_plugins = self.get_all_plugins()
+        
+        # Organize plugins by category
+        for plugin_name, metadata in all_plugins.items():
+            category = metadata.get("category", "other").lower()
+            if category not in plugins_by_category:
+                plugins_by_category[category] = []
+                
+            plugin_info = {
+                "name": plugin_name,
+                "title": metadata.get("title", plugin_name),
+                "description": metadata.get("description", ""),
+                "requires_internet": metadata.get("requires_internet", False),
+                "requires_subscription": metadata.get("requires_subscription", False),
+                "is_free": metadata.get("is_free", True),
+                "category": category,
+                "active": plugins_activation.get(plugin_name, False)  # Get activation state from settings.json
+            }
+            
+            plugins_by_category[category].append(plugin_info)
+        
         return plugins_by_category
     
     def get_plugins_metadata(self):
@@ -381,24 +400,47 @@ class PluginManager:
         # self._trigger_plugin_hook(plugin_name, 'deactivate')
 
     def _set_plugin_active_status(self, plugin_name, status):
-        """Helper method to update the 'active' status of a plugin."""
-        metadata_file = resource_path(os.path.join(self.plugin_folder, plugin_name, 'plugin.json'))
+        """Update plugin activation status in settings.json"""
+        settings = self.settings_manager.get_settings()
+        if "plugins_activation" not in settings:
+            settings["plugins_activation"] = {}
+        
+        settings["plugins_activation"][plugin_name] = status
+        self.settings_manager.save_settings(settings)
+        self.logger.info(f"Plugin '{plugin_name}' has been {'activated' if status else 'deactivated'}.")
 
-        if os.path.exists(metadata_file):
-            try:
-                with open(metadata_file, 'r') as f:
-                    metadata = json.load(f)
+    def migrate_activation_states(self):
+        """Migrate activation states from plugin.json files to settings.json"""
+        settings = self.settings_manager.get_settings()
+        if "plugins_activation" not in settings:
+            settings["plugins_activation"] = {}
+            
+        # Define core plugins that should be active by default
+        core_plugins = {
+            "conversation": True,
+            "ttsdefault": True,
+            "settings": True,
+            "onboarding": True,
+            "clock": True
+        }
+        
+        # Get all plugins and their metadata
+        all_plugins = self.get_all_plugins()
+        
+        for plugin_name, metadata in all_plugins.items():
+            if plugin_name not in settings["plugins_activation"]:
+                # If it's a core plugin, use the default state
+                if plugin_name in core_plugins:
+                    default_state = core_plugins[plugin_name]
+                else:
+                    # For non-core plugins, check category or set to False
+                    is_core = metadata.get("category", "").lower() == "core"
+                    default_state = is_core
+                
+                settings["plugins_activation"][plugin_name] = default_state
+        
+        self.settings_manager.save_settings(settings)
 
-                metadata['active'] = status
-
-                with open(metadata_file, 'w') as f:
-                    json.dump(metadata, f, indent=4)
-
-                self.logger.info(f"Plugin '{plugin_name}' has been {'activated' if status else 'deactivated'}.")
-            except (OSError, json.JSONDecodeError) as e:
-                self.logger.error(f"Error updating active status for plugin '{plugin_name}': {e}")
-        else:
-            self.logger.warning(f"Plugin '{plugin_name}' does not have a valid plugin.json file.")
             
     def call_target_function(self, module_name, target_function_name, args):
         self.logger.info("calling target function", target_function_name, "in", module_name)
