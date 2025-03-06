@@ -129,16 +129,29 @@ class Autocomplete(Baseplugin):
                 hits = result[0]['hits'] + 1
                 self.logger.info(f"Updating existing prediction (ID: {prediction_id}) with hits: {hits}")
                 
-                await self.db_execute(
+                # The issue might be here - let's fix the UPDATE statement
+                update_result = await self.db_execute(
                     "UPDATE predictions SET hits = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
                     (hits, prediction_id)
                 )
+                
+                # Let's verify the update worked
+                verify_result = await self.db_execute(
+                    "SELECT hits FROM predictions WHERE id = ?", 
+                    (prediction_id,)
+                )
+                
+                if verify_result and len(verify_result) > 0:
+                    self.logger.info(f"Verified update: new hit count is {verify_result[0]['hits']}")
+                else:
+                    self.logger.error(f"Failed to verify update for prediction ID {prediction_id}")
+                    
                 self.logger.info(f"Updated prediction hit count: {input_text} -> {completion} (hits: {hits})")
             else:
                 # Insert new prediction
                 self.logger.info("Inserting new prediction...")
                 insert_result = await self.db_execute(
-                    "INSERT INTO predictions (input, completion) VALUES (?, ?)",
+                    "INSERT INTO predictions (input, completion, hits) VALUES (?, ?, 1)",
                     (input_text, completion)
                 )
                 self.logger.info(f"Insert result: {insert_result}")
@@ -180,13 +193,18 @@ class Autocomplete(Baseplugin):
         predictions = await self.get_top_predictions(input_text)
         
         if not predictions:
-            return "<CURRENT_CURSOR_POSITION>\nAucune prédiction précédente pertinente."
+            return "[]"  # Return empty JSON array if no predictions
         
-        formatted_predictions = "<CURRENT_CURSOR_POSITION>\n"
+        # Format as a simple list of completions with hit counts
+        formatted_completions = []
         for pred in predictions:
-            formatted_predictions += f"Input: \"{pred['input']}\", Completion: \"{pred['completion']}\" (utilisé {pred['hits']} fois)\n"
+            formatted_completions.append({
+                "text": pred['completion'],
+                "hits": pred['hits']
+            })
         
-        return formatted_predictions
+        # Convert to JSON string for clean representation in the prompt
+        return json.dumps(formatted_completions, ensure_ascii=False, indent=2)
     
     async def predict(self, msg: str) -> None:
         health_state=self.global_settings.get_health_state()
