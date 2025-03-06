@@ -15,7 +15,10 @@
                         {{ msg }}
                     </div>
                 </div>
-                <a class="autocompletelauncher" @click="$_showAutocomplete()">...</a>
+                <a class="autocompletelauncher msg msg-small" @click="$_showAutocomplete()" v-show="appview != 'autocomplete'">
+                    <img src="/img/icons/src/keyboard.svg" />
+                    <img src="/img/icons/src/more.svg" />
+                </a>
             </div>
         </div>
     </div>
@@ -130,7 +133,14 @@ module.exports = {
 .autocompletelauncher {
     cursor: pointer;
     margin-top: 10px;
+    padding-top: 10px;
+    padding-bottom: 8px;
     display: block;
+    width: 100px;
+    img{
+        max-height: 40px;
+        filter:invert(1)
+    }
 }
 .flow-plugin {
     margin: 10px 0;
