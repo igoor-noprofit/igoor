@@ -16,7 +16,7 @@
                         <label>Pronoun</label><input type="text" v-model="bio.pronoun">
                     </div>
                     <div>
-                        <label>Birth Date</label><input type="text" v-model="bio.birth_date">
+                        <label>Year of birth</label><input type="text" v-model="bio.birth_date">
                     </div>
                 </div>
                 <div class="bio-right">
