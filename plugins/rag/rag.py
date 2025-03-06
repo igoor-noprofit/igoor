@@ -26,6 +26,8 @@ class Rag(Baseplugin):
         self.index_loaded = False
         self.embedding_loaded = False
         self.loading_event = asyncio.Event()
+        # Rename self.db to self.vector_store to avoid conflict with SQLite db
+        self.vector_store = None
         
         # Start a thread to load both embedding model and index
         thread = threading.Thread(target=lambda: asyncio.run(self.initialize_resources()))
@@ -52,7 +54,8 @@ class Rag(Baseplugin):
         try:
             # Run the CPU-intensive FAISS loading in a thread pool
             loop = asyncio.get_event_loop()
-            self.db = await loop.run_in_executor(None, 
+            # Rename self.db to self.vector_store
+            self.vector_store = await loop.run_in_executor(None, 
                 lambda: FAISS.load_local(self.index_folder, self.embedding_function, allow_dangerous_deserialization=True)
             )
             db_end_time = time.time()
@@ -75,7 +78,8 @@ class Rag(Baseplugin):
             metadata={"source": "memory"}
         )
         try:
-            self.db.add_documents([new_doc])
+            # Use vector_store instead of db
+            self.vector_store.add_documents([new_doc])
             return True
         except Exception as e:
             self.logger.error(f"Error adding fact to index: {e}")
@@ -87,7 +91,8 @@ class Rag(Baseplugin):
             self.logger.warning("Index is not loaded, cannot save.")
             return False
         try:
-            self.db.save_local(self.index_folder)
+            # Use vector_store instead of db
+            self.vector_store.save_local(self.index_folder)
             self.logger.info("Index saved successfully.")
             return True
         except Exception as e:
@@ -170,8 +175,9 @@ class Rag(Baseplugin):
                 print("-------")
 
         self.logger.info("CREATING INDEX")
-        self.db = FAISS.from_documents(docs, self.embedding_function)
-        self.db.save_local(self.index_folder)
+        # Rename self.db to self.vector_store
+        self.vector_store = FAISS.from_documents(docs, self.embedding_function)
+        self.vector_store.save_local(self.index_folder)
         self.logger.info("FAISS index saved.")
         db_end_time = time.time()
         self.logger.info(f"DB FAISS index created successfully in : {db_end_time - db_start_time:.2f} seconds")
@@ -189,7 +195,8 @@ class Rag(Baseplugin):
             start_time = time.time()
             search_start_time = time.time()
             loop = asyncio.get_event_loop()
-            results = await loop.run_in_executor(None, self.db.similarity_search, query_text)
+            # Use vector_store instead of db
+            results = await loop.run_in_executor(None, self.vector_store.similarity_search, query_text)
             search_end_time = time.time()
             self.logger.debug(f"DB search time: {search_end_time - search_start_time:.2f} seconds")
             context_text = "\n\n---\n\n".join([doc.page_content for doc in results])
