@@ -11,5 +11,12 @@
     "requires_internet": true,
     "depends_on": [
         "autocompletelauncher"
-    ]
+    ],
+    "requires_db": true,
+    "db_tables": {
+        "predictions": {
+            "schema": "CREATE TABLE IF NOT EXISTS predictions (id INTEGER PRIMARY KEY, input TEXT NOT NULL, completion TEXT NOT NULL, hits INTEGER DEFAULT 1, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
+            "version": "1.0"
+        }
+    }
 }

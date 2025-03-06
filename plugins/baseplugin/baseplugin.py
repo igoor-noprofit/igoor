@@ -6,6 +6,7 @@ import os,json,asyncio
 from utils import resource_path
 from llm_manager import LLMManager
 from utils import setup_logger
+from db_manager import DatabaseManager
 class Baseplugin:
     def __init__(self, plugin_name="baseplugin", pm=None):
         self.is_loaded = False
@@ -30,6 +31,13 @@ class Baseplugin:
         self.settings_manager = SettingsManager()
         self.status_manager = StatusManager()
         
+        # Load plugin metadata
+        self._plugin_metadata = self._load_plugin_metadata()
+        
+        # Initialize database if needed
+        self._db = None
+        if self._plugin_metadata.get('requires_db', False):
+            self._init_database()
         # self.pm = pm
         # Construct the plugin folder path
         self.app_name = os.getenv('IGOOR_APPNAME')  # Get the application name from the environment variable
@@ -259,3 +267,56 @@ class Baseplugin:
         # Check if the message is {"socket":"ready"}
         # if message_dict == {"socket": "ready"}:
         #    self.socket_ready = True
+        
+    def _load_plugin_metadata(self):
+        """Load plugin.json metadata"""
+        try:
+            plugin_json_path = resource_path(os.path.join('plugins', self.plugin_name, 'plugin.json'))
+            with open(plugin_json_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError) as e:
+            self.logger.error(f"Error loading plugin metadata: {e}")
+            return {}
+    
+    def _init_database(self):
+        """Initialize database connection for this plugin"""
+        try:
+            if not self._plugin_metadata.get('requires_db', False):
+                return
+                
+            db_tables = self._plugin_metadata.get('db_tables', {})
+            if not db_tables:
+                self.logger.warning(f"Plugin {self.plugin_name} requires database but no tables defined")
+                return
+                
+            self.logger.info(f"Initializing database for plugin {self.plugin_name}")
+            db_manager = DatabaseManager()
+            db_manager.register_plugin(self.plugin_name, db_tables)
+            self._db = db_manager
+            self.logger.info(f"Database initialized for plugin {self.plugin_name}")
+        except Exception as e:
+            self.logger.error(f"Failed to initialize database: {e}")
+            self._db = None
+    
+    @property
+    def db(self):
+        """Access database connection if available"""
+        if self._db is None and self._plugin_metadata.get('requires_db', False):
+            self._init_database()
+        return self._db
+    
+    async def db_execute(self, query: str, params: tuple = ()):
+        """Execute a database query asynchronously"""
+        if self.db is None:
+            self.logger.error("Database not initialized")
+            return None
+            
+        return await self.db.execute(self.plugin_name, query, params)
+        
+    def db_execute_sync(self, query: str, params: tuple = ()):
+        """Execute a database query synchronously"""
+        if self.db is None:
+            self.logger.error("Database not initialized")
+            return None
+            
+        return self.db.execute_sync(self.plugin_name, query, params)

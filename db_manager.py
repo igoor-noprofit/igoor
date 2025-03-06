@@ -1,14 +1,15 @@
-'''
-PROPOSED CENTRAL MANAGER SINGLETON FOR SQLITE DB
-TODO: change path
-'''
 import sqlite3
 import asyncio
+import os
+import json
+import threading
 from pathlib import Path
-from typing import Dict, Optional, List, Any
+from typing import Dict, Optional, List, Any, Union
+from utils import setup_logger
 
 class DatabaseManager:
     _instance = None
+    _lock = threading.RLock()  # Reentrant lock for thread safety
     
     def __new__(cls):
         if cls._instance is None:
@@ -17,58 +18,135 @@ class DatabaseManager:
         return cls._instance
     
     def __init__(self):
-        if self.initialized:
-            return
+        with self._lock:
+            if self.initialized:
+                return
+                
+            # Setup logger
+            self.logger = setup_logger('db_manager', os.path.join(os.getenv('APPDATA'), os.getenv('IGOOR_APPNAME')))
             
-        # Create database file in the app's data directory
-        self.db_path = Path("data/plugin_database.db")
-        self.db_path.parent.mkdir(parents=True, exist_ok=True)
-        
-        # Initialize connection
-        self.conn = sqlite3.connect(str(self.db_path))
-        self.cursor = self.conn.cursor()
-        
-        # Create metadata table for tracking plugin tables
-        self._create_metadata_table()
-        self.initialized = True
+            # Create database file in the app's data directory
+            app_data_path = os.path.join(os.getenv('APPDATA'), os.getenv('IGOOR_APPNAME'))
+            self.db_path = Path(app_data_path) / "database" / "igoor.db"
+            self.db_path.parent.mkdir(parents=True, exist_ok=True)
+            
+            self.logger.info(f"Initializing database at {self.db_path}")
+            
+            # Store the database path but don't create a connection yet
+            # We'll create connections per-thread as needed
+            self.connections = {}
+            self._create_metadata_table()
+            self.initialized = True
+    
+    def _get_connection(self):
+        """Get a thread-specific connection"""
+        thread_id = threading.get_ident()
+        with self._lock:
+            if thread_id not in self.connections:
+                self.logger.info(f"Creating new database connection for thread {thread_id}")
+                conn = sqlite3.connect(str(self.db_path))
+                conn.row_factory = sqlite3.Row  # Return rows as dictionaries
+                self.connections[thread_id] = conn
+            return self.connections[thread_id]
     
     def _create_metadata_table(self):
         """Create table to track plugin database versions"""
-        self.cursor.execute("""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
             CREATE TABLE IF NOT EXISTS plugin_metadata (
                 plugin_name TEXT PRIMARY KEY,
+                tables TEXT,
                 version TEXT,
                 last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
-        self.conn.commit()
+        conn.commit()
     
-    def register_plugin(self, plugin_name: str, version: str, tables: Dict[str, str]):
+    def register_plugin(self, plugin_name: str, tables_config: Dict[str, Dict]):
         """
         Register plugin tables and create them if they don't exist
         
         :param plugin_name: Name of the plugin
-        :param version: Plugin version
-        :param tables: Dict of table_name: create_table_sql
+        :param tables_config: Dict of table configurations from plugin.json
         """
         try:
-            # Create plugin tables with prefixed names
-            for table_name, create_table_sql in tables.items():
+            self.logger.info(f"Registering database tables for plugin: {plugin_name}")
+            conn = self._get_connection()
+            cursor = conn.cursor()
+            
+            # Store the current versions of tables
+            current_versions = {}
+            try:
+                cursor.execute("SELECT tables FROM plugin_metadata WHERE plugin_name = ?", (plugin_name,))
+                result = cursor.fetchone()
+                if result and result[0]:
+                    current_versions = json.loads(result[0])
+            except (sqlite3.Error, json.JSONDecodeError) as e:
+                self.logger.warning(f"Could not retrieve current table versions: {e}")
+            
+            # Create or update plugin tables
+            for table_name, config in tables_config.items():
                 prefixed_table = f"{plugin_name}_{table_name}"
-                # Replace the original table name with the prefixed one
-                prefixed_sql = create_table_sql.replace(table_name, prefixed_table)
-                self.cursor.execute(prefixed_sql)
+                schema = config.get('schema', '')
+                version = config.get('version', '1.0')
+                
+                # Check if table needs to be updated
+                current_version = current_versions.get(table_name, {}).get('version', '0')
+                
+                if current_version != version:
+                    # Replace the original table name with the prefixed one in the schema
+                    prefixed_schema = schema.replace(f"CREATE TABLE IF NOT EXISTS {table_name}", 
+                                                    f"CREATE TABLE IF NOT EXISTS {prefixed_table}")
+                    
+                    self.logger.info(f"Creating/updating table {prefixed_table} (v{version})")
+                    cursor.execute(prefixed_schema)
+                    
+                    # Update version in our tracking
+                    current_versions[table_name] = {'version': version}
             
             # Update plugin metadata
-            self.cursor.execute("""
-                INSERT OR REPLACE INTO plugin_metadata (plugin_name, version)
-                VALUES (?, ?)
-            """, (plugin_name, version))
+            cursor.execute("""
+                INSERT OR REPLACE INTO plugin_metadata (plugin_name, tables, version)
+                VALUES (?, ?, ?)
+            """, (plugin_name, json.dumps(current_versions), "1.0"))
             
-            self.conn.commit()
+            conn.commit()
+            self.logger.info(f"Successfully registered database for plugin: {plugin_name}")
+            
         except sqlite3.Error as e:
-            print(f"Error registering plugin {plugin_name}: {e}")
-            self.conn.rollback()
+            self.logger.error(f"Error registering plugin {plugin_name}: {e}")
+            conn = self._get_connection()
+            conn.rollback()
+    
+    def _prefix_table_names(self, plugin_name: str, query: str) -> str:
+        """
+        Add plugin prefix to table names in query
+        This is a simplified implementation - in production you'd want to use a proper SQL parser
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        
+        # Get all tables registered for this plugin
+        cursor.execute("SELECT tables FROM plugin_metadata WHERE plugin_name = ?", (plugin_name,))
+        result = cursor.fetchone()
+        
+        if not result or not result[0]:
+            return query
+            
+        tables = json.loads(result[0])
+        
+        # Replace table names with prefixed versions
+        modified_query = query
+        for table_name in tables.keys():
+            # This is a simple replacement and might have edge cases
+            modified_query = modified_query.replace(f" {table_name} ", f" {plugin_name}_{table_name} ")
+            modified_query = modified_query.replace(f" {table_name},", f" {plugin_name}_{table_name},")
+            modified_query = modified_query.replace(f" {table_name})", f" {plugin_name}_{table_name})")
+            modified_query = modified_query.replace(f"FROM {table_name}", f"FROM {plugin_name}_{table_name}")
+            modified_query = modified_query.replace(f"INTO {table_name}", f"INTO {plugin_name}_{table_name}")
+            
+        return modified_query
     
     async def execute(self, plugin_name: str, query: str, params: tuple = ()) -> Optional[List[Any]]:
         """
@@ -87,18 +165,35 @@ class DatabaseManager:
                 params
             )
         except sqlite3.Error as e:
-            print(f"Error executing query for {plugin_name}: {e}")
+            self.logger.error(f"Error executing query for {plugin_name}: {e}")
             return None
 
-    def _execute_sync(self, query: str, params: tuple) -> Optional[List[Any]]:
+    def execute_sync(self, plugin_name: str, query: str, params: tuple = ()) -> Optional[List[Any]]:
+        """
+        Execute a query synchronously for a plugin
+        """
+        try:
+            query = self._prefix_table_names(plugin_name, query)
+            return self._execute_sync(query, params)
+        except sqlite3.Error as e:
+            self.logger.error(f"Error executing sync query for {plugin_name}: {e}")
+            return None
+
+    def _execute_sync(self, query: str, params: Union[tuple, dict]) -> Optional[List[Any]]:
         """Execute SQL query synchronously"""
-        self.cursor.execute(query, params)
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        cursor.execute(query, params)
         if query.strip().upper().startswith(('SELECT', 'PRAGMA')):
-            return self.cursor.fetchall()
-        self.conn.commit()
+            return [dict(row) for row in cursor.fetchall()]
+        conn.commit()
         return None
 
     def __del__(self):
-        """Clean up database connection"""
-        if hasattr(self, 'conn'):
-            self.conn.close()
+        """Clean up database connections"""
+        with self._lock:
+            for thread_id, conn in self.connections.items():
+                try:
+                    conn.close()
+                except:
+                    pass

@@ -32,7 +32,8 @@ module.exports = {
         return {
             selectedCard: null,
             answers: [],
-            waitingai: true
+            waitingai: true,
+            currentInput: "" // Store the current input for autocomplete
         }
     },
     methods: {
@@ -49,6 +50,7 @@ module.exports = {
         },
         $_clearAnswers() {
             this.answers = []
+            this.currentInput = ""
         },
         handleIncomingMessage(event) {
             const handled = BasePluginComponent.methods.handleIncomingMessage.call(this, event);
@@ -73,7 +75,16 @@ module.exports = {
                 } else {
                     console.log("************ ANSWERS *********");
                     console.table(data);
-                    this.answers = data.answers;
+                    
+                    // Check if this is an autocomplete response (has input field)
+                    if (data.input) {
+                        this.currentInput = data.input;
+                        this.answers = data.completions || [];
+                    } else {
+                        this.answers = data.answers || [];
+                        this.currentInput = ""; // Clear input if not autocomplete
+                    }
+                    
                     this.selectedCard = null;
                 }
             } catch (e) {
@@ -85,6 +96,23 @@ module.exports = {
             let text = msg;
             // Remove the selected answer from the array
             this.answers.splice(index, 1);
+            
+            // Check if we're in autocomplete mode and have an input
+            if (this.appview === 'autocomplete' && this.currentInput) {
+                console.log("STORING PREDICTION because view = " + this.appview);
+                
+                try {
+                    // Use the synchronous wrapper method instead
+                    window.pywebview.api.trigger_hook_sync("store_autocomplete_prediction", {
+                        input_text: this.currentInput,
+                        completion: text
+                    });
+                    console.log("Successfully stored prediction");
+                } catch (error) {
+                    console.error("Error storing prediction:", error);
+                }
+            }
+            
             const json = { action: "speak", msg: text };
             console.log("sending JSON");
             console.log(json);

@@ -69,6 +69,34 @@ class Api:
     
     def get_context_all(self):
         print(context_manager.get_context())
+    
+    # New non-async wrapper for trigger_hook
+    def trigger_hook_sync(self, hook_name, *args, **kwargs):
+        """
+        Synchronous wrapper for trigger_hook that handles the async call properly.
+        This is the method that should be called from JavaScript.
+        """
+        print(f"JS API: trigger_hook_sync called for {hook_name}")
+        try:
+            # Create a new event loop for this thread if needed
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                # If there's no event loop in this thread, create one
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+            
+            # Run the async function and return its result
+            if args and isinstance(args[0], dict):
+                # If first arg is a dict, convert it to kwargs
+                kwargs.update(args[0])
+                args = args[1:]
+                
+            future = asyncio.ensure_future(self.trigger_hook(hook_name, *args, **kwargs))
+            return loop.run_until_complete(future)
+        except Exception as e:
+            print(f"Error in trigger_hook_sync: {e}")
+            return {"error": str(e)}
         
     async def trigger_hook(self, hook_name, *args, **kwargs):
         try:

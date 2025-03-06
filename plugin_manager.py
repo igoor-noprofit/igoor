@@ -145,7 +145,14 @@ class MyAppSpec:
     async def store_memory(self, memory:str):
         # Gather all results from the async hook implementations
         return await self.plugin_manager.hook.store_memory(memory=memory)
-        
+    
+    '''
+        ************ AUTOCOMPLETE **************
+    '''
+    @pluggy.HookspecMarker(app_name)
+    def store_autocomplete_prediction(self, input_text: str, completion: str):
+        """Hook for storing successful autocomplete predictions"""
+        pass
 class PluginManager:
     _instance = None
     def __new__(cls, *args, **kwargs):
