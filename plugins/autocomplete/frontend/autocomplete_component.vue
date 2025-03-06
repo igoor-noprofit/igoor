@@ -2,7 +2,7 @@
     <div class="autocomplete plugin" v-show="appview == 'autocomplete'">
         <button class="btn btn-side btn-side-left" @click="$_backToDaily()">
             <svg class="icon icon-l">
-                <use xlink:href="/img/svgdefs.svg#icon-chevron_left" />
+                <use xlink:href="/img/svgdefs.svg#icon-close" />
             </svg>
         </button>
 
