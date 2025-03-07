@@ -8,5 +8,10 @@
     },
     "is_free": true,
     "requires_subscription": true,
-    "requires_internet": true
+    "requires_internet": true,
+    "frontend":{
+        "events":[
+            {"show-autocomplete":"showAutocomplete"}
+        ] 
+    }
 }
