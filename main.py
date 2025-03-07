@@ -14,11 +14,21 @@ import signal,sys
 import tkinter as tk
 import asyncio
 from utils import resource_path, setup_logger
+from idle_detector import IdleDetector
 
 logger = setup_logger('main', os.path.join(os.getenv('APPDATA'), os.getenv('IGOOR_APPNAME')))
 prompts=None
 context_manager = ContextManager()
 manager = PluginManager()
+
+def on_idle_change(is_idle):
+    if is_idle:
+        logger.info("User is now idle!")
+        asyncio.run(manager.trigger_hook("user_idle_on_pc"))
+    else:
+        logger.info("User is now active!")
+        
+detector = IdleDetector(callback=on_idle_change, idle_threshold=600, check_interval=10)     # 10 MINUTES TOTAL INACTIVITY
 
 def show_splash_screen(image_path):
     """Create a simple splash screen with a logo."""
@@ -181,9 +191,11 @@ def load_frontend_components():
 
     return final_html
 
+
 def on_loaded():
     logger.info("GUI window is now loaded and available!")
     asyncio.run(manager.trigger_hook("gui_ready"))
+    detector.start()
     return True
     print("TESTING RAG:::")
     queries = [

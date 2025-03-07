@@ -46,7 +46,7 @@ class MyAppSpec:
     
     
     '''
-        GUI
+        GUI AND APP
     '''
     @pluggy.HookspecMarker(app_name)
     async def gui_ready(self):
@@ -54,6 +54,11 @@ class MyAppSpec:
     
     @pluggy.HookspecMarker(app_name)
     async def change_view(self,lastview,currentview):
+        pass
+    
+    @pluggy.HookspecMarker(app_name)
+    async def user_idle_on_pc(self):
+        """Hook for when the user is completely idle on the PC """
         pass
     
     '''
@@ -122,6 +127,7 @@ class MyAppSpec:
     def after_conversation_end(self, last_conversation):
         """Hook to analyze or do other stuff with last conversation"""
         pass
+
     
     @pluggy.HookspecMarker(app_name)
     def reset_conversation_timeout(self):
