@@ -119,6 +119,9 @@ header {
   background: @header_bg;
   justify-content: space-evenly;
   height: @header_height;
+  box-shadow: 0rem 0.125rem 0.375rem 0rem rgba(0, 0, 0, 0.4);
+  z-index: 1;
+
   > * {
     /* Target all direct children of header */
     flex: 1; /* Allow each child to fill available space equally */
@@ -138,6 +141,7 @@ header.expanded + .after_header {
 */
 main {
   height: @main_height;
+  box-shadow: 0rem -0.5rem 1rem 0rem rgba(0, 0, 0, 0.2);
 }
 footer {
   // height: 20vh;
@@ -384,6 +388,8 @@ footer {
     &.expanded{
       margin-top: @expanded_header_height;
     }
+    box-shadow: 0rem 0.125rem 0.375rem 0rem rgba(0, 0, 0, 0.4);
+
   }
   width: 100%;
   input {
