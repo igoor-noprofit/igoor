@@ -13,6 +13,7 @@ class Conversation(Baseplugin):
         self.settings = self.get_my_settings()
         self.conversation_is_open=False
         self.thread=[]
+        self.current_thread_id = None
         
     def init_timeout(self):
         print("INIT TIMEOUT")
@@ -59,6 +60,20 @@ class Conversation(Baseplugin):
         context_manager.update_context("conversation", "")
         # self.init_timeout()
         self.send_message_to_frontend({"action": "startCountdown"})
+        
+        # Create a new conversation in the database
+        current_time = self._get_current_timestamp()
+        result = await self.db_execute(
+            "INSERT INTO threads (start_time, is_processed) VALUES (?, ?)",
+            (current_time, False)
+        )
+        
+        # Get the ID of the newly created thread
+        thread_data = await self.db_execute("SELECT last_insert_rowid() as id")
+        if thread_data and len(thread_data) > 0:
+            self.current_thread_id = thread_data[0]['id']
+            self.logger.info(f"Created new conversation with ID: {self.current_thread_id}")
+
 
     @hookimpl
     async def abandon_conversation(self, cause="timeout"):
@@ -71,7 +86,17 @@ class Conversation(Baseplugin):
         '''
         txt = await self.get_conversation(format="txt")
         last_conversation = {"thread": self.thread, "txt": txt, "cause": cause}
+        
+        if self.current_thread_id is not None:
+            current_time = self._get_current_timestamp()
+            await self.db_execute(
+                "UPDATE threads SET end_time = ?, topic = ? WHERE id = ?",
+                (current_time, cause, self.current_thread_id)
+            )
+            self.logger.info(f"Updated conversation {self.current_thread_id} with end time")
+            
         self.thread = []
+        self.current_thread_id = None
         context_manager.update_context("conversation", "")
         self.send_message_to_frontend({"action": "abandon_conversation"})
         self.conversation_is_open = False
@@ -86,7 +111,7 @@ class Conversation(Baseplugin):
         await self.send_switch_view_to_app("daily")
         
     @hookimpl
-    async def add_msg_to_conversation(self, msg: str, author: str) -> None:
+    async def add_msg_to_conversation(self, msg: str, author: str, type: str = "") -> None:
         '''
         author can be:
             def     speaker
@@ -95,15 +120,28 @@ class Conversation(Baseplugin):
         if not(self.conversation_is_open):
             await self.new_conversation()
         print(f"Adding {msg} to conversation")
-        newmsg = {"msg": msg, "author": author}
+        newmsg = {"msg": msg, "author": author, "type": type}  # Include type in the message object
         self.thread.append(newmsg)
         self.send_message_to_frontend(json.dumps(newmsg))
         bms = {"backend": "addmsg"}
         await self.send_message_to_app(json.dumps(bms))
         conv = await self.get_conversation(format="raw")
         context_manager.update_context("conversation", conv)
-        # self.reset_timeout()
         
+        # Store the message in the database
+        if self.current_thread_id is not None:
+            current_time = self._get_current_timestamp()
+            await self.db_execute(
+                "INSERT INTO msgs (thread_id, author, datetime, msg, type) VALUES (?, ?, ?, ?, ?)",
+                (self.current_thread_id, author, current_time, msg, type)
+            )
+            self.logger.info(f"Added message to conversation {self.current_thread_id} with thread_id {self.current_thread_id}")
+    
+    def _get_current_timestamp(self):
+        """Helper method to get current timestamp in ISO format"""
+        from datetime import datetime
+        return datetime.now().isoformat()
+    
     @hookimpl
     async def remove_last_msg(self) -> None:
         if self.thread and self.conversation_is_open:

@@ -72,6 +72,7 @@ class DatabaseManager:
         """
         try:
             self.logger.info(f"Registering database tables for plugin: {plugin_name}")
+            self.logger.info(f"Tables to create: {list(tables_config.keys())}")
             conn = self._get_connection()
             cursor = conn.cursor()
             
@@ -87,23 +88,37 @@ class DatabaseManager:
             
             # Create or update plugin tables
             for table_name, config in tables_config.items():
-                prefixed_table = f"{plugin_name}_{table_name}"
-                schema = config.get('schema', '')
-                version = config.get('version', '1.0')
-                
-                # Check if table needs to be updated
-                current_version = current_versions.get(table_name, {}).get('version', '0')
-                
-                if current_version != version:
-                    # Replace the original table name with the prefixed one in the schema
-                    prefixed_schema = schema.replace(f"CREATE TABLE IF NOT EXISTS {table_name}", 
+                try:
+                    prefixed_table = f"{plugin_name}_{table_name}"
+                    schema = config.get('schema', '')
+                    version = config.get('version', '1.0')
+                    
+                    # Check if table needs to be updated
+                    current_version = current_versions.get(table_name, {}).get('version', '0')
+                    
+                    if current_version != version:
+                        # Replace the original table name with the prefixed one in the schema
+                        prefixed_schema = schema.replace(f"CREATE TABLE IF NOT EXISTS {table_name}", 
                                                     f"CREATE TABLE IF NOT EXISTS {prefixed_table}")
-                    
-                    self.logger.info(f"Creating/updating table {prefixed_table} (v{version})")
-                    cursor.execute(prefixed_schema)
-                    
-                    # Update version in our tracking
-                    current_versions[table_name] = {'version': version}
+                        
+                        # Fix foreign key references if they exist
+                        if "FOREIGN KEY" in prefixed_schema and "REFERENCES" in prefixed_schema:
+                            # Look for references to other tables in this plugin
+                            for ref_table in tables_config.keys():
+                                prefixed_schema = prefixed_schema.replace(
+                                    f"REFERENCES {ref_table}", 
+                                    f"REFERENCES {plugin_name}_{ref_table}"
+                                )
+                        
+                        self.logger.info(f"Creating/updating table {prefixed_table} (v{version})")
+                        self.logger.info(f"Executing SQL: {prefixed_schema}")
+                        cursor.execute(prefixed_schema)
+                        
+                        # Update version in our tracking
+                        current_versions[table_name] = {'version': version}
+                except sqlite3.Error as e:
+                    self.logger.error(f"Error creating table {table_name}: {e}")
+                    # Continue with other tables instead of failing completely
             
             # Update plugin metadata
             cursor.execute("""
