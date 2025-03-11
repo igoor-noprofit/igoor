@@ -1,12 +1,19 @@
 {
-    "category": "Knowledge Base",
-    "title": "Static knowledge",
-    "description": "Static knowledge based on uploaded documents",
-    "layout": {
-        "part": "hidden",
-        "order": 0
-    },
-    "is_free": true,
-    "requires_subscription": false,
-    "requires_internet": false
+  "category": "Knowledge Base",
+  "title": "Static knowledge",
+  "description": "Static knowledge based on uploaded documents",
+  "layout": {
+    "part": "hidden",
+    "order": 0
+  },
+  "is_free": true,
+  "requires_subscription": false,
+  "requires_internet": false,
+  "requires_db": true,
+  "db_tables": {
+    "threads": {
+      "schema": "CREATE TABLE IF NOT EXISTS documents (  id INTEGER PRIMARY KEY,  title TEXT, filename TEXT NOT NULL,  created_at TIMESTAMP)",
+      "version": "1.0"
+    }
+  }
 }

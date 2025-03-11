@@ -40,6 +40,8 @@ class Rag(Baseplugin):
         
         if self.subfolder_exists(self.medias_folder_name):
             self.create_folders()
+            # Check for new files to ingest
+            await self.check_for_new_files()
             if not self.subfolder_exists(self.index_folder_name) or self.is_folder_empty(self.index_folder_name):
                 self.logger.info("INDEX FOLDER DOES NOT EXIST OR IS EMPTY, CREATING FROM FOLDER")
                 self.create_index()
@@ -47,6 +49,80 @@ class Rag(Baseplugin):
                 self.logger.info("BOTH FOLDERS EXIST AND INDEX IS NOT EMPTY")
                 self.logger.info("RAG settings", self.settings)
                 await self.load_index()
+    
+    async def check_for_new_files(self):
+        """Check if there are new files in the medias folder that need to be ingested"""
+        self.logger.info("Checking for new files to ingest...")
+        folder_path = os.path.join(self.plugin_folder, self.medias_folder_name)
+        
+        # Get all files in the medias folder
+        files_in_folder = set()
+        for file_name in os.listdir(folder_path):
+            file_path = os.path.join(folder_path, file_name)
+            if os.path.isfile(file_path) and file_name.endswith((".txt", ".md", ".pdf")):
+                files_in_folder.add(file_name)
+        
+        # Get files already in the database
+        files_in_db = set()
+        try:
+            results = await self.db_execute("SELECT filename FROM documents")
+            if results:
+                files_in_db = {row['filename'] for row in results}
+        except Exception as e:
+            self.logger.error(f"Error retrieving files from database: {e}")
+        
+        # Find new files
+        new_files = files_in_folder - files_in_db
+        if new_files:
+            self.logger.info(f"Found {len(new_files)} new files to ingest: {new_files}")
+            await self.ingest_new_files(new_files)
+        else:
+            self.logger.info("No new files to ingest")
+    
+    async def ingest_new_files(self, new_files):
+        """Ingest new files into the index and add them to the database"""
+        folder_path = os.path.join(self.plugin_folder, self.medias_folder_name)
+        documents = []
+        
+        for file_name in new_files:
+            file_path = os.path.join(folder_path, file_name)
+            
+            # Extract title from filename (remove extension)
+            title = os.path.splitext(file_name)[0]
+            
+            if file_name.endswith(".txt"):
+                loader = TextLoader(file_path)
+                documents.extend(loader.load())
+            elif file_name.endswith(".md"):
+                with open(file_path, "r", encoding="utf-8") as f:
+                    md_content = f.read()
+                documents.append(Document(page_content=md_content, metadata={"source": file_path}))
+            elif file_name.endswith(".pdf"):
+                md_content = self.load_pdf_content(file_path)
+                documents.append(Document(page_content=md_content, metadata={"source": file_path}))
+            
+            # Add file to database
+            try:
+                await self.db_execute(
+                    "INSERT INTO documents (title, filename, created_at) VALUES (?, ?, datetime('now'))",
+                    (title, file_name)
+                )
+                self.logger.info(f"Added document to database: {file_name}")
+            except Exception as e:
+                self.logger.error(f"Error adding document to database: {e}")
+        
+        if documents:
+            # Split documents
+            text_splitter = CharacterTextSplitter(chunk_size=self.settings.get("chunk_size"), chunk_overlap=self.settings.get("chunk_overlap"))
+            docs = text_splitter.split_documents(documents)
+            
+            # Add to existing index if it exists
+            if self.index_loaded and self.vector_store:
+                self.logger.info(f"Adding {len(docs)} chunks to existing index")
+                self.vector_store.add_documents(docs)
+                await self.save_index()
+            else:
+                self.logger.info("Index not loaded yet, new files will be included in full index creation")
     
     async def load_index(self):  # Make load_index async
         self.logger.info("LOADING INDEX, PLEASE WAIT...")
@@ -148,6 +224,7 @@ class Rag(Baseplugin):
         documents = []
         for file_name in os.listdir(folder_path):
             file_path = os.path.join(folder_path, file_name)
+            
             if file_name.endswith(".txt"):
                 loader = TextLoader(file_path)
                 documents.extend(loader.load())
@@ -159,6 +236,26 @@ class Rag(Baseplugin):
             elif file_name.endswith(".pdf"):
                 md_content = self.load_pdf_content(file_path)
                 documents.append(Document(page_content=md_content, metadata={"source": file_path}))
+                
+            # Extract title from filename (remove extension)
+            title = os.path.splitext(file_name)[0]
+            
+            # Add file to database if it's not already there
+            try:
+                # Use synchronous execution since we're in a synchronous method
+                existing = self.db_execute_sync(
+                    "SELECT filename FROM documents WHERE filename = ?", 
+                    (file_name,)
+                )
+                
+                if not existing:
+                    self.db_execute_sync(
+                        "INSERT INTO documents (title, filename, created_at) VALUES (?, ?, datetime('now'))",
+                        (title, file_name)
+                    )
+                    self.logger.info(f"Added document to database: {file_name}")
+            except Exception as e:
+                self.logger.error(f"Error adding document to database: {e}")
 
         # Check if there are no documents
         if not documents:
@@ -181,7 +278,11 @@ class Rag(Baseplugin):
         self.logger.info("FAISS index saved.")
         db_end_time = time.time()
         self.logger.info(f"DB FAISS index created successfully in : {db_end_time - db_start_time:.2f} seconds")
-        self.load_index()
+        
+        # Set these flags directly instead of calling the async method
+        self.index_loaded = True
+        self.is_loaded = True
+        self.loading_event.set()  # Signal that loading is complete
         return True
     
     @hookimpl

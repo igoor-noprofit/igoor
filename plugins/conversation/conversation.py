@@ -159,6 +159,15 @@ class Conversation(Baseplugin):
     # Other plugins can reset the timeout
     @hookimpl    
     def reset_conversation_timeout(self):
+        if not self.conversation_is_open:
+            print("Conversation is not open, skipping timeout reset")
+            return {"timeout_active": False, "conversation_open": False}
+            
+        if self.timeout_task and not self.timeout_task.cancelled():
+            print("Timeout is currently running, resetting it")
+        else:
+            print("No active timeout or timeout was cancelled, initializing a new one")
+            
         self.reset_timeout()
 
         
