@@ -155,12 +155,12 @@ class Conversation(Baseplugin):
     async def delete_conversation(self):
         self.thread=[]
     
-    '''
-    Other plugins can reset the timeout
+    
+    # Other plugins can reset the timeout
     @hookimpl    
     def reset_conversation_timeout(self):
         self.reset_timeout()
-    '''
+
         
     @hookimpl
     async def get_conversation(self, format="json"):
