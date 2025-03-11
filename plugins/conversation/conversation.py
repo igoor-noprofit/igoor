@@ -31,7 +31,7 @@ class Conversation(Baseplugin):
         try:
             loop = asyncio.get_running_loop()
         except RuntimeError:  # No running event loop
-            loop = asyncio.new_event_l<oop()
+            loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
         self.timeout_task = loop.create_task(self.start_timeout())
         self.send_message_to_frontend({"action": "resetCountdown"})
@@ -58,7 +58,7 @@ class Conversation(Baseplugin):
         self.thread = []
         self.conversation_is_open = True
         context_manager.update_context("conversation", "")
-        # self.init_timeout()
+        self.init_timeout()
         self.send_message_to_frontend({"action": "startCountdown"})
         
         # Create a new conversation in the database
@@ -120,13 +120,14 @@ class Conversation(Baseplugin):
         if not(self.conversation_is_open):
             await self.new_conversation()
         print(f"Adding {msg} to conversation")
-        newmsg = {"msg": msg, "author": author, "type": type}  # Include type in the message object
+        newmsg = {"msg": msg, "author": author, "type": type}
         self.thread.append(newmsg)
         self.send_message_to_frontend(json.dumps(newmsg))
         bms = {"backend": "addmsg"}
         await self.send_message_to_app(json.dumps(bms))
         conv = await self.get_conversation(format="raw")
         context_manager.update_context("conversation", conv)
+        self.reset_timeout()  # Reset the timeout when a new message is added
         
         # Store the message in the database
         if self.current_thread_id is not None:
