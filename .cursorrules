@@ -21,6 +21,7 @@ Based on Pluggy to handle plugins, Pywebview to display the main Vue app and its
 - llm_manager.py handles calls to external LLMs,supporting JSON answers via pydantic and using langchain
 - status_manager.py is a singleton sharing infos with the plugins about the app(status,etc.)
 - js_api.py contains the API to connect python and javascript through pywebview
+- db_manager.py handles the local sqlite3 db. Each plugin can access it via self.db
 
 MOST IMPORTANT PLUGINS OVERVIEW
 - asrvosk:speech recognition via Vosk (supports continuous listening or on click listening)
