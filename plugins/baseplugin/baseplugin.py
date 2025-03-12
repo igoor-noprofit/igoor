@@ -320,3 +320,23 @@ class Baseplugin:
             return None
             
         return self.db.execute_sync(self.plugin_name, query, params)
+
+    def debug_db_status(self):
+        """Debug method to check database status"""
+        if self._db is None:
+            self.logger.error("Database is not initialized!")
+            return False
+            
+        if not self._plugin_metadata.get('requires_db', False):
+            self.logger.error("Plugin metadata does not have requires_db=true!")
+            return False
+            
+        tables = self._plugin_metadata.get('db_tables', {})
+        if not tables:
+            self.logger.error("No tables defined in plugin metadata!")
+            return False
+            
+        self.logger.info(f"Database initialized: {self._db is not None}")
+        self.logger.info(f"Plugin requires DB: {self._plugin_metadata.get('requires_db', False)}")
+        self.logger.info(f"Tables defined: {list(tables.keys())}")
+        return True
