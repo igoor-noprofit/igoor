@@ -44,8 +44,8 @@ class LLMManager:
             ("human", prompt)
         ]
         self.logger.info(f"Starting LLM invocation")
-        self.logger.info(f"System prompt: {system_prompt}")
-        self.logger.info(f"User prompt: {prompt}")
+        # self.logger.info(f"System prompt: {system_prompt}")
+        # self.logger.info(f"User prompt: {prompt}")
         
         attempt = 0
         while attempt < retries:

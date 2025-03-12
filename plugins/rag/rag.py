@@ -363,7 +363,7 @@ class Rag(Baseplugin):
         
 
     @hookimpl
-    async def store_memory(self, memory, is_long_term=True, metadata=None, conversation_id=None) -> bool:
+    async def store_memory(self, memory, is_long_term=True, metadata=None, conversation_id=None, **kwargs) -> bool:
         """
         Store a memory in either long-term or short-term memory
         

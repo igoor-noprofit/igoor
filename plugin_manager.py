@@ -148,9 +148,21 @@ class MyAppSpec:
         return await self.plugin_manager.hook.query_rag(query_text=query_text, store_types=store_types)
     
     @pluggy.HookspecMarker(app_name)
-    async def store_memory(self, memory:str):
-        # Gather all results from the async hook implementations
-        return await self.plugin_manager.hook.store_memory(memory=memory)
+    async def store_memory(self, memory, **kwargs):
+        """
+        Hook for storing memories in the RAG system
+        
+        Args:
+            memory: The memory content (string or dict)
+            **kwargs: Additional arguments that implementations may use
+                    Common kwargs include:
+                    - is_long_term: Whether this is a long-term memory
+                    - metadata: Optional metadata for the memory
+                    - conversation_id: ID of the conversation that generated this memory
+        Returns:
+            bool: Success status of the storage operation
+        """
+        return await self.plugin_manager.hook.store_memory(memory=memory, **kwargs)
     
     '''
         ************ AUTOCOMPLETE **************
@@ -192,9 +204,12 @@ class PluginManager:
                 # If args contains a dictionary, merge it into kwargs
                 if args and isinstance(args[0], dict):
                     kwargs.update(args[0])  # Move the dictionary to kwargs
-
+                
+                # Log the actual kwargs that will be passed to the hook
                 self.logger.info(f"Executing hook {hook_name} with kwargs: {kwargs}")
-                results = hook(**kwargs)  # Call the hook
+                
+                # Ensure kwargs are passed directly without modification
+                results = hook(**kwargs)  # Call the hook with unpacked kwargs
 
                 # Ensure results is an awaitable
                 if asyncio.iscoroutine(results) or isinstance(results, asyncio.Future):
@@ -205,8 +220,7 @@ class PluginManager:
                 else:
                     raise TypeError("The hook result is not awaitable")
 
-                for result in results:
-                    self.logger.debug(result)
+                # Return all results - let the caller decide how to handle them
                 return results
             except Exception as e:
                 self.logger.error(f"Error executing hook '{hook_name}': {e}")
@@ -216,7 +230,7 @@ class PluginManager:
         else:
             self.logger.warning(f"Hook '{hook_name}' not found.")
             return None
-        
+    
     def is_active(self, plugin_name):
         """Check if a plugin is active based on settings.json"""
         settings = self.settings_manager.get_settings()
