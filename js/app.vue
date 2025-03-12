@@ -17,18 +17,18 @@
         <a @click="minimize()"><img src="img/logo_small.svg" class="logo_small" id="igoor_logo"></a>
     </div>
     <div class="topbar-right">
-        <meteo  :appview="appview"></meteo><settings  :appview="appview"></settings>
+        <settings  :appview="appview"></settings>
     </div>
 </div>
 
 <header v-show="appview !== 'onboarding'" :class="{ 'expanded': headerExpanded }">
-    <asrvosk  :appview="appview"></asrvosk><autocomplete  :appview="appview"></autocomplete><conversation  :appview="appview"></conversation>
+    
 </header>
 <div class="after_header" v-show="appview !== 'onboarding'">
-    <autocompletelauncher @show-autocomplete="showAutocomplete" :appview="appview"></autocompletelauncher>
+    
 </div>
 <main>
-    <daily  :appview="appview"></daily><onboarding  :appview="appview"></onboarding><flow @show-autocomplete="showAutocomplete" :appview="appview"></flow>
+    <onboarding  :appview="appview"></onboarding>
 </main>
 <footer>
     <shortcuts  :appview="appview"></shortcuts>

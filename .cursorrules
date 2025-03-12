@@ -18,6 +18,7 @@ Based on Pluggy to handle plugins, Pywebview to display the main Vue app and its
         "elevenlabs": {
             "voice_id": "...",
             "api_key": "..."
+- The JSON file contains the db schema too (where needed)
 - llm_manager.py handles calls to external LLMs,supporting JSON answers via pydantic and using langchain
 - status_manager.py is a singleton sharing infos with the plugins about the app(status,etc.)
 - js_api.py contains the API to connect python and javascript through pywebview
