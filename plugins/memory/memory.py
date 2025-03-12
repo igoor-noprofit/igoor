@@ -101,8 +101,8 @@ Aussi,les informations déjà dans la base de connaissances (rag) n'indiquent pa
 L'IA a détecte l'information à mémoriser selon ces critères:
 
 ---
-- "fact" est une information pertinente sur l'utilisateur,sa famille,ses amis,ses préférences (alimentaires, politiques,artistiques etc.), les souvenirs de sa vie. 
-- Un "fact" est une information objective et vérifiable concernant l'utilisateur ou son entourage
+- "fact" est une information pertinente sur l'utilisateur,sa famille,ses amis,ses préférences (alimentaires, politiques,artistiques etc.)
+- Un "fact" est une information objective et vérifiable concernant l'utilisateur ou son entourage ou des opinions "stables" de l'utilisateur
 - Les faits doivent être explicitement exprimés ou déduits de manière évidente dans la conversation.
 - Les opinions temporaires ou contextuelles ne sont pas des faits de long terme, sauf si elles révèlent une préférence ou un état persistant.
 - Si une information est incertaine ou non essentielle, ne la considère pas comme un fait
@@ -110,7 +110,7 @@ L'IA a détecte l'information à mémoriser selon ces critères:
 - Mémoire à long terme : Préférences, faits constants, souvenirs de vie.
 ---
 
-Exemple de mémoire validée:
+Exemple de output de mémoire validée:
 
 {{"valid":true,"reason":"Une évolution des préférences de {bio_name} a été détecté"}}
 
@@ -229,7 +229,7 @@ class Memory(Baseplugin):
                         self.logger.info(f"Reviewing long-term memory: {memory.fact}")
                         validation = await self.memory_review(conversation, memory)
                         
-                        if validation.valid:
+                        if validation.valid or self.settings.get("review", False):  #:
                             self.logger.info(f"Memory validated, storing: {memory.fact} with conversation_id: {conversation_id}")
                             memory_data["reason"] = validation.reason
                             try:
