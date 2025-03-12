@@ -77,19 +77,16 @@ class Conversation(Baseplugin):
 
     @hookimpl
     async def abandon_conversation(self, cause="timeout"):
-        # Cancel the timeout task if it exists
-        '''
-        if self.timeout_task:
-            print("Cancelling timeout task")
-            self.timeout_task.cancel()
-            self.timeout_task = None  # Clear the reference to the canceled task
-        '''
         txt = await self.get_conversation(format="txt")
+        
+        # Log the thread_id before creating the dictionary
+        self.logger.info(f"Abandoning conversation with thread_id: {self.current_thread_id}")
+        
         last_conversation = {
             "thread": self.thread, 
             "txt": txt, 
             "cause": cause,
-            "thread_id": self.current_thread_id  # Explicitly include the thread_id
+            "thread_id": self.current_thread_id  # This is correct
         }
         
         if self.current_thread_id is not None:
@@ -99,20 +96,27 @@ class Conversation(Baseplugin):
                 (current_time, cause, self.current_thread_id)
             )
             self.logger.info(f"Updated conversation {self.current_thread_id} with end time")
-            
+        
+        # Create a separate task with explicit kwargs
+        asyncio.create_task(
+            self.pm.trigger_hook(
+                "after_conversation_end",
+                last_conversation={
+                    "thread": self.thread,
+                    "txt": txt,
+                    "cause": cause,
+                    "thread_id": self.current_thread_id
+                }
+            )
+        )
+        
+        # Reset conversation state after triggering the hook
         self.thread = []
         self.current_thread_id = None
         context_manager.update_context("conversation", "")
         self.send_message_to_frontend({"action": "abandon_conversation"})
         self.conversation_is_open = False
-        print(f"Conversation abandoned for cause: {cause}")
-        asyncio.create_task(self.pm.trigger_hook("after_conversation_end", last_conversation=last_conversation))
-        '''
-        if self.executor:
-            self.executor.shutdown(wait=False)  # E
-        print("Triggering after_conversation_end hook")
-        '''
-        print("after_conversation_end hook triggered")
+        
         await self.send_switch_view_to_app("daily")
         
     @hookimpl

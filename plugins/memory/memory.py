@@ -53,7 +53,7 @@ Input: Q: Tu as eu des nouvelles d'Anatole ? R: Oui, il est rentré à Paris Q: 
 Output: {{"theme":"famille","tags":["Anatole","Paris","enfants"],"facts":[{{"fact":"Anatole est rentré à Paris","type":"short"}},{{"fact":"Anatole va bien","type":"short"}}]}}
 
 Input : Q: Il m'a dit que Claire ne t'en veut pas R: T'es sur de ça ? Q: Oui R: J'en suis très soulagé
-Output : {{"theme":"relations familiales","tags":["Claire","famille","enfants","Anton","Anatole","Paloma"],"facts":[{{"fact":"Claire ne lui en veut pas","type":"short"}},{{"fact":"{bio_name} est très soulagé que Claire ne lui en veut pas","type":"short"}}]}}
+Output : {{"theme":"relations familiales","tags":["Claire","famille"],"facts":[{{"fact":"Claire ne lui en veut pas","type":"short"}},{{"fact":"{bio_name} est très soulagé que Claire ne lui en veut pas","type":"short"}}]}}
 ----
 
 Attention: les opinions exprimées par l'utilisateur sont précédées par R:, et pas par Q:. Par exemple: 
@@ -81,7 +81,7 @@ MEMORY_REVIEW_SYSTEM_PROMPT = """
 Tu reçois un JSON avec: 
 
 1) une conversation analysée par l'IA pour en extraire des mémoires de court et de long terme;
-2) la mémoire que l'IA a détecté.
+2) la mémoire de long terme que l'IA a détecté.
 
 Ex: 
 {{
@@ -110,17 +110,19 @@ L'IA a détecte l'information à mémoriser selon ces critères:
 - Mémoire à long terme : Préférences, faits constants, souvenirs de vie.
 ---
 
-Retourne exclusivement un JSON avec:
+Exemple de mémoire validée:
 
-{{"valid":true}}
+{{"valid":true,"reason":"Une évolution des préférences de {bio_name} a été détecté"}}
 
-si la mémoire est validée par toi.
+reason doit indiquer la raison pour laquelle la mémoire est validée.
+
+La mémoire peut etre validée meme si le RAG contient déjà une info complémentaire différente (ex. "aime le riz" est compatible avec "aime les spaghetti")
 
 ---
 La mémoire n'est pas validée:
 
-1)si l'information ne constitue pas une mémoire de long terme;
-2)si le "rag" contient déjà cette information.
+1)si l'information ne constitue pas une mémoire de long terme
+2)si le RAG contient déjà la meme information et est donc inutile de la réiterer   
 
 Exemple de mémoire non validée:
 
@@ -184,9 +186,13 @@ class Memory(Baseplugin):
     async def after_conversation_end(self, last_conversation: dict) -> None:
         start_time = time.time()
         
-        # Get conversation ID if available
+        # Get conversation ID if available and log it
         conversation_id = last_conversation.get("thread_id")
         self.logger.info(f"Processing conversation end with ID: {conversation_id}")
+        
+        if conversation_id is None:
+            self.logger.warning("No conversation_id found in last_conversation")
+            self.logger.debug(f"last_conversation contents: {last_conversation}")
         
         # SYSTEM PROMPT
         sys_pm = PromptManager(template=MEMORY_SYSTEM_PROMPT)
@@ -197,62 +203,74 @@ class Memory(Baseplugin):
         pm = PromptManager(template=PROMPT_TEMPLATE)
         prompt = pm.create_prompt(conversation=conversation)       
         
-        # Get memories from first LLM call
-        llm = LLMManager(self.settings.get("provider"), self.settings.get("api_key"), self.settings.get("model_name"), log_folder=self.plugin_folder)
-        llm.set_json_schema(DataModel)
-        memories = llm.invoke(system_prompt, prompt)
-        has_error, memories = self.handle_llm_error(memories)
-        if has_error:
-            return memories
-        
-        # Process each memory
-        if hasattr(memories, 'facts') and memories.facts:
-            for memory in memories.facts:
-                # Create structured memory with theme and tags
-                memory_data = {
-                    "fact": memory.fact,
-                    "type": memory.type,
-                    "theme": memories.theme,
-                    "tags": memories.tags
-                }
-                
-                # Determine if this is a long-term memory based on the type field
-                is_long_term = memory.type.lower() == "long"
-                self.logger.info(f"Memory type: {memory.type}, is_long_term: {is_long_term}")
-                
-                # For long-term memories, validate first
-                if is_long_term:
-                    self.logger.info(f"Reviewing long-term memory: {memory.fact}")
-                    validation = await self.memory_review(conversation, memory)
+        try:
+            # Get memories from first LLM call
+            llm = LLMManager(self.settings.get("provider"), self.settings.get("api_key"), self.settings.get("model_name"), log_folder=self.plugin_folder)
+            llm.set_json_schema(DataModel)
+            memories = llm.invoke(system_prompt, prompt)
+            has_error, memories = self.handle_llm_error(memories)
+            if has_error:
+                self.logger.error(f"Error getting memories: {memories}")
+                return memories
+            
+            # Process each memory
+            if hasattr(memories, 'facts') and memories.facts:
+                for memory in memories.facts:
+                    # Create structured memory with theme and tags
+                    memory_data = {
+                        "fact": memory.fact,
+                        "type": memory.type,
+                        "theme": memories.theme,
+                        "tags": memories.tags
+                    }
                     
-                    if validation.valid:
-                        self.logger.info(f"Memory validated, storing: {memory.fact}")
+                    # For long-term memories, validate first
+                    if memory.type == "long":
+                        self.logger.info(f"Reviewing long-term memory: {memory.fact}")
+                        validation = await self.memory_review(conversation, memory)
+                        
+                        if validation.valid:
+                            self.logger.info(f"Memory validated, storing: {memory.fact} with conversation_id: {conversation_id}")
+                            memory_data["reason"] = validation.reason
+                            try:
+                                # Explicitly create kwargs dictionary for better debugging
+                                hook_kwargs = {
+                                    "memory": memory_data,
+                                    "is_long_term": True,
+                                    "metadata": None,
+                                    "conversation_id": conversation_id
+                                }
+                                self.logger.debug(f"Triggering store_memory hook with kwargs: {hook_kwargs}")
+                                
+                                await self.pm.trigger_hook(
+                                    hook_name="store_memory",
+                                    **hook_kwargs
+                                )
+                            except Exception as e:
+                                self.logger.error(f"Error storing memory: {e}")
+                        else:
+                            self.logger.info(f"Memory not validated: {validation.reason}")
+                    else:
+                        # Store short-term memories without validation
+                        self.logger.info(f"Storing short-term memory: {memory.fact} with conversation_id: {conversation_id}")
                         try:
-                            # Pass the structured memory data with conversation_id
+                            # Explicitly create kwargs dictionary for better debugging
+                            hook_kwargs = {
+                                "memory": memory_data,
+                                "is_long_term": False,
+                                "metadata": None,
+                                "conversation_id": conversation_id
+                            }
+                            self.logger.debug(f"Triggering store_memory hook with kwargs: {hook_kwargs}")
+                            
                             await self.pm.trigger_hook(
-                                hook_name="store_memory", 
-                                memory=memory_data, 
-                                is_long_term=True,  # Explicitly set to True for long-term
-                                metadata=None,
-                                conversation_id=conversation_id
+                                hook_name="store_memory",
+                                **hook_kwargs
                             )
                         except Exception as e:
                             self.logger.error(f"Error storing memory: {e}")
-                    else:
-                        self.logger.info(f"Memory not validated: {validation.reason}")
-                else:
-                    # Store short-term memories without validation
-                    self.logger.info(f"Storing short-term memory: {memory.fact}")
-                    try:
-                        await self.pm.trigger_hook(
-                            hook_name="store_memory", 
-                            memory=memory_data, 
-                            is_long_term=False,  # Explicitly set to False for short-term
-                            metadata=None,
-                            conversation_id=conversation_id
-                        )
-                    except Exception as e:
-                        self.logger.error(f"Error storing memory: {e}")
+        except Exception as e:
+            self.logger.error(f"Error in after_conversation_end: {e}")
         
 
     def test_plugin(self):
@@ -325,48 +343,77 @@ class Memory(Baseplugin):
         """Reviews a memory to determine if it should be stored"""
         start_time = time.time()
         
-        # Get RAG context
-        rag = await self.query_rag_async(memory.fact)
-        
-        # Convert Pydantic Fact object to dict
-        memory_dict = {
-            "fact": memory.fact,
-            "type": memory.type
-        }
-        
-        # Create the memory review package
-        memory_to_be_checked = {
-            "conversation": conversation,
-            "memory": memory_dict,  # Use the dict version instead of Pydantic model
-            "rag": rag
-        }
-        
-        # Set up prompts
-        sys_pm = PromptManager(template=MEMORY_REVIEW_SYSTEM_PROMPT)
-        system_prompt = sys_pm.create_prompt(bio_name=self.bio_name)
-        
-        pm = PromptManager(template=MEMORY_REVIEW_PROMPT_TEMPLATE)
-        prompt = pm.create_prompt(memory_to_be_checked=json.dumps(memory_to_be_checked))
+        try:
+            # Get RAG context
+            rag = await self.query_rag_async(memory.fact)
+            self.logger.info(f"RAG context received: {rag}")
+            
+            # Convert Pydantic Fact object to dict
+            memory_dict = {
+                "fact": memory.fact,
+                "type": memory.type
+            }
+            
+            # Create the memory review package
+            memory_to_be_checked = {
+                "conversation": conversation,
+                "memory": memory_dict,
+                "rag": rag
+            }
+            
+            # Set up prompts
+            sys_pm = PromptManager(template=MEMORY_REVIEW_SYSTEM_PROMPT)
+            system_prompt = sys_pm.create_prompt(bio_name=self.bio_name)
+            
+            pm = PromptManager(template=MEMORY_REVIEW_PROMPT_TEMPLATE)
+            prompt = pm.create_prompt(memory_to_be_checked=json.dumps(memory_to_be_checked))
 
-        # Call LLM with ValidationResponse schema
-        llm = LLMManager(self.settings.get("provider"), self.settings.get("api_key"), self.settings.get("model_name"), log_folder=self.plugin_folder)
-        llm.set_json_schema(ValidationResponse)
-        validation = llm.invoke(system_prompt, prompt)
-        
-        has_error, validation = self.handle_llm_error(validation)
-        if has_error:
+            # Call LLM with ValidationResponse schema
+            llm = LLMManager(self.settings.get("provider"), self.settings.get("api_key"), self.settings.get("model_name"), log_folder=self.plugin_folder)
+            llm.set_json_schema(ValidationResponse)
+            validation = llm.invoke(system_prompt, prompt)
+            
+            has_error, validation = self.handle_llm_error(validation)
+            if has_error:
+                self.logger.error(f"Error in LLM validation: {validation}")
+                return ValidationResponse(valid=False, reason="Error in memory validation")
+            
+            end_time = time.time()
+            self.logger.info(f"Memory review completed in {end_time - start_time} seconds. Result: {validation}")
             return validation
-        
-        end_time = time.time()
-        print(f"Memory review time: {end_time - start_time} seconds")
-        return validation
+            
+        except Exception as e:
+            self.logger.error(f"Error in memory_review: {e}")
+            return ValidationResponse(valid=False, reason=f"Error during memory review: {str(e)}")
     
     def get_dynamic_context(self):
         return context_manager.get_context()
 
     async def query_rag_async(self, msg: str):
-        result = await self.pm.trigger_hook(hook_name="query_rag", query_text=msg)
-        return result
+        """Query RAG for existing memories, filtering out short-term memories"""
+        try:
+            # Specify store types to only query ingested and long-term memories
+            store_types = [0, 1]  # INGESTED=0, LONG_TERM=1
+            self.logger.info(f"Querying RAG with text: {msg}, store_types: {store_types}")
+            
+            result = await self.pm.trigger_hook(
+                hook_name="query_rag", 
+                query_text=msg,
+                store_types=store_types
+            )
+            
+            if not result:
+                self.logger.warning("No results from RAG query")
+                return "---"
+                
+            # The result should be the first (and only) item in the list
+            if isinstance(result, list) and result:
+                return f"---{result[0]}"
+            
+            return f"---{result}"
+        except Exception as e:
+            self.logger.error(f"Error in query_rag_async: {e}")
+            return "---"  # Return empty context in case of error
         
     def update_status(self, status):
         """This method will be called when the status changes."""

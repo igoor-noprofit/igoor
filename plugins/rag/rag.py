@@ -377,9 +377,14 @@ class Rag(Baseplugin):
             bool: Success status
         """
         # Log all parameters as received
-        self.logger.info(f"RECEIVED PARAMETERS: memory={memory}, is_long_term={is_long_term}, metadata={metadata}, conversation_id={conversation_id}")
+        self.logger.info(f"RECEIVED PARAMETERS IN RAG: memory={memory}, is_long_term={is_long_term}, metadata={metadata}, conversation_id={conversation_id}")
         
-        await self.loading_event.wait()  # Wait for indexes to load
+        if conversation_id is None:
+            self.logger.warning("conversation_id is None in store_memory")
+        else:
+            self.logger.info(f"Processing memory for conversation_id: {conversation_id}")
+        
+        await self.loading_event.wait()
         
         # Force the correct store type based on the memory's own type field
         if isinstance(memory, dict) and 'type' in memory:
@@ -392,7 +397,7 @@ class Rag(Baseplugin):
         store_type = LONG_TERM if is_long_term else SHORT_TERM
         
         self.logger.info(f"Storing memory in {'long-term' if is_long_term else 'short-term'} store (type={store_type}) with conversation_id={conversation_id}")
-        
+            
         if not self.index_loaded[store_type]:
             self.logger.error(f"Index type {store_type} not loaded, cannot store memory")
             return False
@@ -446,7 +451,7 @@ class Rag(Baseplugin):
         )
         
         try:
-            # Get the current size of the vector store to determine starting index for new chunk
+            # Get the current size of the vector store
             current_size = len(self.vector_stores[store_type].index_to_docstore_id)
             
             # Add to vector store
@@ -455,25 +460,29 @@ class Rag(Baseplugin):
             # Store the full structured data as JSON in the content field
             content = json.dumps(memory_data)
             
-            # Use the existing add_chunk_to_db method instead of duplicating the logic
+            # Get the reason from memory data if it exists (for long-term memories)
+            reason = memory_data.get("reason", "memory") if is_long_term else "memory"
+            
+            self.logger.info(f"Adding chunk to db with conversation_id: {conversation_id}")
+            
+            # Use the existing add_chunk_to_db method
             success = await self.add_chunk_to_db(
                 content=content,
-                chunk_type=store_type,  # This should be LONG_TERM (1) or SHORT_TERM (2)
-                reason="memory",
+                chunk_type=store_type,
+                reason=reason,
                 document_id=None,
-                conversation_id=conversation_id,  # Pass the conversation_id
+                conversation_id=conversation_id,  # Pass through the conversation_id
                 chunk_id=current_size,
                 theme=theme,
                 tags=tags_json
             )
             
             if success:
-                # Save the updated index
                 await self.save_index(store_type)
-                self.logger.info(f"Successfully stored {'long-term' if is_long_term else 'short-term'} memory (type={store_type}): {fact}")
+                self.logger.info(f"Successfully stored memory (type={store_type}, conversation_id={conversation_id}): {fact}")
                 return True
             else:
-                self.logger.error("Failed to add memory to database")
+                self.logger.error(f"Failed to add memory to database (conversation_id={conversation_id})")
                 return False
         except Exception as e:
             self.logger.error(f"Error adding memory to index: {e}")
