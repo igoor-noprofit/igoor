@@ -1,7 +1,7 @@
 from settings_manager import SettingsManager
 from plugins.baseplugin.baseplugin import Baseplugin
 from plugin_manager import hookimpl, PluginManager
-import os
+import os, json
 from langchain_community.document_loaders import TextLoader
 import pymupdf4llm
 from langchain_community.vectorstores import FAISS
@@ -99,6 +99,7 @@ class Rag(Baseplugin):
         self.loading_event.set()
         self.logger.info("RAG plugin initialization complete")
         
+        '''
         # 5. Verify FAISS-DB consistency
         self.logger.info("Verifying FAISS-DB consistency...")
         try:
@@ -106,6 +107,7 @@ class Rag(Baseplugin):
             self.logger.info(f"FAISS-DB verification complete. Results: {verification_results}")
         except Exception as e:
             self.logger.error(f"Error during FAISS-DB verification: {e}")
+        '''
     
     def create_folders(self):
         """Create all necessary folders for the plugin"""
@@ -347,18 +349,72 @@ class Rag(Baseplugin):
                         success = False
             return success
             
+    import json
+
     @hookimpl
-    async def store_memory(self, memory: str, is_long_term=True) -> bool:
-        """Store a memory in either long-term or short-term memory"""
+    async def store_memory(self, memory, is_long_term=True, metadata=None) -> bool:
+        """
+        Store a memory in either long-term or short-term memory
+        
+        Args:
+            memory: Either a string or a structured memory dict/JSON
+            is_long_term: Whether to store in long-term or short-term memory
+            metadata: Optional additional metadata (theme, tags, etc.)
+        
+        Returns:
+            bool: Success status
+        """
         await self.loading_event.wait()  # Wait for indexes to load
         
         store_type = LONG_TERM if is_long_term else SHORT_TERM
         if not self.index_loaded[store_type]:
             return False
-            
+        
+        # Handle structured memory (JSON format)
+        if isinstance(memory, dict):
+            memory_data = memory
+        elif isinstance(memory, str) and memory.strip().startswith('{') and memory.strip().endswith('}'):
+            try:
+                memory_data = json.loads(memory)
+            except json.JSONDecodeError:
+                # Not valid JSON, treat as plain text
+                memory_data = {"fact": memory}
+        else:
+            # Plain text memory
+            memory_data = {"fact": memory}
+        
+        # Extract or set default values
+        fact = memory_data.get("fact", memory)
+        theme = memory_data.get("theme", "")
+        tags = memory_data.get("tags", [])
+        
+        # If additional metadata was provided, merge it
+        if metadata:
+            if "theme" in metadata and not theme:
+                theme = metadata["theme"]
+            if "tags" in metadata and isinstance(metadata["tags"], list):
+                tags.extend(metadata["tags"])
+        
+        # Convert tags to JSON string for storage
+        tags_json = json.dumps(tags) if tags else "[]"
+        
+        # Create embedding text that focuses on the most semantically relevant information
+        embedding_text = fact
+        if theme:
+            embedding_text = f"{theme}: {embedding_text}"
+        if tags:
+            embedding_text = f"{embedding_text} [{', '.join(tags)}]"
+        
+        # Create document for vector store with full metadata
         new_doc = Document(
-            page_content=memory,
-            metadata={"source": "memory", "type": "long_term" if is_long_term else "short_term"}
+            page_content=embedding_text,
+            metadata={
+                "source": "memory",
+                "type": "long_term" if is_long_term else "short_term",
+                "theme": theme,
+                "tags": tags,
+                "original_content": json.dumps(memory_data)
+            }
         )
         
         try:
@@ -368,18 +424,22 @@ class Rag(Baseplugin):
             # Add to vector store
             self.vector_stores[store_type].add_documents([new_doc])
             
-            # Add to database with proper chunk_id
-            await self.add_chunk_to_db(
-                content=memory,
-                chunk_type=store_type,
-                reason="memory",
-                document_id=None,
-                conversation_id=None,
-                chunk_id=current_size  # Use the actual index in the FAISS store
+            # Store the full structured data as JSON in the content field
+            content = json.dumps(memory_data)
+            
+            # Add to database with proper chunk_id and metadata
+            await self.db_execute(
+                """
+                INSERT INTO chunks 
+                (chunk_id, type, content, reason, theme, tags, created_at, document_id, conversation_id) 
+                VALUES (?, ?, ?, ?, ?, ?, datetime('now'), ?, ?)
+                """,
+                (current_size, store_type, content, "memory", theme, tags_json, None, None)
             )
             
             # Save the updated index
             await self.save_index(store_type)
+            self.logger.info(f"Successfully stored {'long-term' if is_long_term else 'short-term'} memory: {fact}")
             return True
         except Exception as e:
             self.logger.error(f"Error adding memory to index: {e}")

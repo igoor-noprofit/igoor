@@ -201,8 +201,18 @@ class Memory(Baseplugin):
         if has_error:
             return memories
         # Process each memory
+        # Process each memory
         if hasattr(memories, 'facts') and memories.facts:
             for memory in memories.facts:
+                # Create structured memory with theme and tags
+                memory_data = {
+                    "fact": memory.fact,
+                    "type": memory.type,
+                    "theme": memories.theme,
+                    "tags": memories.tags
+                }
+                
+                # For long-term memories, validate first
                 if memory.type == "long":
                     print(f"Reviewing long-term memory: {memory.fact}")
                     validation = await self.memory_review(conversation, memory)
@@ -210,17 +220,27 @@ class Memory(Baseplugin):
                     if validation.valid:
                         print(f"Memory validated, storing: {memory.fact}")
                         try:
-                            await self.pm.trigger_hook(hook_name="store_memory", memory=memory.fact)
+                            # Pass the structured memory data
+                            await self.pm.trigger_hook(
+                                hook_name="store_memory", 
+                                memory=memory_data, 
+                                is_long_term=True
+                            )
                         except Exception as e:
                             print(f"Error storing memory: {e}")
                     else:
                         print(f"Memory not validated: {validation.reason}")
-            
-            # Save index after all memories are processed
-            await self.pm.trigger_hook("save_index")
-        
-        end_time = time.time()
-        print(f"Total processing time: {end_time - start_time} seconds")
+                else:
+                    # Store short-term memories without validation
+                    print(f"Storing short-term memory: {memory.fact}")
+                    try:
+                        await self.pm.trigger_hook(
+                            hook_name="store_memory", 
+                            memory=memory_data, 
+                            is_long_term=False
+                        )
+                    except Exception as e:
+                        print(f"Error storing memory: {e}")
     
 
     def test_plugin(self):
