@@ -99,6 +99,14 @@ class Rag(Baseplugin):
         self.loading_event.set()
         self.logger.info("RAG plugin initialization complete")
         
+        # 5. Verify FAISS-DB consistency
+        self.logger.info("Verifying FAISS-DB consistency...")
+        try:
+            verification_results = await self.verify_faiss_db_consistency()
+            self.logger.info(f"FAISS-DB verification complete. Results: {verification_results}")
+        except Exception as e:
+            self.logger.error(f"Error during FAISS-DB verification: {e}")
+    
     def create_folders(self):
         """Create all necessary folders for the plugin"""
         self.medias_folder = self.create_subfolder(self.medias_folder_name)
@@ -107,24 +115,6 @@ class Rag(Baseplugin):
         for store_type, folder_name in self.index_folder_names.items():
             folder_path = self.create_subfolder(folder_name)
             self.logger.info(f"Created/verified folder for store type {store_type}: {folder_path}")
-    
-    async def load_all_indexes(self):
-        """Load all three FAISS indexes"""
-        for store_type, folder_name in self.index_folder_names.items():
-            folder_path = os.path.join(self.plugin_folder, folder_name)
-            
-            # Check if the index exists
-            if os.path.exists(folder_path) and not self.is_folder_empty(folder_name):
-                await self.load_index(store_type)
-            else:
-                # Create empty index for this type
-                self.logger.info(f"Creating empty index for store type {store_type}")
-                self.vector_stores[store_type] = FAISS.from_documents(
-                    [Document(page_content="Initial empty document", metadata={"source": "init"})],
-                    self.embedding_function
-                )
-                await self.save_index(store_type)
-                self.index_loaded[store_type] = True
     
     async def load_index(self, store_type):
         """Load a specific FAISS index"""
@@ -394,9 +384,6 @@ class Rag(Baseplugin):
         except Exception as e:
             self.logger.error(f"Error adding memory to index: {e}")
             return False
-        
-
-
 
     # Function to load PDF content and return Document object
     def load_pdf_content(self,file_path):
@@ -504,6 +491,104 @@ class Rag(Baseplugin):
         self.loading_event.set()  # Signal that loading is complete
         return True
     
+    async def verify_faiss_db_consistency(self):
+        """
+        Verify that FAISS vector store chunks match database entries.
+        Selects a random chunk from each vector store and compares it with the database.
+        """
+        self.logger.info("Starting FAISS-DB consistency verification...")
+        
+        # Wait for indexes to be loaded
+        await self.loading_event.wait()
+        
+        results = []
+        
+        for store_type, store_name in {INGESTED: "Ingested", LONG_TERM: "Long-term", SHORT_TERM: "Short-term"}.items():
+            if not self.index_loaded[store_type] or self.vector_stores[store_type] is None:
+                self.logger.info(f"Vector store {store_name} not loaded, skipping verification")
+                continue
+                
+            try:
+                # Get total number of documents in this vector store
+                vector_store = self.vector_stores[store_type]
+                total_docs = len(vector_store.index_to_docstore_id)
+                
+                if total_docs <= 1:  # Skip if only the initial empty document exists
+                    self.logger.info(f"Vector store {store_name} has no documents (or only initial doc), skipping verification")
+                    continue
+                    
+                # Select a random document index (skip the first one which is our initial empty doc)
+                import random
+                random_idx = random.randint(1, total_docs - 1) if total_docs > 1 else 0
+                
+                # Get the document from FAISS
+                docstore_id = vector_store.index_to_docstore_id[random_idx]
+                faiss_doc = vector_store.docstore.search(docstore_id)
+                
+                # Get the corresponding document from the database
+                db_result = await self.db_execute(
+                    "SELECT * FROM chunks WHERE chunk_id = ? AND type = ?", 
+                    (random_idx, store_type)
+                )
+                
+                if not db_result:
+                    self.logger.warning(f"No database entry found for chunk_id={random_idx} in store {store_name}")
+                    results.append({
+                        "store": store_name,
+                        "chunk_id": random_idx,
+                        "match": False,
+                        "reason": "No database entry found"
+                    })
+                    continue
+                    
+                db_doc = db_result[0]
+                
+                # Compare content
+                faiss_content = faiss_doc.page_content
+                db_content = db_doc['content']
+                
+                # Check if contents match (allowing for minor differences like whitespace)
+                content_match = faiss_content.strip() == db_content.strip()
+                
+                # Get document info if available
+                document_info = ""
+                if db_doc['document_id']:
+                    doc_result = await self.db_execute(
+                        "SELECT title, filename FROM documents WHERE id = ?", 
+                        (db_doc['document_id'],)
+                    )
+                    if doc_result:
+                        document_info = f"Document: {doc_result[0]['title']} ({doc_result[0]['filename']})"
+                
+                results.append({
+                    "store": store_name,
+                    "chunk_id": random_idx,
+                    "faiss_id": docstore_id,
+                    "db_id": db_doc['id'],
+                    "document_id": db_doc['document_id'],
+                    "document_info": document_info,
+                    "match": content_match,
+                    "content_length_match": len(faiss_content) == len(db_content),
+                    "faiss_content_preview": faiss_content[:100] + "..." if len(faiss_content) > 100 else faiss_content,
+                    "db_content_preview": db_content[:100] + "..." if len(db_content) > 100 else db_content
+                })
+                
+                self.logger.info(f"Vector store {store_name} verification result: {'MATCH' if content_match else 'MISMATCH'}")
+                
+                if not content_match:
+                    self.logger.warning(f"Content mismatch in {store_name} store for chunk_id={random_idx}")
+                    self.logger.warning(f"FAISS content (first 100 chars): {faiss_content[:100]}...")
+                    self.logger.warning(f"DB content (first 100 chars): {db_content[:100]}...")
+                    
+            except Exception as e:
+                self.logger.error(f"Error verifying {store_name} store: {e}")
+                results.append({
+                    "store": store_name,
+                    "error": str(e)
+                })
+                
+        return results
+    
     
     @hookimpl
     async def clear_memory(self, memory_type=None):
@@ -589,3 +674,200 @@ class Rag(Baseplugin):
         except Exception as e:
             self.logger.error(f"An error occurred during query_rag execution: {e}")
             return False
+        
+    async def load_all_indexes(self):
+        """Load all three FAISS indexes"""
+        for store_type, folder_name in self.index_folder_names.items():
+            folder_path = os.path.join(self.plugin_folder, folder_name)
+            
+            # Check if the index exists
+            if os.path.exists(folder_path) and not self.is_folder_empty(folder_name):
+                await self.load_index(store_type)
+            else:
+                # Create empty index for this type
+                self.logger.info(f"Creating empty index for store type {store_type}")
+                self.vector_stores[store_type] = FAISS.from_documents(
+                    [Document(page_content="Initial empty document", metadata={"source": "init"})],
+                    self.embedding_function
+                )
+                await self.save_index(store_type)
+                self.index_loaded[store_type] = True
+    
+    async def check_specific_chunk(self, store_type, chunk_id):
+        """
+        Check a specific chunk in a vector store against its database entry.
+        
+        Args:
+            store_type: The type of vector store (INGESTED, LONG_TERM, or SHORT_TERM)
+            chunk_id: The chunk ID to check
+            
+        Returns:
+            A dictionary with comparison results
+        """
+        self.logger.info(f"Checking specific chunk {chunk_id} in store type {store_type}")
+        
+        # Wait for indexes to be loaded
+        await self.loading_event.wait()
+        
+        if not self.index_loaded[store_type] or self.vector_stores[store_type] is None:
+            return {"error": f"Vector store type {store_type} not loaded"}
+        
+        try:
+            vector_store = self.vector_stores[store_type]
+            
+            # Check if the chunk_id is valid
+            if chunk_id >= len(vector_store.index_to_docstore_id):
+                return {"error": f"Chunk ID {chunk_id} out of range (max: {len(vector_store.index_to_docstore_id)-1})"}
+            
+            # Get the document from FAISS
+            docstore_id = vector_store.index_to_docstore_id[chunk_id]
+            faiss_doc = vector_store.docstore.search(docstore_id)
+            
+            # Get the corresponding document from the database
+            db_result = await self.db_execute(
+                "SELECT * FROM chunks WHERE chunk_id = ? AND type = ?", 
+                (chunk_id, store_type)
+            )
+            
+            if not db_result:
+                return {
+                    "store_type": store_type,
+                    "chunk_id": chunk_id,
+                    "faiss_doc": {
+                        "docstore_id": docstore_id,
+                        "content": faiss_doc.page_content,
+                        "metadata": faiss_doc.metadata
+                    },
+                    "db_doc": None,
+                    "match": False,
+                    "reason": "No database entry found"
+                }
+            
+            db_doc = db_result[0]
+            
+            # Compare content
+            faiss_content = faiss_doc.page_content
+            db_content = db_doc['content']
+            
+            # Check if contents match (allowing for minor differences like whitespace)
+            content_match = faiss_content.strip() == db_content.strip()
+            
+            # Get document info if available
+            document_info = None
+            if db_doc['document_id']:
+                doc_result = await self.db_execute(
+                    "SELECT title, filename FROM documents WHERE id = ?", 
+                    (db_doc['document_id'],)
+                )
+                if doc_result:
+                    document_info = {
+                        "id": db_doc['document_id'],
+                        "title": doc_result[0]['title'],
+                        "filename": doc_result[0]['filename']
+                    }
+            
+            return {
+                "store_type": store_type,
+                "chunk_id": chunk_id,
+                "faiss_doc": {
+                    "docstore_id": docstore_id,
+                    "content": faiss_doc.page_content,
+                    "metadata": faiss_doc.metadata
+                },
+                "db_doc": {
+                    "id": db_doc['id'],
+                    "chunk_id": db_doc['chunk_id'],
+                    "type": db_doc['type'],
+                    "content": db_doc['content'],
+                    "reason": db_doc['reason'],
+                    "document_id": db_doc['document_id'],
+                    "document_info": document_info,
+                    "conversation_id": db_doc['conversation_id']
+                },
+                "match": content_match,
+                "content_length_match": len(faiss_content) == len(db_content)
+            }
+        
+        except Exception as e:
+            self.logger.error(f"Error checking chunk {chunk_id} in store type {store_type}: {e}")
+            return {"error": str(e)}
+    
+    @hookimpl
+    async def check_chunk(self, store_type, chunk_id):
+        """
+        Public hook to check a specific chunk in a vector store against its database entry.
+        
+        Args:
+            store_type: The type of vector store (0=INGESTED, 1=LONG_TERM, or 2=SHORT_TERM)
+            chunk_id: The chunk ID to check
+            
+        Returns:
+            A dictionary with comparison results
+        """
+        return await self.check_specific_chunk(store_type, chunk_id)
+    
+    @hookimpl
+    async def list_chunks(self, store_type=None):
+        """
+        List all chunks in the database for a specific store type or all store types.
+        
+        Args:
+            store_type: Optional. The type of vector store (0=INGESTED, 1=LONG_TERM, or 2=SHORT_TERM)
+                    If None, returns chunks from all store types.
+        
+        Returns:
+            A list of chunk information dictionaries
+        """
+        try:
+            if store_type is not None:
+                # Get chunks for a specific store type
+                results = await self.db_execute(
+                    """
+                    SELECT c.*, d.title, d.filename 
+                    FROM chunks c
+                    LEFT JOIN documents d ON c.document_id = d.id
+                    WHERE c.type = ?
+                    ORDER BY c.id
+                    """,
+                    (store_type,)
+                )
+            else:
+                # Get chunks for all store types
+                results = await self.db_execute(
+                    """
+                    SELECT c.*, d.title, d.filename 
+                    FROM chunks c
+                    LEFT JOIN documents d ON c.document_id = d.id
+                    ORDER BY c.type, c.id
+                    """
+                )
+            
+            # Format the results
+            chunks = []
+            for row in results:
+                chunks.append({
+                    "id": row['id'],
+                    "chunk_id": row['chunk_id'],
+                    "type": row['type'],
+                    "reason": row['reason'],
+                    "created_at": row['created_at'],
+                    "document_id": row['document_id'],
+                    "document_title": row.get('title'),
+                    "document_filename": row.get('filename'),
+                    "conversation_id": row['conversation_id'],
+                    "content_preview": row['content'][:100] + "..." if len(row['content']) > 100 else row['content']
+                })
+            
+            return chunks
+        
+        except Exception as e:
+            self.logger.error(f"Error listing chunks: {e}")
+            return {"error": str(e)}
+        
+    @hookimpl
+    async def verify_consistency(self):
+        """
+        Public hook to verify consistency between FAISS vector stores and database.
+        Returns detailed verification results.
+        """
+        return await self.verify_faiss_db_consistency()

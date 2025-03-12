@@ -22,10 +22,10 @@
 </div>
 
 <header v-show="appview !== 'onboarding'" :class="{ 'expanded': headerExpanded }">
-    
+    <autocomplete  :appview="appview"></autocomplete><conversation  :appview="appview"></conversation>
 </header>
 <div class="after_header" v-show="appview !== 'onboarding'">
-    
+    <autocompletelauncher @show-autocomplete="showAutocomplete" :appview="appview"></autocompletelauncher>
 </div>
 <main>
     <onboarding  :appview="appview"></onboarding>
