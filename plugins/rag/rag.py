@@ -293,7 +293,7 @@ class Rag(Baseplugin):
                 except Exception as e:
                     self.logger.error(f"Error creating index for {file_name}: {e}")
 
-    async def add_chunk_to_db(self, content, chunk_type, reason, document_id=None, conversation_id=None, chunk_id=None):
+    async def add_chunk_to_db(self, content, chunk_type, reason, document_id=None, conversation_id=None, chunk_id=None, theme=None, tags=None):
         """Add a chunk to the database"""
         try:
             # Generate a unique chunk_id if not provided
@@ -304,15 +304,27 @@ class Rag(Baseplugin):
             if content and len(content) > 10000:  # Arbitrary limit to prevent very large chunks
                 content = content[:10000] + "... (truncated)"
             
-            # We'll remove faiss_id from the schema since it's redundant with type
-            await self.db_execute(
-                """
-                INSERT INTO chunks 
-                (chunk_id, type, content, reason, created_at, document_id, conversation_id) 
-                VALUES (?, ?, ?, ?, datetime('now'), ?, ?)
-                """,
-                (chunk_id, chunk_type, content, reason, document_id, conversation_id)
-            )
+            # Check if theme and tags are provided
+            if theme is not None and tags is not None:
+                # Include theme and tags in the query
+                await self.db_execute(
+                    """
+                    INSERT INTO chunks 
+                    (chunk_id, type, content, reason, theme, tags, created_at, document_id, conversation_id) 
+                    VALUES (?, ?, ?, ?, ?, ?, datetime('now'), ?, ?)
+                    """,
+                    (chunk_id, chunk_type, content, reason, theme, tags, document_id, conversation_id)
+                )
+            else:
+                # Use the original query without theme and tags
+                await self.db_execute(
+                    """
+                    INSERT INTO chunks 
+                    (chunk_id, type, content, reason, created_at, document_id, conversation_id) 
+                    VALUES (?, ?, ?, ?, datetime('now'), ?, ?)
+                    """,
+                    (chunk_id, chunk_type, content, reason, document_id, conversation_id)
+                )
             return True
         except Exception as e:
             self.logger.error(f"Error adding chunk to database: {e}")
@@ -348,11 +360,10 @@ class Rag(Baseplugin):
                     if not await self.save_index(store_type):
                         success = False
             return success
-            
-    import json
+        
 
     @hookimpl
-    async def store_memory(self, memory, is_long_term=True, metadata=None) -> bool:
+    async def store_memory(self, memory, is_long_term=True, metadata=None, conversation_id=None) -> bool:
         """
         Store a memory in either long-term or short-term memory
         
@@ -360,14 +371,30 @@ class Rag(Baseplugin):
             memory: Either a string or a structured memory dict/JSON
             is_long_term: Whether to store in long-term or short-term memory
             metadata: Optional additional metadata (theme, tags, etc.)
+            conversation_id: Optional ID of the conversation that generated this memory
         
         Returns:
             bool: Success status
         """
+        # Log all parameters as received
+        self.logger.info(f"RECEIVED PARAMETERS: memory={memory}, is_long_term={is_long_term}, metadata={metadata}, conversation_id={conversation_id}")
+        
         await self.loading_event.wait()  # Wait for indexes to load
         
+        # Force the correct store type based on the memory's own type field
+        if isinstance(memory, dict) and 'type' in memory:
+            memory_type = memory['type'].lower()
+            # Override is_long_term based on the memory's type field
+            is_long_term = memory_type == 'long'
+            self.logger.info(f"Overriding is_long_term to {is_long_term} based on memory type '{memory_type}'")
+        
+        # Determine the correct store type based on is_long_term flag
         store_type = LONG_TERM if is_long_term else SHORT_TERM
+        
+        self.logger.info(f"Storing memory in {'long-term' if is_long_term else 'short-term'} store (type={store_type}) with conversation_id={conversation_id}")
+        
         if not self.index_loaded[store_type]:
+            self.logger.error(f"Index type {store_type} not loaded, cannot store memory")
             return False
         
         # Handle structured memory (JSON format)
@@ -413,6 +440,7 @@ class Rag(Baseplugin):
                 "type": "long_term" if is_long_term else "short_term",
                 "theme": theme,
                 "tags": tags,
+                "conversation_id": conversation_id,
                 "original_content": json.dumps(memory_data)
             }
         )
@@ -427,24 +455,29 @@ class Rag(Baseplugin):
             # Store the full structured data as JSON in the content field
             content = json.dumps(memory_data)
             
-            # Add to database with proper chunk_id and metadata
-            await self.db_execute(
-                """
-                INSERT INTO chunks 
-                (chunk_id, type, content, reason, theme, tags, created_at, document_id, conversation_id) 
-                VALUES (?, ?, ?, ?, ?, ?, datetime('now'), ?, ?)
-                """,
-                (current_size, store_type, content, "memory", theme, tags_json, None, None)
+            # Use the existing add_chunk_to_db method instead of duplicating the logic
+            success = await self.add_chunk_to_db(
+                content=content,
+                chunk_type=store_type,  # This should be LONG_TERM (1) or SHORT_TERM (2)
+                reason="memory",
+                document_id=None,
+                conversation_id=conversation_id,  # Pass the conversation_id
+                chunk_id=current_size,
+                theme=theme,
+                tags=tags_json
             )
             
-            # Save the updated index
-            await self.save_index(store_type)
-            self.logger.info(f"Successfully stored {'long-term' if is_long_term else 'short-term'} memory: {fact}")
-            return True
+            if success:
+                # Save the updated index
+                await self.save_index(store_type)
+                self.logger.info(f"Successfully stored {'long-term' if is_long_term else 'short-term'} memory (type={store_type}): {fact}")
+                return True
+            else:
+                self.logger.error("Failed to add memory to database")
+                return False
         except Exception as e:
             self.logger.error(f"Error adding memory to index: {e}")
             return False
-
     # Function to load PDF content and return Document object
     def load_pdf_content(self,file_path):
         md_text = pymupdf4llm.to_markdown(file_path)

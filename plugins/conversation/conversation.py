@@ -85,7 +85,12 @@ class Conversation(Baseplugin):
             self.timeout_task = None  # Clear the reference to the canceled task
         '''
         txt = await self.get_conversation(format="txt")
-        last_conversation = {"thread": self.thread, "txt": txt, "cause": cause}
+        last_conversation = {
+            "thread": self.thread, 
+            "txt": txt, 
+            "cause": cause,
+            "thread_id": self.current_thread_id  # Explicitly include the thread_id
+        }
         
         if self.current_thread_id is not None:
             current_time = self._get_current_timestamp()

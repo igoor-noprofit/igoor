@@ -178,11 +178,15 @@ class Memory(Baseplugin):
     Retrieves static context
     Fills prompt
     Performs LLM query
-    Stores results 
+    Stores memories if any 
     '''
     @hookimpl
     async def after_conversation_end(self, last_conversation: dict) -> None:
         start_time = time.time()
+        
+        # Get conversation ID if available
+        conversation_id = last_conversation.get("thread_id")
+        self.logger.info(f"Processing conversation end with ID: {conversation_id}")
         
         # SYSTEM PROMPT
         sys_pm = PromptManager(template=MEMORY_SYSTEM_PROMPT)
@@ -200,7 +204,7 @@ class Memory(Baseplugin):
         has_error, memories = self.handle_llm_error(memories)
         if has_error:
             return memories
-        # Process each memory
+        
         # Process each memory
         if hasattr(memories, 'facts') and memories.facts:
             for memory in memories.facts:
@@ -212,36 +216,44 @@ class Memory(Baseplugin):
                     "tags": memories.tags
                 }
                 
+                # Determine if this is a long-term memory based on the type field
+                is_long_term = memory.type.lower() == "long"
+                self.logger.info(f"Memory type: {memory.type}, is_long_term: {is_long_term}")
+                
                 # For long-term memories, validate first
-                if memory.type == "long":
-                    print(f"Reviewing long-term memory: {memory.fact}")
+                if is_long_term:
+                    self.logger.info(f"Reviewing long-term memory: {memory.fact}")
                     validation = await self.memory_review(conversation, memory)
                     
                     if validation.valid:
-                        print(f"Memory validated, storing: {memory.fact}")
+                        self.logger.info(f"Memory validated, storing: {memory.fact}")
                         try:
-                            # Pass the structured memory data
+                            # Pass the structured memory data with conversation_id
                             await self.pm.trigger_hook(
                                 hook_name="store_memory", 
                                 memory=memory_data, 
-                                is_long_term=True
+                                is_long_term=True,  # Explicitly set to True for long-term
+                                metadata=None,
+                                conversation_id=conversation_id
                             )
                         except Exception as e:
-                            print(f"Error storing memory: {e}")
+                            self.logger.error(f"Error storing memory: {e}")
                     else:
-                        print(f"Memory not validated: {validation.reason}")
+                        self.logger.info(f"Memory not validated: {validation.reason}")
                 else:
                     # Store short-term memories without validation
-                    print(f"Storing short-term memory: {memory.fact}")
+                    self.logger.info(f"Storing short-term memory: {memory.fact}")
                     try:
                         await self.pm.trigger_hook(
                             hook_name="store_memory", 
                             memory=memory_data, 
-                            is_long_term=False
+                            is_long_term=False,  # Explicitly set to False for short-term
+                            metadata=None,
+                            conversation_id=conversation_id
                         )
                     except Exception as e:
-                        print(f"Error storing memory: {e}")
-    
+                        self.logger.error(f"Error storing memory: {e}")
+        
 
     def test_plugin(self):
         print("BEGINNING MEMORY TESTS")
