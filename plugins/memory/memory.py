@@ -175,6 +175,26 @@ class Memory(Baseplugin):
         # await self.wait_for_socket_and_send("ready")
         await self.test_after_conversation_end()
 
+
+
+    '''
+    Helper function to store memory via hook
+    '''
+    async def store_memory_via_hook(self, memory, memories, reason, conversation_id):
+        try:
+            self.logger.debug(f"Triggering store_memory hook with conversation_id: {conversation_id}")
+            await self.pm.trigger_hook(
+                hook_name="store_memory",
+                fact=memory.fact,
+                type=memory.type,
+                theme=memories.theme,
+                tags=memories.tags,
+                reason=reason,
+                conversation_id=conversation_id
+            )
+        except Exception as e:
+            self.logger.error(f"Error storing memory: {e}")
+
     '''
     Receives last_conversation from conversation.py
     Retrieves static context
@@ -216,59 +236,20 @@ class Memory(Baseplugin):
             # Process each memory
             if hasattr(memories, 'facts') and memories.facts:
                 for memory in memories.facts:
-                    # Create structured memory with theme and tags
-                    memory_data = {
-                        "fact": memory.fact,
-                        "type": memory.type,
-                        "theme": memories.theme,
-                        "tags": memories.tags
-                    }
-                    
                     # For long-term memories, validate first
                     if memory.type == "long":
                         self.logger.info(f"Reviewing long-term memory: {memory.fact}")
                         validation = await self.memory_review(conversation, memory)
                         
-                        if validation.valid or self.settings.get("review", False):  #:
+                        if validation.valid or self.settings.get("review", False):
                             self.logger.info(f"Memory validated, storing: {memory.fact} with conversation_id: {conversation_id}")
-                            memory_data["reason"] = validation.reason
-                            try:
-                                # Explicitly create kwargs dictionary for better debugging
-                                hook_kwargs = {
-                                    "memory": memory_data,
-                                    "is_long_term": True,
-                                    "metadata": None,
-                                    "conversation_id": conversation_id
-                                }
-                                self.logger.debug(f"Triggering store_memory hook with kwargs: {hook_kwargs}")
-                                
-                                await self.pm.trigger_hook(
-                                    hook_name="store_memory",
-                                    **hook_kwargs
-                                )
-                            except Exception as e:
-                                self.logger.error(f"Error storing memory: {e}")
+                            await self.store_memory_via_hook(memory, memories, validation.reason, conversation_id)
                         else:
                             self.logger.info(f"Memory not validated: {validation.reason}")
                     else:
                         # Store short-term memories without validation
                         self.logger.info(f"Storing short-term memory: {memory.fact} with conversation_id: {conversation_id}")
-                        try:
-                            # Explicitly create kwargs dictionary for better debugging
-                            hook_kwargs = {
-                                "memory": memory_data,
-                                "is_long_term": False,
-                                "metadata": None,
-                                "conversation_id": conversation_id
-                            }
-                            self.logger.debug(f"Triggering store_memory hook with kwargs: {hook_kwargs}")
-                            
-                            await self.pm.trigger_hook(
-                                hook_name="store_memory",
-                                **hook_kwargs
-                            )
-                        except Exception as e:
-                            self.logger.error(f"Error storing memory: {e}")
+                        await self.store_memory_via_hook(memory, memories, "short", conversation_id)
         except Exception as e:
             self.logger.error(f"Error in after_conversation_end: {e}")
         

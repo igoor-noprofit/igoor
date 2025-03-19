@@ -66,7 +66,7 @@ class Rag(Baseplugin):
             self.logger.error(f"Error checking database status: {e}")
             self.loading_event.set()
             return
-                
+        
         # 2. Create necessary folders
         self.logger.info("Creating necessary folders...")
         self.create_folders()
@@ -363,7 +363,7 @@ class Rag(Baseplugin):
         
 
     @hookimpl
-    async def store_memory(self, memory, is_long_term=True, metadata=None, conversation_id=None, **kwargs) -> bool:
+    async def store_memory(self, fact: str,type: int,conversation_id: int, theme=None,tags=None):
         """
         Store a memory in either long-term or short-term memory
         
@@ -376,59 +376,12 @@ class Rag(Baseplugin):
         Returns:
             bool: Success status
         """
-        # Log all parameters as received
-        self.logger.info(f"RECEIVED PARAMETERS IN RAG: memory={memory}, is_long_term={is_long_term}, metadata={metadata}, conversation_id={conversation_id}")
-        
-        if conversation_id is None:
-            self.logger.warning("conversation_id is None in store_memory")
-        else:
-            self.logger.info(f"Processing memory for conversation_id: {conversation_id}")
-        
-        await self.loading_event.wait()
-        
-        # Force the correct store type based on the memory's own type field
-        if isinstance(memory, dict) and 'type' in memory:
-            memory_type = memory['type'].lower()
-            # Override is_long_term based on the memory's type field
-            is_long_term = memory_type == 'long'
-            self.logger.info(f"Overriding is_long_term to {is_long_term} based on memory type '{memory_type}'")
-        
-        # Determine the correct store type based on is_long_term flag
-        store_type = LONG_TERM if is_long_term else SHORT_TERM
-        
-        self.logger.info(f"Storing memory in {'long-term' if is_long_term else 'short-term'} store (type={store_type}) with conversation_id={conversation_id}")
-            
-        if not self.index_loaded[store_type]:
-            self.logger.error(f"Index type {store_type} not loaded, cannot store memory")
+        # Debug all incoming parameters
+        self.logger.info(f"Direct parameters: fact={fact}, conversation_id={conversation_id}")
+    
+        if not self.index_loaded[type]:
+            self.logger.error(f"Index type {type} not loaded, cannot store memory")
             return False
-        
-        # Handle structured memory (JSON format)
-        if isinstance(memory, dict):
-            memory_data = memory
-        elif isinstance(memory, str) and memory.strip().startswith('{') and memory.strip().endswith('}'):
-            try:
-                memory_data = json.loads(memory)
-            except json.JSONDecodeError:
-                # Not valid JSON, treat as plain text
-                memory_data = {"fact": memory}
-        else:
-            # Plain text memory
-            memory_data = {"fact": memory}
-        
-        # Extract or set default values
-        fact = memory_data.get("fact", memory)
-        theme = memory_data.get("theme", "")
-        tags = memory_data.get("tags", [])
-        
-        # If additional metadata was provided, merge it
-        if metadata:
-            if "theme" in metadata and not theme:
-                theme = metadata["theme"]
-            if "tags" in metadata and isinstance(metadata["tags"], list):
-                tags.extend(metadata["tags"])
-        
-        # Convert tags to JSON string for storage
-        tags_json = json.dumps(tags) if tags else "[]"
         
         # Create embedding text that focuses on the most semantically relevant information
         embedding_text = fact
@@ -437,16 +390,16 @@ class Rag(Baseplugin):
         if tags:
             embedding_text = f"{embedding_text} [{', '.join(tags)}]"
         
+        
         # Create document for vector store with full metadata
         new_doc = Document(
             page_content=embedding_text,
             metadata={
                 "source": "memory",
-                "type": "long_term" if is_long_term else "short_term",
+                "type": "long_term" if type==LONG_TERM else "short_term",
                 "theme": theme,
                 "tags": tags,
-                "conversation_id": conversation_id,
-                "original_content": json.dumps(memory_data)
+                "conversation_id": conversation_id
             }
         )
         
@@ -461,7 +414,7 @@ class Rag(Baseplugin):
             content = json.dumps(memory_data)
             
             # Get the reason from memory data if it exists (for long-term memories)
-            reason = memory_data.get("reason", "memory") if is_long_term else "memory"
+            reason = memory_data.get("reason", "memory") if type==LONG_TERM else "memory"
             
             self.logger.info(f"Adding chunk to db with conversation_id: {conversation_id}")
             
@@ -795,104 +748,104 @@ class Rag(Baseplugin):
                 await self.save_index(store_type)
                 self.index_loaded[store_type] = True
     
-    async def check_specific_chunk(self, store_type, chunk_id):
+    async def verify_faiss_db_consistency(self):
         """
-        Check a specific chunk in a vector store against its database entry.
-        
-        Args:
-            store_type: The type of vector store (INGESTED, LONG_TERM, or SHORT_TERM)
-            chunk_id: The chunk ID to check
-            
-        Returns:
-            A dictionary with comparison results
+        Verify that FAISS vector store chunks match database entries.
+        Selects a random chunk from each vector store and compares it with the database.
         """
-        self.logger.info(f"Checking specific chunk {chunk_id} in store type {store_type}")
+        self.logger.info("Starting FAISS-DB consistency verification...")
         
         # Wait for indexes to be loaded
         await self.loading_event.wait()
         
-        if not self.index_loaded[store_type] or self.vector_stores[store_type] is None:
-            return {"error": f"Vector store type {store_type} not loaded"}
+        results = []
         
-        try:
-            vector_store = self.vector_stores[store_type]
-            
-            # Check if the chunk_id is valid
-            if chunk_id >= len(vector_store.index_to_docstore_id):
-                return {"error": f"Chunk ID {chunk_id} out of range (max: {len(vector_store.index_to_docstore_id)-1})"}
-            
-            # Get the document from FAISS
-            docstore_id = vector_store.index_to_docstore_id[chunk_id]
-            faiss_doc = vector_store.docstore.search(docstore_id)
-            
-            # Get the corresponding document from the database
-            db_result = await self.db_execute(
-                "SELECT * FROM chunks WHERE chunk_id = ? AND type = ?", 
-                (chunk_id, store_type)
-            )
-            
-            if not db_result:
+        for store_type, store_name in {INGESTED: "Ingested", LONG_TERM: "Long-term", SHORT_TERM: "Short-term"}.items():
+            if not self.index_loaded[store_type] or self.vector_stores[store_type] is None:
+                self.logger.info(f"Vector store {store_name} not loaded, skipping verification")
+                continue
+                
+            try:
+                # Get total number of documents in this vector store
+                vector_store = self.vector_stores[store_type]
+                total_docs = len(vector_store.index_to_docstore_id)
+                
+                if total_docs <= 1:  # Skip if only the initial empty document exists
+                    self.logger.info(f"Vector store {store_name} has no documents (or only initial doc), skipping verification")
+                    continue
+                    
+                # Select a random document index (skip the first one which is our initial empty doc)
+                import random
+                random_idx = random.randint(1, total_docs - 1) if total_docs > 1 else 0
+                
+                # Get the document from FAISS
+                docstore_id = vector_store.index_to_docstore_id[random_idx]
+                faiss_doc = vector_store.docstore.search(docstore_id)
+                
+                # Get the corresponding document from the database
+                db_result = await self.db_execute(
+                    "SELECT * FROM chunks WHERE chunk_id = ? AND type = ?", 
+                    (random_idx, store_type)
+                )
+                
+                if not db_result:
+                    self.logger.warning(f"No database entry found for chunk_id={random_idx} in store {store_name}")
+                    results.append({
+                        "store": store_name,
+                        "chunk_id": random_idx,
+                        "match": False,
+                        "reason": "No database entry found"
+                    })
+                    continue
+                    
+                db_doc = db_result[0]
+                
+                # Compare content
+                faiss_content = faiss_doc.page_content
+                db_content = db_doc['content']
+                
+                # Check if contents match (allowing for minor differences like whitespace)
+                content_match = faiss_content.strip() == db_content.strip()
+                
+                # Get document info if available
+                document_info = None
+                if db_doc['document_id']:
+                    doc_result = await self.db_execute(
+                        "SELECT title, filename FROM documents WHERE id = ?", 
+                        (db_doc['document_id'],)
+                    )
+                    if doc_result:
+                        document_info = {
+                            "id": db_doc['document_id'],
+                            "title": doc_result[0]['title'],
+                            "filename": doc_result[0]['filename']
+                        }
+                
                 return {
-                    "store_type": store_type,
+                    "store": store_name,
                     "chunk_id": chunk_id,
                     "faiss_doc": {
                         "docstore_id": docstore_id,
                         "content": faiss_doc.page_content,
                         "metadata": faiss_doc.metadata
                     },
-                    "db_doc": None,
-                    "match": False,
-                    "reason": "No database entry found"
+                    "db_doc": {
+                        "id": db_doc['id'],
+                        "chunk_id": db_doc['chunk_id'],
+                        "type": db_doc['type'],
+                        "content": db_doc['content'],
+                        "reason": db_doc['reason'],
+                        "document_id": db_doc['document_id'],
+                        "document_info": document_info,
+                        "conversation_id": db_doc['conversation_id']
+                    },
+                    "match": content_match,
+                    "content_length_match": len(faiss_content) == len(db_content)
                 }
             
-            db_doc = db_result[0]
-            
-            # Compare content
-            faiss_content = faiss_doc.page_content
-            db_content = db_doc['content']
-            
-            # Check if contents match (allowing for minor differences like whitespace)
-            content_match = faiss_content.strip() == db_content.strip()
-            
-            # Get document info if available
-            document_info = None
-            if db_doc['document_id']:
-                doc_result = await self.db_execute(
-                    "SELECT title, filename FROM documents WHERE id = ?", 
-                    (db_doc['document_id'],)
-                )
-                if doc_result:
-                    document_info = {
-                        "id": db_doc['document_id'],
-                        "title": doc_result[0]['title'],
-                        "filename": doc_result[0]['filename']
-                    }
-            
-            return {
-                "store_type": store_type,
-                "chunk_id": chunk_id,
-                "faiss_doc": {
-                    "docstore_id": docstore_id,
-                    "content": faiss_doc.page_content,
-                    "metadata": faiss_doc.metadata
-                },
-                "db_doc": {
-                    "id": db_doc['id'],
-                    "chunk_id": db_doc['chunk_id'],
-                    "type": db_doc['type'],
-                    "content": db_doc['content'],
-                    "reason": db_doc['reason'],
-                    "document_id": db_doc['document_id'],
-                    "document_info": document_info,
-                    "conversation_id": db_doc['conversation_id']
-                },
-                "match": content_match,
-                "content_length_match": len(faiss_content) == len(db_content)
-            }
-        
-        except Exception as e:
-            self.logger.error(f"Error checking chunk {chunk_id} in store type {store_type}: {e}")
-            return {"error": str(e)}
+            except Exception as e:
+                self.logger.error(f"Error checking chunk {chunk_id} in store type {store_type}: {e}")
+                return {"error": str(e)}
     
     @hookimpl
     async def check_chunk(self, store_type, chunk_id):
