@@ -363,7 +363,7 @@ class Rag(Baseplugin):
         
 
     @hookimpl
-    async def store_memory(self, fact: str,type: int,conversation_id: int, theme=None,tags=None):
+    async def store_memory(self, fact: str,type: str,reason:str, conversation_id: int, theme:str,tags:list):
         """
         Store a memory in either long-term or short-term memory
         
@@ -377,10 +377,13 @@ class Rag(Baseplugin):
             bool: Success status
         """
         # Debug all incoming parameters
-        self.logger.info(f"Direct parameters: fact={fact}, conversation_id={conversation_id}")
-    
-        if not self.index_loaded[type]:
-            self.logger.error(f"Index type {type} not loaded, cannot store memory")
+        self.logger.info(f"Direct parameters: fact={fact}, type={type}, theme={theme}, tags={tags},conversation_id={conversation_id}")
+        if (type=="short"):
+            memory_type=SHORT_TERM
+        else:
+            memory_type=LONG_TERM
+        if not self.index_loaded[memory_type]:
+            self.logger.error(f"Index type {memory_type} not loaded, cannot store memory")
             return False
         
         # Create embedding text that focuses on the most semantically relevant information
@@ -390,38 +393,36 @@ class Rag(Baseplugin):
         if tags:
             embedding_text = f"{embedding_text} [{', '.join(tags)}]"
         
-        
+        self.logger.info(f"Creating embedding for memory: {embedding_text}")
         # Create document for vector store with full metadata
         new_doc = Document(
             page_content=embedding_text,
             metadata={
                 "source": "memory",
-                "type": "long_term" if type==LONG_TERM else "short_term",
+                "type": "long_term" if memory_type==LONG_TERM else "short_term",
                 "theme": theme,
                 "tags": tags,
                 "conversation_id": conversation_id
             }
         )
-        
+        self.logger.info(f"Metadata: {new_doc.metadata}")
         try:
             # Get the current size of the vector store
-            current_size = len(self.vector_stores[store_type].index_to_docstore_id)
+            current_size = len(self.vector_stores[memory_type].index_to_docstore_id)
             
             # Add to vector store
-            self.vector_stores[store_type].add_documents([new_doc])
+            self.vector_stores[memory_type].add_documents([new_doc])
             
             # Store the full structured data as JSON in the content field
-            content = json.dumps(memory_data)
-            
-            # Get the reason from memory data if it exists (for long-term memories)
-            reason = memory_data.get("reason", "memory") if type==LONG_TERM else "memory"
+            content = json.dumps(embedding_text)
+            tags_json = json.dumps(tags)
             
             self.logger.info(f"Adding chunk to db with conversation_id: {conversation_id}")
             
             # Use the existing add_chunk_to_db method
             success = await self.add_chunk_to_db(
                 content=content,
-                chunk_type=store_type,
+                chunk_type=memory_type,
                 reason=reason,
                 document_id=None,
                 conversation_id=conversation_id,  # Pass through the conversation_id
@@ -431,8 +432,8 @@ class Rag(Baseplugin):
             )
             
             if success:
-                await self.save_index(store_type)
-                self.logger.info(f"Successfully stored memory (type={store_type}, conversation_id={conversation_id}): {fact}")
+                await self.save_index(memory_type)
+                self.logger.info(f"Successfully stored memory (type={memory_type}, conversation_id={conversation_id}): {fact}")
                 return True
             else:
                 self.logger.error(f"Failed to add memory to database (conversation_id={conversation_id})")

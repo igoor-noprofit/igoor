@@ -148,7 +148,7 @@ class MyAppSpec:
         return await self.plugin_manager.hook.query_rag(query_text=query_text, store_types=store_types)
     
     @pluggy.HookspecMarker(app_name)
-    async def store_memory(self, fact: str,type: int,conversation_id:int,theme=None,tags=None):        
+    async def store_memory(self, fact: str,type: int,conversation_id:int,theme:str,tags:list, reason:str):        
         pass
     
     '''
