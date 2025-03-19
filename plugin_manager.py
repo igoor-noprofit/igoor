@@ -162,7 +162,7 @@ class MyAppSpec:
         Returns:
             bool: Success status of the storage operation
         """
-        return await self.plugin_manager.hook.store_memory(memory=memory, **kwargs)
+        pass
     
     '''
         ************ AUTOCOMPLETE **************
