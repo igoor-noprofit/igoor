@@ -294,7 +294,7 @@ class Rag(Baseplugin):
                     self.logger.error(f"Error creating index for {file_name}: {e}")
 
     async def add_chunk_to_db(self, content, chunk_type, reason, document_id=None, conversation_id=None, chunk_id=None, theme=None, tags=None):
-        """Add a chunk to the database"""
+        """Add a chunk to the sqlite database"""
         try:
             # Generate a unique chunk_id if not provided
             if chunk_id is None:
@@ -416,8 +416,6 @@ class Rag(Baseplugin):
             # Store the full structured data as JSON in the content field
             content = json.dumps(embedding_text)
             tags_json = json.dumps(tags)
-            
-            self.logger.info(f"Adding chunk to db with conversation_id: {conversation_id}")
             
             # Use the existing add_chunk_to_db method
             success = await self.add_chunk_to_db(
@@ -732,7 +730,7 @@ class Rag(Baseplugin):
             return False
         
     async def load_all_indexes(self):
-        """Load all three FAISS indexes"""
+        """Load all FAISS indexes"""
         for store_type, folder_name in self.index_folder_names.items():
             folder_path = os.path.join(self.plugin_folder, folder_name)
             
