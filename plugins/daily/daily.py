@@ -117,6 +117,7 @@ class Daily(Baseplugin):
         # conversation = dynamic_context.get("conversation")
         category=data.get("category")
         theme=data.get("theme")
+        asyncio.create_task(self.pm.trigger_hook(hook_name="set_conversation_topic",topic=theme))
         static_context = await(self.query_rag_async(category + " " + theme))
         print(f"STATIC CONTEXT IS : {static_context}")
         # del dynamic_context["conversation"]

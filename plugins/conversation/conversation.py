@@ -13,6 +13,7 @@ class Conversation(Baseplugin):
         self.settings = self.get_my_settings()
         self.conversation_is_open=False
         self.thread=[]
+        self.topic=""
         self.current_thread_id = None
         
     def init_timeout(self):
@@ -56,7 +57,6 @@ class Conversation(Baseplugin):
     @hookimpl
     async def new_conversation(self):
         self.thread = []
-        self.topic = ""
         self.conversation_is_open = True
         context_manager.update_context("conversation", "")
         self.init_timeout()
@@ -77,6 +77,7 @@ class Conversation(Baseplugin):
 
     @hookimpl
     async def set_conversation_topic(self, topic):
+        self.logger.info(f"Setting conversation topic to: {topic}")
         self.topic = topic
 
     @hookimpl
@@ -87,23 +88,22 @@ class Conversation(Baseplugin):
         txt = await self.get_conversation(format="txt")
         
         # Log the thread_id before creating the dictionary
-        self.logger.info(f"Abandoning conversation with thread_id: {self.current_thread_id}")
         
         last_conversation = {
             "thread": self.thread, 
             "txt": txt, 
             "cause": cause,
             "topic": self.topic,
-            "thread_id": self.current_thread_id  # This is correct
+            "thread_id": self.current_thread_id  
         }
         
         if self.current_thread_id is not None:
             current_time = self._get_current_timestamp()
             await self.db_execute(
                 "UPDATE threads SET end_time = ?, cause = ?, topic = ? WHERE id = ?",
-                (current_time, cause, topic, self.current_thread_id)
+                (current_time, cause, self.topic, self.current_thread_id)
             )
-            self.logger.info(f"Updated conversation {self.current_thread_id} with end time")
+            self.logger.info(f"Abandoned conversation {self.current_thread_id} with end time and topic {self.topic}")
         
         # Create a separate task with explicit kwargs
         asyncio.create_task(
@@ -113,7 +113,7 @@ class Conversation(Baseplugin):
                     "thread": self.thread,
                     "txt": txt,
                     "cause": cause,
-                    "topic": topic,
+                    "topic": self.topic,
                     "thread_id": self.current_thread_id
                 }
             )
