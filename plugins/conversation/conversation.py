@@ -81,6 +81,9 @@ class Conversation(Baseplugin):
 
     @hookimpl
     async def abandon_conversation(self, cause="timeout"):
+        if (not self.conversation_is_open):
+            self.logger.info("Abandon conversation called, but conversation is not open")
+            return
         txt = await self.get_conversation(format="txt")
         
         # Log the thread_id before creating the dictionary
@@ -98,7 +101,7 @@ class Conversation(Baseplugin):
             current_time = self._get_current_timestamp()
             await self.db_execute(
                 "UPDATE threads SET end_time = ?, cause = ?, topic = ? WHERE id = ?",
-                (current_time, cause, self.current_thread_id)
+                (current_time, cause, topic, self.current_thread_id)
             )
             self.logger.info(f"Updated conversation {self.current_thread_id} with end time")
         
@@ -110,6 +113,7 @@ class Conversation(Baseplugin):
                     "thread": self.thread,
                     "txt": txt,
                     "cause": cause,
+                    "topic": topic,
                     "thread_id": self.current_thread_id
                 }
             )
@@ -117,6 +121,7 @@ class Conversation(Baseplugin):
         
         # Reset conversation state after triggering the hook
         self.thread = []
+        self.topic = ""
         self.current_thread_id = None
         context_manager.update_context("conversation", "")
         self.send_message_to_frontend({"action": "abandon_conversation"})

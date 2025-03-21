@@ -85,6 +85,8 @@ class Daily(Baseplugin):
                     'dailyData': self.daily_data
                 })
             elif message_data.get('action') == 'generatePhrases':
+                # CHECK IF CONVERSATION IS OPEN VIA CONTEXT MANAGER
+                asyncio.create_task(self.pm.trigger_hook(hook_name="abandon_conversation",cause="daily"))
                 asyncio.create_task(self.generate_phrases(message_data))
                 pass
             elif message_data.get('action') == "speak":
