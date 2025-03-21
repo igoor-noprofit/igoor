@@ -140,7 +140,6 @@ class Baseplugin:
         :param plugin_name: (Optional) The plugin name to send the message to. If not provided, uses self.plugin_name.
         """
         target_plugin_name = plugin_name or self.plugin_name
-        self.logger.info(f"Wait for socket CALLED to send message: {message} to: {target_plugin_name}")
         while not websocket_server.is_socket_open(target_plugin_name):
             await asyncio.sleep(1)  # Wait for 1 second before checking again
             self.logger.info(f"Waiting for socket to open, to send {message} to {target_plugin_name}")
@@ -232,10 +231,12 @@ class Baseplugin:
         target_plugin_name = plugin_name or self.plugin_name
 
         if websocket_server.is_socket_open(target_plugin_name):
+            '''
             if not (target_plugin_name=='app'):
-                self.logger.info(f"{target_plugin_name} BACKEND => FRONTEND via ws")
+                # self.logger.info(f"{target_plugin_name} BACKEND => FRONTEND via ws")
             else:
-                self.logger.info(f"{target_plugin_name} BACKEND => APP via ws")
+                # self.logger.info(f"{target_plugin_name} BACKEND => APP via ws")
+            '''
             try:
                 # Ensure the message is a JSON string
                 if isinstance(message, dict):
