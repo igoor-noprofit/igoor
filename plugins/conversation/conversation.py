@@ -56,6 +56,7 @@ class Conversation(Baseplugin):
     @hookimpl
     async def new_conversation(self):
         self.thread = []
+        self.topic = ""
         self.conversation_is_open = True
         context_manager.update_context("conversation", "")
         self.init_timeout()
@@ -74,6 +75,9 @@ class Conversation(Baseplugin):
             self.current_thread_id = thread_data[0]['id']
             self.logger.info(f"Created new conversation with ID: {self.current_thread_id}")
 
+    @hookimpl
+    async def set_conversation_topic(self, topic):
+        self.topic = topic
 
     @hookimpl
     async def abandon_conversation(self, cause="timeout"):
@@ -86,13 +90,14 @@ class Conversation(Baseplugin):
             "thread": self.thread, 
             "txt": txt, 
             "cause": cause,
+            "topic": self.topic,
             "thread_id": self.current_thread_id  # This is correct
         }
         
         if self.current_thread_id is not None:
             current_time = self._get_current_timestamp()
             await self.db_execute(
-                "UPDATE threads SET end_time = ?, topic = ? WHERE id = ?",
+                "UPDATE threads SET end_time = ?, cause = ?, topic = ? WHERE id = ?",
                 (current_time, cause, self.current_thread_id)
             )
             self.logger.info(f"Updated conversation {self.current_thread_id} with end time")

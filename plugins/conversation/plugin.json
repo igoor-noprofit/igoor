@@ -12,7 +12,7 @@
     "requires_db": true,
     "db_tables": {
         "threads": {
-            "schema": "CREATE TABLE IF NOT EXISTS threads (  id INTEGER PRIMARY KEY, start_time TIMESTAMP, end_time TIMESTAMP, topic TEXT, content TEXT, is_processed BOOLEAN)",
+            "schema": "CREATE TABLE IF NOT EXISTS threads (  id INTEGER PRIMARY KEY, start_time TIMESTAMP, end_time TIMESTAMP, cause TEXT, topic TEXT, content TEXT, is_processed BOOLEAN)",
             "version": "1.0"
         },
         "msgs": {

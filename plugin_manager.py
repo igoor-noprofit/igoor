@@ -109,6 +109,11 @@ class MyAppSpec:
     '''
     
     @pluggy.HookspecMarker(app_name)
+    def set_conversation_topic(self,topic:str):
+        """Hook for triggering actions related to new conversation"""
+        pass
+    
+    @pluggy.HookspecMarker(app_name)
     def new_conversation(self):
         """Hook for triggering actions related to new conversation"""
         pass
@@ -143,9 +148,9 @@ class MyAppSpec:
         pass
     
     @pluggy.HookspecMarker(app_name)
-    async def query_rag(self, query_text: str, store_types=None):
+    async def query_rag(query_text: str, store_types=None, return_chunk_ids=False):
         # Gather all results from the async hook implementations
-        return await self.plugin_manager.hook.query_rag(query_text=query_text, store_types=store_types)
+        return await self.plugin_manager.hook.query_rag(query_text=query_text, store_types=store_types, return_chunk_ids=return_chunk_ids)
     
     @pluggy.HookspecMarker(app_name)
     async def store_memory(self, fact: str,type: int,conversation_id:int,theme:str,tags:list, reason:str):        

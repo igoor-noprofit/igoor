@@ -11,6 +11,7 @@ from langchain_community.embeddings import HuggingFaceBgeEmbeddings
 from langchain.prompts import ChatPromptTemplate
 import time, sys, asyncio, threading
 import numpy as np
+from typing import Union, List, Dict, Optional
 
 # Vector store types
 INGESTED = 0
@@ -676,11 +677,14 @@ class Rag(Baseplugin):
             return False
     
     @hookimpl
-    async def query_rag(self, query_text: str, store_types=None):
-        """Query one or more RAG indexes"""
+    async def query_rag(self, query_text: str, store_types=None, return_chunk_ids=False) -> Union[str, dict, bool]:
         try:
             self.logger.debug(f"QUERYING INDEX with text: {query_text}")
             await self.loading_event.wait()  # Wait for indexes to load
+            
+            # Get the number of chunks to retrieve per store from settings
+            chunk_num = self.settings.get("chunk_num", 4)  # Default to 4 if not specified
+            self.logger.debug(f"Using chunk_num={chunk_num} from settings")
             
             # Default to all store types if none specified
             if store_types is None:
@@ -691,35 +695,87 @@ class Rag(Baseplugin):
                 store_types = [store_types]
             
             all_results = []
+            chunk_ids_by_store = {
+                INGESTED: [],
+                LONG_TERM: [],
+                SHORT_TERM: []
+            }
+            
             for store_type in store_types:
                 if not self.index_loaded[store_type]:
-                    self.logger.warning(f"Index type {store_type} not loaded, skipping")
+                    self.logger.warning(f"Index type {store_type} not loaded yet, skipping")
                     continue
                     
                 start_time = time.time()
                 loop = asyncio.get_event_loop()
                 
-                # Query this specific vector store
-                try:
-                    results = await loop.run_in_executor(
-                        None, 
-                        self.vector_stores[store_type].similarity_search, 
-                        query_text
-                    )
-                    search_end_time = time.time()
-                    self.logger.debug(f"Store type {store_type} search time: {search_end_time - start_time:.2f} seconds")
-                    
+                # For SHORT_TERM memory, use similarity score threshold
+                if store_type == SHORT_TERM:
+                    try:
+                        # Get more candidates for filtering by score
+                        max_candidates = min(50, len(self.vector_stores[store_type].index_to_docstore_id))
+                        
+                        # Skip if only the initial empty document exists
+                        if max_candidates <= 1:
+                            self.logger.info(f"SHORT_TERM store has only the initial document, skipping")
+                            continue
+                            
+                        # Get more candidates to filter by score
+                        results = await loop.run_in_executor(
+                            None, 
+                            lambda: self.vector_stores[store_type].similarity_search_with_score_and_index(
+                                query_text,
+                                k=max_candidates
+                            )
+                        )
+                        
+                        # Filter by similarity score - 0.3 is our threshold
+                        # Lower score means better match in FAISS
+                        score_threshold = 0.3
+                        results = [(doc, score, index) for doc, score, index in results if score <= score_threshold]
+                        
+                        search_end_time = time.time()
+                        self.logger.debug(f"SHORT_TERM search time: {search_end_time - start_time:.2f} seconds")
+                        self.logger.debug(f"Found {len(results)} SHORT_TERM chunks with score <= {score_threshold}")
+                    except Exception as e:
+                        self.logger.error(f"Error querying SHORT_TERM store: {e}")
+                        results = []
+                else:
+                    # For INGESTED and LONG_TERM, use the regular chunk_num approach
+                    try:
+                        results = await loop.run_in_executor(
+                            None, 
+                            lambda: self.vector_stores[store_type].similarity_search_with_score_and_index(
+                                query_text,
+                                k=chunk_num
+                            )
+                        )
+                        search_end_time = time.time()
+                        self.logger.debug(f"Store type {store_type} search time: {search_end_time - start_time:.2f} seconds")
+                    except Exception as e:
+                        self.logger.error(f"Error querying store type {store_type}: {e}")
+                        results = []
+                
+                # Process results which now include (doc, score, index)
+                for doc, score, index in results:
                     # Add store type to metadata for tracking
-                    for doc in results:
-                        doc.metadata["store_type"] = store_type
+                    doc.metadata["store_type"] = store_type
+                    doc.metadata["score"] = score
+                    doc.metadata["index"] = index
                     
-                    all_results.extend(results)
-                except Exception as e:
-                    self.logger.error(f"Error querying store type {store_type}: {e}")
+                    # Add to results
+                    all_results.append(doc)
+                    
+                    # Add to chunk IDs dictionary
+                    chunk_ids_by_store[store_type].append(index)
             
-            # If we have results, format them
+            # If return_chunk_ids is True, return the dictionary of chunk IDs
+            if return_chunk_ids:
+                # Filter out empty lists
+                return {k: v for k, v in chunk_ids_by_store.items() if v}
+            
+            # Otherwise, return the context text as before
             if all_results:
-                # Sort by relevance (assuming results are already sorted within each store)
                 context_text = "\n\n---\n\n".join([doc.page_content for doc in all_results])
                 return context_text
             else:
