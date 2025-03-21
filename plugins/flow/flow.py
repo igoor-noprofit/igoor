@@ -127,6 +127,7 @@ class Flow(Baseplugin):
         # PREFLOW HERE
         preflow_dict = await self.preflow(conversation)
         
+        asyncio.create_task(self.pm.trigger_hook(hook_name="set_conversation_topic",topic=preflow_dict.get("theme")))
         # Initialize context
         context = ""
         
