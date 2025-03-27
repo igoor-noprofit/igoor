@@ -100,6 +100,9 @@ class Rag(Baseplugin):
         self.loading_event.set()
         self.logger.info("RAG plugin initialization complete")
         
+        # Print all FAISS chunks for each memory type
+        await self.print_all_chunks([INGESTED,LONG_TERM,SHORT_TERM])
+        
         '''
         # 5. Verify FAISS-DB consistency
         self.logger.info("Verifying FAISS-DB consistency...")
@@ -173,7 +176,6 @@ class Rag(Baseplugin):
     async def ingest_new_files(self, new_files):
         """Ingest new files into the index and add them to the database"""
         folder_path = os.path.join(self.plugin_folder, self.medias_folder_name)
-        
         # Process each file individually to properly track document IDs
         for file_name in new_files:
             file_path = os.path.join(folder_path, file_name)
@@ -723,12 +725,12 @@ class Rag(Baseplugin):
                         # Get more candidates to filter by score
                         results = await loop.run_in_executor(
                             None, 
-                            lambda: self.vector_stores[store_type].similarity_search_with_score_and_index(
+                            lambda: self.vector_stores[store_type].similarity_search_with_score(
                                 query_text,
                                 k=max_candidates
                             )
                         )
-                        
+                        print(results)
                         # Filter by similarity score - 0.3 is our threshold
                         # Lower score means better match in FAISS
                         score_threshold = 0.3
@@ -745,7 +747,7 @@ class Rag(Baseplugin):
                     try:
                         results = await loop.run_in_executor(
                             None, 
-                            lambda: self.vector_stores[store_type].similarity_search_with_score_and_index(
+                            lambda: self.vector_stores[store_type].similarity_search_with_score(
                                 query_text,
                                 k=chunk_num
                             )
@@ -974,10 +976,62 @@ class Rag(Baseplugin):
             self.logger.error(f"Error listing chunks: {e}")
             return {"error": str(e)}
         
-    @hookimpl
-    async def verify_consistency(self):
+    async def print_all_chunks(self, store_types=None):
         """
-        Public hook to verify consistency between FAISS vector stores and database.
-        Returns detailed verification results.
+        Print all chunks and their metadata for specified memory types
+        
+        Args:
+            store_types: List of store types to print chunks for. If None, prints all types.
         """
-        return await self.verify_faiss_db_consistency()
+        if store_types is None:
+            store_types = [INGESTED, LONG_TERM, SHORT_TERM]
+            
+        for store_type in store_types:
+            store_name = {INGESTED: "INGESTED", LONG_TERM: "LONG_TERM", SHORT_TERM: "SHORT_TERM"}.get(store_type, f"Unknown({store_type})")
+            
+            if not self.index_loaded[store_type] or self.vector_stores[store_type] is None:
+                self.logger.info(f"Vector store {store_name} not loaded, skipping chunk printing")
+                continue
+                
+            try:
+                vector_store = self.vector_stores[store_type]
+                total_docs = len(vector_store.index_to_docstore_id)
+                
+                self.logger.info(f"=== {store_name} Vector Store: {total_docs} total documents ===")
+                
+                if total_docs <= 1:  # Skip if only the initial empty document exists
+                    self.logger.info(f"{store_name} store has only the initial document, skipping")
+                    continue
+                
+                # Print each document in the store
+                for idx in range(total_docs):
+                    try:
+                        docstore_id = vector_store.index_to_docstore_id[idx]
+                        doc = vector_store.docstore.search(docstore_id)
+                        
+                        # Get corresponding DB entry if available
+                        db_info = ""
+                        try:
+                            db_result = await self.db_execute(
+                                "SELECT id, reason, created_at FROM chunks WHERE chunk_id = ? AND type = ?", 
+                                (idx, store_type)
+                            )
+                            if db_result:
+                                db_info = f"DB ID: {db_result[0]['id']}, Reason: {db_result[0]['reason']}, Created: {db_result[0]['created_at']}"
+                        except Exception as e:
+                            db_info = f"Error retrieving DB info: {e}"
+                        
+                        # Format metadata as string
+                        metadata_str = ", ".join([f"{k}: {v}" for k, v in doc.metadata.items()])
+                        
+                        # Print chunk info with content preview
+                        content_preview = doc.page_content[:100] + "..." if len(doc.page_content) > 100 else doc.page_content
+                        self.logger.info(f"Chunk {idx} | {db_info}")
+                        self.logger.info(f"Metadata: {metadata_str}")
+                        self.logger.info(f"Content: {content_preview}")
+                        self.logger.info("-" * 80)
+                    except Exception as e:
+                        self.logger.error(f"Error printing chunk {idx} in {store_name} store: {e}")
+                
+            except Exception as e:
+                self.logger.error(f"Error printing chunks for {store_name} store: {e}")

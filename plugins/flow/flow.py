@@ -131,7 +131,7 @@ class Flow(Baseplugin):
         # Initialize context
         context = ""
         
-        # TODO: DELETE because context would be mixed up 
+        # TODO: DELETE the entire IF possibility, because context would be mixed up 
         if not preflow_dict:
             # If preflow fails, query all store types
             context = await self.query_rag_async(conversation)

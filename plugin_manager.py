@@ -148,10 +148,10 @@ class MyAppSpec:
         pass
     
     @pluggy.HookspecMarker(app_name)
-    async def query_rag(query_text: str, store_types=None, return_chunk_ids=False):
+    async def query_rag(self, query_text: str, store_types=None, return_chunk_ids=False):
         # Gather all results from the async hook implementations
-        return await self.plugin_manager.hook.query_rag(query_text=query_text, store_types=store_types, return_chunk_ids=return_chunk_ids)
-    
+        pass
+        
     @pluggy.HookspecMarker(app_name)
     async def store_memory(self, fact: str,type: int,conversation_id:int,theme:str,tags:list, reason:str):        
         pass
