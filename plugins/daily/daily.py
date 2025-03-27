@@ -118,7 +118,7 @@ class Daily(Baseplugin):
         category=data.get("category")
         theme=data.get("theme")
         asyncio.create_task(self.pm.trigger_hook(hook_name="set_conversation_topic",topic=theme))
-        static_context = await(self.query_rag_async(category + " " + theme))
+        static_context = await(self.pm.trigger_hook(hook_name="query_rag", query_text=category + " " + theme, store_types=[0,1], return_chunk_ids=False))
         print(f"STATIC CONTEXT IS : {static_context}")
         # del dynamic_context["conversation"]
         assistant_type = "daily"
@@ -150,10 +150,6 @@ class Daily(Baseplugin):
             
     def get_dynamic_context(self):
         return context_manager.get_context()
-
-    async def query_rag_async(self, msg: str):
-        result = await self.pm.trigger_hook(hook_name="query_rag", query_text=msg)
-        return result
         
     def update_status(self, status):
         """This method will be called when the status changes."""
