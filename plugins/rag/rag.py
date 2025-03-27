@@ -650,71 +650,98 @@ class Rag(Baseplugin):
             results = []
         return results
     
-    async def search_in_FAISS(self, query_text: str, store_type: str, k:int, score_threshold: float) -> list:
+    async def search_in_FAISS(self, query_text: str, store_type: str, k: int, score_threshold: float) -> list:
         """
-        Search in specific FAISS vector store and return results with scores.
+        Search in specific FAISS vector store and return results with scores and docstore_ids.
         """
+        if store_type not in self.vector_stores or not self.vector_stores[store_type]:
+            self.logger.warning(f"Vector store '{store_type}' not found or is empty.")
+            return []
+
+        results = []
+        processed_results = []
         try:
-            # Get more candidates for filtering by score
-            max_candidates = min(50, len(self.vector_stores[store_type].index_to_docstore_id))
+            # Ensure the index is not empty before searching
+            if not self.vector_stores[store_type].index_to_docstore_id:
+                self.logger.warning(f"Vector store '{store_type}' has an empty index_to_docstore_id map.")
+                return []
+
+            # Determine a reasonable number of candidates to fetch initially
+            # Fetch more candidates than k initially to allow for score filtering
+            num_docs_in_index = len(self.vector_stores[store_type].index_to_docstore_id)
+            fetch_k = min(max(k * 5, 20), num_docs_in_index) # Fetch more to filter by score, capped by index size
+
+            if fetch_k == 0:
+                self.logger.warning(f"Vector store '{store_type}' index is effectively empty for search.")
+                return []
+
             loop = asyncio.get_event_loop()
+            # Run the synchronous FAISS search in a thread pool executor
             results = await loop.run_in_executor(
-                None, 
+                None,
                 lambda: self.vector_stores[store_type].similarity_search_with_score(
                     query_text,
-                    k=k
+                    k=fetch_k # Fetch more candidates
                 )
             )
-            try:
-                # Create a reverse mapping for faster lookups
-                docstore_to_index = {docstore_id: idx for idx, docstore_id in self.vector_stores[store_type].index_to_docstore_id.items()}
-                
-                # Map the results to include the index
-                processed_results = []
-                for doc, score in results:
-                    self.logger.debug(f"Processing result with score {score}")
-                    
-                    # Only process results that meet our score threshold
-                    if score <= score_threshold:
-                        # Get the docstore_id from the document's metadata
-                        docstore_id = doc.metadata.get("docstore_id")
-                        
-                        if docstore_id is not None and docstore_id in docstore_to_index:
-                            idx = docstore_to_index[docstore_id]
-                            self.logger.debug(f"Adding chunk with score {score} and docstore_id {docstore_id}")
+
+            # --- Correction: Use store_type consistently ---
+            current_docstore = self.vector_stores[store_type].docstore._dict
+            # No need for docstore_to_index map if we get docstore_id from metadata
+
+            count = 0
+            for doc, score in results:
+                # Filter by score threshold
+                if score <= score_threshold:
+                    # Get the docstore_id directly from the metadata
+                    docstore_id = doc.metadata.get("docstore_id")
+
+                    if docstore_id is not None:
+                        # Optional: Verify the docstore_id actually exists in the docstore, though it should
+                        if docstore_id in current_docstore:
+                            self.logger.debug(f"Adding chunk: score={score:.4f}, docstore_id={docstore_id}")
                             processed_results.append((doc, score, docstore_id))
+                            count += 1
                         else:
-                            # Try to find the docstore_id by checking the document content in the docstore
-                            found = False
-                            for doc_id, stored_doc in self.vector_stores[store_type].docstore._dict.items():
-                                if stored_doc.page_content == doc.page_content:
-                                    docstore_id = doc_id
-                                    if docstore_id in docstore_to_index:
-                                        idx = docstore_to_index[docstore_id]
-                                        self.logger.debug(f"Found docstore_id {docstore_id} by content matching")
-                                        processed_results.append((doc, score, idx))
-                                        found = True
-                                        break
-                            
-                            if not found:
-                                self.logger.warning(f"Could not find index for document with score {score}")
+                            # This case should ideally not happen if ingestion is correct
+                            self.logger.warning(f"Found docstore_id '{docstore_id}' in metadata but not in '{store_type}' docstore for doc starting with: {doc.page_content[:50]}...")
                     else:
-                        self.logger.debug(f"Skipping chunk with score {score}")
-                
-                # Debug the count of results
-                self.logger.debug(f"Found {len(processed_results)} in {store_type} chunks with score <= {score_threshold}")
-                
-                # Assign the processed results back
-                results = processed_results
-                return results
-            except Exception as e:
-                self.logger.error(f"Error PROCESSING search results: {e}")
-                import traceback
-                self.logger.error(traceback.format_exc())
-                results = []  # Ensure results is always a list even if an error occurs
+                        # Fallback: Try to find based on content if ID wasn't in metadata (less reliable, maybe log warning)
+                        # This indicates a potential issue during ingestion where metadata wasn't updated/saved correctly
+                        self.logger.warning(f"Missing 'docstore_id' in metadata for retrieved doc (score={score:.4f}) starting with: {doc.page_content[:50]}... Attempting content match (inefficient).")
+                        found_by_content = False
+                        # --- Correction: Use store_type consistently ---
+                        for current_id, stored_doc in current_docstore.items():
+                            # Be cautious with direct content comparison - might be slow or slightly differ
+                            if stored_doc.page_content == doc.page_content:
+                                self.logger.debug(f"Found docstore_id {current_id} by content match (score={score:.4f})")
+                                processed_results.append((doc, score, current_id)) # Use the found ID
+                                count += 1
+                                found_by_content = True
+                                break # Found the match
+                        if not found_by_content:
+                            self.logger.error(f"Could not find docstore_id via metadata or content match for doc (score={score:.4f}) starting with: {doc.page_content[:50]}...")
+
+                    # Stop once we have enough results satisfying the original k
+                    if count >= k:
+                        break
+                else:
+                    self.logger.debug(f"Skipping chunk score={score:.4f} (above threshold {score_threshold})")
+                    # Since results are ordered by similarity, we can potentially break early
+                    # if we fetched significantly more than k initially.
+                    # break # Uncomment this if you are sure score increases monotonically
+
+            self.logger.debug(f"Found {len(processed_results)} chunks in '{store_type}' with score <= {score_threshold} (target k={k})")
+            return processed_results # Return the filtered and processed list
+
+        except KeyError:
+            self.logger.error(f"Vector store type '{store_type}' does not exist.")
+            return []
         except Exception as e:
-            self.logger.error(f"Error FAISS search in {store_type} store: {e}")
-            results = []
+            self.logger.error(f"Error during FAISS search or processing in '{store_type}' store: {e}")
+            self.logger.error(traceback.format_exc())
+            # Return whatever was processed so far, or an empty list
+            return processed_results if processed_results else []
     
     
     
