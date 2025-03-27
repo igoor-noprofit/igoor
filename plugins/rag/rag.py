@@ -750,6 +750,9 @@ class Rag(Baseplugin):
             for doc, score in results:
                 # Filter by score threshold
                 if score <= score_threshold:
+                    if doc.page_content.startswith("Initial empty document"):
+                        self.logger.debug(f"Ignoring known initial placeholder document (score={score:.4f})")
+                        continue 
                     # Get the docstore_id directly from the metadata
                     docstore_id = doc.metadata.get("docstore_id")
 
