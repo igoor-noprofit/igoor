@@ -101,17 +101,10 @@ class Rag(Baseplugin):
         self.logger.info("RAG plugin initialization complete")
         
         # Print all FAISS chunks for each memory type
-        await self.print_all_chunks([INGESTED,LONG_TERM,SHORT_TERM])
+        # await self.print_all_chunks([INGESTED,LONG_TERM,SHORT_TERM])
+        results = await self.query_rag(query_text="Qu'est-ce t'as mangé hier soir",store_types=[2],return_chunk_ids=True)
+        print (f"RESULTS: ------ {results}")
         
-        '''
-        # 5. Verify FAISS-DB consistency
-        self.logger.info("Verifying FAISS-DB consistency...")
-        try:
-            verification_results = await self.verify_faiss_db_consistency()
-            self.logger.info(f"FAISS-DB verification complete. Results: {verification_results}")
-        except Exception as e:
-            self.logger.error(f"Error during FAISS-DB verification: {e}")
-        '''
     
     def create_folders(self):
         """Create all necessary folders for the plugin"""
@@ -249,26 +242,32 @@ class Rag(Baseplugin):
                 self.logger.info(f"Adding {len(docs)} chunks from {file_name} to INGESTED index")
                 
                 try:
-                    # Get the current size of the vector store to determine starting index for new chunks
-                    current_size = len(self.vector_stores[INGESTED].index_to_docstore_id)
-                    
                     # Add documents to vector store
                     self.vector_stores[INGESTED].add_documents(docs)
-                    
+
+                    # Get all docstore_ids after adding documents
+                    docstore_ids = list(self.vector_stores[INGESTED].docstore._dict.keys())
+
+                    # The last len(docs) docstore_ids should correspond to the documents we just added
+                    new_docstore_ids = docstore_ids[-len(docs):]
+
+                    # Update the documents' metadata with their docstore_ids
+                    for i, docstore_id in enumerate(new_docstore_ids):
+                        for doc_id, doc in self.vector_stores[INGESTED].docstore._dict.items():
+                            if doc_id == docstore_id:
+                                doc.metadata["docstore_id"] = docstore_id
+                                break
+
                     # Add chunks to database with proper IDs - one by one to avoid transaction issues
-                    for i, doc in enumerate(docs):
-                        chunk_id = current_size + i  # This is the actual index in the FAISS store
+                    for i, docstore_id in enumerate(new_docstore_ids):
                         success = await self.add_chunk_to_db(
-                            content=doc.page_content,
+                            content=docs[i].page_content,
                             chunk_type=INGESTED,
                             reason="ingested",
-                            document_id=doc.metadata.get("document_id"),
+                            document_id=docs[i].metadata.get("document_id"),
                             conversation_id=None,
-                            chunk_id=chunk_id  # Use the actual FAISS index
+                            docstore_id=docstore_id
                         )
-                        if not success:
-                            self.logger.warning(f"Failed to add chunk {i} from {file_name} to database")
-                    
                     # Save the updated index after each file to prevent data loss
                     await self.save_index(INGESTED)
                 except Exception as e:
@@ -279,15 +278,19 @@ class Rag(Baseplugin):
                     self.vector_stores[INGESTED] = FAISS.from_documents(docs, self.embedding_function)
                     self.index_loaded[INGESTED] = True
                     
+                    # Get all docstore_ids
+                    docstore_ids = list(self.vector_stores[INGESTED].docstore._dict.keys())
+                    
                     # Add chunks to database with proper IDs - one by one to avoid transaction issues
                     for i, doc in enumerate(docs):
+                        docstore_id = docstore_ids[i]
                         success = await self.add_chunk_to_db(
                             content=doc.page_content,
                             chunk_type=INGESTED,
                             reason="ingested",
                             document_id=doc.metadata.get("document_id"),
                             conversation_id=None,
-                            chunk_id=i  # For a new index, the IDs start at 0
+                            docstore_id=docstore_id
                         )
                         if not success:
                             self.logger.warning(f"Failed to add chunk {i} from {file_name} to database")
@@ -296,13 +299,9 @@ class Rag(Baseplugin):
                 except Exception as e:
                     self.logger.error(f"Error creating index for {file_name}: {e}")
 
-    async def add_chunk_to_db(self, content, chunk_type, reason, document_id=None, conversation_id=None, chunk_id=None, theme=None, tags=None):
+    async def add_chunk_to_db(self, content, chunk_type, reason, document_id=None, conversation_id=None, theme=None, tags=None, docstore_id=None):
         """Add a chunk to the sqlite database"""
         try:
-            # Generate a unique chunk_id if not provided
-            if chunk_id is None:
-                chunk_id = int(time.time() * 1000)
-            
             # Ensure content is not too large (SQLite has limits)
             if content and len(content) > 10000:  # Arbitrary limit to prevent very large chunks
                 content = content[:10000] + "... (truncated)"
@@ -313,20 +312,20 @@ class Rag(Baseplugin):
                 await self.db_execute(
                     """
                     INSERT INTO chunks 
-                    (chunk_id, type, content, reason, theme, tags, created_at, document_id, conversation_id) 
-                    VALUES (?, ?, ?, ?, ?, ?, datetime('now'), ?, ?)
+                    (type, content, reason, theme, tags, created_at, document_id, conversation_id, docstore_id) 
+                    VALUES (?, ?, ?, ?, ?, datetime('now'), ?, ?, ?)
                     """,
-                    (chunk_id, chunk_type, content, reason, theme, tags, document_id, conversation_id)
+                    (chunk_type, content, reason, theme, tags, document_id, conversation_id, docstore_id)
                 )
             else:
                 # Use the original query without theme and tags
                 await self.db_execute(
                     """
                     INSERT INTO chunks 
-                    (chunk_id, type, content, reason, created_at, document_id, conversation_id) 
-                    VALUES (?, ?, ?, ?, datetime('now'), ?, ?)
+                    (type, content, reason, created_at, document_id, conversation_id, docstore_id) 
+                    VALUES (?, ?, ?, datetime('now'), ?, ?, ?)
                     """,
-                    (chunk_id, chunk_type, content, reason, document_id, conversation_id)
+                    (chunk_type, content, reason, document_id, conversation_id, docstore_id)
                 )
             return True
         except Exception as e:
@@ -366,18 +365,9 @@ class Rag(Baseplugin):
         
 
     @hookimpl
-    async def store_memory(self, fact: str,type: str,reason:str, conversation_id: int, theme:str,tags:list):
+    async def store_memory(self, fact: str, type: str, reason:str, conversation_id: int, theme:str, tags:list):
         """
         Store a memory in either long-term or short-term memory
-        
-        Args:
-            memory: Either a string or a structured memory dict/JSON
-            is_long_term: Whether to store in long-term or short-term memory
-            metadata: Optional additional metadata (theme, tags, etc.)
-            conversation_id: Optional ID of the conversation that generated this memory
-        
-        Returns:
-            bool: Success status
         """
         # Debug all incoming parameters
         self.logger.info(f"Direct parameters: fact={fact}, type={type}, theme={theme}, tags={tags},conversation_id={conversation_id}")
@@ -410,26 +400,34 @@ class Rag(Baseplugin):
         )
         self.logger.info(f"Metadata: {new_doc.metadata}")
         try:
-            # Get the current size of the vector store
-            current_size = len(self.vector_stores[memory_type].index_to_docstore_id)
-            
             # Add to vector store
             self.vector_stores[memory_type].add_documents([new_doc])
-            
+
+            # Get the docstore_id that was assigned to this document
+            docstore_ids = list(self.vector_stores[memory_type].docstore._dict.keys())
+            docstore_id = docstore_ids[-1]  # Get the last added docstore_id
+
+            # Update the document's metadata with the docstore_id
+            # This ensures that when we retrieve it later, it will have the docstore_id
+            for doc_id, doc in self.vector_stores[memory_type].docstore._dict.items():
+                if doc_id == docstore_id:
+                    doc.metadata["docstore_id"] = docstore_id
+                    break
+
             # Store the full structured data as JSON in the content field
             content = json.dumps(embedding_text)
             tags_json = json.dumps(tags)
             
-            # Use the existing add_chunk_to_db method
+            # Use the updated add_chunk_to_db method
             success = await self.add_chunk_to_db(
                 content=content,
                 chunk_type=memory_type,
                 reason=reason,
                 document_id=None,
-                conversation_id=conversation_id,  # Pass through the conversation_id
-                chunk_id=current_size,
+                conversation_id=conversation_id,
                 theme=theme,
-                tags=tags_json
+                tags=tags_json,
+                docstore_id=docstore_id
             )
             
             if success:
@@ -442,6 +440,7 @@ class Rag(Baseplugin):
         except Exception as e:
             self.logger.error(f"Error adding memory to index: {e}")
             return False
+    
     # Function to load PDF content and return Document object
     def load_pdf_content(self,file_path):
         md_text = pymupdf4llm.to_markdown(file_path)
@@ -584,15 +583,15 @@ class Rag(Baseplugin):
                 
                 # Get the corresponding document from the database
                 db_result = await self.db_execute(
-                    "SELECT * FROM chunks WHERE chunk_id = ? AND type = ?", 
-                    (random_idx, store_type)
+                    "SELECT * FROM chunks WHERE docstore_id = ? AND type = ?", 
+                    (docstore_id, store_type)
                 )
                 
                 if not db_result:
-                    self.logger.warning(f"No database entry found for chunk_id={random_idx} in store {store_name}")
+                    self.logger.warning(f"No database entry found for docstore_id={docstore_id} in store {store_name}")
                     results.append({
                         "store": store_name,
-                        "chunk_id": random_idx,
+                        "docstore_id": docstore_id,
                         "match": False,
                         "reason": "No database entry found"
                     })
@@ -611,7 +610,7 @@ class Rag(Baseplugin):
                 document_info = ""
                 if db_doc['document_id']:
                     doc_result = await self.db_execute(
-                        "SELECT title, filename FROM documents WHERE id = ?", 
+                        "SELECT title, filename FROM documents WHERE id = ?",
                         (db_doc['document_id'],)
                     )
                     if doc_result:
@@ -678,11 +677,95 @@ class Rag(Baseplugin):
             self.logger.error(f"Error clearing memory: {e}")
             return False
     
-    @hookimpl
-    async def query_rag(self, query_text: str, store_types:list, return_chunk_ids=False) -> Union[str, dict, bool]:
-        self.logger.debug(f"SEARCHING IN ST: {store_types}")
+    
+    async def search_short_term_memory(self, query_text: str):
+        self.logger.debug("SEARCHING SHORT TERM MEMORY")
         try:
-            self.logger.debug(f"QUERYING INDEX with text: {query_text}")
+            # Get more candidates for filtering by score
+            max_candidates = min(50, len(self.vector_stores[SHORT_TERM].index_to_docstore_id))
+            
+            # Skip if only the initial empty document exists
+            if max_candidates <= 1:
+                self.logger.info(f"SHORT_TERM store has only the initial document, skipping")
+                return []
+                
+            # Get more candidates to filter by score
+            results = await self.search_in_FAISS(query_text=query_text,store_type=SHORT_TERM,k=max_candidates)
+            print(f"------ UP TO {max_candidates} RESULTS: {results} --------")
+            score_threshold = 0.6
+            try:
+                # Create a reverse mapping for faster lookups
+                docstore_to_index = {docstore_id: idx for idx, docstore_id in self.vector_stores[SHORT_TERM].index_to_docstore_id.items()}
+                
+                # Map the results to include the index
+                processed_results = []
+                for doc, score in results:
+                    self.logger.debug(f"Processing result with score {score}")
+                    
+                    # Only process results that meet our score threshold
+                    if score <= score_threshold:
+                        # Get the docstore_id from the document's metadata
+                        docstore_id = doc.metadata.get("docstore_id")
+                        
+                        if docstore_id is not None and docstore_id in docstore_to_index:
+                            idx = docstore_to_index[docstore_id]
+                            self.logger.debug(f"Adding chunk with score {score} and docstore_id {docstore_id}")
+                            processed_results.append((doc, score, idx))
+                        else:
+                            # Try to find the docstore_id by checking the document content in the docstore
+                            found = False
+                            for doc_id, stored_doc in self.vector_stores[SHORT_TERM].docstore._dict.items():
+                                if stored_doc.page_content == doc.page_content:
+                                    docstore_id = doc_id
+                                    if docstore_id in docstore_to_index:
+                                        idx = docstore_to_index[docstore_id]
+                                        self.logger.debug(f"Found docstore_id {docstore_id} by content matching")
+                                        processed_results.append((doc, score, idx))
+                                        found = True
+                                        break
+                            
+                            if not found:
+                                self.logger.warning(f"Could not find index for document with score {score}")
+                    else:
+                        self.logger.debug(f"Skipping chunk with score {score}")
+                
+                # Debug the count of results
+                self.logger.debug(f"Found {len(processed_results)} in SHORT_TERM chunks with score <= {score_threshold}")
+                
+                # Assign the processed results back
+                results = processed_results
+            except Exception as e:
+                self.logger.error(f"Error processing search results: {e}")
+                import traceback
+                self.logger.error(traceback.format_exc())
+                results = []  # Ensure results is always a list even if an error occurs
+                
+        except Exception as e:
+            self.logger.error(f"Error querying SHORT_TERM store: {e}")
+            results = []
+        return results
+    
+    async def search_in_FAISS(self, query_text: str, store_type: str, k:int) -> list:
+        try:
+            # Get more candidates for filtering by score
+            max_candidates = min(50, len(self.vector_stores[store_type].index_to_docstore_id))
+            loop = asyncio.get_event_loop()
+            results = await loop.run_in_executor(
+                None, 
+                lambda: self.vector_stores[store_type].similarity_search_with_score(
+                    query_text,
+                    k=k
+                )
+            )
+            return results
+        except Exception as e:
+            self.logger.error(f"Error FAISS search in {store_type} store: {e}")
+            results = []
+    
+    @hookimpl
+    async def query_rag(self, query_text: str, store_types: list, return_chunk_ids=False) -> Union[str, dict, bool]:
+        try:
+            self.logger.debug(f"QUERYING INDEX with text: {query_text} in store_types: {store_types}")
             await self.loading_event.wait()  # Wait for indexes to load
             
             # Get the number of chunks to retrieve per store from settings
@@ -710,51 +793,13 @@ class Rag(Baseplugin):
                     continue
                     
                 start_time = time.time()
-                loop = asyncio.get_event_loop()
-                
-                # For SHORT_TERM memory, use similarity score threshold
+            
                 if store_type == SHORT_TERM:
-                    try:
-                        # Get more candidates for filtering by score
-                        max_candidates = min(50, len(self.vector_stores[store_type].index_to_docstore_id))
-                        
-                        # Skip if only the initial empty document exists
-                        if max_candidates <= 1:
-                            self.logger.info(f"SHORT_TERM store has only the initial document, skipping")
-                            continue
-                            
-                        # Get more candidates to filter by score
-                        results = await loop.run_in_executor(
-                            None, 
-                            lambda: self.vector_stores[store_type].similarity_search_with_score(
-                                query_text,
-                                k=max_candidates
-                            )
-                        )
-                        print(f"------------- {results}")
-                        # Filter by similarity score - 0.3 is our threshold
-                        # Lower score means better match in FAISS
-                        score_threshold = 0.3
-                        try:
-                            results = [(doc, score, index) for doc, score, index in results if score <= score_threshold]
-                        except Exception as e:
-                            self.logger.error(f"doc, score, index Error : {e}")
-                        search_end_time = time.time()
-                        self.logger.debug(f"SHORT_TERM search time: {search_end_time - start_time:.2f} seconds")
-                        self.logger.debug(f"Found {len(results)} SHORT_TERM chunks with score <= {score_threshold}")
-                    except Exception as e:
-                        self.logger.error(f"Error querying SHORT_TERM store: {e}")
-                        results = []
+                    results = await self.search_short_term_memory(query_text=query_text)
                 else:
                     # For INGESTED and LONG_TERM, use the regular chunk_num approach
                     try:
-                        results = await loop.run_in_executor(
-                            None, 
-                            lambda: self.vector_stores[store_type].similarity_search_with_score(
-                                query_text,
-                                k=chunk_num
-                            )
-                        )
+                        results = await self.search_in_FAISS(query_text=query_text,store_type=store_type,k=chunk_num)
                         search_end_time = time.time()
                         self.logger.debug(f"Store type {store_type} search time: {search_end_time - start_time:.2f} seconds")
                     except Exception as e:
@@ -777,6 +822,7 @@ class Rag(Baseplugin):
             # If return_chunk_ids is True, return the dictionary of chunk IDs
             if return_chunk_ids:
                 # Filter out empty lists
+                self.logger.debug(f"Returning chunk IDs: {chunk_ids_by_store}")
                 return {k: v for k, v in chunk_ids_by_store.items() if v}
             
             # Otherwise, return the context text as before

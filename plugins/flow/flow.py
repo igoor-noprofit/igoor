@@ -157,7 +157,7 @@ class Flow(Baseplugin):
             # Make a single call to query_rag_async with all needed store types
             chunk_ids = await self.pm.trigger_hook(
                 hook_name="query_rag", 
-                query_text=msg, 
+                query_text=preflow_dict.get("theme"), 
                 store_types=store_types, 
                 return_chunk_ids=True
             )
