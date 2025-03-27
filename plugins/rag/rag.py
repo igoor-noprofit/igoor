@@ -193,135 +193,192 @@ class Rag(Baseplugin):
     async def ingest_new_files(self, new_files):
         """Ingest new files into the index and add them to the database"""
         folder_path = os.path.join(self.plugin_folder, self.medias_folder_name)
-        # Process each file individually to properly track document IDs
         for file_name in new_files:
             file_path = os.path.join(folder_path, file_name)
-            documents = []
-            
-            # Extract title from filename (remove extension)
+            original_file_docs = [] # Renamed to avoid confusion with split 'docs'
+
             title = os.path.splitext(file_name)[0]
-            
-            # First add the document to the database to get its ID
+
+            # --- Database Document Insertion ---
+            document_id = None # Initialize
             try:
-                # Use a simpler query without RETURNING clause which might be causing issues
                 await self.db_execute(
                     "INSERT INTO documents (title, filename, created_at) VALUES (?, ?, datetime('now'))",
                     (title, file_name)
                 )
-                
-                # Then query for the ID in a separate operation
                 result = await self.db_execute(
-                    "SELECT id FROM documents WHERE filename = ?",
+                    "SELECT id FROM documents WHERE filename = ? ORDER BY id DESC LIMIT 1", # Ensure latest if duplicates somehow exist
                     (file_name,)
                 )
-                
                 document_id = result[0]['id'] if result else None
-                self.logger.info(f"Added document to database: {file_name} with ID {document_id}")
-                
                 if document_id is None:
-                    self.logger.error(f"Failed to get document ID for {file_name}, skipping")
+                    self.logger.error(f"Failed to get document ID for {file_name} after insertion, skipping")
                     continue
-                    
+                self.logger.info(f"Added document to database: {file_name} with ID {document_id}")
             except Exception as e:
-                self.logger.error(f"Error adding document to database: {e}")
-                continue
-            
-            # Now load the document content
+                self.logger.error(f"Error adding document record {file_name} to database: {e}")
+                continue # Skip this file if DB entry fails
+
+            # --- Document Loading ---
             try:
                 if file_name.endswith(".txt"):
-                    loader = TextLoader(file_path)
-                    file_docs = loader.load()
+                    loader = TextLoader(file_path, encoding='utf-8') # Specify encoding
+                    original_file_docs = loader.load()
                 elif file_name.endswith(".md"):
                     with open(file_path, "r", encoding="utf-8") as f:
                         md_content = f.read()
-                    file_docs = [Document(page_content=md_content, metadata={"source": file_path})]
+                    # Ensure metadata source is added if not already by loader
+                    original_file_docs = [Document(page_content=md_content, metadata={"source": file_path})]
                 elif file_name.endswith(".pdf"):
-                    md_content = self.load_pdf_content(file_path)
-                    file_docs = [Document(page_content=md_content, metadata={"source": file_path})]
+                    # Assuming load_pdf_content returns a string
+                    pdf_content = self.load_pdf_content(file_path)
+                    if pdf_content: # Check if content extraction was successful
+                        original_file_docs = [Document(page_content=pdf_content, metadata={"source": file_path})]
+                    else:
+                        self.logger.warning(f"No content extracted from PDF: {file_name}")
+                        continue # Skip if PDF content is empty
                 else:
-                    self.logger.warning(f"Unsupported file type: {file_name}")
+                    self.logger.warning(f"Unsupported file type: {file_name}, skipping")
                     continue
+
+                if not original_file_docs:
+                    self.logger.warning(f"No documents loaded from {file_name}, skipping")
+                    continue
+
             except Exception as e:
                 self.logger.error(f"Error loading content from {file_name}: {e}")
-                continue
-                    
-            # Add document_id to all documents from this file
-            for doc in file_docs:
+                continue # Skip this file if loading fails
+
+            # --- Add DB document_id to Metadata (before splitting) ---
+            for doc in original_file_docs:
+                # Ensure metadata dict exists
+                if not hasattr(doc, 'metadata') or doc.metadata is None:
+                    doc.metadata = {}
                 doc.metadata["document_id"] = document_id
-                
-            documents.extend(file_docs)
-            
-            # Split documents
-            text_splitter = CharacterTextSplitter(chunk_size=self.settings.get("chunk_size", 1000), 
-                                                chunk_overlap=self.settings.get("chunk_overlap", 200))
-            docs = text_splitter.split_documents(documents)
-            
-            # Ensure document_id is preserved in all chunks
-            for doc in docs:
-                if "document_id" not in doc.metadata:
-                    doc.metadata["document_id"] = document_id
-            
-            # Add to INGESTED vector store
-            if self.index_loaded[INGESTED] and self.vector_stores[INGESTED]:
-                self.logger.info(f"Adding {len(docs)} chunks from {file_name} to INGESTED index")
-                
-                try:
-                    # Add documents to vector store
-                    self.vector_stores[INGESTED].add_documents(docs)
+                # Ensure source is present if loader didn't add it
+                if "source" not in doc.metadata:
+                    doc.metadata["source"] = file_path
 
-                    # Get all docstore_ids after adding documents
-                    docstore_ids = list(self.vector_stores[INGESTED].docstore._dict.keys())
+            # --- Splitting ---
+            text_splitter = CharacterTextSplitter(
+                chunk_size=self.settings.get("chunk_size", 1000),
+                chunk_overlap=self.settings.get("chunk_overlap", 200)
+            )
+            # Use split_documents which preserves metadata better
+            docs = text_splitter.split_documents(original_file_docs)
 
-                    # The last len(docs) docstore_ids should correspond to the documents we just added
-                    new_docstore_ids = docstore_ids[-len(docs):]
+            # Ensure document_id is preserved in all chunks (redundant if splitter behaves, but safe)
+            for chunk in docs:
+                if "document_id" not in chunk.metadata:
+                    chunk.metadata["document_id"] = document_id
+                    self.logger.warning(f"Had to re-add document_id to chunk metadata for {file_name}")
+                # Add filename to chunk metadata for easier debugging
+                chunk.metadata["filename"] = file_name
 
-                    # Update the documents' metadata with their docstore_ids
-                    for i, docstore_id in enumerate(new_docstore_ids):
-                        for doc_id, doc in self.vector_stores[INGESTED].docstore._dict.items():
-                            if doc_id == docstore_id:
-                                doc.metadata["docstore_id"] = docstore_id
-                                break
 
-                    # Add chunks to database with proper IDs - one by one to avoid transaction issues
-                    for i, docstore_id in enumerate(new_docstore_ids):
-                        success = await self.add_chunk_to_db(
-                            content=docs[i].page_content,
-                            chunk_type=INGESTED,
-                            reason="ingested",
-                            document_id=docs[i].metadata.get("document_id"),
-                            conversation_id=None,
-                            docstore_id=docstore_id
-                        )
-                    # Save the updated index after each file to prevent data loss
-                    await self.save_index(INGESTED)
-                except Exception as e:
-                    self.logger.error(f"Error processing chunks from {file_name}: {e}")
-            else:
-                self.logger.info(f"Creating new INGESTED index with {len(docs)} chunks from {file_name}")
-                try:
+            if not docs:
+                self.logger.warning(f"File {file_name} resulted in zero chunks after splitting, skipping.")
+                continue
+
+            # --- Add Chunks to Vector Store and Database ---
+            current_docstore_ids = []
+            try:
+                vector_store = self.vector_stores.get(INGESTED) # Use .get for safer access
+
+                # --- Case 1: Add to EXISTING Index ---
+                if self.index_loaded.get(INGESTED) and vector_store:
+                    self.logger.info(f"Adding {len(docs)} chunks from {file_name} to existing INGESTED index")
+                    # Use add_documents which returns the list of added docstore_ids
+                    added_ids = vector_store.add_documents(docs)
+                    current_docstore_ids.extend(added_ids)
+
+                    # --- METADATA UPDATE needed after add_documents too ---
+                    # add_documents might not modify the docstore objects in place consistently across versions
+                    if len(added_ids) == len(docs):
+                        for i, docstore_id in enumerate(added_ids):
+                            try:
+                                # Access the document directly in the docstore
+                                stored_doc = vector_store.docstore._dict.get(docstore_id)
+                                if stored_doc:
+                                    # Ensure metadata exists and add docstore_id
+                                    if not hasattr(stored_doc, 'metadata') or stored_doc.metadata is None:
+                                        stored_doc.metadata = {}
+                                    stored_doc.metadata["docstore_id"] = docstore_id
+                                else:
+                                    self.logger.warning(f"Docstore ID {docstore_id} not found immediately after add_documents for {file_name}")
+                            except Exception as meta_err:
+                                self.logger.error(f"Error updating metadata for docstore_id {docstore_id}: {meta_err}")
+                    else:
+                        self.logger.error(f"Mismatch between number of docs ({len(docs)}) and added IDs ({len(added_ids)}) for {file_name}")
+                        # Handle potential partial failure? For now, log error and proceed cautiously.
+
+
+                # --- Case 2: Create NEW Index ---
+                else:
+                    self.logger.info(f"Creating new INGESTED index with {len(docs)} chunks from {file_name}")
+                    # Create index using from_documents
                     self.vector_stores[INGESTED] = FAISS.from_documents(docs, self.embedding_function)
                     self.index_loaded[INGESTED] = True
-                    
-                    # Get all docstore_ids
-                    docstore_ids = list(self.vector_stores[INGESTED].docstore._dict.keys())
-                    
-                    # Add chunks to database with proper IDs - one by one to avoid transaction issues
-                    for i, doc in enumerate(docs):
-                        docstore_id = docstore_ids[i]
+                    vector_store = self.vector_stores[INGESTED] # Update reference
+
+                    # Get all docstore_ids (should match the order of 'docs')
+                    all_ids = list(vector_store.docstore._dict.keys())
+                    current_docstore_ids.extend(all_ids)
+
+                    # --- *** ADDED METADATA UPDATE STEP *** ---
+                    if len(all_ids) == len(docs):
+                        for i, docstore_id in enumerate(all_ids):
+                            try:
+                                # Access the document directly in the docstore
+                                stored_doc = vector_store.docstore._dict.get(docstore_id)
+                                if stored_doc:
+                                        # Ensure metadata exists and add docstore_id
+                                        if not hasattr(stored_doc, 'metadata') or stored_doc.metadata is None:
+                                            stored_doc.metadata = {}
+                                        stored_doc.metadata["docstore_id"] = docstore_id
+                                else:
+                                        self.logger.warning(f"Docstore ID {docstore_id} not found immediately after from_documents for {file_name}")
+                            except Exception as meta_err:
+                                self.logger.error(f"Error updating metadata for docstore_id {docstore_id}: {meta_err}")
+                    else:
+                        self.logger.error(f"Mismatch between number of docs ({len(docs)}) and docstore IDs ({len(all_ids)}) after from_documents for {file_name}")
+                        # Handle error? If lengths don't match, subsequent DB insertion might be wrong.
+
+
+                # --- Add Chunks to Database (Common Logic) ---
+                if len(current_docstore_ids) == len(docs):
+                    self.logger.info(f"Adding {len(docs)} chunk records to database for {file_name}")
+                    for i, chunk in enumerate(docs):
+                        docstore_id = current_docstore_ids[i]
+                        db_doc_id = chunk.metadata.get("document_id") # Get ID from chunk metadata
+
+                        if db_doc_id is None:
+                            self.logger.error(f"Chunk {i} from {file_name} is missing database document_id in metadata. Cannot add to chunk table.")
+                            continue # Skip adding this chunk to DB if document_id is missing
+
                         success = await self.add_chunk_to_db(
-                            content=doc.page_content,
+                            content=chunk.page_content,
                             chunk_type=INGESTED,
                             reason="ingested",
-                            document_id=doc.metadata.get("document_id"),
+                            document_id=db_doc_id, # Use ID from chunk metadata
                             conversation_id=None,
-                            docstore_id=docstore_id
+                            docstore_id=docstore_id # Use the retrieved/generated ID
                         )
                         if not success:
-                            self.logger.warning(f"Failed to add chunk {i} from {file_name} to database")
-                    
-                    await self.save_index(INGESTED)
-                except Exception as e:
-                    self.logger.error(f"Error creating index for {file_name}: {e}")
+                            self.logger.warning(f"Failed to add chunk {i} (docstore_id: {docstore_id}) from {file_name} to database")
+                else:
+                    self.logger.error(f"Skipping database chunk insertion for {file_name} due to ID count mismatch.")
+
+
+                # --- Save Index (After processing each file) ---
+                self.logger.info(f"Saving INGESTED index after processing {file_name}")
+                await self.save_index(INGESTED)
+
+            except Exception as e:
+                import traceback
+                self.logger.error(f"Error processing/adding chunks from {file_name} to FAISS/DB: {e}")
+                self.logger.error(traceback.format_exc())
+                # Consider if you need cleanup or rollback here
 
     async def add_chunk_to_db(self, content, chunk_type, reason, document_id=None, conversation_id=None, theme=None, tags=None, docstore_id=None):
         """Add a chunk to the sqlite database"""
