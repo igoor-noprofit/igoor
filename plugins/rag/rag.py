@@ -917,64 +917,6 @@ class Rag(Baseplugin):
             A dictionary with comparison results
         """
         return await self.check_specific_chunk(store_type, chunk_id)
-    
-    @hookimpl
-    async def list_chunks(self, store_type=None):
-        """
-        List all chunks in the database for a specific store type or all store types.
-        
-        Args:
-            store_type: Optional. The type of vector store (0=INGESTED, 1=LONG_TERM, or 2=SHORT_TERM)
-                    If None, returns chunks from all store types.
-        
-        Returns:
-            A list of chunk information dictionaries
-        """
-        try:
-            if store_type is not None:
-                # Get chunks for a specific store type
-                results = await self.db_execute(
-                    """
-                    SELECT c.*, d.title, d.filename 
-                    FROM chunks c
-                    LEFT JOIN documents d ON c.document_id = d.id
-                    WHERE c.type = ?
-                    ORDER BY c.id
-                    """,
-                    (store_type,)
-                )
-            else:
-                # Get chunks for all store types
-                results = await self.db_execute(
-                    """
-                    SELECT c.*, d.title, d.filename 
-                    FROM chunks c
-                    LEFT JOIN documents d ON c.document_id = d.id
-                    ORDER BY c.type, c.id
-                    """
-                )
-            
-            # Format the results
-            chunks = []
-            for row in results:
-                chunks.append({
-                    "id": row['id'],
-                    "chunk_id": row['chunk_id'],
-                    "type": row['type'],
-                    "reason": row['reason'],
-                    "created_at": row['created_at'],
-                    "document_id": row['document_id'],
-                    "document_title": row.get('title'),
-                    "document_filename": row.get('filename'),
-                    "conversation_id": row['conversation_id'],
-                    "content_preview": row['content'][:100] + "..." if len(row['content']) > 100 else row['content']
-                })
-            
-            return chunks
-        
-        except Exception as e:
-            self.logger.error(f"Error listing chunks: {e}")
-            return {"error": str(e)}
         
     async def print_all_chunks(self, store_types=None):
         """
