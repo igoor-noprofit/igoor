@@ -666,7 +666,7 @@ class Rag(Baseplugin):
                         if docstore_id is not None and docstore_id in docstore_to_index:
                             idx = docstore_to_index[docstore_id]
                             self.logger.debug(f"Adding chunk with score {score} and docstore_id {docstore_id}")
-                            processed_results.append((doc, score, idx))
+                            processed_results.append((doc, score, docstore_id))
                         else:
                             # Try to find the docstore_id by checking the document content in the docstore
                             found = False
