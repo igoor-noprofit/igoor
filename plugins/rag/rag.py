@@ -679,7 +679,8 @@ class Rag(Baseplugin):
             return False
     
     @hookimpl
-    async def query_rag(self, query_text: str, store_types=None, return_chunk_ids=False) -> Union[str, dict, bool]:
+    async def query_rag(self, query_text: str, store_types:list, return_chunk_ids=False) -> Union[str, dict, bool]:
+        self.logger.debug(f"SEARCHING IN ST: {store_types}")
         try:
             self.logger.debug(f"QUERYING INDEX with text: {query_text}")
             await self.loading_event.wait()  # Wait for indexes to load
@@ -730,12 +731,14 @@ class Rag(Baseplugin):
                                 k=max_candidates
                             )
                         )
-                        print(results)
+                        print(f"------------- {results}")
                         # Filter by similarity score - 0.3 is our threshold
                         # Lower score means better match in FAISS
                         score_threshold = 0.3
-                        results = [(doc, score, index) for doc, score, index in results if score <= score_threshold]
-                        
+                        try:
+                            results = [(doc, score, index) for doc, score, index in results if score <= score_threshold]
+                        except Exception as e:
+                            self.logger.error(f"doc, score, index Error : {e}")
                         search_end_time = time.time()
                         self.logger.debug(f"SHORT_TERM search time: {search_end_time - start_time:.2f} seconds")
                         self.logger.debug(f"Found {len(results)} SHORT_TERM chunks with score <= {score_threshold}")

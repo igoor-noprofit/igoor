@@ -148,7 +148,7 @@ class MyAppSpec:
         pass
     
     @pluggy.HookspecMarker(app_name)
-    async def query_rag(self, query_text: str, store_types=None, return_chunk_ids=False):
+    async def query_rag(self, query_text: str, store_types: list, return_chunk_ids=False):
         # Gather all results from the async hook implementations
         pass
         

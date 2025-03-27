@@ -136,9 +136,6 @@ class Flow(Baseplugin):
             # If preflow fails, query all store types
             context = await self.query_rag_async(conversation)
         else:
-            # SEARCH IN MEMORY based on preflow result
-            print("SEARCH IN MEMORY based on preflow")
-            
             # Determine which store types to query based on m_type
             store_types = []
             
@@ -152,11 +149,18 @@ class Flow(Baseplugin):
             
             # If no specific memory types, query all
             if not store_types:
+                self.logger.warning("No specific memory types found in preflow_dict, querying all store types.")
                 store_types = [0, 1, 2]  # Query all store types
-                
+            
+            self.logger.info(f"SEARCH MEMORY types according to preflow: {store_types}")  # Log the store types being queried    
                 
             # Make a single call to query_rag_async with all needed store types
-            chunk_ids = await self.query_rag_async(conversation, store_types=store_types, return_chunk_ids=True)
+            chunk_ids = await self.pm.trigger_hook(
+                hook_name="query_rag", 
+                query_text=msg, 
+                store_types=store_types, 
+                return_chunk_ids=True
+            )
             self.logger.info(f"Chunk IDs: {chunk_ids}") 
             await self.reorder_rag(chunk_ids,preflow_dict)
             # Reorder RAG based on chunk_ids
