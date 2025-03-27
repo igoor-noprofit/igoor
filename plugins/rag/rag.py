@@ -667,7 +667,7 @@ class Rag(Baseplugin):
             )
             try:
                 # Create a reverse mapping for faster lookups
-                docstore_to_index = {docstore_id: idx for idx, docstore_id in self.vector_stores[SHORT_TERM].index_to_docstore_id.items()}
+                docstore_to_index = {docstore_id: idx for idx, docstore_id in self.vector_stores[store_type].index_to_docstore_id.items()}
                 
                 # Map the results to include the index
                 processed_results = []
@@ -686,7 +686,7 @@ class Rag(Baseplugin):
                         else:
                             # Try to find the docstore_id by checking the document content in the docstore
                             found = False
-                            for doc_id, stored_doc in self.vector_stores[SHORT_TERM].docstore._dict.items():
+                            for doc_id, stored_doc in self.vector_stores[store_type].docstore._dict.items():
                                 if stored_doc.page_content == doc.page_content:
                                     docstore_id = doc_id
                                     if docstore_id in docstore_to_index:
