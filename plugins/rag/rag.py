@@ -123,7 +123,7 @@ class Rag(Baseplugin):
         
         # Print all FAISS chunks for each memory type
         # await self.print_all_chunks([INGESTED,LONG_TERM,SHORT_TERM])
-        results = await self.query_rag(query_text="Qu'est-ce t'as mangé hier soir",store_types=[2],return_chunk_ids=True)
+        results = await self.query_rag(query_text="Qu'est-ce t'as mangé hier soir",store_types=[0,1,2],return_chunk_ids=True)
         print (f"RESULTS: ------ {results}")
         
     
@@ -596,13 +596,9 @@ class Rag(Baseplugin):
                     results = await self.search_short_term_memory(query_text=query_text)
                 else:
                     # For INGESTED and LONG_TERM, use the regular chunk_num approach
-                    try:
-                        results = await self.search_in_FAISS(query_text=query_text,store_type=store_type,k=chunk_num)
-                        search_end_time = time.time()
-                        self.logger.debug(f"Store type {store_type} search time: {search_end_time - start_time:.2f} seconds")
-                    except Exception as e:
-                        self.logger.error(f"Error querying store type {store_type}: {e}")
-                        results = []
+                    results = await self.search_in_FAISS(query_text=query_text,store_type=store_type,k=chunk_num,score_threshold=1)
+                    search_end_time = time.time()
+                    self.logger.debug(f"Store type {store_type} search time: {search_end_time - start_time:.2f} seconds")
                 
                 # Process results which now include (doc, score, index)
                 for doc, score, index in results:
@@ -646,9 +642,29 @@ class Rag(Baseplugin):
                 return []
                 
             # Get more candidates to filter by score
-            results = await self.search_in_FAISS(query_text=query_text,store_type=SHORT_TERM,k=max_candidates)
+            results = await self.search_in_FAISS(query_text=query_text,store_type=SHORT_TERM,k=max_candidates,score_threshold=0.6)
             print(f"------ UP TO {max_candidates} RESULTS: {results} --------")
-            score_threshold = 0.6
+                
+        except Exception as e:
+            self.logger.error(f"Error querying SHORT_TERM store: {e}")
+            results = []
+        return results
+    
+    async def search_in_FAISS(self, query_text: str, store_type: str, k:int, score_threshold: float) -> list:
+        """
+        Search in specific FAISS vector store and return results with scores.
+        """
+        try:
+            # Get more candidates for filtering by score
+            max_candidates = min(50, len(self.vector_stores[store_type].index_to_docstore_id))
+            loop = asyncio.get_event_loop()
+            results = await loop.run_in_executor(
+                None, 
+                lambda: self.vector_stores[store_type].similarity_search_with_score(
+                    query_text,
+                    k=k
+                )
+            )
             try:
                 # Create a reverse mapping for faster lookups
                 docstore_to_index = {docstore_id: idx for idx, docstore_id in self.vector_stores[SHORT_TERM].index_to_docstore_id.items()}
@@ -686,37 +702,16 @@ class Rag(Baseplugin):
                         self.logger.debug(f"Skipping chunk with score {score}")
                 
                 # Debug the count of results
-                self.logger.debug(f"Found {len(processed_results)} in SHORT_TERM chunks with score <= {score_threshold}")
+                self.logger.debug(f"Found {len(processed_results)} in {store_type} chunks with score <= {score_threshold}")
                 
                 # Assign the processed results back
                 results = processed_results
+                return results
             except Exception as e:
-                self.logger.error(f"Error processing search results: {e}")
+                self.logger.error(f"Error PROCESSING search results: {e}")
                 import traceback
                 self.logger.error(traceback.format_exc())
                 results = []  # Ensure results is always a list even if an error occurs
-                
-        except Exception as e:
-            self.logger.error(f"Error querying SHORT_TERM store: {e}")
-            results = []
-        return results
-    
-    async def search_in_FAISS(self, query_text: str, store_type: str, k:int) -> list:
-        """
-        Search in specific FAISS vector store and return results with scores.
-        """
-        try:
-            # Get more candidates for filtering by score
-            max_candidates = min(50, len(self.vector_stores[store_type].index_to_docstore_id))
-            loop = asyncio.get_event_loop()
-            results = await loop.run_in_executor(
-                None, 
-                lambda: self.vector_stores[store_type].similarity_search_with_score(
-                    query_text,
-                    k=k
-                )
-            )
-            return results
         except Exception as e:
             self.logger.error(f"Error FAISS search in {store_type} store: {e}")
             results = []
