@@ -216,8 +216,12 @@ class Autocomplete(Baseplugin):
         conversation = dynamic_context.get("conversation")
         print(f"CONVERSATION IS : {conversation}")
         assistant_type = "autocomplete"
-        static_context = await(self.query_rag_async(msg))
-        
+        static_context = await self.pm.trigger_hook(
+            hook_name="query_rag", 
+            query_text=msg, 
+            store_types=[0,1], 
+            return_chunk_ids=True
+        )
         # Get successful predictions for this input
         successful_predictions = await self.format_successful_predictions(msg)
         
@@ -251,10 +255,6 @@ class Autocomplete(Baseplugin):
         
     def get_dynamic_context(self):
         return context_manager.get_context()
-
-    async def query_rag_async(self, msg: str):
-        result = await self.pm.trigger_hook(hook_name="query_rag", query_text=msg)
-        return result
         
     def update_status(self, status):
         """This method will be called when the status changes."""
