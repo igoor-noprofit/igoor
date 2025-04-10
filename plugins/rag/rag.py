@@ -927,13 +927,21 @@ class Rag(Baseplugin):
     '''
     @hookimpl
     async def clean_short_term_memory(self,clean_after_days: int):
+        try:
+            await self.print_all_chunks([SHORT_TERM])
+        except Exception as e:
+            self.logger.error(f"Error printing chunks: {e}")
+            return False
         self.logger.info("CLEANING SHORT TERM MEMORY")
         em = await self.retrieve_expired_memories(clean_after_days)
-        if em:
-            self.logger.info(f"Found {len(em)} expired memories")
+        length = len(em)
+        self.logger.info(f"Found {length} expired memories")
+        if em and length > 0: 
             # await self.delete_chunks_from_FAISS_index(store_type=SHORT_TERM, chunk_ids=em)
             # self.logger.info("SHORT TERM MEMORY CLEANED")
-            print(em)
+            docstore_ids = [item['docstore_id'] for item in em]
+            await self.delete_chunks(SHORT_TERM, docstore_ids)
+    
     
     async def delete_chunks_from_FAISS_index(self, store_type, chunk_ids):
         """
@@ -1046,7 +1054,7 @@ class Rag(Baseplugin):
             return False
                 
     async def retrieve_expired_memories(self,clean_after_days: int):
-        """Retrieve expired memories from the database of type 2 (short-term)
+        """Retrieve expired SHORT_TERM memories from the db
         Memories expire clean_after_days days after they were created
         Returns:
             List[dict]: List of expired memory records
@@ -1179,7 +1187,7 @@ class Rag(Baseplugin):
                         db_info = ""
                         try:
                             db_result = await self.db_execute(
-                                "SELECT id, reason, created_at FROM chunks WHERE chunk_id = ? AND type = ?", 
+                                "SELECT id, reason, created_at FROM chunks WHERE docstore_id = ? AND type = ?", 
                                 (idx, store_type)
                             )
                             if db_result:
