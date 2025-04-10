@@ -1060,15 +1060,13 @@ class Rag(Baseplugin):
             # Use parameterized query to prevent SQL injection
             query = """
                 SELECT id, docstore_id, type, created_at 
-                FROM memories
+                FROM chunks
                 WHERE type = 2 AND created_at < datetime('now', ?)
             """
             params = (f"-{clean_after_days} days",)
             
             self.logger.info(f"Retrieving expired memories older than {clean_after_days} days")
-            await self.db.execute(query, params)
-            expired_memories = await self.db.fetchall()
-            
+            expired_memories = await self.db_execute(query, params)
             self.logger.info(f"Found {len(expired_memories)} expired memories")
             return expired_memories
             
