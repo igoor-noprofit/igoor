@@ -44,7 +44,11 @@ class Conversation(Baseplugin):
             print(f"Waiting for {self.warning_time} seconds before warning")
             await asyncio.sleep(self.warning_time)
             print("Warning time elapsed, sending showProgressBar action")
-            self.send_message_to_frontend({"action": "showProgressBar"})
+            # Include the duration in milliseconds for the frontend
+            self.send_message_to_frontend({
+                "action": "showProgressBar", 
+                "duration": int((self.timeout - self.warning_time) * 1000)  # Convert seconds to milliseconds
+            })
             print(f"Waiting for {self.timeout - self.warning_time} seconds until timeout")
             await asyncio.sleep(self.timeout - self.warning_time)
             print("Timeout complete, triggering abandon_conversation")
@@ -240,4 +244,3 @@ class Conversation(Baseplugin):
                 
         except json.JSONDecodeError:
             self.logger.error("Received message is not valid JSON.")
-            return

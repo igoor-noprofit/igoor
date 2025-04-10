@@ -68,7 +68,9 @@ module.exports = {
                 this.showProgressBar = false;
             } else if (data.action == "showProgressBar") {
                 this.showProgressBar = true;
-                this.startProgressBar()
+                // Use the duration from the backend or fall back to 5000ms
+                const duration = data.duration || 5000;
+                this.startProgressBar(duration);
                 // Logic to show progress bar
             } else {
                 this.thread.push(data);
@@ -90,10 +92,10 @@ module.exports = {
                 }
             });
         },
-        startProgressBar() {
+        startProgressBar(duration = 5000) {
             this.showProgressBar = true;
             this.progressBarWidth = 0;
-            const totalDuration = 5000; // Duration for the progress bar in milliseconds
+            const totalDuration = duration; // Use the duration passed from backend
             const intervalDuration = 100; // Update interval in milliseconds
             const increment = 100 / (totalDuration / intervalDuration);
 
