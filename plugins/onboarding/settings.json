@@ -8,7 +8,8 @@
     "prefs":{
         "lang": "fr_FR",
         "darklight":"automatic",
-        "locale": "fr_FR.UTF-8"
+        "locale": "fr_FR.UTF-8",
+        "idle_threshold": 600
     },
     "ai":{
         "provider": "groq",
