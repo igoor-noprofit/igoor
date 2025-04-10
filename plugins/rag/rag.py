@@ -121,13 +121,12 @@ class Rag(Baseplugin):
         self.is_loaded = True
         self.loading_event.set()
         self.logger.info("RAG plugin initialization complete")
-        
-        # Print all FAISS chunks for each memory type
-        # await self.print_all_chunks([INGESTED,LONG_TERM,SHORT_TERM])
+        # await self.test_query_rag()
+
+    async def test_query_rag(self):
         results = await self.query_rag(query_text="Qu'est-ce t'as mangé hier soir",store_types=[2],return_chunk_ids=True)
         print (f"RESULTS: ------ {results}")
-        #results = await self.query_rag(query_text="Qu'est-ce que tu veux faire cet aprem",store_types=[0,2],return_chunk_ids=True)
-
+        
     
     def create_folders(self):
         """Create all necessary folders for the plugin"""
@@ -529,8 +528,6 @@ class Rag(Baseplugin):
         md_text = pymupdf4llm.to_markdown(file_path)
         return md_text
 
-    
-            
     def get_embedding_function(self):
         self.logger.debug("LOADING EMBEDDING FUNCTION")
         embedding_model = self.settings.get("embedding_model")
@@ -923,87 +920,21 @@ class Rag(Baseplugin):
             # Return whatever was processed so far, or an empty list
             return processed_results if processed_results else []
     
-    
-    
     '''
         
-        ************************ MONITOR / TESTS ***************************** 
-    
+        ************************ CLEANING ***************************** 
+        
     '''
     @hookimpl
-    async def check_chunk(self, store_type, chunk_id):
-        """
-        Public hook to check a specific chunk in a vector store against its database entry.
-        
-        Args:
-            store_type: The type of vector store (0=INGESTED, 1=LONG_TERM, or 2=SHORT_TERM)
-            chunk_id: The chunk ID to check
-            
-        Returns:
-            A dictionary with comparison results
-        """
-        return await self.check_specific_chunk(store_type, chunk_id)
-        
-    async def print_all_chunks(self, store_types=None):
-        """
-        Print all chunks and their metadata for specified memory types
-        
-        Args:
-            store_types: List of store types to print chunks for. If None, prints all types.
-        """
-        if store_types is None:
-            store_types = [INGESTED, LONG_TERM, SHORT_TERM]
-            
-        for store_type in store_types:
-            store_name = {INGESTED: "INGESTED", LONG_TERM: "LONG_TERM", SHORT_TERM: "SHORT_TERM"}.get(store_type, f"Unknown({store_type})")
-            
-            if not self.index_loaded[store_type] or self.vector_stores[store_type] is None:
-                self.logger.info(f"Vector store {store_name} not loaded, skipping chunk printing")
-                continue
-                
-            try:
-                vector_store = self.vector_stores[store_type]
-                total_docs = len(vector_store.index_to_docstore_id)
-                
-                self.logger.info(f"=== {store_name} Vector Store: {total_docs} total documents ===")
-                
-                if total_docs <= 1:  # Skip if only the initial empty document exists
-                    self.logger.info(f"{store_name} store has only the initial document, skipping")
-                    continue
-                
-                # Print each document in the store
-                for idx in range(total_docs):
-                    try:
-                        docstore_id = vector_store.index_to_docstore_id[idx]
-                        doc = vector_store.docstore.search(docstore_id)
-                        
-                        # Get corresponding DB entry if available
-                        db_info = ""
-                        try:
-                            db_result = await self.db_execute(
-                                "SELECT id, reason, created_at FROM chunks WHERE chunk_id = ? AND type = ?", 
-                                (idx, store_type)
-                            )
-                            if db_result:
-                                db_info = f"DB ID: {db_result[0]['id']}, Reason: {db_result[0]['reason']}, Created: {db_result[0]['created_at']}"
-                        except Exception as e:
-                            db_info = f"Error retrieving DB info: {e}"
-                        
-                        # Format metadata as string
-                        metadata_str = ", ".join([f"{k}: {v}" for k, v in doc.metadata.items()])
-                        
-                        # Print chunk info with content preview
-                        content_preview = doc.page_content[:100] + "..." if len(doc.page_content) > 100 else doc.page_content
-                        self.logger.info(f"Chunk {idx} | {db_info}")
-                        self.logger.info(f"Metadata: {metadata_str}")
-                        self.logger.info(f"Content: {content_preview}")
-                        self.logger.info("-" * 80)
-                    except Exception as e:
-                        self.logger.error(f"Error printing chunk {idx} in {store_name} store: {e}")
-                
-            except Exception as e:
-                self.logger.error(f"Error printing chunks for {store_name} store: {e}")
-                
+    async def clean_short_term_memory(self,clean_after_days: int):
+        self.logger.info("CLEANING SHORT TERM MEMORY")
+        em = await self.retrieve_expired_memories(clean_after_days)
+        if em:
+            self.logger.info(f"Found {len(em)} expired memories")
+            # await self.delete_chunks_from_FAISS_index(store_type=SHORT_TERM, chunk_ids=em)
+            # self.logger.info("SHORT TERM MEMORY CLEANED")
+            print(em)
+    
     async def delete_chunks_from_FAISS_index(self, store_type, chunk_ids):
         """
         Delete specific chunks from a vector store based on docstore IDs.
@@ -1113,44 +1044,166 @@ class Rag(Baseplugin):
             import traceback
             self.logger.error(traceback.format_exc())
             return False
+                
+    async def retrieve_expired_memories(self,clean_after_days: int):
+        """Retrieve expired memories from the database of type 2 (short-term)
+        Memories expire clean_after_days days after they were created
+        Returns:
+            List[dict]: List of expired memory records
+        """
+        try:
+            # Validate and sanitize input
+            if clean_after_days < 0:
+                self.logger.warning(f"Invalid clean_after_days value: {clean_after_days}, using default 7")
+                clean_after_days = 14
+                
+            # Use parameterized query to prevent SQL injection
+            query = """
+                SELECT id, docstore_id, type, created_at 
+                FROM memories
+                WHERE type = 2 AND created_at < datetime('now', ?)
+            """
+            params = (f"-{clean_after_days} days",)
+            
+            self.logger.info(f"Retrieving expired memories older than {clean_after_days} days")
+            await self.db.execute(query, params)
+            expired_memories = await self.db.fetchall()
+            
+            self.logger.info(f"Found {len(expired_memories)} expired memories")
+            return expired_memories
+            
+        except Exception as e:
+            self.logger.error(f"Error retrieving expired memories: {str(e)}")
+            return []
+        
     
     @hookimpl
-    async def clear_memory(self, memory_type=None,chunk_ids=None):
+    async def clear_memory(self, memory_type=None, chunk_ids: Optional[List[str]]=None):
         """
         Clear a specific type of memory or all memories.
-        If chunk_ids is provided, only delete those specific chunks.
+        
+        Args:
+            memory_type: The type of memory to clear (0=INGESTED, 1=LONG_TERM, or 2=SHORT_TERM).
+                        If None, will refuse to clear all memories.
+            chunk_ids: Optional list of docstore IDs (UUIDs as strings, e.g., '01f92471-3d5e-4a84-854a-d4dc4af6284b')
+                        to delete specific chunks. If provided, memory_type must also be specified.
+        
+        Returns:
+            bool: True if successful, False otherwise
         """
         if chunk_ids is not None and memory_type is not None:
             # Delete specific chunks
             return await self.delete_chunks(memory_type,chunk_ids)
-        try:
-            if memory_type is None:
-                # Clear all memory types except INGESTED
-                memory_types = [LONG_TERM, SHORT_TERM]
-            else:
-                memory_types = [memory_type]
-                
-            for store_type in memory_types:
-                # Create empty vector store
-                self.vector_stores[store_type] = FAISS.from_documents(
-                    [Document(page_content="Initial empty document", metadata={"source": "init"})],
-                    self.embedding_function
-                )
-                
-                # Save empty index
-                await self.save_index(store_type)
-                
-                # Clear from database
-                if store_type == LONG_TERM:
-                    await self.db_execute("DELETE FROM chunks WHERE type = ?", (LONG_TERM,))
-                elif store_type == SHORT_TERM:
-                    await self.db_execute("DELETE FROM chunks WHERE type = ?", (SHORT_TERM,))
-                
-            return True
-        except Exception as e:
-            self.logger.error(f"Error clearing memory: {e}")
-            return False
+        else:
+            try:
+                if memory_type is None:
+                    # Clear all memory types except INGESTED
+                    # memory_types = [LONG_TERM, SHORT_TERM]
+                    self.logger.info(f"Refusing to clear all memories")
+                    return False
+                else:
+                    memory_types = [memory_type]
+                    
+                for store_type in memory_types:
+                    # Create empty vector store
+                    self.vector_stores[store_type] = FAISS.from_documents(
+                        [Document(page_content="Initial empty document", metadata={"source": "init"})],
+                        self.embedding_function
+                    )
+                    
+                    # Save empty index
+                    await self.save_index(store_type)
+                    
+                    # Clear from database
+                    if store_type == LONG_TERM:
+                        await self.db_execute("DELETE FROM chunks WHERE type = ?", (LONG_TERM,))
+                    elif store_type == SHORT_TERM:
+                        await self.db_execute("DELETE FROM chunks WHERE type = ?", (SHORT_TERM,))
+                    
+                return True
+            except Exception as e:
+                self.logger.error(f"Error clearing memory: {e}")
+                return False
+
+    '''
         
+        ************************ MONITOR / TESTS ***************************** 
+    
+    '''
+    @hookimpl
+    async def check_chunk(self, store_type, chunk_id):
+        """
+        Public hook to check a specific chunk in a vector store against its database entry.
+        
+        Args:
+            store_type: The type of vector store (0=INGESTED, 1=LONG_TERM, or 2=SHORT_TERM)
+            chunk_id: The chunk ID to check
+            
+        Returns:
+            A dictionary with comparison results
+        """
+        return await self.check_specific_chunk(store_type, chunk_id)
+        
+    async def print_all_chunks(self, store_types=None):
+        """
+        Print all chunks and their metadata for specified memory types
+        
+        Args:
+            store_types: List of store types to print chunks for. If None, prints all types.
+        """
+        if store_types is None:
+            store_types = [INGESTED, LONG_TERM, SHORT_TERM]
+            
+        for store_type in store_types:
+            store_name = {INGESTED: "INGESTED", LONG_TERM: "LONG_TERM", SHORT_TERM: "SHORT_TERM"}.get(store_type, f"Unknown({store_type})")
+            
+            if not self.index_loaded[store_type] or self.vector_stores[store_type] is None:
+                self.logger.info(f"Vector store {store_name} not loaded, skipping chunk printing")
+                continue
+                
+            try:
+                vector_store = self.vector_stores[store_type]
+                total_docs = len(vector_store.index_to_docstore_id)
+                
+                self.logger.info(f"=== {store_name} Vector Store: {total_docs} total documents ===")
+                
+                if total_docs <= 1:  # Skip if only the initial empty document exists
+                    self.logger.info(f"{store_name} store has only the initial document, skipping")
+                    continue
+                
+                # Print each document in the store
+                for idx in range(total_docs):
+                    try:
+                        docstore_id = vector_store.index_to_docstore_id[idx]
+                        doc = vector_store.docstore.search(docstore_id)
+                        
+                        # Get corresponding DB entry if available
+                        db_info = ""
+                        try:
+                            db_result = await self.db_execute(
+                                "SELECT id, reason, created_at FROM chunks WHERE chunk_id = ? AND type = ?", 
+                                (idx, store_type)
+                            )
+                            if db_result:
+                                db_info = f"DB ID: {db_result[0]['id']}, Reason: {db_result[0]['reason']}, Created: {db_result[0]['created_at']}"
+                        except Exception as e:
+                            db_info = f"Error retrieving DB info: {e}"
+                        
+                        # Format metadata as string
+                        metadata_str = ", ".join([f"{k}: {v}" for k, v in doc.metadata.items()])
+                        
+                        # Print chunk info with content preview
+                        content_preview = doc.page_content[:100] + "..." if len(doc.page_content) > 100 else doc.page_content
+                        self.logger.info(f"Chunk {idx} | {db_info}")
+                        self.logger.info(f"Metadata: {metadata_str}")
+                        self.logger.info(f"Content: {content_preview}")
+                        self.logger.info("-" * 80)
+                    except Exception as e:
+                        self.logger.error(f"Error printing chunk {idx} in {store_name} store: {e}")
+                
+            except Exception as e:
+                self.logger.error(f"Error printing chunks for {store_name} store: {e}")
+
     '''
         Reset Huggingface embedding models dir
     '''

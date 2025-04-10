@@ -148,12 +148,20 @@ class MyAppSpec:
         pass
     
     @pluggy.HookspecMarker(app_name)
-    async def query_rag(self, query_text: str, store_types: list, return_chunk_ids=False):
+    async def query_rag(self, query_text: str, store_types: list, return_chunk_ids:bool):
         # Gather all results from the async hook implementations
         pass
         
     @pluggy.HookspecMarker(app_name)
     async def store_memory(self, fact: str,type: int,conversation_id:int,theme:str,tags:list, reason:str):        
+        pass
+    
+    @pluggy.HookspecMarker(app_name)
+    async def filter_by_timeframe(self, preflow_dict: dict, docstore_ids_by_type: dict):        
+        pass
+    
+    @pluggy.HookspecMarker(app_name)
+    async def clean_short_term_memory(self, clean_after_days:int):        
         pass
     
     '''
@@ -286,7 +294,7 @@ class PluginManager:
             if plugin_name != "baseplugin":
                 plugin_path = resource_path(os.path.join(self.plugin_folder, plugin_name))
                 is_active = self.is_active(plugin_name)
-                self.logger.info (f"Plugin path: {plugin_path}")
+                self.logger.info (f": {plugin_path}")
                 # Check if the plugin should be activated or excluded based on the lists
                 if plugin_name in active_list:
                     self.logger.info(f"Plugin '{plugin_name}' is in the active_list, overriding is_active to True.")
@@ -328,7 +336,7 @@ class PluginManager:
 
         for plugin_name in os.listdir(resource_path(self.plugin_folder)):
             plugin_path = resource_path(os.path.join(self.plugin_folder, plugin_name))
-            self.logger.info(f"PLUGIN PATH: {plugin_path}" )
+            # self.logger.info(f"PLUGIN PATH: {plugin_path}" )
             metadata_file = resource_path(os.path.join(plugin_path, 'plugin.json'))
             if os.path.isdir(plugin_path) and os.path.exists(metadata_file):
                 try:
