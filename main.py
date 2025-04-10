@@ -27,8 +27,7 @@ def on_idle_change(is_idle):
         asyncio.run(manager.trigger_hook("user_idle_on_pc"))
     else:
         logger.info("User is now active!")
-        
-detector = IdleDetector(callback=on_idle_change, idle_threshold=600, check_interval=10)     # 10 MINUTES TOTAL INACTIVITY
+        # 10 MINUTES TOTAL INACTIVITY
 
 def show_splash_screen(image_path):
     """Create a simple splash screen with a logo."""
@@ -79,8 +78,7 @@ IGOOR_ONTOP = os.getenv('IGOOR_ONTOP', 'False')
 IGOOR_OUTPUT_HTML = os.getenv('IGOOR_OUTPUT_HTML', 'False') 
 
 def load_settings():
-    settings = SettingsManager();
-    # print("Current settings:", settings)
+    settings = SettingsManager()
     return settings
 
 def load_frontend_components():
@@ -195,6 +193,9 @@ def load_frontend_components():
 def on_loaded():
     logger.info("GUI window is now loaded and available!")
     asyncio.run(manager.trigger_hook("gui_ready"))
+    prefs = settings.get_prefs()
+    print(f"idle_threshold = {prefs.get('idle_threshold')}")
+    detector = IdleDetector(callback=on_idle_change, idle_threshold=10, check_interval=10) 
     detector.start()
     return True
     print("TESTING RAG:::")
