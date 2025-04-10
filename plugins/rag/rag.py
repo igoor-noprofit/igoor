@@ -9,9 +9,10 @@ from langchain_text_splitters import CharacterTextSplitter, MarkdownTextSplitter
 from langchain.schema import Document  # Ensure all documents are of this type
 from langchain_community.embeddings import HuggingFaceBgeEmbeddings
 from langchain.prompts import ChatPromptTemplate
-import time, sys, asyncio, threading
+import time,sys, asyncio, threading
 import numpy as np
 from typing import Union, List, Dict, Optional
+from datetime import datetime, timedelta, date
 
 # Vector store types
 INGESTED = 0
@@ -123,9 +124,10 @@ class Rag(Baseplugin):
         
         # Print all FAISS chunks for each memory type
         # await self.print_all_chunks([INGESTED,LONG_TERM,SHORT_TERM])
-        results = await self.query_rag(query_text="Qu'est-ce t'as mangé hier soir",store_types=[0,1,2],return_chunk_ids=True)
+        results = await self.query_rag(query_text="Qu'est-ce t'as mangé hier soir",store_types=[2],return_chunk_ids=True)
         print (f"RESULTS: ------ {results}")
-        
+        #results = await self.query_rag(query_text="Qu'est-ce que tu veux faire cet aprem",store_types=[0,2],return_chunk_ids=True)
+
     
     def create_folders(self):
         """Create all necessary folders for the plugin"""
@@ -156,7 +158,7 @@ class Rag(Baseplugin):
             self.index_loaded[store_type] = True
         except Exception as e:
             self.logger.error(f"Error loading FAISS index type {store_type}: {e}")
-    
+
     
     '''
         **************** INGESTION ******************** 
@@ -618,7 +620,7 @@ class Rag(Baseplugin):
     '''
     
     @hookimpl
-    async def query_rag(self, query_text: str, store_types: list, return_chunk_ids=False) -> Union[str, dict, bool]:
+    async def query_rag(self, query_text: str, store_types: list, return_chunk_ids:bool) -> Union[str, dict, bool]:
         try:
             self.logger.debug(f"QUERYING INDEX with text: {query_text} in store_types: {store_types}")
             await self.loading_event.wait()  # Wait for indexes to load
@@ -687,6 +689,124 @@ class Rag(Baseplugin):
             self.logger.error(f"An error occurred during query_rag execution: {e}")
             return False
     
+    @hookimpl    
+    async def filter_by_timeframe(self,preflow_dict: dict, docstore_ids_by_type: dict):
+        """
+        Filters memories from SQLite based on LLM timeframe and docstore IDs.
+
+        Args:
+            preflow_dict (dict): The JSON dictionary returned by the LLM.
+            db_path (str): Path to the SQLite database file.
+            docstore_ids_to_retrieve (list): A list of docstore_id strings to filter by.
+
+        Returns:
+            str: A string containing filtered memories, formatted as
+                'YYYY-MM-DD HH:MM:SS\tContent\n...', ordered by creation time.
+                Returns an empty string if no matching memories are found or
+                if docstore_ids_to_retrieve is empty.
+        """
+        all_docstore_ids = []
+        if isinstance(docstore_ids_by_type, dict):
+            for ids_list in docstore_ids_by_type.values():
+                if isinstance(ids_list, list):
+                    all_docstore_ids.extend(ids_list)
+        elif isinstance(docstore_ids_by_type, list): # Optional: fallback for old list format
+            self.logger.warning("Received docstore_ids as a list instead of dict, processing as flat list.")
+            all_docstore_ids = docstore_ids_by_type
+        else:
+            self.logger.warning(f"Unexpected format for docstore_ids: {type(docstore_ids_by_type)}. Expected dict.")
+            all_docstore_ids = []
+
+        if not all_docstore_ids:
+            self.logger.info("No docstore_ids found after processing input, returning empty string.")
+            return ""
+
+        timeframe_info = preflow_dict.get("timeframe")
+        apply_time_filter = bool(timeframe_info and timeframe_info.get("type")) # Check if timeframe exists and has a type
+
+        # Use placeholders for safe querying
+        placeholders = ', '.join('?' for _ in all_docstore_ids)
+        base_sql = f"""
+            SELECT created_at, content
+            FROM chunks
+            WHERE docstore_id IN ({placeholders})
+        """
+        params = list(all_docstore_ids) # Parameters for the IN clause
+
+        start_dt_utc = None
+        end_dt_utc = None
+
+        # Add time filtering conditions *if* timeframe is provided and type == 2
+        if apply_time_filter:
+            base_sql += " AND type = 2 " # Apply filter only to type 2 chunks as per prompt
+            self.logger.info("Timeframe provided, calculating bounds and adding type=2 filter.")
+            now_local = datetime.now(LOCAL_TIMEZONE)
+            start_dt_utc, end_dt_utc = get_datetime_bounds(timeframe_info, now_local)
+
+            if start_dt_utc and end_dt_utc:
+                base_sql += " AND created_at BETWEEN ? AND ? "
+                params.extend([start_dt_utc, end_dt_utc])
+            elif start_dt_utc:
+                base_sql += " AND created_at >= ? "
+                params.append(start_dt_utc)
+            elif end_dt_utc:
+                base_sql += " AND created_at <= ? "
+                params.append(end_dt_utc)
+            # If bounds calculation failed but timeframe was requested, don't add time clauses
+
+        # Add ordering
+        base_sql += " ORDER BY created_at ASC;"
+
+        self.logger.info(f"Executing SQL: {base_sql}")
+        self.logger.info(f"With parameters: {params}")
+
+        results = []
+
+        try:
+            self.db.execute(base_sql, params)
+            rows = cursor.fetchall()
+
+            for row in rows:
+                created_at_ts, content = row
+                # Ensure created_at_ts is a datetime object
+                if isinstance(created_at_ts, str):
+                    try:
+                        # Attempt to parse assuming ISO format, potentially with timezone
+                        # Adjust format string if needed based on how data is stored
+                        created_at_dt = datetime.fromisoformat(created_at_ts.replace(' Z', '+00:00')) # Handle potential Z for UTC
+                    except ValueError:
+                        try:
+                            # Fallback for common SQLite format without timezone
+                            created_at_dt = datetime.strptime(created_at_ts, '%Y-%m-%d %H:%M:%S.%f')
+                        except ValueError:
+                            try:
+                                    created_at_dt = datetime.strptime(created_at_ts, '%Y-%m-%d %H:%M:%S')
+                            except ValueError:
+                                    self.logger.warning(f"Could not parse timestamp string: {created_at_ts}")
+                                    created_at_dt = None # Or handle as error
+                elif isinstance(created_at_ts, datetime):
+                    created_at_dt = created_at_ts
+                else:
+                    created_at_dt = None
+                    self.logger.warning(f"Unexpected type for created_at: {type(created_at_ts)}")
+
+
+                if created_at_dt:
+                    # Optional: Convert DB timestamp (assumed UTC) to local time for display
+                    if created_at_dt.tzinfo is None:
+                        created_at_dt = pytz.utc.localize(created_at_dt) # Assume UTC if naive
+                    created_at_local = created_at_dt.astimezone(LOCAL_TIMEZONE)
+                    formatted_ts = created_at_local.strftime('%Y-%m-%d %H:%M:%S')
+                    results.append(f"{formatted_ts}\t{content}")
+
+        except sqlite3.Error as e:
+            self.logger.error(f"Database error: {e}")
+            self.logger.error(f"Failed SQL: {base_sql}")
+            self.logger.error(f"Failed PARAMS: {params}")
+
+        return "\n".join(results)
+        
+    
     async def search_short_term_memory(self, query_text: str):
         self.logger.debug("SEARCHING SHORT TERM MEMORY")
         try:
@@ -699,7 +819,7 @@ class Rag(Baseplugin):
                 return []
                 
             # Get more candidates to filter by score
-            results = await self.search_in_FAISS(query_text=query_text,store_type=SHORT_TERM,k=max_candidates,score_threshold=0.6)
+            results = await self.search_in_FAISS(query_text=query_text,store_type=SHORT_TERM,k=max_candidates,score_threshold=0.7)
             print(f"------ UP TO {max_candidates} RESULTS: {results} --------")
                 
         except Exception as e:
@@ -884,9 +1004,125 @@ class Rag(Baseplugin):
             except Exception as e:
                 self.logger.error(f"Error printing chunks for {store_name} store: {e}")
                 
+    async def delete_chunks_from_FAISS_index(self, store_type, chunk_ids):
+        """
+        Delete specific chunks from a vector store based on docstore IDs.
 
-    async def clear_memory(self, memory_type=None):
-        """Clear a specific type of memory or all memories"""
+        Args:
+            store_type: The type of vector store (0=INGESTED, 1=LONG_TERM, or 2=SHORT_TERM)
+            chunk_ids: List of docstore IDs to delete (e.g., '01f92471-3d5e-4a84-854a-d4dc4af6284b')
+        
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        if not self.index_loaded[store_type] or self.vector_stores[store_type] is None:
+            self.logger.info(f"Vector store for type {store_type} not loaded, skipping deletion")
+            return False
+        
+        try:
+            vector_store = self.vector_stores[store_type]
+            docstore = vector_store.docstore._dict
+            index_to_docstore_id = vector_store.index_to_docstore_id
+            docstore_id_to_index = {docstore_id: index for index, docstore_id in index_to_docstore_id.items()}
+            
+            # Track which indices need to be removed
+            indices_to_remove = []
+            
+            # Find indices for the docstore IDs we want to delete
+            for docstore_id in chunk_ids:
+                if docstore_id in docstore_id_to_index:
+                    indices_to_remove.append(docstore_id_to_index[docstore_id])
+                    # Remove from docstore
+                    if docstore_id in docstore:
+                        del docstore[docstore_id]
+                else:
+                    self.logger.warning(f"Docstore ID {docstore_id} not found in vector store {store_type}")
+            
+            if not indices_to_remove:
+                self.logger.info(f"No valid indices found to remove from vector store {store_type}")
+                return True
+            
+            # Sort indices in descending order to avoid index shifting issues when deleting
+            indices_to_remove.sort(reverse=True)
+            
+            # Remove the vectors from the FAISS index
+            for idx in indices_to_remove:
+                # Remove the index mapping
+                if idx in index_to_docstore_id:
+                    del index_to_docstore_id[idx]
+            
+            # Rebuild the index with remaining documents
+            remaining_docs = list(docstore.values())
+            if remaining_docs:
+                # If we have documents left, create a new index with them
+                new_vectorstore = FAISS.from_documents(remaining_docs, self.embedding_function)
+                self.vector_stores[store_type] = new_vectorstore
+            else:
+                # If no documents left, create an empty index
+                self.vector_stores[store_type] = FAISS.from_documents(
+                    [Document(page_content="Initial empty document", metadata={"source": "init"})],
+                    self.embedding_function
+                )
+            
+            # Save the updated index
+            await self.save_index(store_type)
+            self.logger.info(f"Successfully removed {len(indices_to_remove)} chunks from vector store {store_type}")
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Error deleting chunks from FAISS index type {store_type}: {e}")
+            import traceback
+            self.logger.error(traceback.format_exc())
+            return False        
+
+                
+    async def delete_chunks(self, store_type, chunk_ids):
+        """
+        Delete specific chunks from both the vector store and database.
+        
+        Args:
+            store_type: The type of vector store (0=INGESTED, 1=LONG_TERM, or 2=SHORT_TERM)
+            chunk_ids: List of docstore IDs to delete
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            # Step 1: Delete from FAISS index
+            faiss_success = await self.delete_chunks_from_FAISS_index(store_type, chunk_ids)
+            if not faiss_success:
+                self.logger.error(f"Failed to delete chunks from FAISS index type {store_type}")
+                return False
+                
+            # Step 2: Delete from database
+            # Create placeholders for SQL IN clause
+            placeholders = ', '.join(['?' for _ in chunk_ids])
+            query = f"DELETE FROM chunks WHERE type = ? AND docstore_id IN ({placeholders})"
+            
+            # Combine parameters (store_type and all chunk_ids)
+            params = [store_type] + chunk_ids
+            
+            # Execute the delete query
+            await self.db_execute(query, params)
+            
+            self.logger.info(f"Successfully deleted {len(chunk_ids)} chunks from database for store type {store_type}")
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Error deleting chunks: {e}")
+            import traceback
+            self.logger.error(traceback.format_exc())
+            return False
+    
+    @hookimpl
+    async def clear_memory(self, memory_type=None,chunk_ids=None):
+        """
+        Clear a specific type of memory or all memories.
+        If chunk_ids is provided, only delete those specific chunks.
+        """
+        if chunk_ids is not None and memory_type is not None:
+            # Delete specific chunks
+            return await self.delete_chunks(memory_type,chunk_ids)
         try:
             if memory_type is None:
                 # Clear all memory types except INGESTED
