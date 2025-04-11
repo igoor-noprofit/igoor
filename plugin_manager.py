@@ -44,6 +44,10 @@ class MyAppSpec:
         """Hook for plugins to perform startup activities"""
         pass
     
+    @pluggy.HookspecMarker(app_name)
+    def run_tests(self):
+        """Hook for plugins to perform startup activities"""
+        pass
     
     '''
         GUI AND APP
