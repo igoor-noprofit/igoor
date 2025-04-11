@@ -157,7 +157,7 @@ class MyAppSpec:
         pass
         
     @pluggy.HookspecMarker(app_name)
-    async def store_memory(self, fact: str,type: int,conversation_id:int,theme:str,tags:list, reason:str):        
+    async def store_memory(self, fact: str,type: int,conversation_id:int,theme:str,tags:list, reason:str, created_at: None):        
         pass
     
     @pluggy.HookspecMarker(app_name)

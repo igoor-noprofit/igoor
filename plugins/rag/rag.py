@@ -380,31 +380,34 @@ class Rag(Baseplugin):
                 self.logger.error(traceback.format_exc())
                 # Consider if you need cleanup or rollback here
 
-    async def add_chunk_to_db(self, content, chunk_type, reason, document_id=None, conversation_id=None, theme=None, tags=None, docstore_id=None):
+    async def add_chunk_to_db(self, content, chunk_type, reason, document_id=None, conversation_id=None, theme=None, tags=None, docstore_id=None, created_at=None):
         """Add a chunk to the sqlite database"""
         try:
             # Ensure content is not too large (SQLite has limits)
             if content and len(content) > 10000:  # Arbitrary limit to prevent very large chunks
                 content = content[:10000] + "... (truncated)"
             
+            # Determine the datetime value to use
+            datetime_value = f"'{created_at}'" if created_at else "datetime('now')"
+            
             # Check if theme and tags are provided
             if theme is not None and tags is not None:
                 # Include theme and tags in the query
                 await self.db_execute(
-                    """
+                    f"""
                     INSERT INTO chunks 
                     (type, content, reason, theme, tags, created_at, document_id, conversation_id, docstore_id) 
-                    VALUES (?, ?, ?, ?, ?, datetime('now'), ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, {datetime_value}, ?, ?, ?)
                     """,
                     (chunk_type, content, reason, theme, tags, document_id, conversation_id, docstore_id)
                 )
             else:
                 # Use the original query without theme and tags
                 await self.db_execute(
-                    """
+                    f"""
                     INSERT INTO chunks 
                     (type, content, reason, created_at, document_id, conversation_id, docstore_id) 
-                    VALUES (?, ?, ?, datetime('now'), ?, ?, ?)
+                    VALUES (?, ?, ?, {datetime_value}, ?, ?, ?)
                     """,
                     (chunk_type, content, reason, document_id, conversation_id, docstore_id)
                 )
@@ -446,12 +449,12 @@ class Rag(Baseplugin):
     
     
     @hookimpl
-    async def store_memory(self, fact: str, type: str, reason:str, conversation_id: int, theme:str, tags:list):
+    async def store_memory(self, fact: str, type: str, reason:str, conversation_id: int, theme:str, tags:list, created_at=None):
         """
         Store a memory in either long-term or short-term memory
         """
         # Debug all incoming parameters
-        self.logger.info(f"Direct parameters: fact={fact}, type={type}, theme={theme}, tags={tags},conversation_id={conversation_id}")
+        self.logger.info(f"Direct parameters: fact={fact}, type={type}, theme={theme}, tags={tags},conversation_id={conversation_id}, created_at={created_at}")
         if (type=="short"):
             memory_type=SHORT_TERM
         else:
@@ -508,7 +511,8 @@ class Rag(Baseplugin):
                 conversation_id=conversation_id,
                 theme=theme,
                 tags=tags_json,
-                docstore_id=docstore_id
+                docstore_id=docstore_id,
+                created_at=created_at
             )
             
             if success:
@@ -1163,6 +1167,14 @@ class Rag(Baseplugin):
             
             self.logger.info(f"Loaded {len(examples)} example entries from short_term_examples.json")
             
+            # Generate a range of dates from 14 days ago to today
+            end_date = datetime.now()
+            start_date = end_date - timedelta(days=14)
+            total_facts = sum(len(example.get("facts", [])) for example in examples)
+            
+            # Keep track of the current fact index
+            fact_index = 0
+            
             # Process each example
             for example in examples:
                 theme = example.get("theme", "")
@@ -1174,7 +1186,21 @@ class Rag(Baseplugin):
                     fact_type = fact_entry.get("type", "short")  # Default to short-term memory
                     
                     if fact:
-                        self.logger.info(f"Adding fact to memory: {fact}")
+                        # Calculate a progressive timestamp for this fact
+                        # The progression is from start_date to end_date based on the fact's position
+                        progress_ratio = fact_index / max(1, total_facts - 1)  # Avoid division by zero
+                        time_delta = (end_date - start_date) * progress_ratio
+                        fact_timestamp = start_date + time_delta
+                        
+                        # Add some randomness (up to ±12 hours) to make it more natural
+                        random_hours = np.random.uniform(-12, 12)
+                        fact_timestamp += timedelta(hours=random_hours)
+                        
+                        # Format the timestamp for SQLite (ISO format)
+                        timestamp_str = fact_timestamp.strftime("%Y-%m-%d %H:%M:%S")
+                        
+                        self.logger.info(f"Adding fact to memory with timestamp {timestamp_str}: {fact}")
+                        
                         # Store the memory with conversation_id=-1 to indicate test data
                         success = await self.store_memory(
                             fact=fact,
@@ -1182,13 +1208,17 @@ class Rag(Baseplugin):
                             reason="test_data",
                             conversation_id=-1,
                             theme=theme,
-                            tags=tags
+                            tags=tags,
+                            created_at=timestamp_str
                         )
                         
                         if success:
                             self.logger.info(f"Successfully added fact: {fact}")
                         else:
                             self.logger.warning(f"Failed to add fact: {fact}")
+                        
+                        # Increment the fact index
+                        fact_index += 1
             
             self.logger.info("Finished loading short-term memory examples")
             return True
