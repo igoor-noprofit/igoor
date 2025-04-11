@@ -121,7 +121,7 @@ class Rag(Baseplugin):
         self.is_loaded = True
         self.loading_event.set()
         self.logger.info("RAG plugin initialization complete")
-        # await self.test_query_rag()
+        await self.run_tests()
 
     async def test_query_rag(self):
         results = await self.query_rag(query_text="Qu'est-ce t'as mangé hier soir",store_types=[2],return_chunk_ids=True)
@@ -158,7 +158,6 @@ class Rag(Baseplugin):
         except Exception as e:
             self.logger.error(f"Error loading FAISS index type {store_type}: {e}")
 
-    
     '''
         **************** INGESTION ******************** 
     '''
@@ -444,8 +443,8 @@ class Rag(Baseplugin):
                     if not await self.save_index(store_type):
                         success = False
             return success
-        
-
+    
+    
     @hookimpl
     async def store_memory(self, fact: str, type: str, reason:str, conversation_id: int, theme:str, tags:list):
         """
@@ -1136,6 +1135,70 @@ class Rag(Baseplugin):
         ************************ MONITOR / TESTS ***************************** 
     
     '''
+    @hookimpl
+    async def run_tests(self):
+        await self.clear_memory(SHORT_TERM)
+        await self.test_fill_short_term_memory()
+
+    async def test_query_rag(self):
+        results = await self.query_rag(query_text="Qu'est-ce t'as mangé hier soir",store_types=[2],return_chunk_ids=True)
+        print (f"RESULTS: ------ {results}")
+    
+    async def test_fill_short_term_memory(self):
+        """
+        Test function to fill the short-term memory with examples from short_term_examples.json
+        """
+        self.logger.info("Loading short-term memory examples from JSON file")
+        json_path = os.path.join(os.path.dirname(__file__), "short_term_examples.json")
+        
+        try:
+            # Wait for embedding model and indexes to be loaded
+            if not self.embedding_loaded or not self.index_loaded[SHORT_TERM]:
+                self.logger.info("Waiting for embedding model and indexes to load...")
+                await self.loading_event.wait()
+            
+            # Load the JSON file
+            with open(json_path, "r", encoding="utf-8") as f:
+                examples = json.load(f)
+            
+            self.logger.info(f"Loaded {len(examples)} example entries from short_term_examples.json")
+            
+            # Process each example
+            for example in examples:
+                theme = example.get("theme", "")
+                tags = example.get("tags", [])
+                facts = example.get("facts", [])
+                
+                for fact_entry in facts:
+                    fact = fact_entry.get("fact", "")
+                    fact_type = fact_entry.get("type", "short")  # Default to short-term memory
+                    
+                    if fact:
+                        self.logger.info(f"Adding fact to memory: {fact}")
+                        # Store the memory with conversation_id=-1 to indicate test data
+                        success = await self.store_memory(
+                            fact=fact,
+                            type=fact_type,
+                            reason="test_data",
+                            conversation_id=-1,
+                            theme=theme,
+                            tags=tags
+                        )
+                        
+                        if success:
+                            self.logger.info(f"Successfully added fact: {fact}")
+                        else:
+                            self.logger.warning(f"Failed to add fact: {fact}")
+            
+            self.logger.info("Finished loading short-term memory examples")
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Error loading short-term memory examples: {e}")
+            import traceback
+            self.logger.error(traceback.format_exc())
+            return False
+        
     @hookimpl
     async def check_chunk(self, store_type, chunk_id):
         """
