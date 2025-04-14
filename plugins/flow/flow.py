@@ -119,6 +119,7 @@ class Flow(Baseplugin):
     '''
     @hookimpl
     async def asr_msg(self, msg: str) -> None:
+        print (f"ASR MSG !!!!!! {msg}")
         start_time = time.time()
         dynamic_context = self.get_dynamic_context().copy()
         # Remove the conversation attribute from dynamic context

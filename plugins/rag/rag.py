@@ -121,11 +121,7 @@ class Rag(Baseplugin):
         self.is_loaded = True
         self.loading_event.set()
         self.logger.info("RAG plugin initialization complete")
-        # await self.test_query_rag()
-
-    async def test_query_rag(self):
-        results = await self.query_rag(query_text="Qu'est-ce t'as mangé hier soir",store_types=[2],return_chunk_ids=True)
-        print (f"RESULTS: ------ {results}")
+        await self.test_query_rag()
         
     
     def create_folders(self):
@@ -1145,8 +1141,20 @@ class Rag(Baseplugin):
         await self.test_fill_short_term_memory()
 
     async def test_query_rag(self):
+        print("TESTING RAG:::")
+        queries = [
+            "Qu'est-ce que t'as mangé hier ?"
+        ]
+        await asyncio.sleep(2)
+        for query in queries:
+            await self.pm.trigger_hook(hook_name="add_msg_to_conversation", msg=query, author="def")
+            await self.pm.trigger_hook(hook_name="asr_msg", msg="Q: " + query)
+            #asyncio.create_task(self.pm.trigger_hook(hook_name="abandon_conversation"))
+            # asyncio.create_task(asyncio.sleep(5))  # Wait 5 seconds before each query
+        '''
         results = await self.query_rag(query_text="Qu'est-ce t'as mangé hier soir",store_types=[2],return_chunk_ids=True)
         print (f"RESULTS: ------ {results}")
+        '''
     
     async def test_fill_short_term_memory(self):
         """
