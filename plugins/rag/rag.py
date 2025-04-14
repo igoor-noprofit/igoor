@@ -736,7 +736,7 @@ class Rag(Baseplugin):
         if apply_time_filter:
             base_sql += " AND type = 2 " # Apply filter only to type 2 chunks as per prompt
             self.logger.info("Timeframe provided, calculating bounds and adding type=2 filter.")
-            now_local = datetime.now(LOCAL_TIMEZONE)
+            now_local = datetime.now()
             start_dt_utc, end_dt_utc = get_datetime_bounds(timeframe_info, now_local)
 
             if start_dt_utc and end_dt_utc:
@@ -791,7 +791,7 @@ class Rag(Baseplugin):
                     # Optional: Convert DB timestamp (assumed UTC) to local time for display
                     if created_at_dt.tzinfo is None:
                         created_at_dt = pytz.utc.localize(created_at_dt) # Assume UTC if naive
-                    created_at_local = created_at_dt.astimezone(LOCAL_TIMEZONE)
+                    created_at_local = created_at_dt.astimezone()
                     formatted_ts = created_at_local.strftime('%Y-%m-%d %H:%M:%S')
                     results.append(f"{formatted_ts}\t{content}")
 
