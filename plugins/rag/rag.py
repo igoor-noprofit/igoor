@@ -121,7 +121,7 @@ class Rag(Baseplugin):
         self.is_loaded = True
         self.loading_event.set()
         self.logger.info("RAG plugin initialization complete")
-        await self.run_tests()
+        # await self.test_query_rag()
 
     async def test_query_rag(self):
         results = await self.query_rag(query_text="Qu'est-ce t'as mangé hier soir",store_types=[2],return_chunk_ids=True)

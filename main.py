@@ -197,17 +197,12 @@ def on_loaded():
     print(f"idle_threshold = {prefs.get('idle_threshold')}")
     detector = IdleDetector(callback=on_idle_change, idle_threshold=10, check_interval=10) 
     detector.start()
-    return True
+    # return True
     print("TESTING RAG:::")
     queries = [
-        "Tu te souviens de l'expo Drosephilia",
-        "Combien d'enfants tu as",
-        "Comment s'appelle ta femme",
-        "Quels sont tes réalisateurs préférés",
-        "Est-ce que t'aimes Tarantino",
-        "Comment s'appellent tes fils",
-        "Combien de fils tu as ?"
+        "Qu'est-ce que t'as fait hier ?"
     ]
+    asyncio.run(asyncio.sleep(5)) 
     for query in queries:
         asyncio.run(manager.trigger_hook(hook_name="add_msg_to_conversation", msg=query, author="def"))
         asyncio.run(manager.trigger_hook(hook_name="asr_msg", msg="Q: " + query))

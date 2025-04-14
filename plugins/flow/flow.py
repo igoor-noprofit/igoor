@@ -69,7 +69,6 @@ class Flow(Baseplugin):
     
     @hookimpl
     def gui_ready(self):
-        # self.test_queries()
         try:
             loop = asyncio.get_event_loop()
         except RuntimeError:
@@ -113,9 +112,10 @@ class Flow(Baseplugin):
         
     '''
     Receives msg from speaker
-    Asks LLM for topic
-    
-    Performs LLM query
+    Asks LLM for topic and timeframe to search in memory
+    Queries RAG with timeframe
+    Filters RAG results by timeframe
+    Sends RAG results to LLM query
     '''
     @hookimpl
     async def asr_msg(self, msg: str) -> None:
@@ -131,10 +131,14 @@ class Flow(Baseplugin):
         # Initialize context
         context = ""
         
-        # TODO: DELETE the entire IF possibility, because context would be mixed up 
         if not preflow_dict:
             # If preflow fails, query all store types
-            context = await self.query_rag_async(conversation)
+            context = self.pm.trigger_hook(
+                hook_name="query_rag", 
+                query_text=conversation, 
+                store_types=[0,1,2], 
+                return_chunk_ids=False
+            )
         else:
             # Determine which store types to query based on m_type
             store_types = []
@@ -157,12 +161,18 @@ class Flow(Baseplugin):
             # Make a single call to query_rag_async with all needed store types
             chunk_ids = await self.pm.trigger_hook(
                 hook_name="query_rag", 
-                query_text=preflow_dict.get("theme"), 
+                # query_text=preflow_dict.get("theme"),
+                query_text=conversation, 
                 store_types=store_types, 
                 return_chunk_ids=True
             )
             self.logger.info(f"Chunk IDs: {chunk_ids}") 
-            await self.reorder_rag(chunk_ids,preflow_dict)
+            filtered_results = await self.pm.trigger_hook(
+                hook_name="filter_by_timeframe", 
+                preflow_dict=preflow_dict,
+                docstore_ids_by_type=chunk_ids
+            )
+            self.logger.info(f"FILTERED RESULTS: {filtered_results}")
             # Reorder RAG based on chunk_ids
         # Continue with the rest of your function
         del dynamic_context["conversation"]
@@ -250,15 +260,6 @@ class Flow(Baseplugin):
         
     def get_dynamic_context(self):
         return context_manager.get_context()
-
-    async def query_rag_async(self, msg: str, store_types=None, return_chunk_ids=False):
-        result = await self.pm.trigger_hook(
-            hook_name="query_rag", 
-            query_text=msg, 
-            store_types=store_types, 
-            return_chunk_ids=return_chunk_ids
-        )
-        return result
         
     def update_status(self, status):
         """This method will be called when the status changes."""
@@ -267,12 +268,7 @@ class Flow(Baseplugin):
     
     def test_queries(self) -> None:
         queries = [
-            "Q: Comment s'appelle tes fils",
-            "Q: Tu te souviens de l'expo Drosephilia",
-            "Q: Combien d'enfants tu as",
-            "Q: Comment s'appelle ta femme",
-            "Q: Quels sont tes réalisateurs préférés",
-            "Q: Est-ce que t'aimes Tarantino",
+            "Q: Qu'est-ce que t'as mangé hier ?",   
         ]
         for query in queries:
             asyncio.run(self.asr_msg(query))
