@@ -153,6 +153,130 @@ class Rag(Baseplugin):
             self.index_loaded[store_type] = True
         except Exception as e:
             self.logger.error(f"Error loading FAISS index type {store_type}: {e}")
+            
+    def get_datetime_bounds(self, timeframe_info, now_local):
+        """
+        Calculate datetime bounds based on timeframe information.
+        
+        Args:
+            timeframe_info (dict): Dictionary containing timeframe information with fields like:
+                - type: 'absolute' or 'relative'
+                - start_date, end_date: Optional date strings in YYYY-MM-DD format
+                - start_time, end_time: Optional time strings in HH:MM format
+                - relative_days: Optional integer for days relative to current date
+                - period: Optional period of day ('morning', 'afternoon', 'evening', 'full_day')
+            now_local (datetime): Current local datetime to use as reference
+            
+        Returns:
+            tuple: (start_datetime, end_datetime) in UTC format, either can be None if not applicable
+        """
+        try:
+            # Initialize return values
+            start_dt = None
+            end_dt = None
+            
+            # Get timeframe type
+            timeframe_type = timeframe_info.get("type")
+            
+            # Handle absolute dates (specific calendar dates)
+            if timeframe_type == "absolute":
+                # Process start date if provided
+                if timeframe_info.get("start_date"):
+                    start_date_str = timeframe_info["start_date"]
+                    start_dt = datetime.strptime(start_date_str, "%Y-%m-%d")
+                    
+                    # Add start time if provided
+                    if timeframe_info.get("start_time"):
+                        start_time_str = timeframe_info["start_time"]
+                        start_time = datetime.strptime(start_time_str, "%H:%M").time()
+                        start_dt = datetime.combine(start_dt.date(), start_time)
+                    else:
+                        # Default to start of day
+                        start_dt = datetime.combine(start_dt.date(), datetime.min.time())
+                
+                # Process end date if provided
+                if timeframe_info.get("end_date"):
+                    end_date_str = timeframe_info["end_date"]
+                    end_dt = datetime.strptime(end_date_str, "%Y-%m-%d")
+                    
+                    # Add end time if provided
+                    if timeframe_info.get("end_time"):
+                        end_time_str = timeframe_info["end_time"]
+                        end_time = datetime.strptime(end_time_str, "%H:%M").time()
+                        end_dt = datetime.combine(end_dt.date(), end_time)
+                    else:
+                        # Default to end of day
+                        end_dt = datetime.combine(end_dt.date(), datetime.max.time())
+            
+            # Handle relative dates (like "yesterday", "last week")
+            elif timeframe_type == "relative":
+                # Get relative days if provided
+                relative_days = timeframe_info.get("relative_days")
+                
+                if relative_days is not None:
+                    # Calculate the reference date
+                    reference_date = (now_local + timedelta(days=relative_days)).date()
+                    
+                    # Get period of day
+                    period = timeframe_info.get("period")
+                    
+                    if period == "morning":
+                        # Morning: 6:00 AM - 12:00 PM
+                        start_dt = datetime.combine(reference_date, datetime.strptime("06:00", "%H:%M").time())
+                        end_dt = datetime.combine(reference_date, datetime.strptime("12:00", "%H:%M").time())
+                    elif period == "afternoon":
+                        # Afternoon: 12:00 PM - 6:00 PM
+                        start_dt = datetime.combine(reference_date, datetime.strptime("12:00", "%H:%M").time())
+                        end_dt = datetime.combine(reference_date, datetime.strptime("18:00", "%H:%M").time())
+                    elif period == "evening":
+                        # Evening: 6:00 PM - 11:59 PM
+                        start_dt = datetime.combine(reference_date, datetime.strptime("18:00", "%H:%M").time())
+                        end_dt = datetime.combine(reference_date, datetime.strptime("23:59", "%H:%M").time())
+                    else:  # full_day or None
+                        # Full day: 00:00 AM - 11:59 PM
+                        start_dt = datetime.combine(reference_date, datetime.min.time())
+                        end_dt = datetime.combine(reference_date, datetime.max.time())
+                else:
+                    # Handle special relative references without explicit days
+                    reference = timeframe_info.get("reference", "").lower()
+                    
+                    if "yesterday" in reference:
+                        reference_date = (now_local - timedelta(days=1)).date()
+                        start_dt = datetime.combine(reference_date, datetime.min.time())
+                        end_dt = datetime.combine(reference_date, datetime.max.time())
+                    elif "last week" in reference:
+                        # Last week: 7 days ago to yesterday
+                        end_date = (now_local - timedelta(days=1)).date()
+                        start_date = (now_local - timedelta(days=7)).date()
+                        start_dt = datetime.combine(start_date, datetime.min.time())
+                        end_dt = datetime.combine(end_date, datetime.max.time())
+                    elif "last month" in reference:
+                        # Approximate last month as 30 days ago to yesterday
+                        end_date = (now_local - timedelta(days=1)).date()
+                        start_date = (now_local - timedelta(days=30)).date()
+                        start_dt = datetime.combine(start_date, datetime.min.time())
+                        end_dt = datetime.combine(end_date, datetime.max.time())
+                    elif "today" in reference:
+                        reference_date = now_local.date()
+                        start_dt = datetime.combine(reference_date, datetime.min.time())
+                        end_dt = datetime.combine(reference_date, datetime.max.time())
+            
+            # Format datetime objects as strings for SQLite
+            if start_dt:
+                start_dt_str = start_dt.strftime("%Y-%m-%d %H:%M:%S")
+            else:
+                start_dt_str = None
+                
+            if end_dt:
+                end_dt_str = end_dt.strftime("%Y-%m-%d %H:%M:%S")
+            else:
+                end_dt_str = None
+                
+            return start_dt_str, end_dt_str
+            
+        except Exception as e:
+            self.logger.error(f"Error calculating datetime bounds: {e}")
+            return None, None
 
     '''
         **************** INGESTION ******************** 
@@ -737,7 +861,7 @@ class Rag(Baseplugin):
             base_sql += " AND type = 2 " # Apply filter only to type 2 chunks as per prompt
             self.logger.info("Timeframe provided, calculating bounds and adding type=2 filter.")
             now_local = datetime.now()
-            start_dt_utc, end_dt_utc = get_datetime_bounds(timeframe_info, now_local)
+            start_dt_utc, end_dt_utc = self.get_datetime_bounds(timeframe_info, now_local)
 
             if start_dt_utc and end_dt_utc:
                 base_sql += " AND created_at BETWEEN ? AND ? "
@@ -759,7 +883,7 @@ class Rag(Baseplugin):
         results = []
 
         try:
-            self.db.execute(base_sql, params)
+            await self.db.execute(base_sql, params)
             rows = cursor.fetchall()
 
             for row in rows:
@@ -795,7 +919,7 @@ class Rag(Baseplugin):
                     formatted_ts = created_at_local.strftime('%Y-%m-%d %H:%M:%S')
                     results.append(f"{formatted_ts}\t{content}")
 
-        except sqlite3.Error as e:
+        except Exception as e:
             self.logger.error(f"Database error: {e}")
             self.logger.error(f"Failed SQL: {base_sql}")
             self.logger.error(f"Failed PARAMS: {params}")
