@@ -939,7 +939,7 @@ class Rag(Baseplugin):
                 return []
                 
             # Get more candidates to filter by score
-            results = await self.search_in_FAISS(query_text=query_text,store_type=SHORT_TERM,k=max_candidates,score_threshold=0.7)
+            results = await self.search_in_FAISS(query_text=query_text,store_type=SHORT_TERM,k=max_candidates,score_threshold=0.8)
             print(f"------ UP TO {max_candidates} RESULTS: {results} --------")
                 
         except Exception as e:
@@ -1267,7 +1267,7 @@ class Rag(Baseplugin):
     async def test_query_rag(self):
         print("TESTING RAG:::")
         queries = [
-            "Qu'est-ce que t'as mangé hier ?"
+            "Qu'est-ce que t'as fait cette semaine ?"
         ]
         await asyncio.sleep(2)
         for query in queries:
@@ -1275,10 +1275,6 @@ class Rag(Baseplugin):
             await self.pm.trigger_hook(hook_name="asr_msg", msg="Q: " + query)
             #asyncio.create_task(self.pm.trigger_hook(hook_name="abandon_conversation"))
             # asyncio.create_task(asyncio.sleep(5))  # Wait 5 seconds before each query
-        '''
-        results = await self.query_rag(query_text="Qu'est-ce t'as mangé hier soir",store_types=[2],return_chunk_ids=True)
-        print (f"RESULTS: ------ {results}")
-        '''
     
     async def test_fill_short_term_memory(self):
         """

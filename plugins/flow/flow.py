@@ -59,6 +59,7 @@ class Flow(Baseplugin):
         bio = self.global_settings.get_bio()
         self.bio_name = bio.get("name")
         self.bio_style=bio.get("style")
+        print("STYLE = " + self.bio_style)
         self.bio_style_weight=bio.get("style_weight")
         self.health_state=bio.get("health_state")
         self.is_loaded = True
