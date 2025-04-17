@@ -17,7 +17,7 @@
         <a @click="minimize()"><img src="img/logo_small.svg" class="logo_small" id="igoor_logo"></a>
     </div>
     <div class="topbar-right">
-        <meteo  :appview="appview"></meteo><ramcpu  :appview="appview"></ramcpu><settings  :appview="appview"></settings>
+        <meteo  :appview="appview"></meteo><bugreport  :appview="appview"></bugreport><settings  :appview="appview"></settings>
     </div>
 </div>
 
