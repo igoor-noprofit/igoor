@@ -11,6 +11,7 @@ import asyncio,json,time
 from pydantic import BaseModel, Field
 from typing import List, Optional, Literal
 from enum import Enum
+from datetime import datetime
 
 PROMPT_TEMPLATE = """
 La personne affectée par la maladie s'appelle {bio_name}. Considère son état actuel pour éviter des prédictions incompatibles avec ses capacités physiques:
@@ -252,8 +253,10 @@ class Flow(Baseplugin):
         """Performs a first LLM call to create or update conversation topic and to know WHICH memory to search"""
         assistant_type = "preflow"
         system_prompt = self.prompts.get_system_prompt("fr_FR", assistant_type) 
-        pm = PromptManager(template="{conversation}")
-        prompt = pm.create_prompt(conversation=conversation)       
+        pm = PromptManager(template="Jour et heure actuelle: {datetime} Conversation : {conversation}")
+        now = datetime.now()
+        formatted_datetime = now.strftime("%A %d %B %Y")  # e.g., "Monday 22 April 2025"
+        prompt = pm.create_prompt(datetime=formatted_datetime, conversation=conversation)       
         print(f"FINAL PROMPT : {prompt}")
         try:
             llm = LLMManager(self.settings.get("provider"), self.settings.get("api_key"), self.settings.get("model_name"))
