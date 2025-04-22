@@ -120,7 +120,6 @@ class Flow(Baseplugin):
     '''
     @hookimpl
     async def asr_msg(self, msg: str) -> None:
-        print (f"ASR MSG !!!!!! {msg}")
         start_time = time.time()
         dynamic_context = self.get_dynamic_context().copy()
         # Remove the conversation attribute from dynamic context
@@ -163,8 +162,8 @@ class Flow(Baseplugin):
             # Make a single call to query_rag_async with all needed store types
             chunk_ids = await self.pm.trigger_hook(
                 hook_name="query_rag", 
-                # query_text=preflow_dict.get("theme"),
-                query_text=conversation, 
+                query_text=preflow_dict.get("theme"),
+                # query_text=conversation, 
                 store_types=store_types, 
                 return_chunk_ids=True
             )

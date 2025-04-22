@@ -121,6 +121,7 @@ class Rag(Baseplugin):
         self.is_loaded = True
         self.loading_event.set()
         self.logger.info("RAG plugin initialization complete")
+        # await self.run_tests()
         await self.test_query_rag()
         
     
@@ -826,19 +827,25 @@ class Rag(Baseplugin):
                 if docstore_ids_to_retrieve is empty.
         """
         all_docstore_ids = []
-        if isinstance(docstore_ids_by_type, dict):
+        # Explicitly handle the case observed in logs: list containing a dict
+        if isinstance(docstore_ids_by_type, list) and len(docstore_ids_by_type) == 1 and isinstance(docstore_ids_by_type[0], dict):
+            self.logger.warning("Received docstore_ids as a list containing a dict, extracting values.")
+            for ids_list in docstore_ids_by_type[0].values():
+                if isinstance(ids_list, list):
+                    all_docstore_ids.extend(ids_list)
+        elif isinstance(docstore_ids_by_type, dict):
             for ids_list in docstore_ids_by_type.values():
                 if isinstance(ids_list, list):
                     all_docstore_ids.extend(ids_list)
-        elif isinstance(docstore_ids_by_type, list): # Optional: fallback for old list format
-            self.logger.warning("Received docstore_ids as a list instead of dict, processing as flat list.")
-            all_docstore_ids = docstore_ids_by_type
         else:
-            self.logger.warning(f"Unexpected format for docstore_ids: {type(docstore_ids_by_type)}. Expected dict.")
-            all_docstore_ids = []
+            self.logger.warning(f"Unexpected format for docstore_ids: {type(docstore_ids_by_type)}. Expected dict or list containing dict. Processing failed.")
+            return "" # Return empty if format is unexpected
+
+        # Ensure all elements are strings (or handle potential errors)
+        all_docstore_ids = [str(id_val) for id_val in all_docstore_ids]
 
         if not all_docstore_ids:
-            self.logger.info("No docstore_ids found after processing input, returning empty string.")
+            self.logger.info("No valid docstore_ids found after processing input, returning empty string.")
             return ""
 
         timeframe_info = preflow_dict.get("timeframe")
@@ -881,13 +888,24 @@ class Rag(Baseplugin):
         self.logger.info(f"With parameters: {params}")
 
         results = []
+        rows = [] # Initialize rows
 
         try:
-            await self.db.execute(base_sql, params)
-            rows = cursor.fetchall()
+            # Use the correct db_execute method which handles connection and cursor
+            rows = await self.db_execute(base_sql, params)
 
+            # Check if rows were returned successfully (db_execute returns list or None on error)
+            if rows is None:
+                self.logger.error("Database query execution failed or returned None.")
+                return "" # Return empty string on DB error
+
+            # Now process the fetched rows
             for row in rows:
                 created_at_ts, content = row
+                # Add check: Skip if the timestamp value is the literal string 'created_at'
+                if created_at_ts == 'created_at':
+                    self.logger.warning(f"Skipping row because created_at value is the literal string 'created_at'")
+                    continue
                 # Ensure created_at_ts is a datetime object
                 if isinstance(created_at_ts, str):
                     try:
@@ -1267,7 +1285,7 @@ class Rag(Baseplugin):
     async def test_query_rag(self):
         print("TESTING RAG:::")
         queries = [
-            "Qu'est-ce que t'as fait cette semaine ?"
+            "Qu'est-ce que t'as mangé hier ?"
         ]
         await asyncio.sleep(2)
         for query in queries:
