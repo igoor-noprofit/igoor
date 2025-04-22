@@ -104,8 +104,8 @@ class Conversation(Baseplugin):
         if self.current_thread_id is not None:
             current_time = self._get_current_timestamp()
             await self.db_execute(
-                "UPDATE threads SET end_time = ?, cause = ?, topic = ? WHERE id = ?",
-                (current_time, cause, self.topic, self.current_thread_id)
+                "UPDATE threads SET end_time = ?, cause = ?, topic = ?, content = ? WHERE id = ?",
+                (current_time, cause, self.topic, txt, self.current_thread_id)
             )
             self.logger.info(f"Abandoned conversation {self.current_thread_id} with end time and topic {self.topic}")
         
