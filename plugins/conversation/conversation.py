@@ -24,11 +24,14 @@ class Conversation(Baseplugin):
         self.executor = ThreadPoolExecutor(max_workers=1)
         self.reset_timeout()
 
-    def reset_timeout(self):
-        print("RESET TIMEOUT")
+    def cancel_timeout(self):
         if self.timeout_task:
             print("Cancelling existing timeout task")
             self.timeout_task.cancel()
+
+    def reset_timeout(self):
+        print("RESET TIMEOUT")
+        self.cancel_timeout()
         try:
             loop = asyncio.get_running_loop()
         except RuntimeError:  # No running event loop
@@ -130,7 +133,7 @@ class Conversation(Baseplugin):
         context_manager.update_context("conversation", "")
         self.send_message_to_frontend({"action": "abandon_conversation"})
         self.conversation_is_open = False
-        
+        self.cancel_timeout()
         await self.send_switch_view_to_app("daily")
         
     @hookimpl
