@@ -16,7 +16,7 @@ class Baseplugin:
         self.logger = setup_logger(
             f'plugins.{plugin_name}', 
             os.path.join(os.getenv('APPDATA'), os.getenv('IGOOR_APPNAME')),
-            separate_plugin_log=True
+            separate_plugin_log=False
         )
         
         if pm is None:

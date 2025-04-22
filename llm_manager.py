@@ -43,7 +43,7 @@ class LLMManager:
             ("system", system_prompt),
             ("human", prompt)
         ]
-        self.logger.info(f"Starting LLM invocation")
+        # self.logger.info(f"Starting LLM invocation")
         # self.logger.info(f"System prompt: {system_prompt}")
         # self.logger.info(f"User prompt: {prompt}")
         
