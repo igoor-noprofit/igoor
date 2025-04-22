@@ -1330,8 +1330,9 @@ class Rag(Baseplugin):
     async def test_query_rag(self):
         print("TESTING RAG:::")
         queries = [
-            # "Qu'est-ce que t'as fait de beau hier soir ?"
-            "C'était quand la dernière fois que t'as vu un film"
+            "Qu'est-ce que t'as fait de beau hier soir ?"
+            # "C'était quand la dernière fois que t'as vu un film"
+            # "Qu'est-ce que t'as mangé hier ?"
         ]
         await asyncio.sleep(2)
         for query in queries:
