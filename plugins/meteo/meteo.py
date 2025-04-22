@@ -112,23 +112,34 @@ class Meteo(Baseplugin):
             try:
                 observation = mgr.weather_at_coords(lat, lng)
                 weather = observation.weather
-                obj = {
-                    'status': weather.status,
-                    'detailed_status': weather.detailed_status,
-                    'temperature': weather.temperature('celsius'),
+                temp = weather.temperature('celsius')
+                synthesized = {
+                    'status': weather.detailed_status,
+                    'temperature': {
+                        'temp': round(temp.get('temp', 0), 1),
+                        'feels_like': round(temp.get('feels_like', 0), 1)
+                    },
                     'humidity': weather.humidity,
-                    'wind': weather.wind(),
-                    'rain': weather.rain,
-                    'snow': weather.snow,
-                    'clouds': weather.clouds
+                    'wind': self.synthesize_wind(weather.wind()),
+                    'rain': weather.rain if weather.rain else {},
+                    'snow': weather.snow if weather.snow else {},
                 }
-                # print(obj)
-                context_manager.update_context("meteo", obj)
-                self.send_message_to_frontend(obj)
+                context_manager.update_context("meteo", synthesized)
+                self.send_message_to_frontend(synthesized)
                 return True
             except Exception as error:
                 print("Error fetching weather data:", error)
                 raise RuntimeError("Failed to fetch weather data.")
+
+    def synthesize_wind(self, wind_dict):
+        speed = wind_dict.get('speed', 0)
+        if speed > 8:
+            strength = 'strong'
+        elif speed > 3:
+            strength = 'moderate'
+        else:
+            strength = 'light'
+        return {'strength': strength}
     
     def is_home(self, lat, lon, lat2, lon2):
         distanceFromHome = self.calculate_distance(lat, lon, lat2, lon2)
