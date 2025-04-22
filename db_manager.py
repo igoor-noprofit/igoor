@@ -200,7 +200,8 @@ class DatabaseManager:
         cursor = conn.cursor()
         cursor.execute(query, params)
         if query.strip().upper().startswith(('SELECT', 'PRAGMA')):
-            return [dict(row) for row in cursor.fetchall()]
+            rows = cursor.fetchall()
+            return [dict(row) for row in rows]
         conn.commit()
         return None
 
