@@ -823,141 +823,171 @@ class Rag(Baseplugin):
         Returns:
             
         """
-        all_docstore_ids = []
-        # Explicitly handle the case observed in logs: list containing a dict
-        if isinstance(docstore_ids_by_type, list) and len(docstore_ids_by_type) == 1 and isinstance(docstore_ids_by_type[0], dict):
-            self.logger.warning("Received docstore_ids as a list containing a dict, extracting values.")
-            for ids_list in docstore_ids_by_type[0].values():
-                if isinstance(ids_list, list):
-                    all_docstore_ids.extend(ids_list)
-        elif isinstance(docstore_ids_by_type, dict):
-            for ids_list in docstore_ids_by_type.values():
-                if isinstance(ids_list, list):
-                    all_docstore_ids.extend(ids_list)
-        else:
-            self.logger.warning(f"Unexpected format for docstore_ids: {type(docstore_ids_by_type)}. Expected dict or list containing dict. Processing failed.")
-            return "" # Return empty if format is unexpected
+        results_by_type = {INGESTED: [], LONG_TERM: [], SHORT_TERM: []} # Initialize for all types
 
-        # Ensure all elements are strings (or handle potential errors)
-        all_docstore_ids = [str(id_val) for id_val in all_docstore_ids]
-
-        if not all_docstore_ids:
-            self.logger.info("No valid docstore_ids found after processing input, returning empty string.")
-            return ""
+        # Validate input format
+        if not isinstance(docstore_ids_by_type, dict):
+            # Handle the case where it might be a list containing a dict (as seen before)
+            if isinstance(docstore_ids_by_type, list) and len(docstore_ids_by_type) == 1 and isinstance(docstore_ids_by_type[0], dict):
+                self.logger.warning("Received docstore_ids as a list containing a dict, using the inner dict.")
+                docstore_ids_by_type = docstore_ids_by_type[0]
+            else:
+                self.logger.warning(f"Unexpected format for docstore_ids: {type(docstore_ids_by_type)}. Expected dict. Processing failed.")
+                return results_by_type # Return empty initialized dict
 
         timeframe_info = preflow_dict.get("timeframe")
         apply_time_filter = bool(timeframe_info and timeframe_info.get("type")) # Check if timeframe exists and has a type
 
-        # Use placeholders for safe querying
-        placeholders = ', '.join('?' for _ in all_docstore_ids)
-        base_sql = f"""
-            SELECT created_at, content
-            FROM chunks
-            WHERE docstore_id IN ({placeholders})
-        """
-        params = list(all_docstore_ids) # Parameters for the IN clause
-
         start_dt_utc = None
         end_dt_utc = None
 
-        # Add time filtering conditions *if* timeframe is provided and type == 2
+        # Calculate time bounds *once* if filter is needed
         if apply_time_filter:
-            base_sql += " AND type = 2 " # Apply filter only to type 2 chunks as per prompt
-            self.logger.info("Timeframe provided, calculating bounds and adding type=2 filter.")
+            self.logger.info("Timeframe provided, calculating bounds.")
             now_local = datetime.now()
             start_dt_utc, end_dt_utc = self.get_datetime_bounds(timeframe_info, now_local)
+            if start_dt_utc is None and end_dt_utc is None:
+                self.logger.warning("Timeframe bounds calculation failed, time filter will not be applied.")
+                apply_time_filter = False # Disable filter if bounds are invalid
 
-            if start_dt_utc and end_dt_utc:
-                base_sql += " AND created_at BETWEEN ? AND ? "
-                params.extend([start_dt_utc, end_dt_utc])
-            elif start_dt_utc:
-                base_sql += " AND created_at >= ? "
-                params.append(start_dt_utc)
-            elif end_dt_utc:
-                base_sql += " AND created_at <= ? "
-                params.append(end_dt_utc)
-            # If bounds calculation failed but timeframe was requested, don't add time clauses
+        # Iterate through each store type provided in the input
+        for store_type_key, docstore_ids in docstore_ids_by_type.items():
+            # Ensure store_type is an integer key
+            try:
+                store_type = int(store_type_key)
+                if store_type not in results_by_type:
+                     self.logger.warning(f"Received unexpected store_type key: {store_type_key}. Skipping.")
+                     continue # Skip if key is not 0, 1, or 2
+            except (ValueError, TypeError):
+                self.logger.warning(f"Could not convert store_type key '{store_type_key}' to integer. Skipping.")
+                continue
 
-        # Add ordering
-        base_sql += " ORDER BY created_at ASC;"
+            # Ensure docstore_ids is a list
+            if not isinstance(docstore_ids, list):
+                self.logger.warning(f"Expected list for docstore_ids of type {store_type}, got {type(docstore_ids)}. Skipping.")
+                results_by_type[store_type] = []
+                continue
 
-        self.logger.info(f"Executing SQL: {base_sql}")
-        self.logger.info(f"With parameters: {params}")
+            # Ensure all elements are strings
+            current_docstore_ids = [str(id_val) for id_val in docstore_ids]
 
-        results = []
-        rows = [] # Initialize rows
+            if not current_docstore_ids:
+                self.logger.info(f"No valid docstore_ids provided for store_type {store_type}. Skipping query.")
+                results_by_type[store_type] = []
+                continue
 
-        try:
-            # Use the correct db_execute method which handles connection and cursor
-            rows = await self.db_execute(base_sql, params)
+            # Use placeholders for safe querying
+            placeholders = ', '.join('?' for _ in current_docstore_ids)
+            base_sql = f"""
+                SELECT created_at, content
+                FROM chunks
+                WHERE docstore_id IN ({placeholders})
+            """
+            params = list(current_docstore_ids) # Parameters for the IN clause
 
-            # Check if rows were returned successfully (db_execute returns list or None on error)
-            if rows is None:
-                self.logger.error("Database query execution failed or returned None.")
-                return "" # Return empty string on DB error
-            elif not rows:
-                self.logger.info("Database query returned no rows matching the criteria.")
-                return ""
-            else:
-                self.logger.info(f"Database query returned {len(rows)} rows before filtering/processing.")
+            # Add type filtering based on the current store_type being processed
+            base_sql += " AND type = ? "
+            params.append(store_type)
 
-            # Now process the fetched rows
-            for i, row in enumerate(rows):
-                self.logger.debug(f"Processing row {i+1}/{len(rows)}: {row}")
-                # Access dictionary keys explicitly
-                created_at_ts = row.get('created_at') 
-                content = row.get('content')
-                # Ensure created_at_ts is a datetime object
-                if isinstance(created_at_ts, str):
-                    try:
-                        # Attempt to parse assuming ISO format, potentially with timezone
-                        # Adjust format string if needed based on how data is stored
-                        created_at_dt = datetime.fromisoformat(created_at_ts.replace(' Z', '+00:00')) # Handle potential Z for UTC
-                    except ValueError:
+            # Add time filtering conditions *only* if timeframe is provided AND store_type is SHORT_TERM (2)
+            if apply_time_filter and store_type == SHORT_TERM:
+                self.logger.info(f"Applying time filter for SHORT_TERM store (type {store_type}).")
+                if start_dt_utc and end_dt_utc:
+                    base_sql += " AND created_at BETWEEN ? AND ? "
+                    params.extend([start_dt_utc, end_dt_utc])
+                elif start_dt_utc:
+                    base_sql += " AND created_at >= ? "
+                    params.append(start_dt_utc)
+                elif end_dt_utc:
+                    base_sql += " AND created_at <= ? "
+                    params.append(end_dt_utc)
+            elif apply_time_filter:
+                 self.logger.info(f"Time filter requested but not applied for store_type {store_type} (only applied to SHORT_TERM).")
+
+            # Add ordering
+            base_sql += " ORDER BY created_at ASC;"
+
+            self.logger.info(f"Executing SQL for store_type {store_type}: {base_sql}")
+            self.logger.info(f"With parameters for store_type {store_type}: {params}")
+
+            rows = [] # Initialize rows for this type
+
+            try:
+                # Use the correct db_execute method which handles connection and cursor
+                rows = await self.db_execute(base_sql, params)
+
+                # Check if rows were returned successfully
+                if rows is None:
+                    self.logger.error(f"Database query execution failed or returned None for store_type {store_type}.")
+                    results_by_type[store_type] = [] # Store empty list on DB error for this type
+                    continue # Move to the next store type
+                elif not rows:
+                    self.logger.info(f"Database query returned no rows matching the criteria for store_type {store_type}.")
+                    results_by_type[store_type] = []
+                    continue
+                else:
+                    self.logger.info(f"Database query returned {len(rows)} rows for store_type {store_type} before processing.")
+
+                # Process the fetched rows for the current store_type
+                current_results = []
+                for i, row in enumerate(rows):
+                    self.logger.debug(f"Processing row {i+1}/{len(rows)} for type {store_type}: {row}")
+                    created_at_ts = row.get('created_at')
+                    content = row.get('content')
+
+                    # --- Timestamp parsing logic (same as before) ---
+                    created_at_dt = None
+                    if isinstance(created_at_ts, str):
                         try:
-                            # Fallback for common SQLite format without timezone
-                            created_at_dt = datetime.strptime(created_at_ts, '%Y-%m-%d %H:%M:%S.%f')
+                            created_at_dt = datetime.fromisoformat(created_at_ts.replace(' Z', '+00:00'))
                         except ValueError:
                             try:
-                                    created_at_dt = datetime.strptime(created_at_ts, '%Y-%m-%d %H:%M:%S')
+                                created_at_dt = datetime.strptime(created_at_ts, '%Y-%m-%d %H:%M:%S.%f')
                             except ValueError:
-                                    self.logger.warning(f"Could not parse timestamp string: {created_at_ts}")
-                                    created_at_dt = None # Or handle as error
-                elif isinstance(created_at_ts, datetime):
-                    created_at_dt = created_at_ts
-                else:
-                    created_at_dt = None
-                    self.logger.warning(f"Unexpected type for created_at in row {i+1}: {type(created_at_ts)}")
-
-
-                if created_at_dt:
-                    # Optional: Convert DB timestamp (assumed UTC) to local time for display
-                    try:
-                        import pytz # Import here to avoid potential top-level import issues if not installed
-                        if created_at_dt.tzinfo is None:
-                            created_at_dt = pytz.utc.localize(created_at_dt) # Assume UTC if naive
-                        created_at_local = created_at_dt.astimezone()
-                    except ImportError:
-                        self.logger.warning("pytz not installed, cannot localize timezone. Using naive datetime.")
-                        created_at_local = created_at_dt # Use naive if pytz not available
-
-                    formatted_ts = created_at_local.strftime('%Y-%m-%d %H:%M:%S')
-                    # Check if content is valid before appending
-                    if content and content.strip():
-                        results.append(f"{formatted_ts}\t{content}")
-                        self.logger.debug(f"Appended row {i+1} to results.")
+                                try:
+                                    created_at_dt = datetime.strptime(created_at_ts, '%Y-%m-%d %H:%M:%S')
+                                except ValueError:
+                                    self.logger.warning(f"Could not parse timestamp string for type {store_type}: {created_at_ts}")
+                                    # created_at_dt remains None
+                    elif isinstance(created_at_ts, datetime):
+                        created_at_dt = created_at_ts
                     else:
-                        self.logger.warning(f"Skipping row {i+1} due to empty or whitespace content.")
-                else:
-                    self.logger.warning(f"Skipping row {i+1} due to invalid or unparseable timestamp.")
+                        self.logger.warning(f"Unexpected type for created_at in row {i+1} for type {store_type}: {type(created_at_ts)}")
+                        # created_at_dt remains None
+                    # --- End Timestamp parsing logic ---
 
-        except Exception as e:
-            self.logger.error(f"Database error: {e}")
-            self.logger.error(f"Failed SQL: {base_sql}")
-            self.logger.error(f"Failed PARAMS: {params}")
+                    if created_at_dt:
+                        # --- Timezone localization logic (same as before) ---
+                        try:
+                            import pytz
+                            if created_at_dt.tzinfo is None:
+                                created_at_dt = pytz.utc.localize(created_at_dt) # Assume UTC if naive
+                            created_at_local = created_at_dt.astimezone()
+                        except ImportError:
+                            self.logger.warning("pytz not installed, cannot localize timezone. Using naive datetime.")
+                            created_at_local = created_at_dt
+                        # --- End Timezone localization logic ---
 
-        self.logger.info(f"Filter by timeframe finished. Returning {len(results)} formatted results.")
-        return "\n".join(results)
+                        formatted_ts = created_at_local.strftime('%Y-%m-%d %H:%M:%S')
+                        if content and content.strip():
+                            # Append the formatted string directly
+                            current_results.append(f"{formatted_ts}\t{content}")
+                            self.logger.debug(f"Appended row {i+1} for type {store_type} to results.")
+                        else:
+                            self.logger.warning(f"Skipping row {i+1} for type {store_type} due to empty or whitespace content.")
+                    else:
+                        self.logger.warning(f"Skipping row {i+1} for type {store_type} due to invalid or unparseable timestamp.")
+
+                results_by_type[store_type] = current_results # Assign results for this type
+
+            except Exception as e:
+                self.logger.error(f"Database error during query for store_type {store_type}: {e}")
+                self.logger.error(f"Failed SQL for store_type {store_type}: {base_sql}")
+                self.logger.error(f"Failed PARAMS for store_type {store_type}: {params}")
+                results_by_type[store_type] = [] # Ensure empty list on error
+
+        self.logger.info(f"Filter by timeframe finished. Returning results grouped by type: { {k: len(v) for k, v in results_by_type.items()} }")
+        return results_by_type
         
     
     async def search_short_term_memory(self, query_text: str):

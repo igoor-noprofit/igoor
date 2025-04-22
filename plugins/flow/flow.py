@@ -175,6 +175,20 @@ class Flow(Baseplugin):
             )
             self.logger.info(f"FILTERED RESULTS: {filtered_results}")
             # Reorder RAG based on chunk_ids
+
+            # Check if filtered_results is a list and contains the expected dictionary
+            actual_filtered_results = {}
+            if isinstance(filtered_results, list) and filtered_results:
+                if isinstance(filtered_results[0], dict):
+                    actual_filtered_results = filtered_results[0]
+                else:
+                    self.logger.error(f"Expected a dictionary inside the list from filter_by_timeframe, but got: {type(filtered_results[0])}")
+            elif isinstance(filtered_results, dict):
+                # If it's already a dict (maybe hook aggregation changed), use it directly
+                actual_filtered_results = filtered_results
+            else:
+                self.logger.error(f"Unexpected type for filtered_results: {type(filtered_results)}. Expected list or dict.")
+
         # Continue with the rest of your function
         del dynamic_context["conversation"]
         assistant_type = "flow"
@@ -187,9 +201,9 @@ class Flow(Baseplugin):
             bio_style=self.bio_style,
             bio_style_weight=self.bio_style_weight,
             health_state=self.health_state,
-            static_context=context,
-            long_term="",  # Not separating by memory type in this approach
-            short_term="", 
+            static_context='\n'.join(actual_filtered_results.get(0, [])), # Use actual_filtered_results
+            long_term='\n'.join(actual_filtered_results.get(1, [])),  # Use actual_filtered_results
+            short_term='\n'.join(actual_filtered_results.get(2, [])), # Use actual_filtered_results
             dynamic_context=dynamic_context, 
             conversation=conversation,
             log_folder=self.plugin_folder
