@@ -1,9 +1,8 @@
-import os
-import sys
 import logging
-from pathlib import Path
 import sys
+from pathlib import Path
 from datetime import datetime
+import os
 
 def resource_path(relative_path):
     """ Get absolute path to resource, works for dev and for PyInstaller """
@@ -26,44 +25,50 @@ def setup_logger(name, appdata_folder, separate_plugin_log=False):
     """
     # Create logger
     logger = logging.getLogger(name)
-    logger.setLevel(logging.DEBUG)
     
-    # Create logs directory if it doesn't exist
-    logs_dir = Path(appdata_folder) / 'logs'
-    logs_dir.mkdir(exist_ok=True)
-    
-    # Create handlers
-    console_handler = logging.StreamHandler(sys.stdout)
-    main_file_handler = logging.FileHandler(
-        logs_dir / f'igoor_{datetime.now().strftime("%Y%m%d")}.log',
-        encoding='utf-8'
-    )
-    
-    # Set levels
-    console_handler.setLevel(logging.INFO)
-    main_file_handler.setLevel(logging.DEBUG)
-    
-    # Create formatters and add it to handlers
-    log_format = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    console_handler.setFormatter(log_format)
-    main_file_handler.setFormatter(log_format)
-    
-    # Add handlers to logger
-    logger.addHandler(console_handler)
-    logger.addHandler(main_file_handler)
-
-    # If this is a plugin and separate logging is requested, add plugin-specific file handler
-    if separate_plugin_log and 'plugins.' in name:
-        plugin_name = name.split('plugins.')[-1]
-        plugin_logs_dir = Path(appdata_folder) / 'logs' / 'plugins'
-        plugin_logs_dir.mkdir(exist_ok=True)
+    # Check if handlers already exist for this logger to prevent duplicates
+    if not logger.handlers:
+        logger.setLevel(logging.DEBUG)
         
-        plugin_file_handler = logging.FileHandler(
-            plugin_logs_dir / f'{plugin_name}_{datetime.now().strftime("%Y%m%d")}.log',
+        # Create logs directory if it doesn't exist
+        logs_dir = Path(appdata_folder) / 'logs'
+        logs_dir.mkdir(exist_ok=True)
+        
+        # Create handlers
+        console_handler = logging.StreamHandler(sys.stdout)
+        main_file_handler = logging.FileHandler(
+            logs_dir / f'igoor_{datetime.now().strftime("%Y%m%d")}.log',
             encoding='utf-8'
         )
-        plugin_file_handler.setLevel(logging.DEBUG)
-        plugin_file_handler.setFormatter(log_format)
-        logger.addHandler(plugin_file_handler)
-    
+        
+        # Set levels
+        console_handler.setLevel(logging.INFO)
+        main_file_handler.setLevel(logging.DEBUG)
+        
+        # Create formatters and add it to handlers
+        log_format = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        console_handler.setFormatter(log_format)
+        main_file_handler.setFormatter(log_format)
+        
+        # Add handlers to logger
+        logger.addHandler(console_handler)
+        logger.addHandler(main_file_handler)
+
+        # If this is a plugin and separate logging is requested, add plugin-specific file handler
+        if separate_plugin_log and 'plugins.' in name:
+            plugin_name = name.split('plugins.')[-1]
+            plugin_logs_dir = Path(appdata_folder) / 'logs' / 'plugins'
+            plugin_logs_dir.mkdir(exist_ok=True)
+            
+            plugin_file_handler = logging.FileHandler(
+                plugin_logs_dir / f'{plugin_name}_{datetime.now().strftime("%Y%m%d")}.log',
+                encoding='utf-8'
+            )
+            plugin_file_handler.setLevel(logging.DEBUG)
+            plugin_file_handler.setFormatter(log_format)
+            logger.addHandler(plugin_file_handler)
+        
+        # Prevent propagation to root logger if necessary (optional, depends on desired behavior)
+        # logger.propagate = False
+
     return logger
