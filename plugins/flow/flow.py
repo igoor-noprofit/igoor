@@ -216,6 +216,7 @@ class Flow(Baseplugin):
             print(f"Unexpected error in asr_msg: {str(e)}")
             self.send_error_to_frontend("llm_error",e)
         
+    '''
     async def reorder_rag(self, chunk_ids:dict,preflow_dict:dict):
         """Reorders the RAG context based on the given chunk IDs.
             For each store type in chunk_ids, retrieves the chunks based on the given IDs from the sqlite db,
@@ -230,6 +231,7 @@ class Flow(Baseplugin):
             chunks = await self.pm.trigger_hook(hook_name="get_chunks_by_ids", chunk_ids=ids, store_type=store_type)
             # Filter chunks based on timestamps
         return False
+    '''
         
     async def preflow(self,conversation:str) -> dict:
         start_time = time.time()

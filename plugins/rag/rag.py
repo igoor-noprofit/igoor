@@ -821,10 +821,7 @@ class Rag(Baseplugin):
             docstore_ids_to_retrieve (list): A list of docstore_id strings to filter by.
 
         Returns:
-            str: A string containing filtered memories, formatted as
-                'YYYY-MM-DD HH:MM:SS\tContent\n...', ordered by creation time.
-                Returns an empty string if no matching memories are found or
-                if docstore_ids_to_retrieve is empty.
+            
         """
         all_docstore_ids = []
         # Explicitly handle the case observed in logs: list containing a dict
