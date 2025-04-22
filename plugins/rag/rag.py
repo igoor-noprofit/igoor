@@ -122,7 +122,7 @@ class Rag(Baseplugin):
         self.loading_event.set()
         self.logger.info("RAG plugin initialization complete")
         # await self.run_tests()
-        await self.test_query_rag()
+        # await self.test_query_rag()
         
     
     def create_folders(self):
@@ -935,7 +935,7 @@ class Rag(Baseplugin):
                 # Process the fetched rows for the current store_type
                 current_results = []
                 for i, row in enumerate(rows):
-                    self.logger.debug(f"Processing row {i+1}/{len(rows)} for type {store_type}: {row}")
+                    # self.logger.debug(f"Processing row {i+1}/{len(rows)} for type {store_type}: {row}")
                     created_at_ts = row.get('created_at')
                     content = row.get('content')
 
@@ -976,7 +976,7 @@ class Rag(Baseplugin):
                         if content and content.strip():
                             # Append the formatted string directly
                             current_results.append(f"{formatted_ts}\t{content}")
-                            self.logger.debug(f"Appended row {i+1} for type {store_type} to results.")
+                            # self.logger.debug(f"Appended row {i+1} for type {store_type} to results.")
                         else:
                             self.logger.warning(f"Skipping row {i+1} for type {store_type} due to empty or whitespace content.")
                     else:
