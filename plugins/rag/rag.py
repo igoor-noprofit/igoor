@@ -898,14 +898,18 @@ class Rag(Baseplugin):
             if rows is None:
                 self.logger.error("Database query execution failed or returned None.")
                 return "" # Return empty string on DB error
+            elif not rows:
+                self.logger.info("Database query returned no rows matching the criteria.")
+                return ""
+            else:
+                self.logger.info(f"Database query returned {len(rows)} rows before filtering/processing.")
 
             # Now process the fetched rows
-            for row in rows:
-                created_at_ts, content = row
-                # Add check: Skip if the timestamp value is the literal string 'created_at'
-                if created_at_ts == 'created_at':
-                    self.logger.warning(f"Skipping row because created_at value is the literal string 'created_at'")
-                    continue
+            for i, row in enumerate(rows):
+                self.logger.debug(f"Processing row {i+1}/{len(rows)}: {row}")
+                # Access dictionary keys explicitly
+                created_at_ts = row.get('created_at') 
+                content = row.get('content')
                 # Ensure created_at_ts is a datetime object
                 if isinstance(created_at_ts, str):
                     try:
@@ -926,22 +930,36 @@ class Rag(Baseplugin):
                     created_at_dt = created_at_ts
                 else:
                     created_at_dt = None
-                    self.logger.warning(f"Unexpected type for created_at: {type(created_at_ts)}")
+                    self.logger.warning(f"Unexpected type for created_at in row {i+1}: {type(created_at_ts)}")
 
 
                 if created_at_dt:
                     # Optional: Convert DB timestamp (assumed UTC) to local time for display
-                    if created_at_dt.tzinfo is None:
-                        created_at_dt = pytz.utc.localize(created_at_dt) # Assume UTC if naive
-                    created_at_local = created_at_dt.astimezone()
+                    try:
+                        import pytz # Import here to avoid potential top-level import issues if not installed
+                        if created_at_dt.tzinfo is None:
+                            created_at_dt = pytz.utc.localize(created_at_dt) # Assume UTC if naive
+                        created_at_local = created_at_dt.astimezone()
+                    except ImportError:
+                        self.logger.warning("pytz not installed, cannot localize timezone. Using naive datetime.")
+                        created_at_local = created_at_dt # Use naive if pytz not available
+
                     formatted_ts = created_at_local.strftime('%Y-%m-%d %H:%M:%S')
-                    results.append(f"{formatted_ts}\t{content}")
+                    # Check if content is valid before appending
+                    if content and content.strip():
+                        results.append(f"{formatted_ts}\t{content}")
+                        self.logger.debug(f"Appended row {i+1} to results.")
+                    else:
+                        self.logger.warning(f"Skipping row {i+1} due to empty or whitespace content.")
+                else:
+                    self.logger.warning(f"Skipping row {i+1} due to invalid or unparseable timestamp.")
 
         except Exception as e:
             self.logger.error(f"Database error: {e}")
             self.logger.error(f"Failed SQL: {base_sql}")
             self.logger.error(f"Failed PARAMS: {params}")
 
+        self.logger.info(f"Filter by timeframe finished. Returning {len(results)} formatted results.")
         return "\n".join(results)
         
     
