@@ -217,11 +217,13 @@ class Rag(Baseplugin):
                 if relative_days is not None:
                     # Calculate the reference date
                     reference_date = (now_local + timedelta(days=relative_days)).date()
-                    
+                    self.logger.info(f"Calculated reference date: {reference_date}")
                     # Get period of day
                     period = timeframe_info.get("period")
-                    
-                    if period == "morning":
+                    if period == "full_period":
+                        start_dt = datetime.combine(reference_date, datetime.strptime("00:00", "%H:%M").time())
+                        end_dt = now_local
+                    elif period == "morning":
                         # Morning: 6:00 AM - 12:00 PM
                         start_dt = datetime.combine(reference_date, datetime.strptime("06:00", "%H:%M").time())
                         end_dt = datetime.combine(reference_date, datetime.strptime("12:00", "%H:%M").time())
@@ -273,6 +275,8 @@ class Rag(Baseplugin):
             else:
                 end_dt_str = None
                 
+            self.logger.warning(f"Calculated start_dt_str: {start_dt_str}")
+            self.logger.warning(f"Calculated end_dt_str: {end_dt_str}")
             return start_dt_str, end_dt_str
             
         except Exception as e:
@@ -856,8 +860,8 @@ class Rag(Baseplugin):
             try:
                 store_type = int(store_type_key)
                 if store_type not in results_by_type:
-                     self.logger.warning(f"Received unexpected store_type key: {store_type_key}. Skipping.")
-                     continue # Skip if key is not 0, 1, or 2
+                    self.logger.warning(f"Received unexpected store_type key: {store_type_key}. Skipping.")
+                    continue # Skip if key is not 0, 1, or 2
             except (ValueError, TypeError):
                 self.logger.warning(f"Could not convert store_type key '{store_type_key}' to integer. Skipping.")
                 continue
@@ -902,7 +906,7 @@ class Rag(Baseplugin):
                     base_sql += " AND created_at <= ? "
                     params.append(end_dt_utc)
             elif apply_time_filter:
-                 self.logger.info(f"Time filter requested but not applied for store_type {store_type} (only applied to SHORT_TERM).")
+                self.logger.info(f"Time filter requested but not applied for store_type {store_type} (only applied to SHORT_TERM).")
 
             # Add ordering
             base_sql += " ORDER BY created_at ASC;"
@@ -1330,7 +1334,8 @@ class Rag(Baseplugin):
     async def test_query_rag(self):
         print("TESTING RAG:::")
         queries = [
-            "Qu'est-ce que t'as fait de beau hier soir ?"
+            "Est-ce que t'as bu une tisane cette semaine ?"
+            # "Qu'est-ce que t'as fait de beau hier soir ?"
             # "C'était quand la dernière fois que t'as vu un film"
             # "Qu'est-ce que t'as mangé hier ?"
         ]
