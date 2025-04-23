@@ -827,6 +827,8 @@ class Rag(Baseplugin):
         Returns:
             
         """
+        if preflow_dict is None:
+            preflow_dict = {}
         results_by_type = {INGESTED: [], LONG_TERM: [], SHORT_TERM: []} # Initialize for all types
 
         # Validate input format
