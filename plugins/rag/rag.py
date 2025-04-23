@@ -626,6 +626,8 @@ class Rag(Baseplugin):
             # Store the full structured data as JSON in the content field
             content = json.dumps(embedding_text)
             tags_json = json.dumps(tags)
+            # content = embedding_text
+            # tags_json = tags
             
             # Use the updated add_chunk_to_db method
             success = await self.add_chunk_to_db(
