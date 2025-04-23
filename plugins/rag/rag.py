@@ -972,13 +972,19 @@ class Rag(Baseplugin):
                             created_at_local = created_at_dt
                         # --- End Timezone localization logic ---
 
-                        formatted_ts = created_at_local.strftime('%Y-%m-%d %H:%M:%S')
-                        if content and content.strip():
-                            # Append the formatted string directly
-                            current_results.append(f"{formatted_ts}\t{content}")
-                            # self.logger.debug(f"Appended row {i+1} for type {store_type} to results.")
+                        # For INGESTED, do not include created_at in the result string
+                        if store_type == INGESTED:
+                            if content and content.strip():
+                                current_results.append(f"{content}")
+                            else:
+                                self.logger.warning(f"Skipping row {i+1} for type {store_type} due to empty or whitespace content.")
                         else:
-                            self.logger.warning(f"Skipping row {i+1} for type {store_type} due to empty or whitespace content.")
+                            if content and content.strip():
+                                formatted_ts = created_at_local.strftime('%Y-%m-%d %H:%M:%S')
+                                current_results.append(f"{formatted_ts}\t{content}")
+                            else:
+                                self.logger.warning(f"Skipping row {i+1} for type {store_type} due to empty or whitespace content.")
+
                     else:
                         self.logger.warning(f"Skipping row {i+1} for type {store_type} due to invalid or unparseable timestamp.")
 
@@ -988,7 +994,6 @@ class Rag(Baseplugin):
                 self.logger.error(f"Database error during query for store_type {store_type}: {e}")
                 self.logger.error(f"Failed SQL for store_type {store_type}: {base_sql}")
                 self.logger.error(f"Failed PARAMS for store_type {store_type}: {params}")
-                results_by_type[store_type] = [] # Ensure empty list on error
 
         self.logger.info(f"Filter by timeframe finished. Returning results grouped by type: { {k: len(v) for k, v in results_by_type.items()} }")
         return results_by_type
@@ -1520,4 +1525,3 @@ class Rag(Baseplugin):
             self.logger.debug(f"Cleared Hugging Face cache at: {cache_dir}")
         else:
             self.logger.debug(f"No cache found at: {cache_dir}")
-    
