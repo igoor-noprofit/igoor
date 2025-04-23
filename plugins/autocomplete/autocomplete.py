@@ -11,21 +11,33 @@ import asyncio,json,time
 from pydantic import BaseModel
 from typing import List, Dict
 import numpy as np
+from utils import normalize_filter_by_timeframe_result
 
 PROMPT_TEMPLATE = """
 La personne affectée par la maladie s'appelle {bio_name}. Considère son état actuel pour éviter des prédictions incompatibles avec ses capacités physiques:
 
 {health_state}
 
-Utilise le contexte statique extrait des documents sur la vie de {bio_name}:
+---
+Pour répondre tu peux utiliser le contexte statique extrait des documents sur la vie de {bio_name}:
 
 {static_context}
 
 ---
-Utilise aussi les infos du contexte dynamique suivant :
+Tu peux utiliser aussi les informations de la mémoire à long terme,ordonnées par date croissante:
+
+{long_term}
+
+---
+
+Tu peux utiliser aussi les informations de la mémoire à court terme,ordonnées par date croissante:
+
+{short_term}
+
+--- 
+Si besoin utilises aussi les infos du contexte dynamique suivant:
 
 {dynamic_context}
----
 
 ---
 Prédictions précédentes:
@@ -108,7 +120,6 @@ class Autocomplete(Baseplugin):
         """Store a successful prediction in the database or update its hit count"""
         try:
             self.logger.info(f"Attempting to store prediction: {input_text} -> {completion}")
-            
             # Check if database is initialized
             if self.db is None:
                 self.logger.error("Database not initialized. Cannot store prediction.")
@@ -214,14 +225,24 @@ class Autocomplete(Baseplugin):
         dynamic_context = self.get_dynamic_context()
         print(f"DYNAMIC CONTEXT IS {dynamic_context}")
         conversation = dynamic_context.get("conversation")
-        print(f"CONVERSATION IS : {conversation}")
+        # print(f"CONVERSATION IS : {conversation}")
         assistant_type = "autocomplete"
-        static_context = await self.pm.trigger_hook(
+        # Make a single call to query_rag_async with all needed store types
+        
+        chunk_ids = await self.pm.trigger_hook(
             hook_name="query_rag", 
-            query_text=msg, 
-            store_types=[0,1], 
+            # query_text=preflow_dict.get("theme"),
+            query_text=conversation if conversation else msg, # we give entire conversation to the RAG if possible, to expand the context
+            store_types=[0,1,2], 
             return_chunk_ids=True
         )
+        filtered_results = await self.pm.trigger_hook(
+            hook_name="filter_by_timeframe", 
+            preflow_dict={},
+            docstore_ids_by_type=chunk_ids
+        )
+        actual_filtered_results = normalize_filter_by_timeframe_result(filtered_results)
+        self.logger.info(f"FILTERED RESULTS: {filtered_results}")
         # Get successful predictions for this input
         successful_predictions = await self.format_successful_predictions(msg)
         
@@ -230,7 +251,9 @@ class Autocomplete(Baseplugin):
         prompt = pm.create_prompt(
             bio_name=bio_name,
             health_state=health_state,
-            static_context=static_context, 
+            static_context='\n'.join(actual_filtered_results.get(0, [])), # Use actual_filtered_results
+            long_term='\n'.join(actual_filtered_results.get(1, [])),  # Use actual_filtered_results
+            short_term='\n'.join(actual_filtered_results.get(2, [])), # Use actual_filtered_results
             dynamic_context=dynamic_context, 
             successful_predictions=successful_predictions,
             input=msg
