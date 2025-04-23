@@ -175,8 +175,7 @@ class Flow(Baseplugin):
                 docstore_ids_by_type=chunk_ids
             )
             self.logger.info(f"FILTERED RESULTS: {filtered_results}")
-            # Reorder RAG based on chunk_ids
-
+            
             # Check if filtered_results is a list and contains the expected dictionary
             actual_filtered_results = {}
             if isinstance(filtered_results, list) and filtered_results:
