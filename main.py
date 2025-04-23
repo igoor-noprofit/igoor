@@ -56,7 +56,12 @@ def show_splash_screen(image_path):
     splash_image = tk.PhotoImage(file=resource_path(image_path))
     splash_label = tk.Label(splash_root, image=splash_image, bg='white')
     splash_label.grid(row=0, column=0, sticky='nsew')  # Use grid with sticky to center
-    
+
+    # Add version and codename below the logo
+    version_text = f"IGOOR {IGOOR_VERSION} — {IGOOR_VERSION_CODENAME}"
+    version_label = tk.Label(splash_root, text=version_text, bg='white', fg='#444', font=("Arial", 14, "bold"))
+    version_label.grid(row=1, column=0, pady=(10, 0))
+
     # Configure window background
     splash_root.configure(bg='white')
     
@@ -76,6 +81,8 @@ IGOOR_DEBUG = os.getenv('IGOOR_DEBUG', 'False')
 IGOOR_CLI = os.getenv('IGOOR_CLI', 'False') 
 IGOOR_ONTOP = os.getenv('IGOOR_ONTOP', 'False') 
 IGOOR_OUTPUT_HTML = os.getenv('IGOOR_OUTPUT_HTML', 'False') 
+IGOOR_VERSION_CODENAME = os.getenv('IGOOR_VERSION_CODENAME', 'IGOOR')
+IGOOR_VERSION=os.getenv('IGOOR_VERSION', '0.1.0')
 
 def load_settings():
     settings = SettingsManager()
