@@ -7,6 +7,7 @@ from utils import resource_path
 from llm_manager import LLMManager
 from utils import setup_logger
 from db_manager import DatabaseManager
+
 class Baseplugin:
     def __init__(self, plugin_name="baseplugin", pm=None):
         self.is_loaded = False
