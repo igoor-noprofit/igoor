@@ -97,7 +97,7 @@ Ex:
 Dans la conversation, Q: est l'interlocuteur, R: est l'utilisateur (nommé {bio_name}). 
 Dans cet exemple, l'IA reconnait justement qu'un nouvelle mémoire à long terme est à sauvegarder, 
 parce qu'une évolution des préférences de l'utilisateur a été détecté.
-Aussi,les informations déjà dans la base de connaissances (rag) n'indiquent pas déjà cette info.
+Aussi,les informations déjà dans la base de connaissances (rag) n'indiquent PAS déjà cette info.
 
 L'IA a détecte l'information à mémoriser selon ces critères:
 
@@ -117,10 +117,10 @@ Exemple de output de mémoire validée:
 
 reason doit indiquer la raison pour laquelle la mémoire est validée.
 
-La mémoire peut etre validée meme si le RAG contient déjà une info complémentaire différente (ex. "aime le riz" est compatible avec "aime les spaghetti")
+La mémoire peut etre validée meme si le RAG contient déjà une info complémentaire différente (ex. "aime le riz" est compatible avec "aime les spaghetti").
 
 ---
-La mémoire n'est pas validée:
+La mémoire n'est AP validée:
 
 1)si l'information ne constitue pas une mémoire de long terme
 2)si le RAG contient déjà une information identique ou très semblable: donc inutile de la réiterer   
@@ -139,6 +139,17 @@ Input:
 }}
 Output:
 {{"valid":false,"reason":"Nous ne savons pas si {bio_name} en général aime les croutons dans sa soupe ou si il voulait juste essayer"}}
+
+Input: 
+{{
+    "conversation": "R: que tu aimes le jazz?",
+    "memory": {{
+        "fact": "{bio_name} aime le jazz",
+        "type": "long"
+    }}
+}}
+Output:
+{{"valid":false,"reason":"La question n'est pas claire et l'utilisateur n'a pas répondu"}}
 """
 
 MEMORY_REVIEW_PROMPT_TEMPLATE = """{memory_to_be_checked}"""
