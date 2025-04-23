@@ -1515,6 +1515,11 @@ class Rag(Baseplugin):
                         docstore_id = vector_store.index_to_docstore_id[idx]
                         doc = vector_store.docstore.search(docstore_id)
                         
+                        # Add this check:
+                        if not hasattr(doc, "metadata"):
+                            self.logger.error(f"Chunk {idx} in {store_name} store is not a Document (type={type(doc)}): {doc}")
+                            continue
+
                         # Get corresponding DB entry if available
                         db_info = ""
                         try:
