@@ -318,19 +318,22 @@ class Memory(Baseplugin):
     Cleans all short memories older than clean_after_days days
     '''
     @hookimpl 
+    # async def rag_loaded(self):
     async def user_idle_on_pc(self):
         self.logger.info("User idle,cleaning short memory")
         clean_after_days = self.settings.get("clean_after_days", 7)  # Default to 7 days if not set
+        clean_after_days = 3
         try:
             clean_after_days = int(clean_after_days)  # Ensure it's an integer
         except (TypeError, ValueError):
             self.logger.warning(f"Invalid clean_after_days value: {clean_after_days}, using default 7")
-            clean_after_days = 7
+            
             
         result = await self.pm.trigger_hook(
             hook_name="clean_short_term_memory", 
             clean_after_days=clean_after_days
         )
+        
         return True
 
     ''' 

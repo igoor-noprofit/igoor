@@ -121,7 +121,7 @@ class Rag(Baseplugin):
         self.is_loaded = True
         self.loading_event.set()
         self.logger.info("RAG plugin initialization complete")
-        self.pm.trigger_hook(hook_name="rag_loaded")
+        await self.pm.trigger_hook(hook_name="rag_loaded")
         await self.run_tests()
         # await self.test_query_rag()
         
@@ -1139,9 +1139,16 @@ class Rag(Baseplugin):
         if em and length > 0: 
             docstore_ids = [item['docstore_id'] for item in em]
             await self.delete_chunks(SHORT_TERM, docstore_ids)
-            self.logger.info("MEMORY CHUNKS NOW:")
-            await self.print_all_chunks([SHORT_TERM])
-    
+            # self.logger.info("MEMORY CHUNKS NOW:")
+            # await self.print_all_chunks([SHORT_TERM])
+            result = await self.check_all_chunks()
+            for store_type, chunks in result.items():
+                store_name = {0: "INGESTED", 1: "LONG_TERM", 2: "SHORT_TERM"}.get(store_type, str(store_type))
+                for chunk_id, check in chunks.items():
+                    if isinstance(check, dict) and "error" in check:
+                        self.logger.error(f"[{store_name}] Chunk {chunk_id}: ERROR - {check['error']}")
+                    else:
+                        self.logger.info(f"[{store_name}] Chunk {chunk_id}: OK - {check}")
     
     async def delete_chunks_from_FAISS_index(self, store_type, chunk_ids):
         """
@@ -1335,12 +1342,12 @@ class Rag(Baseplugin):
         
         ************************ MONITOR / TESTS ***************************** 
     
-    '''
+    '''    
     @hookimpl
     async def run_tests(self):
         await self.clear_memory(SHORT_TERM)
         await self.clear_memory(LONG_TERM)
-        # await self.test_fill_short_term_memory()
+        await self.test_fill_short_term_memory()
 
     async def test_query_rag(self):
         print("TESTING RAG:::")
@@ -1438,20 +1445,29 @@ class Rag(Baseplugin):
             self.logger.error(traceback.format_exc())
             return False
         
-    @hookimpl
-    async def check_chunk(self, store_type, chunk_id):
+    async def check_all_chunks(self):
         """
-        Public hook to check a specific chunk in a vector store against its database entry.
-        
-        Args:
-            store_type: The type of vector store (0=INGESTED, 1=LONG_TERM, or 2=SHORT_TERM)
-            chunk_id: The chunk ID to check
-            
+        Check all chunks in all store types using the check_chunk function.
         Returns:
-            A dictionary with comparison results
+            dict: {store_type: {chunk_id: result, ...}, ...}
         """
-        return await self.check_specific_chunk(store_type, chunk_id)
-        
+        results = {}
+        for store_type in [INGESTED, LONG_TERM, SHORT_TERM]:
+            if not self.index_loaded.get(store_type) or self.vector_stores.get(store_type) is None:
+                continue
+            vector_store = self.vector_stores[store_type]
+            chunk_results = {}
+            # Get all docstore_ids for this store_type
+            docstore_ids = list(vector_store.docstore._dict.keys())
+            for chunk_id in docstore_ids:
+                try:
+                    res = await self.check_chunk(store_type, chunk_id)
+                    chunk_results[chunk_id] = res
+                except Exception as e:
+                    chunk_results[chunk_id] = {'error': str(e)}
+            results[store_type] = chunk_results
+        return results
+
     async def print_all_chunks(self, store_types=None):
         """
         Print all chunks and their metadata for specified memory types
@@ -1511,6 +1527,35 @@ class Rag(Baseplugin):
                 
             except Exception as e:
                 self.logger.error(f"Error printing chunks for {store_name} store: {e}")
+
+    async def check_chunk(self, store_type, chunk_id):
+        """
+        Check consistency of a chunk between FAISS and the SQLite3 database.
+        Returns a dict with status and details.
+        """
+        result = {"faiss_exists": False, "db_exists": False, "content_match": None, "details": {}}
+        # 1. Check FAISS
+        vector_store = self.vector_stores.get(store_type)
+        faiss_doc = None
+        if vector_store and chunk_id in vector_store.docstore._dict:
+            faiss_doc = vector_store.docstore._dict[chunk_id]
+            result["faiss_exists"] = True
+            result["details"]["faiss_content"] = faiss_doc.page_content[:100]  # preview
+        # 2. Check DB
+        db_rows = await self.db_execute(
+            "SELECT content FROM chunks WHERE docstore_id = ? AND type = ?",
+            (chunk_id, store_type)
+        )
+        if db_rows and len(db_rows) > 0:
+            result["db_exists"] = True
+            db_content = db_rows[0]["content"]
+            result["details"]["db_content"] = db_content[:100]  # preview
+            # 3. Compare content (if both exist)
+            if faiss_doc:
+                result["content_match"] = (faiss_doc.page_content.strip() == db_content.strip())
+        else:
+            result["details"]["db_content"] = None
+        return result
 
     '''
         Reset Huggingface embedding models dir
