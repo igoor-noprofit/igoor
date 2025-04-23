@@ -322,7 +322,6 @@ class Memory(Baseplugin):
     async def user_idle_on_pc(self):
         self.logger.info("User idle,cleaning short memory")
         clean_after_days = self.settings.get("clean_after_days", 7)  # Default to 7 days if not set
-        clean_after_days = 1
         try:
             clean_after_days = int(clean_after_days)  # Ensure it's an integer
         except (TypeError, ValueError):

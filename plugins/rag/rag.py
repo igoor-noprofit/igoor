@@ -122,7 +122,7 @@ class Rag(Baseplugin):
         self.loading_event.set()
         self.logger.info("RAG plugin initialization complete")
         await self.pm.trigger_hook(hook_name="rag_loaded")
-        # await self.run_tests()
+        await self.run_tests()
         # await self.test_query_rag()
         
     
@@ -640,7 +640,7 @@ class Rag(Baseplugin):
                 theme=theme,
                 tags=tags_json,
                 docstore_id=docstore_id,
-                created_at=created_at
+                created_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             )
             
             if success:
