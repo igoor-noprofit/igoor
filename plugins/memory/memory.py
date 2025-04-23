@@ -123,7 +123,7 @@ La mémoire peut etre validée meme si le RAG contient déjà une info compléme
 La mémoire n'est pas validée:
 
 1)si l'information ne constitue pas une mémoire de long terme
-2)si le RAG contient déjà la meme information et est donc inutile de la réiterer   
+2)si le RAG contient déjà une information identique ou très semblable: donc inutile de la réiterer   
 
 Exemple de mémoire non validée:
 
