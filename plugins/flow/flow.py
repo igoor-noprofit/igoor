@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 from typing import List, Optional, Literal
 from enum import Enum
 from datetime import datetime
+from utils import normalize_filter_by_timeframe_result
 
 PROMPT_TEMPLATE = """
 La personne affectée par la maladie s'appelle {bio_name}. Considère son état actuel pour éviter des prédictions incompatibles avec ses capacités physiques:
@@ -175,19 +176,7 @@ class Flow(Baseplugin):
                 docstore_ids_by_type=chunk_ids
             )
             self.logger.info(f"FILTERED RESULTS: {filtered_results}")
-            
-            # Check if filtered_results is a list and contains the expected dictionary
-            actual_filtered_results = {}
-            if isinstance(filtered_results, list) and filtered_results:
-                if isinstance(filtered_results[0], dict):
-                    actual_filtered_results = filtered_results[0]
-                else:
-                    self.logger.error(f"Expected a dictionary inside the list from filter_by_timeframe, but got: {type(filtered_results[0])}")
-            elif isinstance(filtered_results, dict):
-                # If it's already a dict (maybe hook aggregation changed), use it directly
-                actual_filtered_results = filtered_results
-            else:
-                self.logger.error(f"Unexpected type for filtered_results: {type(filtered_results)}. Expected list or dict.")
+            actual_filtered_results = normalize_filter_by_timeframe_result(filtered_results)
 
         # Continue with the rest of your function
         del dynamic_context["conversation"]

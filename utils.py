@@ -72,3 +72,19 @@ def setup_logger(name, appdata_folder, separate_plugin_log=False):
         # logger.propagate = False
 
     return logger
+
+def normalize_filter_by_timeframe_result(filtered_results):
+    """
+    Ensures the result from filter_by_timeframe is always a dict.
+    Accepts a dict or a list containing a dict (from hook aggregation).
+    Returns an empty dict if the input is not recognized.
+    """
+    if isinstance(filtered_results, list) and filtered_results:
+        if isinstance(filtered_results[0], dict):
+            return filtered_results[0]
+        else:
+            return {}
+    elif isinstance(filtered_results, dict):
+        return filtered_results
+    else:
+        return {}
