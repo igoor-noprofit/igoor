@@ -318,4 +318,4 @@ class ConversationModel(BaseModel):
     theme: str = Field(description="the subject of the conversation")
     m_type: List[MType] = Field(description="short or long or both")
     cat: List[Category] = Field(description="bio or daily or both")
-    timeframe: Timeframe
+    timeframe: Optional[Timeframe] = Field(None, description="timeframe for the query, can be null")
