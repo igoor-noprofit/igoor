@@ -147,6 +147,11 @@ class MyAppSpec:
         ************ AI FLOW AND RAG **************
     '''
     @pluggy.HookspecMarker(app_name)
+    def rag_loaded(self):
+        """Hook for plugins to perform actions when RAG is loaded"""
+        pass
+    
+    @pluggy.HookspecMarker(app_name)
     def send_prompt(self, prompt: str) -> None:
         """Hook for plugins to perform actions when sending prompt"""
         pass

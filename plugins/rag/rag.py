@@ -121,7 +121,8 @@ class Rag(Baseplugin):
         self.is_loaded = True
         self.loading_event.set()
         self.logger.info("RAG plugin initialization complete")
-        # await self.run_tests()
+        self.pm.trigger_hook(hook_name="rag_loaded")
+        await self.run_tests()
         # await self.test_query_rag()
         
     
@@ -1136,10 +1137,10 @@ class Rag(Baseplugin):
         length = len(em)
         self.logger.info(f"Found {length} expired memories")
         if em and length > 0: 
-            # await self.delete_chunks_from_FAISS_index(store_type=SHORT_TERM, chunk_ids=em)
-            # self.logger.info("SHORT TERM MEMORY CLEANED")
             docstore_ids = [item['docstore_id'] for item in em]
             await self.delete_chunks(SHORT_TERM, docstore_ids)
+            self.logger.info("MEMORY CHUNKS NOW:")
+            await self.print_all_chunks([SHORT_TERM])
     
     
     async def delete_chunks_from_FAISS_index(self, store_type, chunk_ids):
@@ -1338,7 +1339,8 @@ class Rag(Baseplugin):
     @hookimpl
     async def run_tests(self):
         await self.clear_memory(SHORT_TERM)
-        await self.test_fill_short_term_memory()
+        await self.clear_memory(LONG_TERM)
+        # await self.test_fill_short_term_memory()
 
     async def test_query_rag(self):
         print("TESTING RAG:::")
