@@ -11,6 +11,7 @@ import asyncio,json,time
 from langchain_core.messages.ai import AIMessage
 from pydantic import BaseModel
 from typing import List
+from utils import normalize_filter_by_timeframe_result
 
 MEMORY_SYSTEM_PROMPT = """
 Tu dois analyser une conversation pour en extraire d'éventuelles mémoires: 
@@ -344,7 +345,7 @@ class Memory(Baseplugin):
         try:
             # Get RAG context
             rag = await self.query_rag_async(memory.fact)
-            self.logger.info(f"RAG context received: {rag}")
+            # self.logger.info(f"RAG context received: {rag}")
             
             # Convert Pydantic Fact object to dict
             memory_dict = {
@@ -367,7 +368,11 @@ class Memory(Baseplugin):
             prompt = pm.create_prompt(memory_to_be_checked=json.dumps(memory_to_be_checked))
 
             # Call LLM with ValidationResponse schema
-            llm = LLMManager(self.settings.get("provider"), self.settings.get("api_key"), self.settings.get("model_name"), log_folder=self.plugin_folder)
+            llm = LLMManager(
+                self.settings.get("provider"), 
+                self.settings.get("api_key"), 
+                self.settings.get("model_name")
+            )
             llm.set_json_schema(ValidationResponse)
             validation = llm.invoke(system_prompt, prompt)
             
@@ -388,27 +393,28 @@ class Memory(Baseplugin):
         return context_manager.get_context()
 
     async def query_rag_async(self, msg: str):
-        """Query RAG for existing memories, filtering out short-term memories"""
+        """Query RAG for existing INGESTED/LONG term memories, filtering out short-term memories"""
         try:
             # Specify store types to only query ingested and long-term memories
             store_types = [0, 1]  # INGESTED=0, LONG_TERM=1
             self.logger.info(f"Querying RAG with text: {msg}, store_types: {store_types}")
             
-            result = await self.pm.trigger_hook(
+            chunk_ids=await self.pm.trigger_hook(
                 hook_name="query_rag", 
                 query_text=msg,
-                store_types=store_types
+                store_types=store_types,
+                return_chunk_ids=True
             )
+            self.logger.info(f"Chunk IDs: {chunk_ids}") 
+            filtered_results = await self.pm.trigger_hook(
+                hook_name="filter_by_timeframe", 
+                preflow_dict={},
+                docstore_ids_by_type=chunk_ids
+            )
+            self.logger.info(f"FILTERED RESULTS: {filtered_results}")
+            actual_filtered_results = normalize_filter_by_timeframe_result(filtered_results)
             
-            if not result:
-                self.logger.warning("No results from RAG query")
-                return "---"
-                
-            # The result should be the first (and only) item in the list
-            if isinstance(result, list) and result:
-                return f"---{result[0]}"
-            
-            return f"---{result}"
+            return "---" + '\n'.join(actual_filtered_results.get(0, [])) + '\n' + '\n'.join(actual_filtered_results.get(1, [])) 
         except Exception as e:
             self.logger.error(f"Error in query_rag_async: {e}")
             return "---"  # Return empty context in case of error
