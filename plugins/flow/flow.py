@@ -169,13 +169,13 @@ class Flow(Baseplugin):
                 store_types=store_types, 
                 return_chunk_ids=True
             )
-            self.logger.info(f"Chunk IDs: {chunk_ids}") 
+            # self.logger.info(f"Chunk IDs: {chunk_ids}") 
             filtered_results = await self.pm.trigger_hook(
                 hook_name="filter_by_timeframe", 
                 preflow_dict=preflow_dict,
                 docstore_ids_by_type=chunk_ids
             )
-            self.logger.info(f"FILTERED RESULTS: {filtered_results}")
+            # self.logger.info(f"FILTERED RESULTS: {filtered_results}")
             actual_filtered_results = normalize_filter_by_timeframe_result(filtered_results)
 
         # Continue with the rest of your function
