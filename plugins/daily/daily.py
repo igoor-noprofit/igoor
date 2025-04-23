@@ -134,7 +134,7 @@ class Daily(Baseplugin):
             preflow_dict={},
             docstore_ids_by_type=chunk_ids
         )
-        self.logger.info(f"FILTERED RESULTS: {filtered_results}")
+        # self.logger.info(f"FILTERED RESULTS: {filtered_results}")
         actual_filtered_results = normalize_filter_by_timeframe_result(filtered_results)
         # del dynamic_context["conversation"]
         assistant_type = "daily"
