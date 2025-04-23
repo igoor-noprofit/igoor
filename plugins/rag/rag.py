@@ -800,7 +800,9 @@ class Rag(Baseplugin):
             # If return_chunk_ids is True, return the dictionary of chunk IDs
             if return_chunk_ids:
                 # Filter out empty lists
-                self.logger.debug(f"Returning chunk IDs: {chunk_ids_by_store}")
+                # self.logger.debug(f"Returning chunk IDs: {chunk_ids_by_store}")
+                if not any(chunk_ids_by_store.values()):
+                    self.logger.warning("No chunk IDs found for any store type.")
                 return {k: v for k, v in chunk_ids_by_store.items() if v}
             
             # Otherwise, return the context text as before
