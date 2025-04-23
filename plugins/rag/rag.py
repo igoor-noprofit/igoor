@@ -913,8 +913,8 @@ class Rag(Baseplugin):
             # Add ordering
             base_sql += " ORDER BY created_at ASC;"
 
-            self.logger.info(f"Executing SQL for store_type {store_type}: {base_sql}")
-            self.logger.info(f"With parameters for store_type {store_type}: {params}")
+            # self.logger.info(f"Executing SQL for store_type {store_type}: {base_sql}")
+            # self.logger.info(f"With parameters for store_type {store_type}: {params}")
 
             rows = [] # Initialize rows for this type
 
@@ -1073,7 +1073,7 @@ class Rag(Baseplugin):
                     if docstore_id is not None:
                         # Optional: Verify the docstore_id actually exists in the docstore, though it should
                         if docstore_id in current_docstore:
-                            self.logger.debug(f"Adding chunk: score={score:.4f}, docstore_id={docstore_id}")
+                            # self.logger.debug(f"Adding chunk: score={score:.4f}, docstore_id={docstore_id}")
                             processed_results.append((doc, score, docstore_id))
                             count += 1
                         else:
@@ -1498,10 +1498,10 @@ class Rag(Baseplugin):
                         
                         # Print chunk info with content preview
                         content_preview = doc.page_content[:100] + "..." if len(doc.page_content) > 100 else doc.page_content
-                        self.logger.info(f"Chunk {idx} | {db_info}")
-                        self.logger.info(f"Metadata: {metadata_str}")
-                        self.logger.info(f"Content: {content_preview}")
-                        self.logger.info("-" * 80)
+                        # self.logger.info(f"Chunk {idx} | {db_info}")
+                        # self.logger.info(f"Metadata: {metadata_str}")
+                        # self.logger.info(f"Content: {content_preview}")
+                        # self.logger.info("-" * 80)
                     except Exception as e:
                         self.logger.error(f"Error printing chunk {idx} in {store_name} store: {e}")
                 
