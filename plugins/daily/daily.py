@@ -10,6 +10,7 @@ from llm_manager import LLMManager
 import asyncio,json,time,os
 from pydantic import BaseModel
 from typing import List
+from utils import normalize_filter_by_timeframe_result
 
 PROMPT_TEMPLATE = """
 La personne affectée par la maladie s'appelle {bio_name}. Considère son état actuel pour éviter des prédictions incompatibles avec ses capacités physiques:
@@ -22,7 +23,18 @@ Pour répondre tu peux utiliser le contexte statique extrait des documents sur l
 {static_context}
 
 ---
-Tu peux utiliser aussi les infos du contexte dynamique suivant :
+Tu peux utiliser aussi les informations de la mémoire à long terme,ordonnées par date croissante:
+
+{long_term}
+
+---
+
+Tu peux utiliser aussi les informations de la mémoire à court terme,ordonnées par date croissante:
+
+{short_term}
+
+--- 
+Si besoin utilises aussi les infos du contexte dynamique suivant:
 
 {dynamic_context}
 
@@ -63,12 +75,10 @@ class Daily(Baseplugin):
     
     @hookimpl
     def startup(self):
-        print("DAILY STARTUP")
         self.load_daily_data()
     
     async def startup_async(self):
         """Async startup tasks"""
-        print("DAILY ASYNC STARTUP")
         await self.send_message_to_frontend({
             'dailyData': self.daily_data
         })
@@ -118,15 +128,31 @@ class Daily(Baseplugin):
         category=data.get("category")
         theme=data.get("theme")
         asyncio.create_task(self.pm.trigger_hook(hook_name="set_conversation_topic",topic=theme))
-        static_context = await(self.pm.trigger_hook(hook_name="query_rag", query_text=category + " " + theme, store_types=[0,1], return_chunk_ids=False))
-        print(f"STATIC CONTEXT IS : {static_context}")
+        chunk_ids = await(self.pm.trigger_hook(hook_name="query_rag", query_text=category + " " + theme, store_types=[0,1,2], return_chunk_ids=True))
+        filtered_results = await self.pm.trigger_hook(
+            hook_name="filter_by_timeframe", 
+            preflow_dict={},
+            docstore_ids_by_type=chunk_ids
+        )
+        self.logger.info(f"FILTERED RESULTS: {filtered_results}")
+        actual_filtered_results = normalize_filter_by_timeframe_result(filtered_results)
         # del dynamic_context["conversation"]
         assistant_type = "daily"
         system_prompt = self.prompts.get_system_prompt("fr_FR", assistant_type) 
         print(f"SYSTEM PROMPT IS : {system_prompt}")   
         pm = PromptManager(template=PROMPT_TEMPLATE)
         dynamic_context = dynamic_context
-        prompt = pm.create_prompt(bio_name=bio_name,health_state=health_state,static_context=static_context, dynamic_context=dynamic_context, category=category,theme=theme, tags="",log_folder=self.plugin_folder)       
+        prompt = pm.create_prompt(
+            bio_name=bio_name,
+            health_state=health_state,
+            static_context='\n'.join(actual_filtered_results.get(0, [])), # Use actual_filtered_results
+            long_term='\n'.join(actual_filtered_results.get(1, [])),  # Use actual_filtered_results
+            short_term='\n'.join(actual_filtered_results.get(2, [])), # Use actual_filtered_results
+            dynamic_context=dynamic_context, 
+            category=category,
+            theme=theme, 
+            tags="",
+            log_folder=self.plugin_folder)       
         print(f"FINAL PROMPT : {prompt}")
         try:
             llm = LLMManager(self.settings.get("provider"), self.settings.get("api_key"), self.settings.get("model_name"))
