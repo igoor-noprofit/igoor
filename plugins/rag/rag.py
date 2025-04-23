@@ -122,7 +122,7 @@ class Rag(Baseplugin):
         self.loading_event.set()
         self.logger.info("RAG plugin initialization complete")
         await self.pm.trigger_hook(hook_name="rag_loaded")
-        await self.run_tests()
+        # await self.run_tests()
         # await self.test_query_rag()
         
     
@@ -1202,6 +1202,20 @@ class Rag(Baseplugin):
             if remaining_docs:
                 # If we have documents left, create a new index with them
                 new_vectorstore = FAISS.from_documents(remaining_docs, self.embedding_function)
+
+                # Map old docstore_ids to documents
+                for old_doc in remaining_docs:
+                    old_id = old_doc.metadata.get("docstore_id")
+                    if old_id:
+                        # Find the new random docstore_id assigned by FAISS
+                        for new_id, doc in new_vectorstore.docstore._dict.items():
+                            if doc.page_content == old_doc.page_content:
+                                # Replace the new_id with the old_id in the docstore
+                                new_vectorstore.docstore._dict[old_id] = doc
+                                del new_vectorstore.docstore._dict[new_id]
+                                doc.metadata["docstore_id"] = old_id
+                                break
+
                 self.vector_stores[store_type] = new_vectorstore
             else:
                 # If no documents left, create an empty index
