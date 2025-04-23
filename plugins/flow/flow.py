@@ -243,7 +243,7 @@ class Flow(Baseplugin):
         system_prompt = self.prompts.get_system_prompt("fr_FR", assistant_type) 
         pm = PromptManager(template="Jour et heure actuelle: {datetime} Conversation : {conversation}")
         now = datetime.now()
-        formatted_datetime = now.strftime("%A %d %B %Y")  # e.g., "Monday 22 April 2025"
+        formatted_datetime = now.strftime("%A %d %B %Y %H:%M")  # e.g., "Monday 22 April 2025"
         prompt = pm.create_prompt(datetime=formatted_datetime, conversation=conversation)       
         print(f"FINAL PROMPT : {prompt}")
         try:
