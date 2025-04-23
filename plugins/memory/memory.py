@@ -125,7 +125,7 @@ La mémoire n'est AP validée:
 1)si l'information ne constitue pas une mémoire de long terme
 2)si le RAG contient déjà une information identique ou très semblable: donc inutile de la réiterer   
 
-Exemple de mémoire non validée:
+Exemple de mémoires NON validées:
 
 ---
 Input: 
@@ -150,6 +150,18 @@ Input:
 }}
 Output:
 {{"valid":false,"reason":"La question n'est pas claire et l'utilisateur n'a pas répondu"}}
+
+Input: 
+{{
+    "conversation": "Q: J'aime de plus en plus le jazz",
+    "memory": {{
+        "fact": "{bio_name} aime le jazz",
+        "type": "long"
+    }},
+    "rag": "---Préférences artistiques de {bio_name}: il adore le jazz---"
+}}
+Output:
+{{"valid":false,"reason":"c'est déjà établi dans ses préférences artistiques, pas besoin de le répéter"}}
 """
 
 MEMORY_REVIEW_PROMPT_TEMPLATE = """{memory_to_be_checked}"""
@@ -253,7 +265,7 @@ class Memory(Baseplugin):
                         self.logger.info(f"Reviewing long-term memory: {memory.fact}")
                         validation = await self.memory_review(conversation, memory)
                         
-                        if validation.valid or self.settings.get("review", False):
+                        if validation.valid or self.settings.get("review", True) is False:
                             self.logger.info(f"Memory validated, storing: {memory.fact} with conversation_id: {conversation_id}")
                             await self.store_memory_via_hook(memory, memories, validation.reason, conversation_id)
                         else:

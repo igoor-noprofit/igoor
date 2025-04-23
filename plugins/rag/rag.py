@@ -122,7 +122,7 @@ class Rag(Baseplugin):
         self.loading_event.set()
         self.logger.info("RAG plugin initialization complete")
         await self.pm.trigger_hook(hook_name="rag_loaded")
-        await self.run_tests()
+        # await self.run_tests()
         # await self.test_query_rag()
         
     
