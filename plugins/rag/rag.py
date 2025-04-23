@@ -823,8 +823,6 @@ class Rag(Baseplugin):
             preflow_dict (dict): The JSON dictionary returned by the LLM.
             db_path (str): Path to the SQLite database file.
             docstore_ids_to_retrieve (list): A list of docstore_id strings to filter by.
-
-        Returns:
             
         """
         if preflow_dict is None:
