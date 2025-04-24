@@ -46,6 +46,7 @@ Prédictions précédentes:
 ---
 
 S'il y a une conversation en cours donne la priorité à la conversation en cours.
+Rappelle-toi que tes prédictions doivent être des phrases à prononcer du point de vue de {bio_name}
 Prédis la suite de: {input}
 """
 
