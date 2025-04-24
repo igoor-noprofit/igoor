@@ -1,3 +1,4 @@
+from version import __appname__, __version__, __codename__
 from settings_manager import SettingsManager
 from status_manager import StatusManager
 from plugin_manager import hookimpl, PluginManager
@@ -16,7 +17,7 @@ class Baseplugin:
         
         self.logger = setup_logger(
             f'plugins.{plugin_name}', 
-            os.path.join(os.getenv('APPDATA'), os.getenv('IGOOR_APPNAME')),
+            os.path.join(os.getenv('APPDATA'), __appname__),
             separate_plugin_log=False
         )
         
@@ -41,7 +42,7 @@ class Baseplugin:
             self._init_database()
         # self.pm = pm
         # Construct the plugin folder path
-        self.app_name = os.getenv('IGOOR_APPNAME')  # Get the application name from the environment variable
+        self.app_name = __appname__  # Get the application name from the environment variable
         self.appdata_path = os.getenv('APPDATA')  # Get the APPDATA path from the environment variable
         self.plugin_folder = os.path.join(self.appdata_path, self.app_name, 'plugins', plugin_name)
         # Create the directory if it doesn't exist

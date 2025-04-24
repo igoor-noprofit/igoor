@@ -1,3 +1,4 @@
+from version import __appname__, __version__, __codename__
 import sqlite3
 import asyncio
 import os
@@ -23,10 +24,10 @@ class DatabaseManager:
                 return
                 
             # Setup logger
-            self.logger = setup_logger('db_manager', os.path.join(os.getenv('APPDATA'), os.getenv('IGOOR_APPNAME')))
+            self.logger = setup_logger('db_manager', os.path.join(os.getenv('APPDATA'), __appname__))
             
             # Create database file in the app's data directory
-            app_data_path = os.path.join(os.getenv('APPDATA'), os.getenv('IGOOR_APPNAME'))
+            app_data_path = os.path.join(os.getenv('APPDATA'), __appname__)
             self.db_path = Path(app_data_path) / "database" / "igoor.db"
             self.db_path.parent.mkdir(parents=True, exist_ok=True)
             

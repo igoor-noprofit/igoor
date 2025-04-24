@@ -1,3 +1,4 @@
+from version import __appname__, __version__, __codename__
 import webview
 import threading
 import os
@@ -16,7 +17,7 @@ import asyncio
 from utils import resource_path, setup_logger
 from idle_detector import IdleDetector
 
-logger = setup_logger('main', os.path.join(os.getenv('APPDATA'), os.getenv('IGOOR_APPNAME')))
+logger = setup_logger('main', os.path.join(os.getenv('APPDATA'), __appname__))
 prompts=None
 context_manager = ContextManager()
 manager = PluginManager()
@@ -81,8 +82,8 @@ IGOOR_DEBUG = os.getenv('IGOOR_DEBUG', 'False')
 IGOOR_CLI = os.getenv('IGOOR_CLI', 'False') 
 IGOOR_ONTOP = os.getenv('IGOOR_ONTOP', 'False') 
 IGOOR_OUTPUT_HTML = os.getenv('IGOOR_OUTPUT_HTML', 'False') 
-IGOOR_VERSION_CODENAME = os.getenv('IGOOR_VERSION_CODENAME', 'IGOOR')
-IGOOR_VERSION=os.getenv('IGOOR_VERSION', '0.1.0')
+IGOOR_VERSION_CODENAME = __codename__
+IGOOR_VERSION=__version__
 
 def load_settings():
     settings = SettingsManager()

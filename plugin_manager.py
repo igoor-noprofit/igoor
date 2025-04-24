@@ -1,3 +1,4 @@
+from version import __appname__, __version__, __codename__
 import importlib.util
 import os, sys, asyncio
 import json
@@ -10,10 +11,10 @@ from status_manager import StatusManager
 from utils import resource_path, setup_logger
 
 IGOOR_DEBUG = os.getenv('IGOOR_DEBUG', 'False') 
-app_name = os.getenv("IGOOR_APPNAME")
+app_name = __appname__
 hookspec = pluggy.HookspecMarker(app_name)
 hookimpl = pluggy.HookimplMarker(app_name)
-logger = setup_logger('pm', os.path.join(os.getenv('APPDATA'), os.getenv('IGOOR_APPNAME')))
+logger = setup_logger('pm', os.path.join(os.getenv('APPDATA'), app_name))
 
 if hasattr(sys, '_MEIPASS'):
     print(f"_MEIPASS directory: {sys._MEIPASS}")

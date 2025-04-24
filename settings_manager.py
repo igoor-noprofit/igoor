@@ -1,3 +1,4 @@
+from version import __appname__, __version__, __codename__
 import json
 import os
 from utils import resource_path, setup_logger
@@ -11,8 +12,8 @@ class SettingsManager:
             return
         self._initialized = True
         
-        self.logger = setup_logger('sm', os.path.join(os.getenv('APPDATA'), os.getenv('IGOOR_APPNAME')))
-        self.settings_file = os.path.join(os.getenv('APPDATA'), os.getenv('IGOOR_APPNAME'), 'settings.json')
+        self.logger = setup_logger('sm', os.path.join(os.getenv('APPDATA'), __appname__))
+        self.settings_file = os.path.join(os.getenv('APPDATA'), __appname__, 'settings.json')
         self.default_settings_file = resource_path('default_settings.json')
         self.ensure_settings_file_exists()
         self.settings = self.load_settings()

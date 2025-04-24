@@ -1,12 +1,14 @@
+from version import __appname__, __version__, __codename__
 from langchain_groq import ChatGroq  # Import other chat classes as needed
 import os, time, json
 from settings_manager import SettingsManager
 from utils import setup_logger
 
+
 class LLMManager:
     def __init__(self, provider, api_key, model_name, **kwargs):
         # Setup logger
-        self.logger = setup_logger('llm_manager', os.path.join(os.getenv('APPDATA'), os.getenv('IGOOR_APPNAME')))
+        self.logger = setup_logger('llm_manager', os.path.join(os.getenv('APPDATA'), __appname__))
         
         self.global_settings = SettingsManager()
         ai = self.global_settings.get_nested(["plugins", "onboarding", "ai"], default={})
