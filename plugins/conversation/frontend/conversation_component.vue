@@ -79,16 +79,16 @@ module.exports = {
                 });
             }
         },
-        scrollToBottom() {
-            console.log("scrolling");
-            this.$nextTick(() => { 
+        scrollToBottom(retries = 5) {
+            this.$nextTick(() => {
                 const scrollableDiv = this.$refs.scrollableConv;
                 if (scrollableDiv) {
                     scrollableDiv.scrollTop = scrollableDiv.scrollHeight;
                     console.log(scrollableDiv.scrollTop, scrollableDiv.scrollHeight);
-                }
-                else {
-                    console.warn("cannot scroll")
+                } else if (retries > 0) {
+                    setTimeout(() => this.scrollToBottom(retries - 1), 100);
+                } else {
+                    console.warn("cannot scroll");
                 }
             });
         },
