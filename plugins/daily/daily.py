@@ -39,6 +39,8 @@ Si besoin utilises aussi les infos du contexte dynamique suivant:
 {dynamic_context}
 
 ---
+Rappelle-toi que tes prédictions doivent être des phrases du point de vue de {bio_name}
+
 Voici le contexte du besoin:
 "catégorie":{category}","thème":"{theme}","tags": "{tags}"
 
