@@ -122,7 +122,7 @@ class Rag(Baseplugin):
         self.loading_event.set()
         self.logger.info("RAG plugin initialization complete")
         await self.pm.trigger_hook(hook_name="rag_loaded")
-        # await self.run_tests()
+        await self.run_tests()
         # await self.test_query_rag()
         
     
@@ -625,11 +625,12 @@ class Rag(Baseplugin):
                     break
 
             # Store the full structured data as JSON in the content field
-            content = json.dumps(embedding_text)
+            content = embedding_text
             tags_json = json.dumps(tags)
             # content = embedding_text
             # tags_json = tags
-            
+            if created_at is None:
+                created_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             # Use the updated add_chunk_to_db method
             success = await self.add_chunk_to_db(
                 content=content,
@@ -640,7 +641,7 @@ class Rag(Baseplugin):
                 theme=theme,
                 tags=tags_json,
                 docstore_id=docstore_id,
-                created_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                created_at=created_at
             )
             
             if success:
@@ -1139,8 +1140,6 @@ class Rag(Baseplugin):
         if em and length > 0: 
             docstore_ids = [item['docstore_id'] for item in em]
             await self.delete_chunks(SHORT_TERM, docstore_ids)
-            # self.logger.info("MEMORY CHUNKS NOW:")
-            # await self.print_all_chunks([SHORT_TERM])
             result = await self.check_all_chunks()
             for store_type, chunks in result.items():
                 store_name = {0: "INGESTED", 1: "LONG_TERM", 2: "SHORT_TERM"}.get(store_type, str(store_type))
