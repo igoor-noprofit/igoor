@@ -45,8 +45,21 @@ Prédictions précédentes:
 {successful_predictions}
 ---
 
-S'il y a une conversation en cours donne la priorité à la conversation en cours.
-Rappelle-toi que tes prédictions doivent être des phrases à prononcer du point de vue de {bio_name}
+S'il y a une conversation en cours donne la priorité à la conversation en cours, ex.:
+INPUT
+    conversation: "Q: Qu'est-ce que tu veux manger ce soir ?"
+    input à compléter: "Je "
+    RAG: "{bio_name} aime manger des pâtes"
+    
+OUTPUT: 
+    "je voudrais manger des pâtes",
+    "je n'ai pas trop faim ce soir",
+    "..."
+
+---
+
+Rappelle-toi que tes prédictions doivent être des phrases du point de vue de {bio_name}.
+Retourne toujours tes prédictions dans le format JSON indiqué.
 Prédis la suite de: {input}
 """
 
@@ -55,11 +68,13 @@ class Autocomplete(Baseplugin):
         self.pm = pm
         super().__init__(plugin_name,pm)
         self.prompts=AssistantPrompts("locales/","fr_FR")
-        self.global_settings = SettingsManager();
+        self.global_settings = SettingsManager()
         self.settings = self.get_my_settings()
         bio = self.global_settings.get_bio()
         self.bio_name = bio.get("name")
         self.is_loaded = True
+        self.only_exact_matches = self.settings.get("only_exact_matches", False)
+        print(f"ONLY EXACT MATCHES: {self.only_exact_matches}")
     
     @hookimpl
     def startup(self):
@@ -182,18 +197,19 @@ class Autocomplete(Baseplugin):
                 (input_text, limit)
             )
             
-            # If we don't have enough exact matches, try partial matches
-            if not result or len(result) < limit:
-                remaining = limit - (len(result) if result else 0)
-                partial_results = await self.db_execute(
-                    "SELECT input, completion, hits FROM predictions WHERE input LIKE ? ORDER BY hits DESC LIMIT ?",
-                    (f"{input_text}%", remaining)
-                )
-                
-                if result and partial_results:
-                    result.extend(partial_results)
-                elif partial_results:
-                    result = partial_results
+            if not self.only_exact_matches:
+                # If we don't have enough exact matches, try partial matches
+                if not result or len(result) < limit:
+                    remaining = limit - (len(result) if result else 0)
+                    partial_results = await self.db_execute(
+                        "SELECT input, completion, hits FROM predictions WHERE input LIKE ? ORDER BY hits DESC LIMIT ?",
+                        (f"{input_text}%", remaining)
+                    )
+                    
+                    if result and partial_results:
+                        result.extend(partial_results)
+                    elif partial_results:
+                        result = partial_results
             
             return result if result else []
         except Exception as e:
