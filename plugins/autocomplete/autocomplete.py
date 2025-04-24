@@ -48,7 +48,7 @@ Prédictions précédentes:
 S'il y a une conversation en cours donne la priorité à la conversation en cours, ex.:
 INPUT
     conversation: "Q: Qu'est-ce que tu veux manger ce soir ?"
-    input à compléter: "Je "
+    input à compléter: "je "
     RAG: "{bio_name} aime manger des pâtes"
     
 OUTPUT: 
