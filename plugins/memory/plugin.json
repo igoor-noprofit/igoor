@@ -1,7 +1,7 @@
 {
     "category": "Knowledge Base",
     "title": "Memory",
-    "description": "Saves long-term and short-term facts in user's memory (requires Knowledge Base activated)",
+    "description": "Handles evolutive knowledge: saves long-term and short-term facts in user's memory (requires Knowledge Base activated)",
     "layout": {
         "part": "main",
         "order": 50

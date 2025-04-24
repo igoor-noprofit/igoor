@@ -9,6 +9,11 @@
             <div class="modal-content settings container">
                 <button @click="showModal = false" class="close-button">✖</button>
 
+                <!-- Restart Alert -->
+                <div v-if="showRestartAlert" class="restart-alert">
+                    Please restart the app for plugin changes to take effect.
+                </div>
+
                 <!-- Tab Navigation -->
                 <div class="tabs">
                     <button v-for="category in categories" :key="category" :class="{ active: activeTab === category }"
@@ -59,7 +64,8 @@ export default {
             pluginData: {},
             showModal: false,
             activeTab: null,
-            pywebviewready: false
+            pywebviewready: false,
+            showRestartAlert: false // <-- Add this line
         }
     },
     computed: {
@@ -118,7 +124,7 @@ export default {
                 console.log("Cannot toggle core plugin:", pluginName);
                 return;
             }
-            
+
             try {
                 const result = await window.pywebview.api.toggle_plugin(pluginName, isActive);
                 if (result) {
@@ -127,6 +133,11 @@ export default {
             } catch (error) {
                 console.error("Error toggling plugin:", error);
             }
+            // Always show restart alert after attempting toggle
+            this.showRestartAlert = true;
+            setTimeout(() => {
+                this.showRestartAlert = false;
+            }, 4000);
         },
         selectPlugin(category, pluginName) {
             this.selectedPlugin = this.pluginData[category].find(p => p.name === pluginName);
@@ -368,5 +379,17 @@ input:checked+.slider:before {
 .requirement.core {
     background: #6c757d;
     color: white;
+}
+
+.restart-alert {
+    background: #ffecb3;
+    color: #795548;
+    border: 1px solid #ffe082;
+    padding: 12px 20px;
+    border-radius: 6px;
+    margin-bottom: 18px;
+    font-size: 1em;
+    text-align: center;
+    font-weight: 500;
 }
 </style>
