@@ -16,8 +16,8 @@
             "version": "1.0"
         },
         "msgs": {
-            "schema": "CREATE TABLE IF NOT EXISTS msgs (  id INTEGER PRIMARY KEY,  thread_id INTEGER, author TEXT NOT NULL, datetime TIMESTAMP, msg TEXT, answers TEXT, type TEXT, FOREIGN KEY (thread_id) REFERENCES conversation_threads(id))",
-            "version": "1.0"
+            "schema": "CREATE TABLE IF NOT EXISTS msgs (  id INTEGER PRIMARY KEY,  thread_id INTEGER, author TEXT NOT NULL, datetime TIMESTAMP, msg TEXT, answers TEXT, msg_input TEXT, FOREIGN KEY (thread_id) REFERENCES conversation_threads(id))",
+            "version": "0.1.0"
         }
     }
 }

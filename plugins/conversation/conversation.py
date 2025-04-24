@@ -137,7 +137,7 @@ class Conversation(Baseplugin):
         await self.send_switch_view_to_app("daily")
         
     @hookimpl
-    async def add_msg_to_conversation(self, msg: str, author: str, type: str = "") -> None:
+    async def add_msg_to_conversation(self, msg: str, author: str, msg_input: str) -> None:
         '''
         author can be:
             def     speaker
@@ -145,8 +145,8 @@ class Conversation(Baseplugin):
         '''
         if not(self.conversation_is_open):
             await self.new_conversation()
-        print(f"Adding {msg} to conversation")
-        newmsg = {"msg": msg, "author": author, "type": type}
+        print(f"Adding {msg} to conversation with input {msg_input} and author {author}")
+        newmsg = {"msg": msg, "author": author, "msg_input": msg_input}
         self.thread.append(newmsg)
         self.send_message_to_frontend(json.dumps(newmsg))
         bms = {"backend": "addmsg"}
@@ -159,8 +159,8 @@ class Conversation(Baseplugin):
         if self.current_thread_id is not None:
             current_time = self._get_current_timestamp()
             await self.db_execute(
-                "INSERT INTO msgs (thread_id, author, datetime, msg, type) VALUES (?, ?, ?, ?, ?)",
-                (self.current_thread_id, author, current_time, msg, type)
+                "INSERT INTO msgs (thread_id, author, datetime, msg, msg_input) VALUES (?, ?, ?, ?, ?)",
+                (self.current_thread_id, author, current_time, msg, msg_input)
             )
             self.logger.info(f"Added message to conversation {self.current_thread_id} with thread_id {self.current_thread_id}")
     
@@ -213,7 +213,7 @@ class Conversation(Baseplugin):
     
     def test_conversation(self):
         async def run_tasks():
-            await self.add_msg_to_conversation("Comment s'appellent tes enfants ?", "def")
+            await self.add_msg_to_conversation("Comment s'appellent tes enfants ?", "def","test")
             await self.get_conversation()
             conversation_value = context_manager.get_value("conversation")
             print("Retrieved conversation from context:", conversation_value)

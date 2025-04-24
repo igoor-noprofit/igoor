@@ -2,5 +2,6 @@
     "provider": "",
     "api_key": "",
     "model_name": "",
-    "temperature": ""
+    "temperature": "",
+    "virtual_keyboard": false
 }

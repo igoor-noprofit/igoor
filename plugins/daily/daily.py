@@ -103,7 +103,7 @@ class Daily(Baseplugin):
                     msg = message_data.get("msg", "")
                     # Trigger hook in plugin manager with msg
                     asyncio.create_task(self.pm.trigger_hook(hook_name="speak", message=msg))
-                    asyncio.create_task(self.pm.trigger_hook(hook_name="add_msg_to_conversation", msg=msg, author="master"))    
+                    asyncio.create_task(self.pm.trigger_hook(hook_name="add_msg_to_conversation", msg=msg, author="master",msg_input="daily"))    
         except json.JSONDecodeError:
             print(f"Invalid JSON message received: {message}")
         

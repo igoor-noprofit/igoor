@@ -1372,7 +1372,7 @@ class Rag(Baseplugin):
         ]
         await asyncio.sleep(2)
         for query in queries:
-            await self.pm.trigger_hook(hook_name="add_msg_to_conversation", msg=query, author="def")
+            await self.pm.trigger_hook(hook_name="add_msg_to_conversation", msg=query, author="def",msg_input="test")
             await self.pm.trigger_hook(hook_name="asr_msg", msg="Q: " + query)
             #asyncio.create_task(self.pm.trigger_hook(hook_name="abandon_conversation"))
             # asyncio.create_task(asyncio.sleep(5))  # Wait 5 seconds before each query
