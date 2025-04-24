@@ -78,7 +78,6 @@ class Baseplugin:
         """
         Retrieve settings specific to the plugin.
         """
-        self.logger.info(f"getting settings for {self.plugin_name}")
         return self.settings_manager.get_plugin_settings(self.plugin_name)
 
     def mass_update_settings(self, json_data):
