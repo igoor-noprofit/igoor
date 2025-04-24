@@ -309,8 +309,6 @@ class Timeframe(BaseModel):
     reference: str = Field(description="the original time reference from the query")
     start_date: Optional[str] = Field(None, pattern=r"^\d{4}-\d{2}-\d{2}$", description="YYYY-MM-DD format, optional for absolute dates")
     end_date: Optional[str] = Field(None, pattern=r"^\d{4}-\d{2}-\d{2}$", description="YYYY-MM-DD format, optional for absolute dates")
-    start_time: Optional[str] = Field(None, pattern=r"^\d{2}:\d{2}$", description="HH:MM format, optional")
-    end_time: Optional[str] = Field(None, pattern=r"^\d{2}:\d{2}$", description="HH:MM format, optional")
     relative_days: Optional[int] = Field(None, description="days relative to current date (e.g., -1 for yesterday)")
     period: Optional[Period] = Field(None, description="optional period of the day")
 
