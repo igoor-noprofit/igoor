@@ -16,9 +16,27 @@ class Clock(Baseplugin):
     @hookimpl
     def startup(self):
         self.formatted_date_time = ""
-        # Set locale if provided, otherwise use system default
-        loc = os.getenv("IGOOR_LOCALE") # check in context, env or others
-        locale.setlocale(locale.LC_TIME, loc)
+        # Get locale from onboarding plugin settings
+        loc = self.settings_manager.get_nested(["plugins", "onboarding", "prefs", "locale"])
+        
+        # Set locale if found, otherwise log a warning and use system default
+        try:
+            if loc:
+                locale.setlocale(locale.LC_TIME, loc)
+            else:
+                self.logger.warning("Locale not found in settings, using system default.")
+                # Attempt to set to default locale, might vary by system
+                try:
+                    locale.setlocale(locale.LC_TIME, '') 
+                except locale.Error:
+                    self.logger.error("Could not set system default locale.")
+        except locale.Error as e:
+            self.logger.error(f"Failed to set locale to '{loc}': {e}. Using system default.")
+            # Attempt to set to default locale as a fallback
+            try:
+                locale.setlocale(locale.LC_TIME, '')
+            except locale.Error:
+                self.logger.error("Could not set system default locale as fallback.")
         self.update_date_time()
         
     def update_date_time(self):
