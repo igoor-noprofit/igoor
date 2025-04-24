@@ -67,7 +67,15 @@ export default {
             return Object.keys(this.pluginData)
         },
         pluginsByCategory() {
-            return this.pluginData
+            // Exclude plugins by name
+            const excluded = ["baseplugin", "settings", "onboarding"];
+            const filtered = {};
+            for (const [category, plugins] of Object.entries(this.pluginData)) {
+                filtered[category] = plugins.filter(
+                    p => !excluded.includes(p.name)
+                );
+            }
+            return filtered;
         }
     },
     async mounted() {

@@ -122,7 +122,7 @@ class Rag(Baseplugin):
         self.loading_event.set()
         self.logger.info("RAG plugin initialization complete")
         await self.pm.trigger_hook(hook_name="rag_loaded")
-        await self.run_tests()
+        # await self.run_tests()
         # await self.test_query_rag()
         
     
@@ -1146,8 +1146,8 @@ class Rag(Baseplugin):
                 for chunk_id, check in chunks.items():
                     if isinstance(check, dict) and "error" in check:
                         self.logger.error(f"[{store_name}] Chunk {chunk_id}: ERROR - {check['error']}")
-                    else:
-                        self.logger.info(f"[{store_name}] Chunk {chunk_id}: OK - {check}")
+                    # else:
+                    #    self.logger.info(f"[{store_name}] Chunk {chunk_id}: OK - {check}")
     
     async def delete_chunks_from_FAISS_index(self, store_type, chunk_ids):
         """
