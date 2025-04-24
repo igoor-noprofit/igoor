@@ -501,9 +501,7 @@ class Rag(Baseplugin):
                 await self.save_index(INGESTED)
 
             except Exception as e:
-                import traceback
                 self.logger.error(f"Error processing/adding chunks from {file_name} to FAISS/DB: {e}")
-                self.logger.error(traceback.format_exc())
                 # Consider if you need cleanup or rollback here
 
     async def add_chunk_to_db(self, content, chunk_type, reason, document_id=None, conversation_id=None, theme=None, tags=None, docstore_id=None, created_at=None):
@@ -1117,7 +1115,7 @@ class Rag(Baseplugin):
             return []
         except Exception as e:
             self.logger.error(f"Error during FAISS search or processing in '{store_type}' store: {e}")
-            self.logger.error(traceback.format_exc())
+            # self.logger.error(traceback.format_exc())
             # Return whatever was processed so far, or an empty list
             return processed_results if processed_results else []
     
