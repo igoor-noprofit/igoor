@@ -626,7 +626,7 @@ class Rag(Baseplugin):
                     break
 
             # Store the full structured data as JSON in the content field
-            content = json.dumps(embedding_text)
+            content = embedding_text
             tags_json = json.dumps(tags)
             # content = embedding_text
             # tags_json = tags
@@ -1389,7 +1389,7 @@ class Rag(Baseplugin):
         json_path = os.path.join(os.path.dirname(__file__), "short_term_examples.json")
         
         try:
-            # Wait for embedding model and indexes to be loaded
+            # Wait for  model and indexes to be loaded
             if not self.embedding_loaded or not self.index_loaded[SHORT_TERM]:
                 self.logger.info("Waiting for embedding model and indexes to load...")
                 await self.loading_event.wait()
