@@ -160,10 +160,3 @@ Daily logs are in:
 IGOOR_FOLDER/logs/
 ```
 
-Daily plugin logs are in:
-
-```
-IGOOR_FOLDER/logs/plugins/pluginname_date
-```
-
-
