@@ -122,6 +122,9 @@ class Rag(Baseplugin):
         self.loading_event.set()
         self.logger.info("RAG plugin initialization complete")
         await self.pm.trigger_hook(hook_name="rag_loaded")
+        await self.run_tests()
+        await self.check_all_chunks()
+        await self.test_query_rag()
         # await self.run_tests()
         # await self.test_query_rag()
         
@@ -623,7 +626,7 @@ class Rag(Baseplugin):
                     break
 
             # Store the full structured data as JSON in the content field
-            content = embedding_text
+            content = json.dumps(embedding_text)
             tags_json = json.dumps(tags)
             # content = embedding_text
             # tags_json = tags
@@ -1126,11 +1129,13 @@ class Rag(Baseplugin):
     '''
     @hookimpl
     async def clean_short_term_memory(self,clean_after_days: int):
+        '''
         try:
             await self.print_all_chunks([SHORT_TERM])
         except Exception as e:
             self.logger.error(f"Error printing chunks: {e}")
             return False
+        '''
         self.logger.info("CLEANING SHORT TERM MEMORY")
         em = await self.retrieve_expired_memories(clean_after_days)
         length = len(em)
@@ -1144,8 +1149,8 @@ class Rag(Baseplugin):
                 for chunk_id, check in chunks.items():
                     if isinstance(check, dict) and "error" in check:
                         self.logger.error(f"[{store_name}] Chunk {chunk_id}: ERROR - {check['error']}")
-                    # else:
-                    #    self.logger.info(f"[{store_name}] Chunk {chunk_id}: OK - {check}")
+                    else:
+                        self.logger.info(f"[{store_name}] Chunk {chunk_id}: OK - {check}")
     
     async def delete_chunks_from_FAISS_index(self, store_type, chunk_ids):
         """
@@ -1363,7 +1368,8 @@ class Rag(Baseplugin):
     async def test_query_rag(self):
         print("TESTING RAG:::")
         queries = [
-            "Est-ce que t'as bu une tisane cette semaine ?"
+            "Qu'est-ce que t'as mangé hier ?"
+            # "est-ce que tu as faim igor"
             # "Qu'est-ce que t'as fait de beau hier soir ?"
             # "C'était quand la dernière fois que t'as vu un film"
             # "Qu'est-ce que t'as mangé hier ?"
@@ -1372,7 +1378,7 @@ class Rag(Baseplugin):
         for query in queries:
             await self.pm.trigger_hook(hook_name="add_msg_to_conversation", msg=query, author="def",msg_input="test")
             await self.pm.trigger_hook(hook_name="asr_msg", msg="Q: " + query)
-            #asyncio.create_task(self.pm.trigger_hook(hook_name="abandon_conversation"))
+            # asyncio.create_task(self.pm.trigger_hook(hook_name="abandon_conversation"))
             # asyncio.create_task(asyncio.sleep(5))  # Wait 5 seconds before each query
     
     async def test_fill_short_term_memory(self):
@@ -1462,6 +1468,7 @@ class Rag(Baseplugin):
         Returns:
             dict: {store_type: {chunk_id: result, ...}, ...}
         """
+        self.logger.info("Checking all chunks in all stores")
         results = {}
         for store_type in [INGESTED, LONG_TERM, SHORT_TERM]:
             if not self.index_loaded.get(store_type) or self.vector_stores.get(store_type) is None:
