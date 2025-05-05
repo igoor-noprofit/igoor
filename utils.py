@@ -3,6 +3,8 @@ import sys
 from pathlib import Path
 from datetime import datetime
 import os
+import json
+from logging.handlers import TimedRotatingFileHandler
 
 def resource_path(relative_path):
     """ Get absolute path to resource, works for dev and for PyInstaller """
@@ -13,6 +15,27 @@ def resource_path(relative_path):
         base_path = os.path.abspath(".")
     
     return os.path.join(base_path, relative_path)
+
+
+class JsonFormatter(logging.Formatter):
+    """Formats log records as JSON strings."""
+    def format(self, record):
+        log_entry = {
+            'timestamp': self.formatTime(record, self.datefmt),
+            # 'level': record.levelname,  # Removed
+            # 'name': record.name,        # Removed
+        }
+        # If the message is already a dict, merge it
+        if isinstance(record.msg, dict):
+            log_entry.update(record.msg)
+        else:
+            log_entry['message'] = record.getMessage()
+            
+        # Add exception info if present
+        if record.exc_info:
+            log_entry['exception'] = self.formatException(record.exc_info)
+            
+        return json.dumps(log_entry, ensure_ascii=False)
 
 def setup_logger(name, appdata_folder, separate_plugin_log=False):
     """
@@ -70,6 +93,42 @@ def setup_logger(name, appdata_folder, separate_plugin_log=False):
         
         # Prevent propagation to root logger if necessary (optional, depends on desired behavior)
         # logger.propagate = False
+
+    return logger
+
+def setup_jsonl_logger(name, appdata_folder):
+    """
+    Sets up a logger that writes JSONL records to a daily rotating file.
+
+    Args:
+        name (str): Logger name (e.g., 'llm_invocations')
+        appdata_folder (str): Path to IGOOR_FOLDER
+    """
+    logger = logging.getLogger(name)
+    
+    # Prevent duplicate handlers
+    if not logger.handlers:
+        logger.setLevel(logging.INFO) # Log INFO level and above
+        
+        # Create logs directory if it doesn't exist
+        logs_dir = Path(appdata_folder) / 'logs'
+        logs_dir.mkdir(exist_ok=True)
+        
+        # Create daily rotating file handler for JSONL
+        # Use date in filename for simplicity, matching the original plan
+        log_filename = logs_dir / f'{name}_{datetime.now().strftime("%Y%m%d")}.jsonl'
+        file_handler = logging.FileHandler(log_filename, encoding='utf-8')
+        file_handler.setLevel(logging.INFO)
+        
+        # Use the custom JSON formatter
+        formatter = JsonFormatter()
+        file_handler.setFormatter(formatter)
+        
+        # Add handler to the logger
+        logger.addHandler(file_handler)
+        
+        # Prevent propagation to avoid duplicate logs in the main logger
+        logger.propagate = False
 
     return logger
 

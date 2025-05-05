@@ -2,7 +2,7 @@ from version import __appname__, __version__, __codename__
 from langchain_groq import ChatGroq  # Import other chat classes as needed
 import os, time, json
 from settings_manager import SettingsManager
-from utils import setup_logger
+from utils import setup_logger, setup_jsonl_logger
 
 
 class LLMManager:
@@ -18,6 +18,8 @@ class LLMManager:
         self.temperature = kwargs.get("temperature", 1) or ai.get("temperature")
         self.chat_instance = self._create_chat()
         self.json_schema = False
+        # Setup dedicated logger for LLM invocations
+        self.invocation_logger = setup_jsonl_logger('llm_invocations', os.path.join(os.getenv('APPDATA'), __appname__))
 
     def _create_chat(self):
         if self.provider == "groq":
@@ -61,11 +63,32 @@ class LLMManager:
                         result_dict = result.dict()
                     else:
                         result_dict = str(result)
-                    self.logger.info(f"Structured LLM Response:\n{json.dumps(result_dict, indent=2, ensure_ascii=False)}")
+                    response_content = result
+                    # Generic conversion of any Pydantic model to dict for logging
+                    if hasattr(result, 'model_dump'):
+                        response_log_content = result.model_dump()
+                    elif hasattr(result, 'dict'):
+                        response_log_content = result.dict()
+                    else:
+                        response_log_content = str(result)
+                    # self.logger.info(f"Structured LLM Response:\n{json.dumps(response_log_content, indent=2, ensure_ascii=False)}") # Keep regular log minimal
                 else:
-                    result = self.chat_instance.invoke(messages)
-                    self.logger.info(f"Unstructured LLM Response:\n{str(result)}")
-                return result
+                    response_content = self.chat_instance.invoke(messages)
+                    response_log_content = str(response_content)
+                    # self.logger.info(f"Unstructured LLM Response:\n{str(response_content)}") # Keep regular log minimal
+                
+                # Log invocation details to JSONL file
+                log_data = {
+                    "provider": self.provider,
+                    "model": self.model_name,
+                    "temp": self.temperature,
+                    "sys": system_prompt,
+                    "usr": prompt,
+                    "response": response_log_content
+                }
+                self.invocation_logger.info(log_data)
+                
+                return response_content
                 
             except Exception as e:
                 attempt += 1

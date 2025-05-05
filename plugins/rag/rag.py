@@ -129,9 +129,9 @@ class Rag(Baseplugin):
                 await self.fix_docstore_id_inconsistencies(store_type)
         
         
-        await self.run_tests()
-        await self.clean_short_term_memory(7)
-        await self.print_all_chunks()
+        # await self.run_tests()
+        # await self.clean_short_term_memory(7)
+        # await self.print_all_chunks()
         # await self.check_all_chunks()
         # await self.test_query_rag()
         
