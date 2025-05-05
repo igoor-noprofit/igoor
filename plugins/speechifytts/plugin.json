@@ -1,0 +1,12 @@
+{
+    "category": "TTS",
+    "title": "Speechify",
+    "description": "TTS using cloud service Speechify for cloned or custom voice",
+    "layout": {
+        "part": "topbar",
+        "order": 0
+    },
+    "is_free": false,
+    "requires_subscription": true,
+    "requires_internet": true
+}

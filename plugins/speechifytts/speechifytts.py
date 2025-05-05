@@ -1,0 +1,144 @@
+from plugin_manager import hookimpl, PluginManager
+from plugins.baseplugin.baseplugin import Baseplugin
+from settings_manager import SettingsManager
+import asyncio
+import os
+from speechify import Speechify
+import sounddevice as sd
+import numpy as np
+from pydub import AudioSegment
+import io
+import base64
+'''
+Language	Code
+English	en
+French	fr-FR
+German	de-DE
+Spanish	es-ES
+Portuguese (Brazil)	pt-BR
+Portuguese (Portugal)	pt-PT
+'''
+
+class Speechifytts(Baseplugin):
+    def __init__(self, plugin_name, pm):
+        self.pm = pm
+        super().__init__(plugin_name,pm)
+                
+    @hookimpl
+    def startup(self):
+        self.supported_lang = ['en', 'fr-FR', 'de-DE', 'es-ES', 'pt-BR', 'pt-PT']
+        self.settings = self.get_my_settings()
+        print ("SPEECHIFY settings", self.settings)
+        try:
+            self.api_key = self.settings.get("api_key")
+            self.voice_id = self.settings.get("voice_id")  
+            if (not self.api_key):
+                self.logger.error("Speechify API token not set in settings,cannot generate speech")
+                return False
+            if (not self.voice_id):
+                self.logger.error("Speechify Voice ID not set in settings,cannot generate speech")
+                return False
+            self.lang = self.settings_manager.get_nested(["plugins", "onboarding", "prefs", "lang"]).replace("_", "-")
+            if self.lang not in self.supported_lang:
+                self.logger.warning(f"Configured language '{self.lang}' is not officially supported by Speechify plugin. Check documentation for compatibility.")
+            try:
+                self.client = Speechify(token=self.api_key)
+                self.is_loaded = True
+                return True
+            except Exception as e:
+                self.logger.error(f"Error occurred while creating Speechify client : {e}")
+                return False
+        except Exception as e:
+            self.logger.error(f"Error occurred while setting user : {e}")
+            return False
+        
+    @hookimpl
+    def speak(self, message):
+        print("§§§§ SPEECHIFY SPEAKING *********************************************** :", message)
+        
+        # Schedule the speak_func to run in the background
+        asyncio.create_task(self.run_speak_func(message))
+
+    def run_restart_asr(self):
+        asyncio.create_task(self.restart_asr())
+        
+    async def restart_asr(self):
+        await self.pm.trigger_hook(hook_name="restart_asr")
+
+    async def run_speak_func(self, message):
+        success = await self.safe_speak_func(message)
+
+    async def safe_speak_func(self, message):
+        try:
+            result = await self.speak_func(message)
+            if not result:
+                self.logger.warning("Speak function encountered an issue but handled gracefully.")
+                await self.pm.trigger_hook(hook_name="speak_fallback", message=message)
+        except Exception as e:
+            self.logger.error(f"An unexpected error occurred: {e}")
+            return False
+
+    async def speak_func(self, message):
+        print("SPEAK FUNC:" + message)
+        try:
+            try:
+                response = self.client.tts.audio.speech(
+                    input=message,
+                    voice_id=self.voice_id,
+                    language=self.lang,
+                    model="simba-multilingual"
+                    # format=OUTPUT_FORMAT # Add if needed/supported
+                )
+                if not response or not response.audio_data:
+                    self.logger.error("Received empty audio data from Speechify")
+                    return False
+                else:
+                    # Decode the Base64-encoded audio data to bytes
+                    audio_bytes = base64.b64decode(response.audio_data)
+                    print(f"Received {len(audio_bytes)} bytes of audio data. Decoding...")
+
+                    # 2. Decode the audio bytes using pydub
+                    # Use io.BytesIO to treat the byte string like a file
+                    audio_file_like = io.BytesIO(audio_bytes)
+                    # Load the audio data (pydub will likely need ffmpeg for mp3)
+                    audio_segment = AudioSegment.from_file(audio_file_like) # format="mp3" can be added if needed
+
+                    print("Decoding complete. Preparing for playback...")
+
+                    # 3. Get raw audio data (samples) and parameters for sounddevice
+                    # Convert pydub audio segment to numpy array
+                    # Samples are typically int16, sounddevice works well with float32 or int16 numpy arrays
+                    samples = np.array(audio_segment.get_array_of_samples())
+
+                    # Check if mono or stereo and adjust numpy array shape if needed
+                    if audio_segment.channels == 2:
+                        samples = samples.reshape((-1, 2))
+                    # else: # Mono, shape is likely already correct (1D array)
+
+                    sample_rate = audio_segment.frame_rate
+                    channels = audio_segment.channels
+                    dtype = samples.dtype # Get the numpy data type (e.g., int16)
+
+                    print(f"Audio Parameters: Rate={sample_rate}Hz, Channels={channels}, Dtype={dtype}")
+
+                    # 4. Play the audio using sounddevice
+                    print("Playing audio...")
+                    # AUDIO PLAYBACK
+                    await self.pm.trigger_hook(hook_name="pause_asr")
+                    # sd.play() takes the numpy array, sample rate
+                    # blocking=True waits until playback is finished before continuing the script
+                    sd.play(samples, samplerate=sample_rate, blocking=True)
+                    # sd.wait() # Alternative to blocking=True if you used blocking=False
+                    print("Playback finished.")
+                    self.run_restart_asr()
+                    return True
+            except Exception as inner_e:
+                self.logger.warning(f"Error playing back audio data: {inner_e}")
+                return False
+
+            return True
+
+        except Exception as e:
+            self.logger.error(f"Error occurred while speaking: {e}")
+            await self.pm.trigger_hook(hook_name="speak_fallback",message=message) 
+            return False
