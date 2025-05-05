@@ -122,11 +122,19 @@ class Rag(Baseplugin):
         self.loading_event.set()
         self.logger.info("RAG plugin initialization complete")
         await self.pm.trigger_hook(hook_name="rag_loaded")
+        
+        # Fix any docstore ID inconsistencies before running tests
+        for store_type in [INGESTED, LONG_TERM, SHORT_TERM]:
+            if self.index_loaded.get(store_type):
+                await self.fix_docstore_id_inconsistencies(store_type)
+        
+        
         await self.run_tests()
-        await self.check_all_chunks()
-        await self.test_query_rag()
-        # await self.run_tests()
+        await self.clean_short_term_memory(7)
+        await self.print_all_chunks()
+        # await self.check_all_chunks()
         # await self.test_query_rag()
+        
         
     
     def create_folders(self):
@@ -1053,13 +1061,17 @@ class Rag(Baseplugin):
 
             loop = asyncio.get_event_loop()
             # Run the synchronous FAISS search in a thread pool executor
-            results = await loop.run_in_executor(
-                None,
-                lambda: self.vector_stores[store_type].similarity_search_with_score(
-                    query_text,
-                    k=fetch_k # Fetch more candidates
+            try:
+                results = await loop.run_in_executor(
+                    None,
+                    lambda: self.vector_stores[store_type].similarity_search_with_score(
+                        query_text,
+                        k=fetch_k # Fetch more candidates
+                    )
                 )
-            )
+            except Exception as e:
+                self.logger.error(f"Error during FAISS search in '{store_type}' store: {e}")
+                return []
 
             # --- Correction: Use store_type consistently ---
             current_docstore = self.vector_stores[store_type].docstore._dict
@@ -1076,14 +1088,17 @@ class Rag(Baseplugin):
                     docstore_id = doc.metadata.get("docstore_id")
 
                     if docstore_id is not None:
-                        # Optional: Verify the docstore_id actually exists in the docstore, though it should
-                        if docstore_id in current_docstore:
-                            # self.logger.debug(f"Adding chunk: score={score:.4f}, docstore_id={docstore_id}")
-                            processed_results.append((doc, score, docstore_id))
-                            count += 1
-                        else:
+                        # Verify the docstore_id actually exists in the docstore
+                        # This is critical to prevent 'ID not found' errors
+                        if docstore_id not in current_docstore:
                             # This case should ideally not happen if ingestion is correct
                             self.logger.warning(f"Found docstore_id '{docstore_id}' in metadata but not in '{store_type}' docstore for doc starting with: {doc.page_content[:50]}...")
+                            # Skip this document since its ID doesn't exist in the docstore
+                            continue
+                        # If we get here, the docstore_id exists in the current_docstore
+                        # self.logger.debug(f"Adding chunk: score={score:.4f}, docstore_id={docstore_id}")
+                        processed_results.append((doc, score, docstore_id))
+                        count += 1
                     else:
                         # Fallback: Try to find based on content if ID wasn't in metadata (less reliable, maybe log warning)
                         # This indicates a potential issue during ingestion where metadata wasn't updated/saved correctly
@@ -1128,29 +1143,106 @@ class Rag(Baseplugin):
         
     '''
     @hookimpl
-    async def clean_short_term_memory(self,clean_after_days: int):
-        '''
+    async def clean_short_term_memory(self, clean_after_days: int):
+        """
+        Clean short-term memories older than the specified number of days.
+        
+        Args:
+            clean_after_days (int): Number of days after which memories should be cleaned
+        """
+        self.logger.info(f"Cleaning short-term memories older than {clean_after_days} days")
+        
+        # Wait for RAG to be fully loaded
+        if not self.is_loaded:
+            self.logger.info("Waiting for RAG to be fully loaded before cleaning memories...")
+            await self.loading_event.wait()
+        
         try:
-            await self.print_all_chunks([SHORT_TERM])
+            # 1. Get IDs of memories to be cleaned from the database
+            cutoff_date = datetime.now() - timedelta(days=clean_after_days)
+            cutoff_date_str = cutoff_date.isoformat()
+            
+            # Query the database for short-term memories older than the cutoff date
+            # Make sure to get the docstore_ids which are needed for FAISS deletion
+            memories_to_clean = await self.db_execute(
+                "SELECT id, docstore_id FROM chunks WHERE type = ? AND created_at < ?",
+                (SHORT_TERM, cutoff_date_str)
+            )
+            
+            if not memories_to_clean:
+                self.logger.info(f"No short-term memories found older than {clean_after_days} days")
+                return True
+                
+            self.logger.info(f"Found {len(memories_to_clean)} short-term memories to clean")
+            
+            # 2. Extract and validate docstore_ids for FAISS deletion
+            valid_docstore_ids = []
+            invalid_db_ids = []
+            
+            # Get current docstore IDs from vector store
+            if not self.index_loaded.get(SHORT_TERM) or self.vector_stores.get(SHORT_TERM) is None:
+                self.logger.error("Short-term memory vector store not loaded")
+                return False
+                
+            current_docstore = self.vector_stores[SHORT_TERM].docstore._dict
+            
+            # Validate each docstore_id
+            for memory in memories_to_clean:
+                db_id = memory['id']
+                docstore_id = memory['docstore_id']
+                
+                if not docstore_id:
+                    # No docstore_id, just delete from database
+                    invalid_db_ids.append(db_id)
+                    continue
+                    
+                # Check if this docstore_id exists in the vector store
+                if docstore_id in current_docstore:
+                    valid_docstore_ids.append(docstore_id)
+                else:
+                    # Docstore ID doesn't exist in vector store, just delete from database
+                    self.logger.warning(f"Found docstore_id '{docstore_id}' in database but not in vector store")
+                    invalid_db_ids.append(db_id)
+            
+            # 3. Delete valid IDs from both FAISS and database
+            success = True
+            if valid_docstore_ids:
+                self.logger.info(f"Deleting {len(valid_docstore_ids)} valid docstore IDs from vector store and database")
+                success = await self.delete_chunks(SHORT_TERM, valid_docstore_ids)
+                if not success:
+                    self.logger.error("Failed to delete chunks from vector store")
+            else:
+                self.logger.info("No valid docstore IDs found to delete from vector store")
+            
+            # 4. Delete invalid IDs from database only
+            if invalid_db_ids:
+                self.logger.info(f"Cleaning {len(invalid_db_ids)} database records with invalid docstore IDs")
+                placeholders = ', '.join('?' for _ in invalid_db_ids)
+                await self.db_execute(
+                    f"DELETE FROM chunks WHERE id IN ({placeholders})",
+                    invalid_db_ids
+                )
+                
+            total_cleaned = len(valid_docstore_ids) + len(invalid_db_ids)
+            
+            if success:
+                self.logger.info(f"Successfully cleaned {total_cleaned} short-term memories")
+                
+                # 5. Reload the SHORT_TERM index to ensure consistency between FAISS and DB
+                # This is critical to prevent 'ID not found' errors when querying after cleaning
+                self.logger.info("Reloading SHORT_TERM index after cleaning to ensure consistency")
+                await self.load_index(SHORT_TERM)
+                self.logger.info("SHORT_TERM index reloaded successfully")
+            else:
+                self.logger.error("Failed to clean short-term memories")
+                
+            return success
+            
         except Exception as e:
-            self.logger.error(f"Error printing chunks: {e}")
+            self.logger.error(f"Error cleaning short-term memories: {e}")
+            import traceback
+            self.logger.error(traceback.format_exc())
             return False
-        '''
-        self.logger.info("CLEANING SHORT TERM MEMORY")
-        em = await self.retrieve_expired_memories(clean_after_days)
-        length = len(em)
-        self.logger.info(f"Found {length} expired memories")
-        if em and length > 0: 
-            docstore_ids = [item['docstore_id'] for item in em]
-            await self.delete_chunks(SHORT_TERM, docstore_ids)
-            result = await self.check_all_chunks()
-            for store_type, chunks in result.items():
-                store_name = {0: "INGESTED", 1: "LONG_TERM", 2: "SHORT_TERM"}.get(store_type, str(store_type))
-                for chunk_id, check in chunks.items():
-                    if isinstance(check, dict) and "error" in check:
-                        self.logger.error(f"[{store_name}] Chunk {chunk_id}: ERROR - {check['error']}")
-                    else:
-                        self.logger.info(f"[{store_name}] Chunk {chunk_id}: OK - {check}")
     
     async def delete_chunks_from_FAISS_index(self, store_type, chunk_ids):
         """
@@ -1173,63 +1265,24 @@ class Rag(Baseplugin):
             index_to_docstore_id = vector_store.index_to_docstore_id
             docstore_id_to_index = {docstore_id: index for index, docstore_id in index_to_docstore_id.items()}
             
-            # Track which indices need to be removed
-            indices_to_remove = []
+            # Use the built-in delete method which handles index and docstore removal
+            deleted_count = vector_store.delete(chunk_ids)
             
-            # Find indices for the docstore IDs we want to delete
-            for docstore_id in chunk_ids:
-                if docstore_id in docstore_id_to_index:
-                    indices_to_remove.append(docstore_id_to_index[docstore_id])
-                    # Remove from docstore
-                    if docstore_id in docstore:
-                        del docstore[docstore_id]
-                else:
-                    self.logger.warning(f"Docstore ID {docstore_id} not found in vector store {store_type}")
-            
-            if not indices_to_remove:
-                self.logger.info(f"No valid indices found to remove from vector store {store_type}")
+            if deleted_count:
+                self.logger.info(f"Successfully requested deletion of {len(chunk_ids)} chunks from vector store {store_type}. Actual deleted: {deleted_count}")
+                # Save the updated index after deletion
+                await self.save_index(store_type)
+                # No need to reload here, the calling function (clean_short_term_memory) handles reloading if necessary.
                 return True
-            
-            # Sort indices in descending order to avoid index shifting issues when deleting
-            indices_to_remove.sort(reverse=True)
-            
-            # Remove the vectors from the FAISS index
-            for idx in indices_to_remove:
-                # Remove the index mapping
-                if idx in index_to_docstore_id:
-                    del index_to_docstore_id[idx]
-            
-            # Rebuild the index with remaining documents
-            remaining_docs = list(docstore.values())
-            if remaining_docs:
-                # If we have documents left, create a new index with them
-                new_vectorstore = FAISS.from_documents(remaining_docs, self.embedding_function)
-
-                # Map old docstore_ids to documents
-                for old_doc in remaining_docs:
-                    old_id = old_doc.metadata.get("docstore_id")
-                    if old_id:
-                        # Find the new random docstore_id assigned by FAISS
-                        for new_id, doc in new_vectorstore.docstore._dict.items():
-                            if doc.page_content == old_doc.page_content:
-                                # Replace the new_id with the old_id in the docstore
-                                new_vectorstore.docstore._dict[old_id] = doc
-                                del new_vectorstore.docstore._dict[new_id]
-                                doc.metadata["docstore_id"] = old_id
-                                break
-
-                self.vector_stores[store_type] = new_vectorstore
             else:
-                # If no documents left, create an empty index
-                self.vector_stores[store_type] = FAISS.from_documents(
-                    [Document(page_content="Initial empty document", metadata={"source": "init"})],
-                    self.embedding_function
-                )
-            
-            # Save the updated index
-            await self.save_index(store_type)
-            self.logger.info(f"Successfully removed {len(indices_to_remove)} chunks from vector store {store_type}")
-            return True
+                # Check if any of the IDs were actually found
+                found_ids = [doc_id for doc_id in chunk_ids if doc_id in docstore]
+                if not found_ids:
+                    self.logger.warning(f"None of the provided docstore IDs {chunk_ids} were found in vector store {store_type}. No deletion performed.")
+                    return True # Return True as no error occurred, just nothing to delete
+                else:
+                    self.logger.error(f"Failed to delete chunks with IDs {found_ids} from vector store {store_type}, though they were found.")
+                    return False
             
         except Exception as e:
             self.logger.error(f"Error deleting chunks from FAISS index type {store_type}: {e}")
@@ -1322,7 +1375,13 @@ class Rag(Baseplugin):
         """
         if chunk_ids is not None and memory_type is not None:
             # Delete specific chunks
-            return await self.delete_chunks(memory_type,chunk_ids)
+            success = await self.delete_chunks(memory_type, chunk_ids)
+            if success:
+                # Reload the index to ensure consistency between FAISS and DB
+                self.logger.info(f"Reloading index type {memory_type} after deleting specific chunks")
+                await self.load_index(memory_type)
+                self.logger.info(f"Index type {memory_type} reloaded successfully")
+            return success
         else:
             try:
                 if memory_type is None:
@@ -1339,6 +1398,7 @@ class Rag(Baseplugin):
                         [Document(page_content="Initial empty document", metadata={"source": "init"})],
                         self.embedding_function
                     )
+                    self.index_loaded[store_type] = True
                     
                     # Save empty index
                     await self.save_index(store_type)
@@ -1348,6 +1408,11 @@ class Rag(Baseplugin):
                         await self.db_execute("DELETE FROM chunks WHERE type = ?", (LONG_TERM,))
                     elif store_type == SHORT_TERM:
                         await self.db_execute("DELETE FROM chunks WHERE type = ?", (SHORT_TERM,))
+                    
+                    # Reload the index to ensure consistency
+                    self.logger.info(f"Reloading index type {store_type} after clearing")
+                    await self.load_index(store_type)
+                    self.logger.info(f"Index type {store_type} cleared and reloaded successfully")
                     
                 return True
             except Exception as e:
@@ -1368,7 +1433,7 @@ class Rag(Baseplugin):
     async def test_query_rag(self):
         print("TESTING RAG:::")
         queries = [
-            "Qu'est-ce que t'as mangé hier ?"
+            "Qu'est-ce que t'as fait hier ?"
             # "est-ce que tu as faim igor"
             # "Qu'est-ce que t'as fait de beau hier soir ?"
             # "C'était quand la dernière fois que t'as vu un film"
@@ -1484,7 +1549,66 @@ class Rag(Baseplugin):
                 except Exception as e:
                     chunk_results[chunk_id] = {'error': str(e)}
             results[store_type] = chunk_results
+            
+            # Check for inconsistencies and fix them
+            await self.fix_docstore_id_inconsistencies(store_type)
         return results
+        
+    async def fix_docstore_id_inconsistencies(self, store_type):
+        """
+        Fix inconsistencies between database and vector store docstore IDs.
+        This helps prevent warnings about docstore IDs that exist in metadata but not in the docstore.
+        """
+        if not self.index_loaded.get(store_type) or self.vector_stores.get(store_type) is None:
+            return
+            
+        self.logger.info(f"Checking for docstore ID inconsistencies in store type {store_type}")
+        vector_store = self.vector_stores[store_type]
+        current_docstore = vector_store.docstore._dict
+        
+        # Get all docstore_ids from the database for this store type
+        try:
+            db_results = await self.db_execute(
+                "SELECT id, docstore_id FROM chunks WHERE type = ?",
+                (store_type,)
+            )
+            
+            if not db_results:
+                self.logger.info(f"No chunks found in database for store type {store_type}")
+                return
+                
+            # Check each docstore_id in the database
+            inconsistent_ids = []
+            for row in db_results:
+                db_id = row['id']
+                docstore_id = row['docstore_id']
+                
+                # Skip if docstore_id is None or empty
+                if not docstore_id:
+                    continue
+                    
+                # Check if this docstore_id exists in the vector store
+                if docstore_id not in current_docstore:
+                    inconsistent_ids.append((db_id, docstore_id))
+            
+            if inconsistent_ids:
+                self.logger.warning(f"Found {len(inconsistent_ids)} inconsistent docstore IDs in store type {store_type}")
+                # Option 1: Remove the docstore_id from the database records
+                for db_id, docstore_id in inconsistent_ids:
+                    try:
+                        await self.db_execute(
+                            "UPDATE chunks SET docstore_id = NULL WHERE id = ?",
+                            (db_id,)
+                        )
+                        self.logger.info(f"Cleared inconsistent docstore_id '{docstore_id}' from database record {db_id}")
+                    except Exception as e:
+                        self.logger.error(f"Error updating inconsistent docstore_id in database: {e}")
+            else:
+                self.logger.info(f"No inconsistent docstore IDs found in store type {store_type}")
+                
+        except Exception as e:
+            self.logger.error(f"Error checking docstore ID inconsistencies: {e}")
+            return
 
     async def print_all_chunks(self, store_types=None):
         """
@@ -1541,10 +1665,10 @@ class Rag(Baseplugin):
                         
                         # Print chunk info with content preview
                         content_preview = doc.page_content[:100] + "..." if len(doc.page_content) > 100 else doc.page_content
-                        # self.logger.info(f"Chunk {idx} | {db_info}")
-                        # self.logger.info(f"Metadata: {metadata_str}")
-                        # self.logger.info(f"Content: {content_preview}")
-                        # self.logger.info("-" * 80)
+                        self.logger.info(f"Chunk {idx} | DocStoreID: {docstore_id} | {db_info}")
+                        self.logger.info(f"Metadata: {metadata_str}")
+                        self.logger.info(f"Content: {content_preview}")
+                        self.logger.info("-" * 80)
                     except Exception as e:
                         self.logger.error(f"Error printing chunk {idx} in {store_name} store: {e}")
                 
