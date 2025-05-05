@@ -132,6 +132,26 @@ class Bugreport(Baseplugin):
         else:
             self.logger.warning("Could not find log file path to copy.") # Use inherited logger
 
+        # --- Copy LLM Invocation Log File to Subfolder ---
+        llm_log_copy_success = False
+        if log_path: # Only proceed if we found the main log's directory
+            log_dir = os.path.dirname(log_path)
+            today_str = datetime.now().strftime('%Y%m%d')
+            llm_log_filename = f"llm_invocations_{today_str}.jsonl"
+            llm_log_path = os.path.join(log_dir, llm_log_filename)
+            if os.path.exists(llm_log_path):
+                destination_llm_log_path = os.path.join(report_subfolder, llm_log_filename)
+                try:
+                    shutil.copy2(llm_log_path, destination_llm_log_path)
+                    self.logger.info(f"Copied LLM invocation log file to: {destination_llm_log_path}")
+                    llm_log_copy_success = True
+                except Exception as e:
+                    self.logger.error(f"Failed to copy LLM invocation log file from {llm_log_path} to {destination_llm_log_path}: {e}")
+            else:
+                self.logger.warning(f"LLM invocation log file for today ({llm_log_filename}) not found in {log_dir}.")
+        else:
+            self.logger.warning("Cannot determine LLM invocation log directory because main log path was not found.")
+
         # --- Save Browser Console Log to Subfolder ---
         console_log_saved = False
         if console_log_data is not None:
@@ -159,6 +179,11 @@ class Bugreport(Baseplugin):
             status_message += " (Browser log could not be saved)."
         elif console_log_data is None:
             status_message += " (No browser log received)."
+        # Add LLM log status
+        if not llm_log_copy_success and log_path: # Check log_path again to avoid redundant message if main log wasn't found
+            status_message += " (LLM log could not be copied/found)."
+        elif not log_path:
+             status_message += " (LLM log not searched)."
 
 
         self.send_message_to_frontend({
