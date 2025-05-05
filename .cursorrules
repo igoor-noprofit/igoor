@@ -32,8 +32,8 @@ MOST IMPORTANT PLUGINS OVERVIEW
 - autocomplete:based on LLM predictions
 - conversation:handles current conversation
 - daily:handles user's daily needs
-- rag:indexes user's in FAISS db
-- memory:handles long-term memory writing in FAISS db
+- rag:indexes ingested documents in FAISS vectore and sqlite db
+- memory:handles long-term and short term memory additions in FAISS db
 - elevenlabs:TTS
 
 FRONTEND
