@@ -79,12 +79,12 @@ class LLMManager:
                 
                 # Log invocation details to JSONL file
                 log_data = {
-                    "provider": self.provider,
-                    "model": self.model_name,
-                    "temp": self.temperature,
+                    "p": self.provider,
+                    "m": self.model_name,
+                    "t": self.temperature,
                     "sys": system_prompt,
                     "usr": prompt,
-                    "response": response_log_content
+                    "resp": response_log_content
                 }
                 self.invocation_logger.info(log_data)
                 
