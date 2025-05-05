@@ -55,9 +55,9 @@ class Speechifytts(Baseplugin):
     @hookimpl
     def speak(self, message):
         print("§§§§ SPEECHIFY SPEAKING *********************************************** :", message)
-        
         # Schedule the speak_func to run in the background
         asyncio.create_task(self.run_speak_func(message))
+        asyncio.create_task(self.pm.trigger_hook(hook_name="reset_conversation_timeout"))
 
     def run_restart_asr(self):
         asyncio.create_task(self.restart_asr())
@@ -128,6 +128,7 @@ class Speechifytts(Baseplugin):
                     # sd.play() takes the numpy array, sample rate
                     # blocking=True waits until playback is finished before continuing the script
                     sd.play(samples, samplerate=sample_rate, blocking=True)
+                    await asyncio.sleep(1)
                     # sd.wait() # Alternative to blocking=True if you used blocking=False
                     print("Playback finished.")
                     self.run_restart_asr()

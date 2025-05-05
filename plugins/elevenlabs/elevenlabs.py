@@ -32,6 +32,7 @@ class Elevenlabs(Baseplugin):
         
         # Schedule the speak_func to run in the background
         asyncio.create_task(self.run_speak_func(message))
+        asyncio.create_task(self.pm.trigger_hook(hook_name="reset_conversation_timeout"))
 
     def run_restart_asr(self):
         asyncio.create_task(self.restart_asr())
