@@ -6,7 +6,7 @@
         "part": "topbar",
         "order": 0
     },
-    "is_free": true,
+    "is_free": false,
     "requires_subscription": true,
     "requires_internet": true
 }
