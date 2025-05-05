@@ -214,7 +214,8 @@ class Memory(Baseplugin):
                 theme=memories.theme,
                 tags=memories.tags,
                 reason=reason,
-                conversation_id=conversation_id
+                conversation_id=conversation_id,
+                created_at=time.time() # Add current timestamp
             )
         except Exception as e:
             self.logger.error(f"Error storing memory: {e}")
@@ -344,7 +345,7 @@ class Memory(Baseplugin):
     # async def rag_loaded(self):
     async def user_idle_on_pc(self):
         self.logger.info("User idle,cleaning short memory")
-        clean_after_days = self.settings.get("clean_after_days", 13)
+        clean_after_days = self.settings.get("clean_after_days", 14)
         try:
             clean_after_days = int(clean_after_days)  # Ensure it's an integer
         except (TypeError, ValueError):
