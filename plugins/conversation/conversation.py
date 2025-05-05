@@ -55,7 +55,7 @@ class Conversation(Baseplugin):
             print(f"Waiting for {self.timeout - self.warning_time} seconds until timeout")
             await asyncio.sleep(self.timeout - self.warning_time)
             print("Timeout complete, triggering abandon_conversation")
-            asyncio.create_task(self.pm.trigger_hook("abandon_conversation"))
+            asyncio.create_task(self.pm.trigger_hook("abandon_conversation",cause="timeout"))
         except asyncio.CancelledError:
             print("Timeout task was cancelled")
         except Exception as e:
@@ -88,13 +88,15 @@ class Conversation(Baseplugin):
         self.topic = topic
 
     @hookimpl
-    async def abandon_conversation(self, cause="timeout"):
+    async def abandon_conversation(self, cause):
         if (not self.conversation_is_open):
             self.logger.info("Abandon conversation called, but conversation is not open")
             return
         txt = await self.get_conversation(format="txt")
         
         # Log the thread_id before creating the dictionary
+        if (cause is None):
+            cause = "timeout"
         
         last_conversation = {
             "thread": self.thread, 
@@ -112,21 +114,11 @@ class Conversation(Baseplugin):
             )
             self.logger.info(f"Abandoned conversation {self.current_thread_id} with end time and topic {self.topic}")
         
-        # Create a separate task with explicit kwargs
-        asyncio.create_task(
-            self.pm.trigger_hook(
-                "after_conversation_end",
-                last_conversation={
-                    "thread": self.thread,
-                    "txt": txt,
-                    "cause": cause,
-                    "topic": self.topic,
-                    "thread_id": self.current_thread_id
-                }
-            )
-        )
-        
         # Reset conversation state after triggering the hook
+        last_thread=self.thread
+        last_topic=self.topic
+        last_current_thread_id=self.current_thread_id
+        
         self.thread = []
         self.topic = ""
         self.current_thread_id = None
@@ -135,6 +127,22 @@ class Conversation(Baseplugin):
         self.conversation_is_open = False
         self.cancel_timeout()
         await self.send_switch_view_to_app("daily")
+        
+        # Create a separate task with explicit kwargs
+        asyncio.create_task(
+            self.pm.trigger_hook(
+                "after_conversation_end",
+                last_conversation={
+                    "thread": last_thread,
+                    "txt": txt,
+                    "cause": cause,
+                    "topic": last_topic,
+                    "thread_id": last_current_thread_id
+                }
+            )
+        )
+        
+        
         
     @hookimpl
     async def add_msg_to_conversation(self, msg: str, author: str, msg_input: str) -> None:
