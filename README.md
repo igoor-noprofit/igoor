@@ -25,7 +25,19 @@ Thank you for your understanding and cooperation in ensuring the successful deve
 
 ## REQUIREMENTS
 
+### OS 
+
 **Microsoft Windows. Tested on Windows 11.**
+
+### DISK SPACE
+
+In the user's data folder, big ASR models (like Vosk) take around 2.3Gb, plus 1.4 for the zip file.
+
+The embedding model from HuggingFace currently requires 1.15Gb on disk.
+
+The app should take less than 3Gb.
+
+### PYTHON
 
 See requirements.txt for a list of Python libraries needed.
 
