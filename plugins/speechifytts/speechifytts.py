@@ -7,6 +7,7 @@ from speechify import Speechify
 import sounddevice as sd
 import numpy as np
 from pydub import AudioSegment
+from pydub.playback import play
 import io
 import base64
 '''
@@ -97,41 +98,30 @@ class Speechifytts(Baseplugin):
                     audio_bytes = base64.b64decode(response.audio_data)
                     print(f"Received {len(audio_bytes)} bytes of audio data. Decoding...")
 
+                    with open("debug_speechify_output.wav", "wb") as f:
+                        f.write(audio_bytes)
                     # 2. Decode the audio bytes using pydub
-                    # Use io.BytesIO to treat the byte string like a file
                     audio_file_like = io.BytesIO(audio_bytes)
-                    # Load the audio data (pydub will likely need ffmpeg for mp3)
-                    audio_segment = AudioSegment.from_file(audio_file_like) # format="mp3" can be added if needed
+                    audio_segment = AudioSegment.from_file(audio_file_like)
+
+                    # Convert to 16-bit PCM mono/stereo if needed
+                    audio_segment = audio_segment.set_frame_rate(22050).set_sample_width(2).set_channels(1)
+                    samples = np.array(audio_segment.get_array_of_samples()).astype(np.int16)
+                    sample_rate = audio_segment.frame_rate
 
                     print("Decoding complete. Preparing for playback...")
 
-                    # 3. Get raw audio data (samples) and parameters for sounddevice
-                    # Convert pydub audio segment to numpy array
-                    # Samples are typically int16, sounddevice works well with float32 or int16 numpy arrays
-                    samples = np.array(audio_segment.get_array_of_samples())
-
-                    # Check if mono or stereo and adjust numpy array shape if needed
-                    if audio_segment.channels == 2:
-                        samples = samples.reshape((-1, 2))
-                    # else: # Mono, shape is likely already correct (1D array)
-
-                    sample_rate = audio_segment.frame_rate
-                    channels = audio_segment.channels
-                    dtype = samples.dtype # Get the numpy data type (e.g., int16)
-
-                    print(f"Audio Parameters: Rate={sample_rate}Hz, Channels={channels}, Dtype={dtype}")
-
-                    # 4. Play the audio using sounddevice
+                    # 3. Play the audio using pydub playback
                     print("Playing audio...")
-                    # AUDIO PLAYBACK
                     await self.pm.trigger_hook(hook_name="pause_asr")
-                    # sd.play() takes the numpy array, sample rate
-                    # blocking=True waits until playback is finished before continuing the script
-                    sd.play(samples, samplerate=sample_rate, blocking=True)
-                    await asyncio.sleep(1)
-                    # sd.wait() # Alternative to blocking=True if you used blocking=False
-                    print("Playback finished.")
+
+                    def play_audio():
+                        play(audio_segment)
+
+                    await asyncio.to_thread(play_audio)
                     self.run_restart_asr()
+                    print("Playback finished.")
+                    
                     return True
             except Exception as inner_e:
                 self.logger.warning(f"Error playing back audio data: {inner_e}")
