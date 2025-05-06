@@ -128,7 +128,8 @@ class Rag(Baseplugin):
             if self.index_loaded.get(store_type):
                 await self.fix_docstore_id_inconsistencies(store_type)
         
-        await self.import_long_term_memories_from_json(os.path.join(self.plugin_folder,"chunks_new.json"))
+        # await self.clear_memory(memory_type=LONG_TERM) 
+        # await self.import_long_term_memories_from_json(os.path.join(self.plugin_folder,"chunks_new.json"))
         
         # await self.run_tests()
         # await self.clean_short_term_memory(7)
@@ -1363,7 +1364,7 @@ class Rag(Baseplugin):
     @hookimpl
     async def clear_memory(self, memory_type=None, chunk_ids: Optional[List[str]]=None):
         """
-        Clear a specific type of memory or all memories.
+        Clear a specific type of memory.
         
         Args:
             memory_type: The type of memory to clear (0=INGESTED, 1=LONG_TERM, or 2=SHORT_TERM).
