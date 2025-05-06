@@ -98,8 +98,8 @@ class Speechifytts(Baseplugin):
                     audio_bytes = base64.b64decode(response.audio_data)
                     print(f"Received {len(audio_bytes)} bytes of audio data. Decoding...")
 
-                    with open("debug_speechify_output.wav", "wb") as f:
-                        f.write(audio_bytes)
+                    # with open("debug_speechify_output.wav", "wb") as f:
+                    #    f.write(audio_bytes)
                     # 2. Decode the audio bytes using pydub
                     audio_file_like = io.BytesIO(audio_bytes)
                     audio_segment = AudioSegment.from_file(audio_file_like)
