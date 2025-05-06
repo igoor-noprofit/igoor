@@ -120,7 +120,7 @@ class Asrvosk(Baseplugin):
         self.logger.info(f"Attempting to load model from: {model_path}")
         
         # Check if model directory exists
-        if not os.path.exists(model_path):
+        if not os.path.exists(model_path) or not os.listdir(model_path):
             self.logger.warning(f"Model not found at {model_path}, attempting to download...")
             try:
                 # Load vosk_models.json
