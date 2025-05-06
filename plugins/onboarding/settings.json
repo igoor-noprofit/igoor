@@ -3,7 +3,9 @@
         "name":"Igor",
         "pronoun": "He/him",
         "birth_date": "12/05/1973",
-        "health_state": "Ne peut pas parler"
+        "health_state": "Ne peut pas parler",
+        "style": "",
+        "style_weight": "2 r\u00e9ponse sur 6 MAXIMUM"
     },
     "prefs":{
         "lang": "fr_FR",

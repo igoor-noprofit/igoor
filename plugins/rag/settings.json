@@ -1,7 +1,10 @@
 {
     "chunk_size": 500,
-    "chunk_overlap": 50,
-    "chunk_retrieved": 15,
+    "chunk_overlap": 200,
+    "chunk_retrieved": 50,
     "chunk_num": 10,
-    "embedding_model": "sentence-transformers/all-MiniLM-L6-v2"
+    "score_threshold": 0.8,
+    "embedding_model": "dangvantuan/french-document-embedding",
+    "embedding_type": "huggingface",
+    "openai_api_key": ""
 }
