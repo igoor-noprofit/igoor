@@ -128,6 +128,7 @@ class Rag(Baseplugin):
             if self.index_loaded.get(store_type):
                 await self.fix_docstore_id_inconsistencies(store_type)
         
+        await self.import_long_term_memories_from_json(os.path.join(self.plugin_folder,"chunks_new.json"))
         
         # await self.run_tests()
         # await self.clean_short_term_memory(7)
@@ -1723,3 +1724,31 @@ class Rag(Baseplugin):
             self.logger.debug(f"Cleared Hugging Face cache at: {cache_dir}")
         else:
             self.logger.debug(f"No cache found at: {cache_dir}")
+
+    async def import_long_term_memories_from_json(self, json_path):
+        """
+        Imports memories from a JSON file and stores them as long-term memories using store_memory.
+        Each entry in the JSON should have a "text" field.
+        """
+        try:
+            with open(json_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            for entry in data:
+                fact = entry.get("text")
+                if not fact:
+                    self.logger.warning("Skipping entry without 'text' field.")
+                    continue
+                await self.store_memory(
+                    fact=fact,
+                    type="long",
+                    reason="imported",
+                    conversation_id=-1,
+                    theme="",
+                    tags=[],
+                    created_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                )
+            self.logger.info(f"Imported {len(data)} long-term memories from {json_path}")
+            return True
+        except Exception as e:
+            self.logger.error(f"Error importing long-term memories: {e}")
+            return False
