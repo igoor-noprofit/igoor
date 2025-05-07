@@ -18,6 +18,9 @@ La personne affectée par la maladie s'appelle {bio_name}. Considère son état 
 
 {health_state}
 
+Prends aussi en considération le style expressif de {bio_name}:
+
+{bio_style}
 ---
 Pour répondre tu peux utiliser le contexte statique extrait des documents sur la vie de {bio_name}:
 
@@ -59,6 +62,7 @@ OUTPUT:
 ---
 
 Rappelle-toi que tes prédictions doivent être des phrases du point de vue de {bio_name}.
+
 Retourne toujours tes prédictions dans le format JSON indiqué.
 Prédis la suite de: {input}
 """
@@ -72,6 +76,7 @@ class Autocomplete(Baseplugin):
         self.settings = self.get_my_settings()
         bio = self.global_settings.get_bio()
         self.bio_name = bio.get("name")
+        self.bio_style=bio.get("style")
         self.is_loaded = True
         self.only_exact_matches = self.settings.get("only_exact_matches", False)
         print(f"ONLY EXACT MATCHES: {self.only_exact_matches}")
@@ -237,6 +242,7 @@ class Autocomplete(Baseplugin):
     async def predict(self, msg: str) -> None:
         health_state=self.global_settings.get_health_state()
         bio_name=self.bio_name
+        bio_style=self.bio_style
         start_time = time.time()
         print("AUTOCOMPLETE PREDICTIONS")
         dynamic_context = self.get_dynamic_context()
@@ -267,6 +273,7 @@ class Autocomplete(Baseplugin):
         pm = PromptManager(template=PROMPT_TEMPLATE)
         prompt = pm.create_prompt(
             bio_name=bio_name,
+            bio_style=bio_style,
             health_state=health_state,
             static_context='\n'.join(actual_filtered_results.get(0, [])), # Use actual_filtered_results
             long_term='\n'.join(actual_filtered_results.get(1, [])),  # Use actual_filtered_results
