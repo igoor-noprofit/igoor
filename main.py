@@ -202,8 +202,9 @@ def on_loaded():
     logger.info("GUI window is now loaded and available!")
     asyncio.run(manager.trigger_hook("gui_ready"))
     prefs = settings.get_prefs()
-    print(f"idle_threshold = {prefs.get('idle_threshold')}")
-    detector = IdleDetector(callback=on_idle_change, idle_threshold=10, check_interval=10) 
+    idle_threshold = prefs.get("idle_threshold", 10)
+    print(f"idle_threshold = {idle_threshold}")
+    detector = IdleDetector(callback=on_idle_change, idle_threshold=idle_threshold, check_interval=10) 
     detector.start()
     return True
     '''
