@@ -120,14 +120,44 @@ reason doit indiquer la raison pour laquelle la mémoire est validée.
 La mémoire peut etre validée meme si le RAG contient déjà une info complémentaire différente (ex. "aime le riz" est compatible avec "aime les spaghetti").
 
 ---
-La mémoire n'est AP validée:
+La mémoire n'est PAS validée:
 
 1)si l'information ne constitue pas une mémoire de long terme
-2)si le RAG contient déjà une information identique ou très semblable: donc inutile de la réiterer   
+2)si le RAG contient déjà une information identique ou très semblable: donc inutile de la réiterer
 
-Exemple de mémoires NON validées:
+De plus, pour être validée, l'information extraite ("fact") doit être **claire et spécifique**, avec un **sujet clairement défini**. Les mémoires ambiguës ou manquant de détails essentiels ne doivent pas être validées. Par exemple, évitez de valider des faits tels que :
+
+- "Igor pense que le logiciel est le meilleur pour des rendus photoréalistes gratuits" (De quel logiciel on parle?)
+- "L'interlocuteur aime l'île de Pâques" (Qui est l'interlocuteur ?)
+
+Assurez-vous que le sujet de l'information est explicitement mentionné et que les détails clés 
+(comme le nom du logiciel,ou l'identité de la personne) sont présents dans le "fact".   
+
+Exemples de validation et de non validation:
 
 ---
+Input: 
+{{
+    "conversation": " R: Je suis sensible à certaines saveurs ? Q: Lesquelles ? R: Y en a beaucoup.",
+    "memory": {{
+        "fact": "{bio_name} est sensible à beaucoup de saveurs",
+        "type": "long"
+    }}
+}}
+Output:
+{{"valid":false,"reason":"Nous ne savons pas à quelles saveurs {bio_name} est sensible"}}
+
+Input: 
+{{
+    "conversation": " R: Je suis sensible aux saveurs très épicés ?",
+    "memory": {{
+        "fact": "{bio_name} est sensible aux saveurs très épicés",
+        "type": "long"
+    }}
+}}
+Output:
+{{"valid":true,"reason":"Cette préférence est claire et spécifique"}}
+
 Input: 
 {{
     "conversation": " Q: Tu veux qu'on prépare une soupe ce soir ? R: Oui, une soupe aux légumes. Q: Avec des croûtons ? R: Oui, et un peu de fromage râpé.",
@@ -149,7 +179,7 @@ Input:
     }}
 }}
 Output:
-{{"valid":false,"reason":"La question n'est pas claire et l'utilisateur n'a pas répondu"}}
+{{"valid":false,"reason":"La question n'est pas claire et l'utilisateur n'y a pas répondu"}}
 
 Input: 
 {{
@@ -170,7 +200,7 @@ class Memory(Baseplugin):
     def __init__(self, plugin_name,pm):
         self.pm = pm
         super().__init__(plugin_name,pm)
-        self.global_settings = SettingsManager();
+        self.global_settings = SettingsManager()
         self.settings = self.get_my_settings()
         bio = self.global_settings.get_bio()
         self.bio_name = bio.get("name")
