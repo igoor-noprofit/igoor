@@ -45,7 +45,9 @@ See requirements.txt for a list of Python libraries needed.
 
 ### PYTHON VERSION
 
-Currently tested on **Python 3.10.6**
+Currently tested on **Python 3.10.6**. Download it from here: 
+
+[PYTHON]https://www.python.org/downloads/release/python-3106/
 
 ### UPGRADE PIP
 ```
