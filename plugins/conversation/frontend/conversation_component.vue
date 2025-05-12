@@ -14,7 +14,7 @@
         <div v-if="showProgressBar" class="progress-bar-container">
             <div class="progress-bar" :style="{ width: progressBarWidth + '%' }"></div>
         </div>
-        <button class="btn btn-side btn-side-right" @click="$_enlargeConversation">
+        <button v-if="showExpandButton" class="btn btn-side btn-side-right" @click="$_enlargeConversation">
             <svg class="icon icon-l" :class="{ 'rotated': isExpanded }">
                 <use xlink:href="/img/svgdefs.svg#icon-chevron_down" />
             </svg>
@@ -34,8 +34,12 @@ module.exports = {
             showProgressBar: false,
             progressBarWidth: 0,
             countdownInterval: null,
-            isExpanded: false
+            isExpanded: false,
+            showExpandButton: false // <-- add this
         }
+    },
+    mounted() {
+        this.checkScrollableOverflow();
     },
     computed: {
         isLastMessage() {
@@ -43,6 +47,14 @@ module.exports = {
         }
     },
     methods: {
+        checkScrollableOverflow() {
+            this.$nextTick(() => {
+                const el = this.$refs.scrollableConv;
+                if (el) {
+                    this.showExpandButton = el.scrollHeight > el.clientHeight;
+                }
+            });
+        },
         $_enlargeConversation() {
             this.isExpanded = !this.isExpanded;
             // Emit event to parent app to handle header expansion
@@ -129,6 +141,7 @@ module.exports = {
             console.log("thread has changed");
             this.$nextTick(() => {
                 this.scrollToBottom();
+                this.checkScrollableOverflow(); 
             });
         },
         appview(newView) {
@@ -137,6 +150,7 @@ module.exports = {
                 this.$root.toggleHeaderExpansion(false);
                 this.scrollToBottom();
             }
+            this.checkScrollableOverflow();
         }
     }
 };
@@ -149,8 +163,9 @@ module.exports = {
     transition: height 0.3s ease;
     position: relative;
 }
+
 .conversation-plugin.expanded {
-  height: 100%;
+    height: 100%;
 }
 
 #abandon {
