@@ -95,6 +95,9 @@ module.exports = {
                     this.answers = data.answers;
                     this.currentView = 'answers';
                 }
+                if (data.backhome){
+                    this.switchToMainView();
+                }
             } catch (error) {
                 console.error('Error processing message:', error);
             }
@@ -128,7 +131,6 @@ module.exports = {
                     theme: item
                 });
                 this.currentView = 'answers';
-                
             }
         },
         /* Sending final phrase */
@@ -138,7 +140,7 @@ module.exports = {
             console.log("sending JSON");
             console.log(json);
             this.sendMsgToBackend(json);
-            this.switchToMainView();
+            /* this.switchToMainView(); */
             this.answers=[];
         },
         switchToSecondaryView() {

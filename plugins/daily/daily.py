@@ -78,6 +78,10 @@ class Daily(Baseplugin):
     @hookimpl
     def startup(self):
         self.load_daily_data()
+        
+    @hookimpl
+    def abandon_conversation(self):
+        self.send_message_to_frontend({'backhome': True})
     
     async def startup_async(self):
         """Async startup tasks"""
@@ -102,6 +106,7 @@ class Daily(Baseplugin):
                 asyncio.create_task(self.generate_phrases(message_data))
                 pass
             elif message_data.get('action') == "speak":
+                    asyncio.create_task(self.send_switch_view_to_app(view="flow"))
                     msg = message_data.get("msg", "")
                     # Trigger hook in plugin manager with msg
                     asyncio.create_task(self.pm.trigger_hook(hook_name="speak", message=msg))
