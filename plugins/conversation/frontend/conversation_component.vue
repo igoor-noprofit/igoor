@@ -101,9 +101,9 @@ module.exports = {
                 // Logic to show progress bar
             } else {
                 this.thread.push(data);
-                this.$nextTick(() => {
-                    this.scrollToBottom();
-                });
+                console.log("ADDING MESSAGE", data);
+                this.scrollToBottom();
+                this.checkScrollableOverflow();
             }
         },
         scrollToBottom(retries = 5) {

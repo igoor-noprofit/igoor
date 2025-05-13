@@ -100,11 +100,12 @@ class Daily(Baseplugin):
                 self.send_message_to_frontend({
                     'dailyData': self.daily_data
                 })
+            # GENERATE  PHRASES AND IF APPLICABLE ABANDONS CONVERSATION
             elif message_data.get('action') == 'generatePhrases':
-                # CHECK IF CONVERSATION IS OPEN VIA CONTEXT MANAGER
                 asyncio.create_task(self.pm.trigger_hook(hook_name="abandon_conversation",cause="daily"))
                 asyncio.create_task(self.generate_phrases(message_data))
                 pass
+             # SPEAKS THE CHOSEN PHRASE
             elif message_data.get('action') == "speak":
                     asyncio.create_task(self.send_switch_view_to_app(view="flow"))
                     msg = message_data.get("msg", "")

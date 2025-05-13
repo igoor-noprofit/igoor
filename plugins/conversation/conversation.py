@@ -148,8 +148,8 @@ class Conversation(Baseplugin):
     async def add_msg_to_conversation(self, msg: str, author: str, msg_input: str) -> None:
         '''
         author can be:
-            def     speaker
-            master  IGOOR user
+            def     interlocutor
+            master  user
         '''
         if not(self.conversation_is_open):
             await self.new_conversation()
