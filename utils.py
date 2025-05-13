@@ -132,6 +132,17 @@ def setup_jsonl_logger(name, appdata_folder):
 
     return logger
 
+def get_base_language_code(lang_code_with_region, default_lang="en"):
+    """
+    Extracts the base language code from a regional code (e.g., "fr" from "fr_FR").
+    Returns the original code if no region is specified, or a default if input is empty.
+    """
+    if not lang_code_with_region:
+        return default_lang
+    if "_" in lang_code_with_region:
+        return lang_code_with_region.split("_")[0]
+    return lang_code_with_region
+
 def normalize_filter_by_timeframe_result(filtered_results):
     """
     Ensures the result from filter_by_timeframe is always a dict.

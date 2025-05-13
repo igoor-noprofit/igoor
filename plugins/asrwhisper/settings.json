@@ -1,0 +1,7 @@
+{
+    "wakeword": "Igor",
+    "model_name": "whisper-large-v3-turbo",
+    "continuous": false,
+    "provider": "groq",
+    "api_key": ""
+}
