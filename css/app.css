@@ -156,14 +156,10 @@ main {
 /**************** ASRVOSK *******************/
 .asrvosk-plugin {
   display: flex;
-  justify-content: center;
-  align-items: center;
   max-width: 120px;
 }
 .asrvosk-plugin .mic {
   text-align: center;
-  border-radius: 10px;
-  padding: 10px;
 }
 .asrvosk-plugin .mic.listening,
 .asrvosk-plugin .mic.recording {
@@ -316,8 +312,9 @@ main {
   cursor: pointer;
 }
 .conversation-plugin .scrollableConv {
-  max-width: 70%;
-  text-align: center;
+  width: calc(100% - 4rem - 22px);
+  display: flex;
+  flex-direction: column;
   padding: 10px;
   -ms-overflow-style: none;
   /* IE and Edge */
@@ -332,9 +329,11 @@ main {
 }
 .conversation-plugin .card.def {
   background: #396350;
+  margin-left: calc(10px + 10%);
 }
 .conversation-plugin .card.master {
   background: #216776;
+  margin-right: calc(10px + 10%);
 }
 .flow-plugin {
   justify-content: center;

@@ -113,7 +113,11 @@ export default {
 
 .mic.clickable {
     cursor: pointer;
-    margin-top: 20px;
+    height: 100%;
+    vertical-align: middle;
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 
 .mic img {

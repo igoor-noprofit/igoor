@@ -55,6 +55,8 @@ body {
 @autocomplete_launcher_height: 70px;
 @main_height: 60vh;
 @btn-left-width: 120px;
+
+@msg_dist: 10%;
 .rounded {
   border-radius: @rounded;
 }
@@ -184,15 +186,10 @@ footer {
 /**************** ASRVOSK *******************/
 .asrvosk-plugin {
   display: flex;
-  justify-content: center;
-  align-items: center;
-
   max-width: 120px;
 
   .mic {
     text-align: center;
-    .rounded;
-    padding: @rounded;
     &.listening,
     &.recording {
       background: @green;
@@ -350,8 +347,9 @@ footer {
 }
 .conversation-plugin {
   .scrollableConv {
-    max-width: 70%;
-    text-align: center;
+    width: calc(100% - 4rem - 22px);
+    display: flex;
+    flex-direction: column;
     padding: 10px;
     -ms-overflow-style: none; /* IE and Edge */
     scrollbar-width: none; /* Firefox */
@@ -365,9 +363,11 @@ footer {
 
     &.def {
       background: @green;
+      margin-left: calc(10px + @msg_dist);
     }
     &.master {
       background: @phrase_button_bg;
+      margin-right: calc(10px + @msg_dist)
     }
   }
 }

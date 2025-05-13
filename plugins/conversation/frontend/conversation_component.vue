@@ -3,8 +3,7 @@
         :class="{ 'expanded': isExpanded }">
         <div class="scrollableConv" ref="scrollableConv">
             <div v-for="(message, index) in thread" :key="index">
-                <div class="card" :class="[message.author, { last: isLastMessage(index) }]"
-                    @click="handleMessageClick(message)">
+                <div class="card msg" :class="getMsgClass(message, index)" @click="handleMessageClick(message)">
                     <div class="card-body">
                         <p class="card-text">{{ message.msg }}</p>
                     </div>
@@ -47,6 +46,24 @@ module.exports = {
         }
     },
     methods: {
+        getMsgClass(message, index) {
+            const isLast = index === this.thread.length - 1;
+            // All messages except the last get msg-small (regardless of author)
+            const classes = [];
+            if (message.author === 'master') {
+                classes.push('master');
+            }
+            if (message.author === 'def') {
+                classes.push('def', 'msg-other');
+            }
+            if (!isLast) {
+                classes.push('msg-small');
+            }
+            if (isLast) {
+                classes.push('last');
+            }
+            return classes;
+        },
         checkScrollableOverflow() {
             this.$nextTick(() => {
                 const el = this.$refs.scrollableConv;
@@ -61,9 +78,7 @@ module.exports = {
             this.$root.toggleHeaderExpansion(this.isExpanded);
 
             this.$nextTick(() => {
-                if (this.isExpanded) {
-                    this.scrollToBottom();
-                }
+                this.scrollToBottom();
             });
         },
         handleIncomingMessage(event) {
@@ -141,7 +156,7 @@ module.exports = {
             console.log("thread has changed");
             this.$nextTick(() => {
                 this.scrollToBottom();
-                this.checkScrollableOverflow(); 
+                this.checkScrollableOverflow();
             });
         },
         appview(newView) {
@@ -168,6 +183,46 @@ module.exports = {
     height: 100%;
 }
 
+.msg{
+    background-color: #2F535B !important;
+}
+
+
+.msg {
+    background-color: #2F535B !important;
+    align-self: flex-end; /* Right side by default */
+    max-width: 70%;
+    position: relative;
+}
+
+.msg.msg-other {
+    background-color: #1D6634 !important;
+    border-radius: 0.5rem 0.5rem 0.5rem 0rem;
+    align-self: flex-start; /* Left side for .msg-other */
+}
+
+.msg.msg-small {
+    font-size: 0.875rem;
+}
+
+.msg:after {
+    position: absolute;
+    content: "";
+    right: -1rem;
+    bottom: 0;
+    width: 0px;
+    height: 0px;
+    border-style: solid;
+    border-width: 1rem 0 0 1rem;
+    border-color: transparent transparent transparent #2F535B;
+}
+
+.msg.msg-other:after {
+    left: -1rem;
+    border-width: 0 0 1rem 1rem;
+    border-color: transparent transparent #1D6634 transparent;
+}
+
 #abandon {
     min-width: 20%;
     background: #00f;
@@ -176,7 +231,7 @@ module.exports = {
 
 .scrollableConv {
     overflow-y: scroll;
-    height: calc(100% - 40px);
+    height: 100%;
     overflow-x: hidden;
 }
 
@@ -207,6 +262,8 @@ module.exports = {
 
 .master {
     cursor: pointer;
+    margin-right: 10px;
+    float: right;
 }
 
 .master:hover {
