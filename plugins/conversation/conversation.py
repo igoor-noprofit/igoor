@@ -206,19 +206,12 @@ class Conversation(Baseplugin):
 
         
     @hookimpl
-    async def get_conversation(self, format="json", limit=None):
-        if limit is not None and isinstance(limit, int) and limit > 0:
-            # Use only the last 'limit' number of messages
-            messages = self.thread[-limit:]
-        else:
-            # Use all messages if no limit is specified or if limit is invalid
-            messages = self.thread
-            
+    async def get_conversation(self, format="json"):
         if format == "json":
-            return messages
+            return self.thread
         else:
             output = []
-            for message in messages:
+            for message in self.thread:
                 if message["author"] == "def":
                     output.append(f"Q: {message['msg']}")
                 else:
