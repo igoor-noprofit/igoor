@@ -11,6 +11,7 @@ import wave # Ensure wave is imported
 import groq # Ensure groq is imported
 # from groq.types.audio import Transcription # Only needed if you type hint or directly use Transcription class
 from utils import setup_logger, get_base_language_code # Added get_base_language_code
+import webrtcvad  # Add this import
 
 class Asrwhisper(Baseplugin):
     def __init__(self, plugin_name, pm):
@@ -20,6 +21,7 @@ class Asrwhisper(Baseplugin):
         self.is_loaded = False  # Make sure this is initialized
         self.wakeword_detected = False  # Initialize wakeword state
         super().__init__(plugin_name, pm)
+        self.vad = webrtcvad.Vad(2)  # 0-3, 3 is most aggressive, 2 is a good balance
         
     @hookimpl
     def startup(self):
@@ -233,28 +235,88 @@ class Asrwhisper(Baseplugin):
         else:
             await self.send_status("listening")
             self.start_stream()
+            vad = self.vad
+            sample_rate = self.sample_rate
+            frame_duration = 30  # ms, must be 10, 20, or 30 for webrtcvad
+            frame_bytes = int(sample_rate * frame_duration / 1000) * 2  # 2 bytes per sample (16-bit)
+            silence_frames = int(self.settings.get("silence_frames", 1500) / frame_duration)  # 800ms of silence
+            max_frames = int(10000 / frame_duration)  # 10 seconds max
+            
             while True:
                 if self.recording:
-                    # Create a buffer to store audio data
                     audio_buffer = []
+                    silence_counter = 0
+                    speech_started = False
+                    speech_frames = 0
+                    frame_count = 0
+                    min_frames = int(1000 / frame_duration)  # Minimum 1 second of recording
                     
-                    # Record for up to 10 seconds or until silence is detected
+                    print("Starting recording in non-continuous mode with VAD")
                     recording_start = time.time()
-                    while self.recording and (time.time() - recording_start) < 10:
-                        data = self.stream.read(self.chunk_size, exception_on_overflow=False)
-                        audio_buffer.append(data)
+                    max_recording_time = self.settings.get("max_recording_time", False)  # Changed from 7 to 60 seconds maximum
+                    
+                    # Process audio with both approaches
+                    while self.recording and (time.time() - recording_start) < max_recording_time:
+                        # Read a full chunk for buffer
+                        chunk_data = self.stream.read(self.chunk_size, exception_on_overflow=False)
+                        if len(chunk_data) == 0:
+                            continue
+                            
+                        # Store the data in our buffer regardless of VAD
+                        audio_buffer.append(chunk_data)
+                        
+                        # Process VAD on smaller frames
+                        # We need to process frame_bytes sized chunks for VAD
+                        for i in range(0, len(chunk_data) - frame_bytes + 1, frame_bytes):
+                            frame = chunk_data[i:i+frame_bytes]
+                            if len(frame) == frame_bytes:  # Ensure frame is complete
+                                frame_count += 1
+                                try:
+                                    is_speech = vad.is_speech(frame, sample_rate)
+                                    if is_speech:
+                                        speech_started = True
+                                        speech_frames += 1
+                                        silence_counter = 0
+                                    elif speech_started:
+                                        silence_counter += 1
+                                except Exception as e:
+                                    # Just log and continue on VAD errors
+                                    print(f"VAD error: {e}")
+                                
+                                # Check if we've recorded enough and detected end of speech
+                                if (speech_started and 
+                                    silence_counter >= silence_frames and 
+                                    frame_count > min_frames):
+                                    print(f"Detected end of speech after {silence_counter} silent frames")
+                                    break
+                        
+                        # If we detected silence after min duration, break the outer loop too
+                        if (speech_started and 
+                            silence_counter >= silence_frames and 
+                            frame_count > min_frames):
+                            break
+                            
                         await asyncio.sleep(0.01)
                     
-                    # Process the recorded audio
-                    if audio_buffer:
+                    # Process recorded audio
+                    if len(audio_buffer) > 0:
+                        print(f"Processing audio: {len(audio_buffer)} chunks, speech detected: {speech_started}")
                         self.save_audio_to_file(audio_buffer)
                         text = await self.transcribe_audio()
                         
+                        # Always stop recording after processing
+                        self.recording = False
+                        await self.send_status("listening")
+                        
                         if text:
-                            self.recording = False
-                            await self.send_status("listening")
                             print(f"Recognized text: {text}")
                             await self.handle_wake_word(text)
+                        else:
+                            print("No text recognized from audio")
+                    else:
+                        print("No audio recorded")
+                        self.recording = False
+                        await self.send_status("listening")
                 else:
                     await asyncio.sleep(0.1)
 

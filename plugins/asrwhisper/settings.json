@@ -3,5 +3,7 @@
     "model_name": "whisper-large-v3-turbo",
     "continuous": false,
     "provider": "groq",
-    "api_key": ""
+    "api_key": "",
+    "silence_frames": 1500,
+    "max_recording_time": 60
 }
