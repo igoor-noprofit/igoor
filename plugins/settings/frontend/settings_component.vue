@@ -16,6 +16,7 @@
 
                 <!-- Tab Navigation -->
                 <div class="tabs">
+                    <button :class="{ active: activeTab === 'ABOUT' }" @click="activeTab = 'ABOUT'">ABOUT</button>
                     <button v-for="category in categories" :key="category" :class="{ active: activeTab === category }"
                         @click="activeTab = category">
                         {{ category.toUpperCase() }}
@@ -23,7 +24,7 @@
                 </div>
 
                 <!-- Plugins Grid for Active Tab -->
-                <div v-if="activeTab" class="plugins-grid">
+                <div v-if="activeTab && activeTab !== 'ABOUT'" class="plugins-grid">
                     <div v-for="plugin in pluginsByCategory[activeTab]" :key="plugin.name" class="plugin-card"
                         :class="{ 'core-plugin': plugin.is_core }">
                         <div class="plugin-header">
@@ -51,6 +52,9 @@
                         </div>
                     </div>
                 </div>
+                <div v-if="activeTab === 'ABOUT'" class="about-tab" style="padding: 2em; text-align: center; color: #555; font-size: 1.1em;">
+                    <p>© 2025 Developed by <a href="https://igoor.org" target="_blank">IGOOR</a>, powered by <a href="https://www.arsla.org/" target="_blank">ARSLA</a></p>
+                </div>
             </div>
         </div>
     </div>
@@ -63,7 +67,7 @@ export default {
         return {
             pluginData: {},
             showModal: false,
-            activeTab: null,
+            activeTab: 'about-tab',
             pywebviewready: false,
             showRestartAlert: false // <-- Add this line
         }
