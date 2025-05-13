@@ -232,11 +232,12 @@ class Asrvosk(Baseplugin):
                         result = rec.Result()
                         text = json.loads(result)["text"]
                         if text:
+                            self.recording = False
+                            await self.send_status("listening")
                             print(f"Recognized text: {text}")
                             await self.handle_wake_word(text)
                             # After processing text, stop recording
-                            self.recording = False
-                            await self.send_status("listening")
+                            
                 else:
                     await asyncio.sleep(0.1)
 
