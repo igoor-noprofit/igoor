@@ -53,7 +53,8 @@
                     </div>
                 </div>
                 <div v-if="activeTab === 'ABOUT'" class="about-tab" style="padding: 2em; text-align: center; color: #555; font-size: 1.1em;">
-                    <p>© 2025 Developed by <a href="https://igoor.org" target="_blank">IGOOR</a>, powered by <a href="https://www.arsla.org/" target="_blank">ARSLA</a></p>
+                    <p>Concept by Igor Novitzki</p>
+                    <p>© 2025 Developed by <a href="https://igoor.org" target="_blank">IGOOR</a>, in partnership with <a href="https://www.arsla.org/" target="_blank">ARSLA</a></p>
                 </div>
             </div>
         </div>
@@ -67,9 +68,9 @@ export default {
         return {
             pluginData: {},
             showModal: false,
-            activeTab: 'about-tab',
+            activeTab: 'ABOUT', // Set ABOUT as the default tab
             pywebviewready: false,
-            showRestartAlert: false // <-- Add this line
+            showRestartAlert: false
         }
     },
     computed: {
@@ -117,7 +118,7 @@ export default {
                 console.log(response);
                 console.table(response);
                 this.pluginData = response;
-                this.activeTab = Object.keys(response)[0];
+                // Do not override activeTab here, keep ABOUT as default
             } catch (error) {
                 console.error("Error loading plugins:", error);
             }
