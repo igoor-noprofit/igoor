@@ -163,8 +163,8 @@ module.exports = {
             if (newView === 'autocomplete') {
                 this.isExpanded = false;
                 this.$root.toggleHeaderExpansion(false);
-                this.scrollToBottom();
             }
+            this.scrollToBottom();
             this.checkScrollableOverflow();
         }
     }
