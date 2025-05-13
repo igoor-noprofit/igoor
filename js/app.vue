@@ -11,7 +11,7 @@
 </div>
 <div id="topbar">
     <div class="topbar-left">
-        <clock  :appview="appview"></clock>
+        <clock  :appview="appview"></clock><meteo  :appview="appview"></meteo>
     </div>
     <div class="topbar-center">
         <a @click="minimize()"><img src="img/logo_small.svg" class="logo_small" id="igoor_logo"></a>

@@ -1,6 +1,6 @@
 <template>
     <div class="meteo-plugin">
-        
+        Meteo
     </div>
 </template>
 
