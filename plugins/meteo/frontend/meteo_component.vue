@@ -1,6 +1,6 @@
 <template>
     <div class="meteo-plugin">
-        Meteo
+        {{ temperature !== null ? temperature + "°C" : "" }}
     </div>
 </template>
 
@@ -12,7 +12,7 @@ export default {
     mixins: [BasePluginComponent], // Use the mixin
     data() {
         return {
-            
+            temperature: null
         };
     },
     methods: {
@@ -20,10 +20,15 @@ export default {
             console.log("Custom message handler in METEO component:", event.data);
             try {
                 const data = JSON.parse(event.data);
-                console.log(data)
+                console.log("Received data in METEO component:", data);
+                if (data && data.temperature && typeof data.temperature.temp !== 'undefined') {
+                    this.temperature = data.temperature.temp;
+                } else {
+                    console.warn("Temperature data is missing or malformed", data);
+                }
             }
             catch (e) {
-                console.warn("Error parsing JSON")
+                console.warn("Error parsing JSON in METEO component", e);
             }
         }
     },
@@ -35,3 +40,9 @@ export default {
     }
 };
 </script>
+<style>
+.meteo-plugin {
+    margin-left: 0.5rem;
+    font-size: 0.8rem;
+}
+</style>

@@ -1,6 +1,7 @@
 <template>
     <div class="clock-plugin">
-        {{ formattedDateTime }}
+        <span class="date">{{ formattedDate }}</span>
+        <span class="time">{{ formattedTime }}</span>
     </div>
 </template>
 
@@ -9,7 +10,8 @@ export default {
     name: "clock",
     data() {
         return {
-            formattedDateTime: '',
+            formattedDate: '',
+            formattedTime: '',
             websocket: null,  // Store WebSocket instance
             status: 'loading',
             intervalId: null
@@ -33,13 +35,17 @@ export default {
             const optionsTime = { hour: '2-digit', minute: '2-digit' };
             const timeString = now.toLocaleTimeString('fr-FR', optionsTime);
 
-            this.formattedDateTime = `${dateString} ${timeString}`;
+            this.formattedDate = `${dateString}`
+            this.formattedTime = `${timeString}`;
         }
     }
 };
 </script>
 
 <style scoped>
+span.date, span.time{
+    padding: 0 0.5rem;
+}
 .clock-plugin {
     color: #fff;
     font-size: 0.8rem;
