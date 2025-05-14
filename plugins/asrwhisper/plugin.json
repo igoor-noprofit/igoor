@@ -1,12 +1,12 @@
 {
     "category": "ASR",
-    "title": "Vosk",
-    "description": "Automatic, LOCAL speech recognition,with continuous listening or on-click listening",
+    "title": "Whisper",
+    "description": "Automatic, REMOTE speech recognition, with on-click listening",
     "layout": {
         "part": "header",
         "order": 0
     },
-    "is_free": true,
+    "is_free": false,
     "requires_subscription": false,
     "requires_internet": false
 }

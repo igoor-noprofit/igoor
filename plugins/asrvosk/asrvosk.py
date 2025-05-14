@@ -2,7 +2,6 @@ from settings_manager import SettingsManager
 from plugins.baseplugin.baseplugin import Baseplugin
 from plugin_manager import hookimpl, PluginManager
 import threading
-import time
 import pyaudio
 import json
 import time

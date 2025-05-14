@@ -40,7 +40,7 @@ class Meteo(Baseplugin):
         
         # Use a separate thread to handle the sleep and async call
         def delayed_meteo():
-            time.sleep(60)  # Sleep for 60 seconds without blocking the main thread
+            time.sleep(30)  # Sleep for 60 seconds without blocking the main thread
             asyncio.run(self.get_meteo())
         
         threading.Thread(target=delayed_meteo, daemon=True).start()

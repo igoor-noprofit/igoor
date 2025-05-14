@@ -3,8 +3,8 @@
     "title": "Weather",
     "description": "Improves context via weather info based on your location (IP-based)",
     "layout": {
-        "part": "after_logo",
-        "order": 50
+        "part": "before_logo",
+        "order": 10
     },
     "is_free": true,
     "requires_subscription": true,
