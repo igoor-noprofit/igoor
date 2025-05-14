@@ -123,7 +123,7 @@ La mémoire peut etre validée meme si le RAG contient déjà une info compléme
 La mémoire n'est PAS validée:
 
 1)si l'information ne constitue pas une mémoire de long terme
-2)si le RAG contient déjà une information identique ou très semblable: donc inutile de la réiterer
+2)si le RAG contient déjà une information identique, très semblable, ou si le RAG contient une information plus complète ou plus spécifique qui rend le nouveau 'fact' redondant ou moins informatif.
 
 De plus, pour être validée, l'information extraite ("fact") doit être **claire et spécifique**, avec un **sujet clairement défini**. Les mémoires ambiguës ou manquant de détails essentiels ne doivent pas être validées. Par exemple, évitez de valider des faits tels que :
 
@@ -192,6 +192,19 @@ Input:
 }}
 Output:
 {{"valid":false,"reason":"c'est déjà établi dans ses préférences artistiques, pas besoin de le répéter"}}
+
+Input: 
+{{
+    "conversation": "Q:  Combien d'enfants tu as ? R: J'ai trois enfants, Anton, Paloma et Anatole !",
+    "memory": {{
+        "fact": "{bio_name} a un fils ou une fille nommé(e) Anatole",
+        "type": "long"
+    }},
+    "---famille: Les enfants de {bio_name} s'appellent Anton, Paloma et Anatole [enfants, Anton, Paloma, Anatole]---"
+}}
+Output:
+{{"valid":false,"reason":"L'information que {bio_name} a trois enfants (Anton, Paloma, Anatole) est déjà présente dans le RAG et est plus complète que le fait proposé concernant uniquement Anatole."}}
+
 """
 
 MEMORY_REVIEW_PROMPT_TEMPLATE = """{memory_to_be_checked}"""
