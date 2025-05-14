@@ -26,6 +26,7 @@ class Rag(Baseplugin):
     @hookimpl
     def startup(self):
         print("RAG IS STARTING UP")
+        self.is_loaded = False
         self.settings = self.get_my_settings()
         self.medias_folder_name = "medias"
         
@@ -761,9 +762,28 @@ class Rag(Baseplugin):
     
     @hookimpl
     async def query_rag(self, query_text: str, store_types: list, return_chunk_ids:bool) -> Union[str, dict, bool]:
+        # Check if the RAG system is loaded. If not, return an empty/informative result.
+        chunk_ids_by_store = {
+            INGESTED: [],
+            LONG_TERM: [],
+            SHORT_TERM: []
+        }
+        all_results = []
+        if not self.is_loaded:
+            if return_chunk_ids:
+                # Mimic the behavior of the final return block for chunk IDs when no results are found.
+                # The original code logs a warning if no chunk IDs are found.
+                self.logger.warning("Indexes not loaded: No chunk IDs will be returned as RAG is not ready.")
+                return {} # This is what `{k: v for k, v in chunk_ids_by_store.items() if v}` would yield for empty/no results.
+            else:
+                # Mimic the behavior of the final return block for text when no results are found.
+                return "No relevant information found."
+
+        # Original method logic continues below
         try:
             self.logger.debug(f"QUERYING INDEX with text: {query_text} in store_types: {store_types}")
-            await self.loading_event.wait()  # Wait for indexes to load
+            # Ensure that if is_loaded is true, we still wait for the loading process to fully complete.
+            await self.loading_event.wait()             
             
             # Get the number of chunks to retrieve per store from settings
             chunk_num = self.settings.get("chunk_num", 4)  # Default to 4 if not specified
@@ -776,13 +796,6 @@ class Rag(Baseplugin):
             # Ensure store_types is a list
             if not isinstance(store_types, list):
                 store_types = [store_types]
-            
-            all_results = []
-            chunk_ids_by_store = {
-                INGESTED: [],
-                LONG_TERM: [],
-                SHORT_TERM: []
-            }
             
             for store_type in store_types:
                 if not self.index_loaded[store_type]:
