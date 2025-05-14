@@ -29,8 +29,10 @@ Retourne un JSON avec:
 Critères importants : 
 - Un "fact" est une information objective et vérifiable concernant l'utilisateur ou son entourage.
 - Les faits doivent être explicitement exprimés ou déduits de manière évidente dans la conversation.
+- Exhaustivité et Précision: Lorsque plusieurs détails liés sont fournis pour un même sujet (par exemple, une liste de noms, plusieurs caractéristiques d'un objet, les ingrédients d'une recette aimée), consolider ces informations en un seul fait complet et précis.Éviter de fragmenter une information qui est naturellement unifiée dans la conversation.
 - Les opinions temporaires ou contextuelles ne sont pas des faits de long terme, sauf si elles révèlent une préférence ou un état persistant.
 - Si une information est incertaine ou non essentielle, ne la considère pas comme un fait.
+- Le "fact" doit être formulé de manière atomique mais complète. 
 
 Voici quelques exemples de prompt et de output JSON demandé:
 
@@ -42,7 +44,7 @@ Input: Q: Tu as soif ? R: Oui. Q: Tu veux de l'eau ? R: Avec plaisir.
 Output: {{"theme": "soif", "tags": ["eau"], "facts": []}}
 
 Input: Q: Tu veux prendre un goûter ? R: Oui, un yaourt. Q: Nature ou aux fruits ? R: Nature, avec un peu de sucre.
-Output: {{"theme":"goûter","tags":["yaourt","préférences alimentaires"],"facts":[{{"fact":"{bio_name} veut prendre un goûter","type":"short"}}]}}
+Output: {{"theme":"goûter","tags":["yaourt","préférences alimentaires"],"facts":[{{"fact":"{bio_name} veut un yaourt nature avec un peu de sucre pour le goûter","type":"short"}}]}}
 
 Input: R: Tu peux fermer la fenetre?Tu sais que je suis frileux. Q: No problem!
 Output: {{"theme": "froid", "facts" : [{{"fact":"{bio_name} est frileux"]}}
@@ -52,6 +54,9 @@ Output: {{"theme":"gâteau de riz","facts":[{{"fact":"{bio_name} n'aime plus le 
 
 Input: Q: Tu as eu des nouvelles d'Anatole ? R: Oui, il est rentré à Paris Q: Il va bien ? R: Oui
 Output: {{"theme":"famille","tags":["Anatole","Paris","enfants"],"facts":[{{"fact":"Anatole est rentré à Paris","type":"short"}},{{"fact":"Anatole va bien","type":"short"}}]}}
+
+Input: Q: Combien d'enfants tu as ? R: J'ai trois enfants Q: Comment il s'appellent ? R: Anton, Paloma et Anatole !
+Output: {{"theme":"famille","tags":["enfants","famille","Anton","Paloma","Anatole"],"facts":[{{"fact":"{bio_name} a trois enfants : Anton, Paloma et Anatole","type":"long"}}]}}
 
 Input : Q: Il m'a dit que Claire ne t'en veut pas R: T'es sur de ça ? Q: Oui R: J'en suis très soulagé
 Output : {{"theme":"relations familiales","tags":["Claire","famille"],"facts":[{{"fact":"Claire ne lui en veut pas","type":"short"}},{{"fact":"{bio_name} est très soulagé que Claire ne lui en veut pas","type":"short"}}]}}
