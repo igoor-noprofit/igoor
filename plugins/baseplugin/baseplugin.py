@@ -64,17 +64,6 @@ class Baseplugin:
             }
         ]
 
-    '''
-    def trigger_hook(self, hook_name, **kwargs):
-        """
-        Trigger a hook in the plugin manager.
-        """
-        if self.pm:
-            return asyncio.create_task(self.pm.trigger_hook(hook_name=hook_name,**kwargs=kwargs))
-        else:
-            self.logger.warning("Plugin manager not available. Cannot trigger hook.")
-    '''
-
     def get_my_settings(self) -> dict:
         """
         Retrieve settings specific to the plugin.
