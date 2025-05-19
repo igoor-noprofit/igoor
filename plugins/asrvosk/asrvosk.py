@@ -185,7 +185,7 @@ class Asrvosk(Baseplugin):
     
     async def handle_wake_word(self,following_text):
         print(f"Wake word detected! Text: '{following_text}'")
-        await self.pm.trigger_hook(hook_name="add_msg_to_conversation", msg=following_text, author="def",msg_input="vosk")
+        await self.pm.trigger_hook(hook_name="add_msg_to_conversation", msg=following_text, author="def",msg_input="asrvosk")
         await self.pm.trigger_hook(hook_name="asr_msg", msg="Q: " + following_text)
 
     async def start(self):
