@@ -123,11 +123,11 @@ class Baseplugin:
         subfolder_path = os.path.join(self.plugin_folder, subfolder_name)
         try:
             if not os.path.exists(subfolder_path):
-                self.logger.info(f"CREATING SUBFOLDER {subfolder_path}")
+                self.logger.debug(f"CREATING SUBFOLDER {subfolder_path}")
                 os.makedirs(subfolder_path)
                 return subfolder_path
             else:
-                self.logger.info(f"SUBFOLDER ALREADY EXISTS: {subfolder_path}")
+                self.logger.debug(f"SUBFOLDER ALREADY EXISTS: {subfolder_path}")
                 return subfolder_path
         except Exception as e:
             self.logger.error(f"Failed to create subfolder {subfolder_path}: {e}")
