@@ -95,7 +95,8 @@ module.exports = {
             error: null,
             retryCount: 0,
             maxRetries: 3,
-            showKeyboard: false
+            showKeyboard: false,
+            allowVirtualKeyboard: false
         }
     },
     async mounted() {
