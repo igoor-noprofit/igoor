@@ -53,6 +53,9 @@ class Rag(Baseplugin):
         self.embedding_loaded = False
         self.loading_event = asyncio.Event()
         
+        self.score_threshold = self.settings.get("score_threshold", 0.5)
+        
+        
         # Start a thread to load both embedding model and indexes
         thread = threading.Thread(target=lambda: asyncio.run(self.initialize_resources()))
         thread.start()
@@ -1041,7 +1044,8 @@ class Rag(Baseplugin):
                 return []
                 
             # Get more candidates to filter by score
-            results = await self.search_in_FAISS(query_text=query_text,store_type=SHORT_TERM,k=max_candidates,score_threshold=0.8)
+            results = await self.search_in_FAISS(query_text=query_text,store_type=SHORT_TERM,k=max_candidates,score_threshold=self.score_threshold)
+            print(f"------ {max_candidates} RESULTS: {results} --------")
             print(f"------ UP TO {max_candidates} RESULTS: {results} --------")
                 
         except Exception as e:

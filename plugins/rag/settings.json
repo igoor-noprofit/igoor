@@ -3,7 +3,7 @@
     "chunk_overlap": 200,
     "chunk_retrieved": 50,
     "chunk_num": 10,
-    "score_threshold": 0.8,
+    "score_threshold": 0.7,
     "embedding_model": "dangvantuan/french-document-embedding",
     "embedding_type": "huggingface",
     "openai_api_key": ""
