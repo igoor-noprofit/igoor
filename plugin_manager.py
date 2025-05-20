@@ -181,6 +181,16 @@ class MyAppSpec:
     def store_autocomplete_prediction(self, input_text: str, completion: str):
         """Hook for storing successful autocomplete predictions"""
         pass
+    
+    @pluggy.HookspecMarker(app_name)
+    def show_virtual_keyboard(self):
+        """Hook for displaying virtual keyboard"""
+        pass
+    
+    @pluggy.HookspecMarker(app_name)
+    def hide_virtual_keyboard(self):
+        """Hook for hiding virtual keyboard"""
+        pass    
 class PluginManager:
     _instance = None
     def __new__(cls, *args, **kwargs):
