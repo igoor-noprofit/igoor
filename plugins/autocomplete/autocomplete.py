@@ -79,6 +79,7 @@ class Autocomplete(Baseplugin):
         self.bio_style=bio.get("style")
         self.is_loaded = True
         self.only_exact_matches = self.settings.get("only_exact_matches", False)
+        self.allow_virtual_keyboard = self.settings.get("allow_virtual_keyboard", False)
         print(f"ONLY EXACT MATCHES: {self.only_exact_matches}")
     
     @hookimpl
