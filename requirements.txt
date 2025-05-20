@@ -154,7 +154,7 @@ safetensors==0.4.5
 scikit-learn==1.5.2
 scipy==1.12.0
 seaborn==0.13.2
-sentence-transformers==3.2.1
+# sentence-transformers==3.2.1
 shellingham==1.5.4
 simplejson==3.19.3
 six==1.16.0
