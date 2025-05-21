@@ -7,6 +7,6 @@
         "order": 0
     },
     "is_free": false,
-    "requires_subscription": false,
-    "requires_internet": false
+    "requires_subscription": true,
+    "requires_internet": true
 }
