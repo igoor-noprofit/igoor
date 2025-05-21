@@ -151,5 +151,68 @@ class Onboarding(Baseplugin):
         view = 'daily' if self.onboarding_completed else 'onboarding'
         await self.send_switch_view_to_app(view)
         self.send_message_to_frontend(self.settings)
+    
         
+    def get_plugins_by_category(self):
+        self.logger.info("Fetching plugins by category in Settings")
+        plugins_by_category = plugin_manager.get_plugins_by_category()
+        
+        # Get current activation states from settings.json
+        settings = plugin_manager.settings_manager.get_settings()
+        plugins_activation = settings.get("plugins_activation", {})
+        self.logger.info(f"Current plugin activation states: {plugins_activation}")
+        
+        # Update the active status for each plugin
+        for category in plugins_by_category:
+            for plugin in plugins_by_category[category]:
+                plugin_name = plugin["name"]
+                # Get activation state from settings.json
+                is_active = plugins_activation.get(plugin_name, False)
+                self.logger.info(f"Plugin {plugin_name} activation state: {is_active}")
+                plugin["active"] = is_active
+                
+                # Mark core plugins as locked
+                plugin["is_core"] = (
+                    plugin.get("category", "").lower() == "core" or 
+                    plugin_name in ["conversation", "ttsdefault", "settings", "onboarding"]
+                )
+                
+                # Ensure other metadata is included
+                if "description" not in plugin:
+                    plugin["description"] = plugin_manager.all_plugins.get(plugin_name, {}).get("description", "")
+        
+        self.logger.info(f"Final plugins by category: {plugins_by_category}")
+        return plugins_by_category
+        
+    def toggle_plugin(self, plugin_name, is_active):
+        """Toggle plugin activation state"""
+        self.logger.info(f"Toggling plugin {plugin_name} to {is_active}")
+        
+        # Check if plugin is core
+        plugin_metadata = plugin_manager.all_plugins.get(plugin_name, {})
+        is_core = (
+            plugin_metadata.get("category", "").lower() == "core" or 
+            plugin_name in ["conversation", "ttsdefault", "settings", "onboarding"]
+        )
+        
+        if is_core:
+            self.logger.warning(f"Attempted to toggle core plugin {plugin_name}")
+            return False
+        
+        # Update settings.json
+        settings = plugin_manager.settings_manager.get_settings()
+        if "plugins_activation" not in settings:
+            settings["plugins_activation"] = {}
+        
+        settings["plugins_activation"][plugin_name] = is_active
+        plugin_manager.settings_manager.save_settings(settings)
+        
+        # Actually activate/deactivate the plugin
+        if is_active:
+            plugin_manager.activate_plugin(plugin_name)
+        else:
+            plugin_manager.deactivate_plugin(plugin_name)
+            
+        self.logger.info(f"Plugin {plugin_name} toggle complete")
+        return True
         
