@@ -150,7 +150,7 @@ class Onboarding(Baseplugin):
         print("GUI READY!")
         view = 'daily' if self.onboarding_completed else 'onboarding'
         await self.send_switch_view_to_app(view)
-        self.send_message_to_frontend(self.settings)
+        await self.wait_for_socket_and_send(self.settings)
     
         
     def get_plugins_by_category(self):
