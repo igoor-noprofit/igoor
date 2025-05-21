@@ -31,5 +31,5 @@
     <daily  :appview="appview"></daily><flow @show-autocomplete="showAutocomplete" :appview="appview"></flow><memory  :appview="appview"></memory>
 </main>
 <footer>
-    
+    <shortcuts  :appview="appview"></shortcuts>
 </footer>

@@ -193,7 +193,7 @@ export default {
             saveStatus: null,
             pywebviewready: false,
             showRestartAlert: false
-        };
+        }
     },
     async mounted() {
         // Wait for pywebview to be ready before proceeding
@@ -209,7 +209,6 @@ export default {
                 });
             }
         });
-
         // Now safe to load plugins
         await this.loadPlugins();
     },
@@ -506,13 +505,13 @@ button:disabled {
 /* Modal overlay styles */
 .modal-overlay {
     position: fixed;
-    top: 0;
+    top: 40px;
     left: 0;
     right: 0;
     bottom: 0;
     background: rgba(0, 0, 0, 0.6);
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
 }
 
@@ -523,7 +522,7 @@ button:disabled {
     border-radius: 8px;
     position: relative;
     color: #000;
-    height: 80%;
+    height: 100%;
     font-size: 18px;
     width: 100%;
 }
