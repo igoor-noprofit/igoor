@@ -257,11 +257,8 @@ main {
   display: inline-block;
 }
 .onboarding.plugin {
-  width: 100vw;
   background: linear-gradient(to bottom, #2a4a51, #1a2223);
   color: #fff;
-  height: 75vh;
-  margin-top: 40px;
 }
 .onboarding.plugin .tabs {
   border-radius: 10px;
@@ -310,6 +307,10 @@ main {
   font-weight: bold;
   text-transform: uppercase;
   cursor: pointer;
+}
+.onboarding.plugin ul.tabs.plugins {
+  margin-top: 20px;
+  font-size: 1rem;
 }
 .conversation-plugin .scrollableConv {
   width: calc(100% - 4rem - 22px);
@@ -382,26 +383,26 @@ main {
 ------------------------------------------------------------------------- */
 :root {
   /* base colors */
-  --basecolor-accent-100: #0095C0;
-  --basecolor-accent-500: #3D6C76;
-  --basecolor-accent-700: #2F535B;
-  --basecolor-accent-900: #25393D;
-  --basecolor-secondary-100: #1A9E44;
-  --basecolor-secondary-500: #1D6634;
-  --basecolor-warning-100: #E53E1A;
-  --basecolor-warning-500: #A8351B;
-  --basecolor-gray-100: #AFBFBF;
+  --basecolor-accent-100: #0095c0;
+  --basecolor-accent-500: #3d6c76;
+  --basecolor-accent-700: #2f535b;
+  --basecolor-accent-900: #25393d;
+  --basecolor-secondary-100: #1a9e44;
+  --basecolor-secondary-500: #1d6634;
+  --basecolor-warning-100: #e53e1a;
+  --basecolor-warning-500: #a8351b;
+  --basecolor-gray-100: #afbfbf;
   --basecolor-gray-700: #556265;
-  --basecolor-gray-900: #2D3233;
+  --basecolor-gray-900: #2d3233;
   --basecolor-darkest: #121617;
-  --basecolor-white: #FFFFFF;
-  --basecolor-bg-light: #EDEEE7;
+  --basecolor-white: #ffffff;
+  --basecolor-bg-light: #edeee7;
   /* gradient colors */
-  --basecolor-bggrad-0: #374D52;
-  --basecolor-bggrad-1: #1E2223;
+  --basecolor-bggrad-0: #374d52;
+  --basecolor-bggrad-1: #1e2223;
   --basecolor-bggrad-lev2-0: #384042;
-  --basecolor-bggrad-lev2-1: #2C2F30;
-  --basecolor-bggrad-overlay-0: #1F2729;
+  --basecolor-bggrad-lev2-1: #2c2f30;
+  --basecolor-bggrad-overlay-0: #1f2729;
   --basecolor-bggrad-overlay-1: #121617;
 }
 /* DARK THEME */
