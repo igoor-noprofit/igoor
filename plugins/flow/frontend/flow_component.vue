@@ -1,6 +1,6 @@
 <template>
     <div class="flow container flow-plugin" :class="{ 'plugin-error': error }"
-        v-if="appview != 'daily'">
+        v-if="appview != 'daily' && appview != 'onboarding'">
         <button v-if="answers"
             :class="['btn', 'btn-side', 'btn-side-left', 'abandon', appview == 'autocomplete' ? 'autocomplete' : '',$root.headerExpanded ? 'expanded' : '']"
             @click="$_abandonConversation(true)">
