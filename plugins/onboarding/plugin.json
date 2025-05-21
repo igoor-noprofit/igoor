@@ -3,8 +3,8 @@
     "title": "Onboarding",
     "description": "New user onboarding module with essential infos",
     "layout": {
-        "part": "main",
-        "order": 0
+        "part": "after_logo",
+        "order": 100
     },
     "is_free": true,
     "requires_subscription": false,
