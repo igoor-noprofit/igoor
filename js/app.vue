@@ -17,7 +17,7 @@
         <a @click="minimize()"><img src="img/logo_small.svg" class="logo_small" id="igoor_logo"></a>
     </div>
     <div class="topbar-right">
-        <bugreport  :appview="appview"></bugreport><settings  :appview="appview"></settings>
+        <onboarding  :appview="appview"></onboarding>
     </div>
 </div>
 
@@ -28,8 +28,8 @@
     <autocompletelauncher @show-autocomplete="showAutocomplete" :appview="appview"></autocompletelauncher>
 </div>
 <main>
-    <daily  :appview="appview"></daily><onboarding  :appview="appview"></onboarding><flow @show-autocomplete="showAutocomplete" :appview="appview"></flow><memory  :appview="appview"></memory>
+    <daily  :appview="appview"></daily><flow @show-autocomplete="showAutocomplete" :appview="appview"></flow><memory  :appview="appview"></memory>
 </main>
 <footer>
-    <shortcuts  :appview="appview"></shortcuts>
+    
 </footer>
