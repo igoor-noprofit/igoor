@@ -590,6 +590,7 @@ button:disabled {
     margin: 0;
     font-size: 1.1em;
     font-weight: 600;
+    max-width: 80%;
 }
 
 .plugin-description {
