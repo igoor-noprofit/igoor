@@ -15,7 +15,7 @@ module.exports = {
       error: false,
       connectionAttempts: 0,
       maxRetries: 5,
-      retryDelay: 1000
+      retryDelay: 1000, // Start with 1 second delay
     };
   },
   methods: {
@@ -24,12 +24,13 @@ module.exports = {
         action: "get_settings",
       });
     },
-    saveSettings(settings) {
-      plugin_name = 
-      console.log("Saving settings for plugin " + plugin_name);
-      console.log(settings);
-      settings.action="save_settings";
-      this.sendMsgToBackend(settings, plugin_name);
+    updateSettings(){
+      console.log('Saving plugin settings:', this.formData);
+      let plugin_name = this.$options.name;
+      if (plugin_name.endsWith("Settings")) {
+        plugin_name = plugin_name.substring(0, plugin_name.length - "Settings".length);
+      }
+      window.pywebview.api.update_plugin_settings(plugin_name,this.formData);
     },
     sendMsgToBackend(data, plugin_name = null) {
       const targetUrl = plugin_name
@@ -123,10 +124,9 @@ module.exports = {
           onMessage: this.handleIncomingMessage,
           onOpen: () => {
             self.connectionAttempts = 0; // Reset attempts on successful connection
-            // Send the canonical plugin name to the backend
-            self.sendMsgToBackend({ socket: "ready", plugin: self.canonicalPluginName });
+            self.sendMsgToBackend({ socket: "ready" });
             console.log(
-              `Socket ready Message sent to backend for ${self.canonicalPluginName} plugin`
+              `Socket ready Message sent to backend for ${this.$options.name} plugin`
             );
           },
           onClose: () => {
@@ -149,13 +149,12 @@ module.exports = {
     },
   },
   created() {
-    const determinedPluginName = this.pluginName || this.websocketPath || this.$options.name || "";
-    this.canonicalPluginName = determinedPluginName;
     console.log(
-      "BasePluginComponent created hook for " + this.canonicalPluginName + " plugin"
+      "BasePluginComponent created hook for " + this.$options.name + " plugin"
     );
-    this.ws_url = `${BASE_WS_URL}${this.canonicalPluginName}`;
-    console.log("WebSocket URL for " + this.canonicalPluginName + " = " + this.ws_url);
+    const path = this.websocketPath || this.$options.name || "";
+    this.ws_url = `${BASE_WS_URL}${path}`;
+    console.log("Plugin path = " + this.ws_url);
     this.initializeWebSocket();
   },
   beforeDestroy() {

@@ -6,6 +6,7 @@ context_manager = ContextManager()
 from plugin_manager import PluginManager
 plugin_manager = PluginManager()
 from settings_manager import SettingsManager
+sm = SettingsManager()
 import os,time
 
 class Api:
@@ -22,6 +23,11 @@ class Api:
     def get_plugin_settings(self,plugin_name):
         print("Fetching plugin settings")
         return plugin_manager.plugin_has_settings(plugin_name,True)
+    
+    def update_plugin_settings(self,plugin_name,settings):
+        print("Saving plugin settings")
+        print(settings)
+        return sm.update_plugin_settings(plugin_name,settings)
     
     def toggle_plugin(self, pn, active):
         if not active:
