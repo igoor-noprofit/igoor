@@ -214,43 +214,7 @@ class PluginManager:
 
         # self.set_active_plugins SHOULD COME HERE
         # Load plugins dynamically from the plugins/ directory based on activation state
-    '''
-    async def trigger_hook(self, hook_name, *args, **kwargs):
-        self.logger.info(f"Hook triggered: {hook_name}")
-        """Generic method to trigger any hook by name."""
-        hook = getattr(self.plugin_manager.hook, hook_name, None)
-        if hook:
-            try:
-                # If args contains a dictionary, merge it into kwargs
-                if args and isinstance(args[0], dict):
-                    kwargs.update(args[0])  # Move the dictionary to kwargs
-                
-                # Log the actual kwargs that will be passed to the hook
-                self.logger.info(f"Executing hook {hook_name} with kwargs: {kwargs}")
-                
-                # Ensure kwargs are passed directly without modification
-                results = hook(**kwargs)  # Call the hook with unpacked kwargs
 
-                # Ensure results is an awaitable
-                if asyncio.iscoroutine(results) or isinstance(results, asyncio.Future):
-                    results = await results  # Await if it's a single coroutine or Future
-                elif isinstance(results, list):
-                    # Await each coroutine or Future in the list
-                    results = await asyncio.gather(*[r for r in results if asyncio.iscoroutine(r) or isinstance(r, asyncio.Future)])
-                else:
-                    raise TypeError("The hook result is not awaitable")
-
-                # Return all results - let the caller decide how to handle them
-                return results
-            except Exception as e:
-                self.logger.error(f"Error executing hook '{hook_name}': {e}")
-                if IGOOR_DEBUG:
-                    self.logger.critical("EXIT BECAUSE OF ERROR EXECUTING HOOK")
-                    sys.exit()
-        else:
-            self.logger.warning(f"Hook '{hook_name}' not found.")
-            return None
-    '''
     async def trigger_hook(self, hook_name, **kwargs):
         self.logger.info(f"Hook triggered: {hook_name}")
         """Generic method to trigger any hook by name."""
