@@ -275,6 +275,7 @@ export default {
                     message: 'Main settings saved successfully!'
                 };
                 this.$emit('settings-saved', dataToSend);
+                this.showModal=false
             } catch (error) {
                 console.error('Error saving main settings:', error);
                 this.saveStatus = {
@@ -419,6 +420,9 @@ export default {
             } finally {
                 this.isSaving = false;
                 setTimeout(() => {
+                    if (this.saveStatus.type ==='success') {
+                        this.showModal=false
+                    }
                     this.saveStatus = null;
                 }, 3000);
             }

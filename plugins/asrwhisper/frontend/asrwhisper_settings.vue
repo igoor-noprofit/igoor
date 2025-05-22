@@ -1,32 +1,47 @@
 <template>
     <div class="asrwhisper-plugin-settings">
         <field>
-            <label>Wakeword</label><input type="text" value="" name="wakeword" placeholder="ex. Alexa">
-        </field>
-        <field>
-            <label>Groq API Key</label><input type="password" value="" name="api_key" placeholder="Enter your Groq API key">
-        </field>
-        <field>
             <label>Model Name</label>
-            <select name="model_name">
+            <select name="model_name" v-model="formData.model_name">
                 <option value="whisper-large-v3">Whisper Large v3</option>
                 <option value="whisper-large-v3-turbo">Whisper Large v3 Turbo</option>
             </select>
         </field>
         <field>
-            <label>Language</label>
-            <select name="lang">
-                <option value="fr">French</option>
-                <option value="en">English</option>
-                <option value="de">German</option>
-                <option value="es">Spanish</option>
-                <!-- Add other languages as needed -->
+            <label>VAD level</label>
+            <select name="vad_level" v-model="formData.vad_level">
+                <option value="0">0 (Less aggressive)</option>
+                <option value="1">1</option>
+                <option value="2">2 (Recommended)</option>
+                <option value="3">3 (Most aggressive)</option>
             </select>
+            <p>
+                The VAD level determines how aggressive the algorithm is at detecting speech.
+                Higher levels works better in noisy environments. 
+            </p>
         </field>
         <field>
+            <label>Silence Frames</label>
+            <select name="silence_frames" v-model="formData.silence_frames">
+                <option value="500">500: Faster ASR / More</option>
+                <option value="1250">1250: Recommended for most cases</option>
+                <option value="1500">1500: Recommended for most cases</option>
+                <option value="2000">2000: Slower ASR: For people making big pauses</option>
+            </select>
+            <p>The time (in ms) of silence before speech detection automatically ends.
+                The lower, the faster speech detection but also the more likely you'll miss speech.
+                The higher, the slower speech detection.
+            </p>
+        </field>
+        <!--field>
             <label>Continuous Mode</label>
             <input type="checkbox" name="continuous">
         </field>
+        <field>
+            <label>Wakeword</label><input type="text" value="" name="wakeword" placeholder="ex. Alexa"
+                v-model="formData.wakeword">
+        </field-->
+        <button @click="updateSettings">SAVE PLUGIN SETTINGS</button>
     </div>
 </template>
 
@@ -36,47 +51,32 @@ import BasePluginComponent from '/js/BasePluginComponent.js';
 
 export default {
     name: "asrwhisperSettings",
+    props: {
+        initialSettings: Object
+    },
     mixins: [BasePluginComponent], // Use the mixin
     data() {
+
         return {
-            // No specific data needed here for this simple settings component
+            formData: {
+                model_name: '',
+                vad_level:'',
+                silence_frames:1500
+            }
         };
     },
-    methods: {
-        // No specific methods needed here for this simple settings component
-    },
-    created() {
-        // Lifecycle hook, can be used for initialization if needed
-    },
-    beforeDestroy() {
-        // Lifecycle hook, can be used for cleanup if needed
+    watch: {
+        initialSettings: {
+            handler(newVal) {
+                if (newVal) {
+                    // Merge carefully to preserve structure if settings are partial
+                    this.formData = { ...this.formData, ...newVal };
+                }
+            },
+            immediate: true, // Apply initial values when component loads
+            deep: true
+        }
     }
+
 };
 </script>
-
-<style scoped>
-/* Add any specific styles for your settings component here */
-.asrwhisper-plugin-settings field {
-    display: flex;
-    align-items: center;
-    margin-bottom: 10px;
-}
-
-.asrwhisper-plugin-settings label {
-    min-width: 120px; /* Adjust as needed */
-    margin-right: 10px;
-}
-
-.asrwhisper-plugin-settings input[type="text"],
-.asrwhisper-plugin-settings input[type="password"],
-.asrwhisper-plugin-settings select {
-    flex-grow: 1;
-    padding: 8px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-}
-
-.asrwhisper-plugin-settings input[type="checkbox"] {
-    margin-left: 5px;
-}
-</style>

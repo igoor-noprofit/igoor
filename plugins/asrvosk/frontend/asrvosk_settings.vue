@@ -8,7 +8,7 @@
             <label>Model size</label><input type="text" name="model_size" v-model="formData.model_size"
                 placeholder="big|medium|small">
         </field>
-        <button @click="updateSettings">Save ASR Vosk Settings</button>
+        <button @click="updateSettings">SAVE PLUGIN SETTINGS</button>
     </div>
 </template>
 
