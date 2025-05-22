@@ -259,6 +259,14 @@ class Baseplugin:
                     "settings": settings
                 })
                 return
+            
+            if message_dict.get('action') == 'save_settings':
+                settings_payload = message_dict.get('settings')
+                if isinstance(settings_payload, dict):
+                    # Remove 'action' key from the settings_payload if it exists
+                    settings_payload.pop('action', None)
+                self.mass_update_settings(settings_payload)
+                return
                 
             print(f"Default processing message for {self.plugin_name}: {message}")
                 

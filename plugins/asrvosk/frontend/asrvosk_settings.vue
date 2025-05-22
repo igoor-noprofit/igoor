@@ -19,15 +19,14 @@ import BasePluginComponent from '/js/BasePluginComponent.js';
 export default {
     name: "asrvoskSettings", // This is Vue's internal name, which is fine.
     props: {
-        initialSettings: Object,
-        pluginName: String // Accept the pluginName prop from the parent
+        initialSettings: Object
     },
     mixins: [BasePluginComponent],
     data() {
         return {
             formData: {
                 wakeword: '',
-                model_size: 'medium' // Default to a string, or ensure it's handled if empty
+                model_size: ''
             }
         };
     },
@@ -45,13 +44,7 @@ export default {
     },
     methods: {
         savePluginSpecificSettings() {
-            // Emit both the pluginName (received as a prop) and the formData
-            if (!this.pluginName) {
-                console.error("Plugin name is missing in asrvosk_settings.vue. Cannot save.");
-                // Optionally, alert the user or handle this more gracefully
-                return;
-            }
-            this.$emit('save-settings', this.pluginName, this.formData);
+            this.saveSettings(this.formData);
         }
     }
 };

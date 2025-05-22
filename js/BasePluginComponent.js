@@ -15,8 +15,7 @@ module.exports = {
       error: false,
       connectionAttempts: 0,
       maxRetries: 5,
-      retryDelay: 1000, // Start with 1 second delay
-      canonicalPluginName: null, // Added to store the canonical plugin name
+      retryDelay: 1000
     };
   },
   methods: {
@@ -24,6 +23,13 @@ module.exports = {
       this.sendMsgToBackend({
         action: "get_settings",
       });
+    },
+    saveSettings(settings) {
+      plugin_name = 
+      console.log("Saving settings for plugin " + plugin_name);
+      console.log(settings);
+      settings.action="save_settings";
+      this.sendMsgToBackend(settings, plugin_name);
     },
     sendMsgToBackend(data, plugin_name = null) {
       const targetUrl = plugin_name
