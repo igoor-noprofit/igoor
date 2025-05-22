@@ -4,24 +4,25 @@
         <div @click="showModal = true" class="settings-gear">
             <img src="/img/icons/src/settings.svg" width="30">
         </div>
-        <!-- Modal Window for Plugin Settings 
-        @click.self="showModal = false" 
-        -->
+        <!-- Modal Window for Plugin Settings -->
         <div v-if="showModal" class="modal-overlay">
             <div class="modal-content settings container onboarding plugin">
-                <!--button @click="showModal = false" class="close-button">✖</button-->
-
                 <!-- Restart Alert -->
                 <div v-if="showRestartAlert" class="restart-alert">
                     Please restart the app for plugin changes to take effect.
                 </div>
                 <div>
                     <ul class="tabs">
-                        <li :class="{ active: currentTab === 'bio' }" @click="currentTab = 'bio'">Bio</li>
-                        <li :class="{ active: currentTab === 'prefs' }" @click="currentTab = 'prefs'">Preferences</li>
-                        <li :class="{ active: currentTab === 'ai' }" @click="currentTab = 'ai'">AI</li>
-                        <li :class="{ active: currentTab === 'plugins' }" @click="currentTab = 'plugins'">Plugins</li>
-                        <li :class="{ active: currentTab === 'about' }" @click="currentTab = 'about'">About</li>
+                        <li :class="{ active: currentTab === 'bio' }"
+                            @click="currentTab = 'bio'; viewingPluginSettings = false;">Bio</li>
+                        <li :class="{ active: currentTab === 'prefs' }"
+                            @click="currentTab = 'prefs'; viewingPluginSettings = false;">Preferences</li>
+                        <li :class="{ active: currentTab === 'ai' }"
+                            @click="currentTab = 'ai'; viewingPluginSettings = false;">AI</li>
+                        <li :class="{ active: currentTab === 'plugins' }"
+                            @click="currentTab = 'plugins'; viewingPluginSettings = false;">Plugins</li>
+                        <li :class="{ active: currentTab === 'about' }"
+                            @click="currentTab = 'about'; viewingPluginSettings = false;">About</li>
                     </ul>
                     <div v-if="currentTab === 'bio'" class="bio-container">
                         <div class="bio left">
@@ -97,44 +98,60 @@
                         </div>
                     </div>
                     <div v-if="currentTab === 'plugins'">
-                        <!-- Tab Navigation -->
-                        <ul class="tabs plugins">
-                            <li v-for="category in categories" :key="category"
-                                :class="{ active: activeTab === category }" @click="activeTab = category">
-                                {{ category.toUpperCase() }}
-                            </li>
-                        </ul>
+                        <!-- View for Plugin-Specific Settings -->
+                        <div v-if="viewingPluginSettings && selectedPluginComponent">
+                            <button @click="closePluginSettingsView" class="back-to-plugins-button">&larr; Back to
+                                Plugins</button>
+                            <h3>Settings for {{ selectedPluginForSettings.title }}</h3>
+                            <component :is="selectedPluginComponent" :initial-settings="currentPluginInitialSettings"
+                                :plugin-name="selectedPluginForSettings.name" @save-settings="handlePluginSettingsSave"
+                                class="plugin-settings-component"></component>
+                            <!-- The save button is now expected to be WITHIN the loaded component -->
+                        </div>
 
-                        <!-- Plugins Grid for Active Tab -->
-                        <div v-if="activeTab" class="plugins-grid">
-                            <div v-for="plugin in pluginsByCategory[activeTab]" :key="plugin.name" class="plugin-card"
-                                :class="{ 'core-plugin': plugin.is_core }">
-                                <div class="plugin-header">
-                                    <h3 class="plugin-title">
-                                        {{ plugin.title }}
-                                        <span v-if="plugin.is_core" class="core-badge">CORE</span>
-                                    </h3>
-                                    <!--label class="toggle-switch" :class="{ 'disabled': plugin.is_core }">
-                                        <input type="checkbox" :checked="plugin.active" :disabled="plugin.is_core"
-                                            @change="togglePlugin(activeTab, plugin.name, $event.target.checked)">
-                                        <span class="slider"></span>
-                                    </label-->
-                                    <label class="switch"><input type="checkbox" :checked="plugin.active"
-                                            :disabled="plugin.is_core"
-                                            @change="togglePlugin(activeTab, plugin.name, $event.target.checked)"><span
-                                            class="slider round"></span></label>
-                                </div>
-                                <p class="plugin-description">{{ plugin.description || 'No description available' }}</p>
-                                <div class="plugin-requirements">
-                                    <span v-if="plugin.is_core" class="requirement core">
-                                        🔒 Core Plugin
-                                    </span>
-                                    <span v-if="plugin.requires_internet" class="requirement">
-                                        🌐 Requires Internet
-                                    </span>
-                                    <span v-if="plugin.requires_subscription" class="requirement">
-                                        ⭐ Requires Subscription
-                                    </span>
+                        <!-- View for Plugin Grid -->
+                        <div v-else>
+                            <!-- Tab Navigation -->
+                            <ul class="tabs plugins">
+                                <li v-for="category in categories" :key="category"
+                                    :class="{ active: activeTab === category }" @click="activeTab = category">
+                                    {{ category.toUpperCase() }}
+                                </li>
+                            </ul>
+
+                            <!-- Plugins Grid for Active Tab -->
+                            <div v-if="activeTab" class="plugins-grid">
+                                <div v-for="plugin in pluginsByCategory[activeTab]" :key="plugin.name"
+                                    class="plugin-card" :class="{ 'core-plugin': plugin.is_core }">
+                                    <div class="plugin-header">
+                                        <h3 class="plugin-title">
+                                            {{ plugin.title }}
+                                            <span v-if="plugin.is_core" class="core-badge">CORE</span>
+                                        </h3>
+                                        <div class="plugin-actions">
+                                            <label class="switch"><input type="checkbox" :checked="plugin.active"
+                                                    :disabled="plugin.is_core"
+                                                    @change="togglePlugin(activeTab, plugin.name, $event.target.checked)"><span
+                                                    class="slider round"></span></label>
+                                            <!-- Settings Icon for non-core plugins -->
+                                            <img v-if="!plugin.is_core" src="/img/icons/src/settings.svg" width="24"
+                                                class="plugin-settings-icon" alt="Settings" title="Configure plugin"
+                                                @click="showPluginSettingsView(plugin)">
+                                        </div>
+                                    </div>
+                                    <p class="plugin-description">{{ plugin.description || 'No description available' }}
+                                    </p>
+                                    <div class="plugin-requirements">
+                                        <span v-if="plugin.is_core" class="requirement core">
+                                            🔒 Core Plugin
+                                        </span>
+                                        <span v-if="plugin.requires_internet" class="requirement">
+                                            🌐 Requires Internet
+                                        </span>
+                                        <span v-if="plugin.requires_subscription" class="requirement">
+                                            ⭐ Requires Subscription
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -142,14 +159,15 @@
                     <div v-if="currentTab === 'about'">
                         <div class="about about-tab left">
                             <p>Concept by Igor Novitzki</p>
-                            <p>© 2025 Developed by <a href="https://igoor.org/?utm_source=igoor_app" target="_blank">IGOOR</a>, in partnership
+                            <p>© 2025 Developed by <a href="https://igoor.org/?utm_source=igoor_app"
+                                    target="_blank">IGOOR</a>, in partnership
                                 with <a href="https://www.arsla.org/?utm_source=igoor_app" target="_blank">ARSLA</a></p>
                         </div>
                     </div>
                 </div>
-                <div class="save-section">
+                <div class="save-section" v-if="currentTab !== 'plugins' || !viewingPluginSettings">
                     <button @click="saveSettings" :disabled="isSaving">
-                        {{ isSaving ? 'Saving...' : 'Save' }}
+                        {{ isSaving ? 'Saving...' : 'Save Main Settings' }}
                     </button>
                     <span v-if="saveStatus" :class="['save-status', saveStatus.type]">
                         {{ saveStatus.message }}
@@ -168,9 +186,9 @@ export default {
     mixins: [BasePluginComponent], // Use the mixin
     data() {
         return {
-            activeTab: '',
+            activeTab: '', // For plugin categories
             pluginData: {},
-            currentTab: 'bio',
+            currentTab: 'bio', // For main tabs (bio, prefs, ai, plugins, about)
             showModal: false,
             bio: {
                 name: "",
@@ -192,7 +210,11 @@ export default {
             isSaving: false,
             saveStatus: null,
             pywebviewready: false,
-            showRestartAlert: false
+            showRestartAlert: false,
+            selectedPluginForSettings: null, // Holds the plugin object whose settings are being viewed/edited
+            selectedPluginComponent: null,   // Holds the dynamically loaded settings component for a plugin
+            currentPluginInitialSettings: {}, // Holds initial settings to pass as prop
+            viewingPluginSettings: false     // Controls visibility of plugin-specific settings view
         }
     },
     async mounted() {
@@ -229,7 +251,7 @@ export default {
         }
     },
     methods: {
-        async saveSettings() {
+        async saveSettings() { // This is for main settings (bio, prefs, ai)
             this.isSaving = true;
             this.saveStatus = null;
 
@@ -240,29 +262,27 @@ export default {
                     ai: this.ai
                 };
 
-                await this.sendMsgToBackend({
-                    action: 'save_settings',
+                // Assuming sendMsgToBackend is still relevant for these general settings
+                // If you have a direct pywebview.api for this, use it.
+                // For example: await window.pywebview.api.save_main_settings(dataToSend);
+                await this.sendMsgToBackend({ // Or your specific API call
+                    action: 'save_settings', // Or a more specific action
                     data: dataToSend
                 });
 
                 this.saveStatus = {
                     type: 'success',
-                    message: 'Settings saved successfully!'
+                    message: 'Main settings saved successfully!'
                 };
-
-                // Emit event for parent components
                 this.$emit('settings-saved', dataToSend);
-
             } catch (error) {
-                console.error('Error saving settings:', error);
+                console.error('Error saving main settings:', error);
                 this.saveStatus = {
                     type: 'error',
-                    message: 'Failed to save settings. Please try again.'
+                    message: 'Failed to save main settings. Please try again.'
                 };
             } finally {
                 this.isSaving = false;
-
-                // Clear success message after 3 seconds
                 if (this.saveStatus?.type === 'success') {
                     setTimeout(() => {
                         this.saveStatus = null;
@@ -288,16 +308,7 @@ export default {
                 console.warn("Error parsing JSON", e);
             }
         },
-        saveSettings() {
-            const dataToSend = {
-                bio: this.bio,
-                prefs: this.prefs,
-                ai: this.ai
-            };
-            this.sendMsgToBackend(dataToSend);
-            console.log("Settings saved and sent to backend:", dataToSend);
-            this.showModal = false;
-        },
+        // Note: Removed the duplicate saveSettings method. The one above is more complete.
         async loadPlugins() {
             try {
                 if (!this.pywebviewready) {
@@ -334,43 +345,99 @@ export default {
                 this.showRestartAlert = false;
             }, 4000);
         },
-        selectPlugin(category, pluginName) {
-            this.selectedPlugin = this.pluginData[category].find(p => p.name === pluginName);
-            this.loadPluginComponent(pluginName);
-        },
-        async loadPluginComponent(pluginName) {
-            try {
-                console.log(`/plugins/${pluginName}/frontend/${pluginName}_settings.vue`);
-                const component = await import(`/plugins/${pluginName}/frontend/${pluginName}_settings.vue`);
-                const settings = await window.pywebview.api.get_plugin_settings(pluginName);
-                console.table(settings);
-                this.selectedPluginComponent = component.default || component;
+        // selectPlugin is effectively replaced by showPluginSettingsView
+        // async selectPlugin(category, pluginName) {
+        //     this.selectedPlugin = this.pluginData[category].find(p => p.name === pluginName);
+        //     this.loadPluginComponent(pluginName);
+        // },
 
-                // Wait for the component to be rendered
-                this.$nextTick(() => {
-                    for (const [key, value] of Object.entries(settings)) {
-                        const input = this.$el.querySelector(`input[name="${key}"]`);
-                        if (input) {
-                            input.value = value;
-                        }
-                    }
-                });
+        showPluginSettingsView(plugin) {
+            this.selectedPluginForSettings = plugin;
+            this.viewingPluginSettings = true;
+            this.loadPluginComponent(plugin.name);
+        },
+
+        closePluginSettingsView() {
+            this.viewingPluginSettings = false;
+            this.selectedPluginComponent = null;
+            this.selectedPluginForSettings = null;
+            this.currentPluginInitialSettings = {};
+        },
+
+        async loadPluginComponent(pluginName) {
+            this.selectedPluginComponent = null; // Clear previous one
+            this.currentPluginInitialSettings = {};
+            try {
+                console.log(`Attempting to load settings component: /plugins/${pluginName}/frontend/${pluginName}_settings.vue`);
+                // Ensure the path is correct for dynamic imports.
+                // Vite/Webpack usually handle /path from project root or specific alias.
+                const componentModule = await import(/* @vite-ignore */ `/plugins/${pluginName}/frontend/${pluginName}_settings.vue`);
+
+                const settings = await window.pywebview.api.get_plugin_settings(pluginName);
+                console.log(`Settings for ${pluginName}:`, settings);
+
+                this.currentPluginInitialSettings = settings || {};
+                this.selectedPluginComponent = componentModule.default || componentModule;
+
             } catch (error) {
-                console.error(`Failed to load component for plugin: ${pluginName}`, error);
+                console.error(`Failed to load component or settings for plugin: ${pluginName}`, error);
+                this.selectedPluginComponent = null;
+                // Optionally, show a message to the user that settings UI couldn't be loaded
+                alert(`Could not load settings UI for ${pluginName}. It might not have custom settings or an error occurred.`);
+                this.closePluginSettingsView(); // Go back if loading fails
+            }
+        },
+
+        // Inside onboarding_component.vue methods
+        async handlePluginSettingsSave(pluginNameFromEmit, settingsData) { // Expects two arguments
+            if (!pluginNameFromEmit) {
+                console.error("Plugin name was not emitted from the settings component.");
+                // Fallback or error handling if pluginNameFromEmit is missing
+                // You could try using this.selectedPluginForSettings.name as a fallback,
+                // but it's better if the child component provides it.
+                if (!this.selectedPluginForSettings || !this.selectedPluginForSettings.name) {
+                    console.error("No plugin selected or plugin name missing for saving settings.");
+                    this.saveStatus = { type: 'error', message: `Error: Plugin identifier missing.` };
+                    return;
+                }
+                // pluginNameFromEmit = this.selectedPluginForSettings.name; // Example fallback
+                // For now, let's strictly expect it from emit:
+                this.saveStatus = { type: 'error', message: `Error: Plugin identifier missing from component.` };
+                return;
+            }
+
+            console.log(`Saving settings for ${pluginNameFromEmit}:`, settingsData);
+            this.isSaving = true;
+            this.saveStatus = null;
+
+            try {
+                await window.pywebview.api.save_plugin_settings(pluginNameFromEmit, settingsData);
+                this.saveStatus = { type: 'success', message: `${pluginNameFromEmit} settings saved!` };
+            } catch (error) {
+                console.error(`Error saving settings for plugin ${pluginNameFromEmit}:`, error);
+                this.saveStatus = { type: 'error', message: `Failed to save ${pluginNameFromEmit} settings.` };
+            } finally {
+                this.isSaving = false;
+                setTimeout(() => {
+                    this.saveStatus = null;
+                }, 3000);
             }
         }
     }
-};
+}
 </script>
 <style>
 .about-tab {
     background: #000;
     font-size: 1.2rem;
-    a{
+
+    a {
         color: #fff
     }
+
     padding: 30px;
 }
+
 .tabs {
     display: flex;
     list-style-type: none;
@@ -615,5 +682,55 @@ button:disabled {
     display: inline-flex;
     align-items: center;
     gap: 4px;
+}
+
+/* PLUGIN SETTINGS */
+.plugin-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    /* Space between toggle and settings icon */
+}
+
+.plugin-settings-icon {
+    cursor: pointer;
+    filter: invert(100%);
+    /* If your icons are dark and background is dark, or vice-versa */
+    opacity: 0.7;
+}
+
+.plugin-settings-icon:hover {
+    opacity: 1;
+}
+
+.back-to-plugins-button {
+    margin-bottom: 15px;
+    padding: 8px 15px;
+    background-color: #f0f0f0;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    cursor: pointer;
+    color: #333;
+}
+
+.back-to-plugins-button:hover {
+    background-color: #e0e0e0;
+}
+
+.plugin-settings-component {
+    padding: 15px;
+    border: 1px solid #eee;
+    border-radius: 5px;
+    margin-top: 10px;
+    background-color: #0d1117;
+    /* Or your preferred background for settings */
+}
+
+/* Ensure the save button for main settings is hidden when viewing plugin settings */
+.save-section {
+    margin-top: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 </style>

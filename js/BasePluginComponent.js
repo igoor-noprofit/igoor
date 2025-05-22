@@ -16,6 +16,7 @@ module.exports = {
       connectionAttempts: 0,
       maxRetries: 5,
       retryDelay: 1000, // Start with 1 second delay
+      canonicalPluginName: null, // Added to store the canonical plugin name
     };
   },
   methods: {
@@ -116,9 +117,10 @@ module.exports = {
           onMessage: this.handleIncomingMessage,
           onOpen: () => {
             self.connectionAttempts = 0; // Reset attempts on successful connection
-            self.sendMsgToBackend({ socket: "ready" });
+            // Send the canonical plugin name to the backend
+            self.sendMsgToBackend({ socket: "ready", plugin: self.canonicalPluginName });
             console.log(
-              `Socket ready Message sent to backend for ${this.$options.name} plugin`
+              `Socket ready Message sent to backend for ${self.canonicalPluginName} plugin`
             );
           },
           onClose: () => {
@@ -141,12 +143,13 @@ module.exports = {
     },
   },
   created() {
+    const determinedPluginName = this.pluginName || this.websocketPath || this.$options.name || "";
+    this.canonicalPluginName = determinedPluginName;
     console.log(
-      "BasePluginComponent created hook for " + this.$options.name + " plugin"
+      "BasePluginComponent created hook for " + this.canonicalPluginName + " plugin"
     );
-    const path = this.websocketPath || this.$options.name || "";
-    this.ws_url = `${BASE_WS_URL}${path}`;
-    console.log("Plugin path = " + this.ws_url);
+    this.ws_url = `${BASE_WS_URL}${this.canonicalPluginName}`;
+    console.log("WebSocket URL for " + this.canonicalPluginName + " = " + this.ws_url);
     this.initializeWebSocket();
   },
   beforeDestroy() {
