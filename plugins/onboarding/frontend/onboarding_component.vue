@@ -100,8 +100,7 @@
                     <div v-if="currentTab === 'plugins'">
                         <!-- View for Plugin-Specific Settings -->
                         <div v-if="viewingPluginSettings && selectedPluginComponent">
-                            <button @click="closePluginSettingsView" class="back-to-plugins-button">&larr; Back to
-                                Plugins</button>
+                            <button @click="closePluginSettingsView" class="back-to-plugins-button">&larr; Back to Plugins</button>
                             <h3>Settings for {{ selectedPluginForSettings.title }}</h3>
                             <component :is="selectedPluginComponent" :initial-settings="currentPluginInitialSettings"
                                 :plugin-name="selectedPluginForSettings.name" @save-settings="handlePluginSettingsSave"
