@@ -1,54 +1,62 @@
 <template>
   <div class="daily-settings container daily-plugin main">
     <div v-if="currentView === 'main'" class="options">
-      <draggable v-model="mainCategories" group="categories" class="categories-row" :options="{animation:150, direction:'horizontal'}">
-        <div v-for="(category, catIdx) in mainCategories" :key="category.name" class="options-col category-col bordered">
-          <div class="category-header">
-            <span v-if="!category.editing" @click="editCategoryName('main', catIdx)">{{ category.name }}</span>
-            <input v-else v-model="category.editName" @blur="saveCategoryName('main', catIdx)" @keyup.enter="saveCategoryName('main', catIdx)" />
-            <button class="delete-btn" @click="deleteCategory('main', catIdx)">✕</button>
-          </div>
-          <draggable v-model="category.itemsArr" :group="'items'" :options="{animation:150, handle:'.drag-handle'}">
-            <div v-for="(item, itemIdx) in category.itemsArr" :key="item.key" class="item-row">
-              <span v-if="!item.editing" @click="editItemName('main', catIdx, itemIdx)">{{ item.key }}</span>
-              <input v-else v-model="item.editName" @blur="saveItemName('main', catIdx, itemIdx)" @keyup.enter="saveItemName('main', catIdx, itemIdx)" />
-              <label class="switch">
-                <input type="checkbox" v-model="item.fixed" />
-                <span class="slider"></span>
-              </label>
-              <span class="drag-handle" v-if="!item.fixed">☰</span>
-              <button class="delete-btn" @click="deleteItem('main', catIdx, itemIdx)">✕</button>
+      <draggable v-model="mainCategories" group="categories" class="categories-row" :options="{animation:150, direction:'horizontal'}" item-key="name">
+        <template #item="{element: category, index: catIdx}">
+          <div :key="category.name" class="options-col category-col bordered">
+            <div class="category-header">
+              <span v-if="!category.editing" @click="editCategoryName('main', catIdx)">{{ category.name }}</span>
+              <input v-else v-model="category.editName" @blur="saveCategoryName('main', catIdx)" @keyup.enter="saveCategoryName('main', catIdx)" />
+              <button class="delete-btn" @click="deleteCategory('main', catIdx)">✕</button>
             </div>
-          </draggable>
-          <input class="add-item-input" v-model="category.newItem" @keyup.enter="addItem('main', catIdx)" placeholder="+ Ajouter un item" />
-        </div>
+            <draggable v-model="category.itemsArr" :group="'items'" :options="{animation:150, handle:'.drag-handle', filter:'.fixed-item', preventOnFilter:true}" item-key="key">
+              <template #item="{element: item, index: itemIdx}">
+                <div :key="item.key" class="item-row" :class="{'fixed-item': item.fixed}">
+                  <span v-if="!item.editing" @click="editItemName('main', catIdx, itemIdx)">{{ item.key }}</span>
+                  <input v-else v-model="item.editName" @blur="saveItemName('main', catIdx, itemIdx)" @keyup.enter="saveItemName('main', catIdx, itemIdx)" />
+                  <label class="switch">
+                    <input type="checkbox" v-model="item.fixed" />
+                    <span class="slider"></span>
+                  </label>
+                  <span class="drag-handle" v-if="!item.fixed">☰</span>
+                  <button class="delete-btn" @click="deleteItem('main', catIdx, itemIdx)">✕</button>
+                </div>
+              </template>
+            </draggable>
+            <input class="add-item-input" v-model="category.newItem" @keyup.enter="addItem('main', catIdx)" placeholder="+ Ajouter un item" />
+          </div>
+        </template>
       </draggable>
       <input class="add-category-input" v-model="newMainCategory" @keyup.enter="addCategory('main')" placeholder="+ Ajouter une catégorie" />
       <button class="btn btn-side btn-side-right" @click="switchToSecondaryView"><svg class="icon icon-l"><use xlink:href="/img/svgdefs.svg#icon-chevron_right" /></svg></button>
     </div>
     <div v-if="currentView === 'secondary'" class="options secondary">
       <button class="btn btn-side btn-side-left" @click="switchToMainView"><svg class="icon icon-l"><use xlink:href="/img/svgdefs.svg#icon-chevron_left" /></svg></button>
-      <draggable v-model="secondaryCategories" group="categories" class="categories-row" :options="{animation:150, direction:'horizontal'}">
-        <div v-for="(category, catIdx) in secondaryCategories" :key="category.name" class="options-col category-col bordered">
-          <div class="category-header">
-            <span v-if="!category.editing" @click="editCategoryName('secondary', catIdx)">{{ category.name }}</span>
-            <input v-else v-model="category.editName" @blur="saveCategoryName('secondary', catIdx)" @keyup.enter="saveCategoryName('secondary', catIdx)" />
-            <button class="delete-btn" @click="deleteCategory('secondary', catIdx)">✕</button>
-          </div>
-          <draggable v-model="category.itemsArr" :group="'items'" :options="{animation:150, handle:'.drag-handle'}">
-            <div v-for="(item, itemIdx) in category.itemsArr" :key="item.key" class="item-row">
-              <span v-if="!item.editing" @click="editItemName('secondary', catIdx, itemIdx)">{{ item.key }}</span>
-              <input v-else v-model="item.editName" @blur="saveItemName('secondary', catIdx, itemIdx)" @keyup.enter="saveItemName('secondary', catIdx, itemIdx)" />
-              <label class="switch">
-                <input type="checkbox" v-model="item.fixed" />
-                <span class="slider"></span>
-              </label>
-              <span class="drag-handle" v-if="!item.fixed">☰</span>
-              <button class="delete-btn" @click="deleteItem('secondary', catIdx, itemIdx)">✕</button>
+      <draggable v-model="secondaryCategories" group="categories" class="categories-row" :options="{animation:150, direction:'horizontal'}" item-key="name">
+        <template #item="{element: category, index: catIdx}">
+          <div :key="category.name" class="options-col category-col bordered">
+            <div class="category-header">
+              <span v-if="!category.editing" @click="editCategoryName('secondary', catIdx)">{{ category.name }}</span>
+              <input v-else v-model="category.editName" @blur="saveCategoryName('secondary', catIdx)" @keyup.enter="saveCategoryName('secondary', catIdx)" />
+              <button class="delete-btn" @click="deleteCategory('secondary', catIdx)">✕</button>
             </div>
-          </draggable>
-          <input class="add-item-input" v-model="category.newItem" @keyup.enter="addItem('secondary', catIdx)" placeholder="+ Ajouter un item" />
-        </div>
+            <draggable v-model="category.itemsArr" :group="'items'" :options="{animation:150, handle:'.drag-handle', filter:'.fixed-item', preventOnFilter:true}" item-key="key">
+              <template #item="{element: item, index: itemIdx}">
+                <div :key="item.key" class="item-row" :class="{'fixed-item': item.fixed}">
+                  <span v-if="!item.editing" @click="editItemName('secondary', catIdx, itemIdx)">{{ item.key }}</span>
+                  <input v-else v-model="item.editName" @blur="saveItemName('secondary', catIdx, itemIdx)" @keyup.enter="saveItemName('secondary', catIdx, itemIdx)" />
+                  <label class="switch">
+                    <input type="checkbox" v-model="item.fixed" />
+                    <span class="slider"></span>
+                  </label>
+                  <span class="drag-handle" v-if="!item.fixed">☰</span>
+                  <button class="delete-btn" @click="deleteItem('secondary', catIdx, itemIdx)">✕</button>
+                </div>
+              </template>
+            </draggable>
+            <input class="add-item-input" v-model="category.newItem" @keyup.enter="addItem('secondary', catIdx)" placeholder="+ Ajouter un item" />
+          </div>
+        </template>
       </draggable>
       <input class="add-category-input" v-model="newSecondaryCategory" @keyup.enter="addCategory('secondary')" placeholder="+ Ajouter une catégorie" />
     </div>
@@ -70,6 +78,15 @@ module.exports = {
   props: {
     initialSettings: Object
   },
+  mounted() {
+    // Always extract needs from initialSettings, whether it's an object or array
+    let needs = this.initialSettings && this.initialSettings.needs ? this.initialSettings.needs : this.initialSettings;
+    if (needs && Array.isArray(needs) && needs.length > 1) {
+      this.mainCategories = this.processCategories(needs[0]);
+      this.secondaryCategories = this.processCategories(needs[1]);
+      this.originalSettings = JSON.parse(JSON.stringify(needs));
+    }
+  },
   data() {
     return {
       currentView: 'main',
@@ -83,10 +100,11 @@ module.exports = {
   watch: {
     initialSettings: {
       handler(newVal) {
-        if (newVal && Array.isArray(newVal) && newVal.length > 1) {
-          this.mainCategories = this.processCategories(newVal[0]);
-          this.secondaryCategories = this.processCategories(newVal[1]);
-          this.originalSettings = JSON.parse(JSON.stringify(newVal));
+        let needs = newVal && newVal.needs ? newVal.needs : newVal;
+        if (needs && Array.isArray(needs) && needs.length > 1) {
+          this.mainCategories = this.processCategories(needs[0]);
+          this.secondaryCategories = this.processCategories(needs[1]);
+          this.originalSettings = JSON.parse(JSON.stringify(needs));
         }
       },
       immediate: true,
@@ -95,6 +113,7 @@ module.exports = {
   },
   methods: {
     processCategories(data) {
+      console.warn('Processing categories:', data);
       return Object.entries(data).map(([name, items]) => ({
         name,
         editName: name,
@@ -284,5 +303,13 @@ module.exports = {
   display: flex;
   gap: 1rem;
   justify-content: flex-end;
+}
+.categories-row {
+  display: flex;
+  flex-direction: row;
+}
+.fixed-item {
+  pointer-events: auto;
+  opacity: 1;
 }
 </style>
