@@ -97,7 +97,7 @@ module.exports = {
                 const data = JSON.parse(event.data);
                 console.log(data);
                 if (data.dailyData) {
-                    this.dailyData = data.dailyData;
+                    this.dailyData = data.dailyData.needs;
                     this.processCategories();
                 }
                 if (data.answers) {
