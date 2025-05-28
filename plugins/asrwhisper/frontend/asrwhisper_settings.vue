@@ -47,7 +47,6 @@
 
 <script>
 import BasePluginComponent from '/js/BasePluginComponent.js';
-// console.log('BasePluginComponent imported:', BasePluginComponent); // Optional: for debugging
 
 export default {
     name: "asrwhisperSettings",
