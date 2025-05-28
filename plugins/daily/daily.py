@@ -59,24 +59,29 @@ class Daily(Baseplugin):
         self.daily_data = None
         
     def load_daily_data(self):
-        daily_file = os.path.join(self.plugin_folder, 'daily.json')
-        print(f"DAILY FILE PATH: {daily_file}")
-        try:
-            with open(daily_file, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                self.daily_data = data.get('needs', {}).get(self.lang)
-                print(self.daily_data)
-                return True
-        except FileNotFoundError:
-            print ("ERROR DAILY JSON NOT FOUND")
+        if (not self.settings):
             current_file_dir = os.path.dirname(__file__)
             default_daily_file = os.path.join(current_file_dir, 'daily.json')
-            print(f"USING DEFAULT DAILY FROM {default_daily_file}")
-            with open(default_daily_file, 'r', encoding='utf-8') as f:
-                self.daily_data = json.load(f)
-            with open(daily_file, 'w', encoding='utf-8') as f:
-                json.dump(self.daily_data, f, ensure_ascii=False, indent=4)
-                print(f"Daily.json copied from {current_file_dir} to {self.plugin_folder}")
+            self.logger.info("No settings found, using default daily data from daily.json")
+            daily_file = 'daily.json'
+            try:
+                with open(daily_file, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    self.daily_data = data.get(self.lang, {})
+                    self.settings_manager.update_plugin_settings('daily',self.daily_data)
+                    return True
+            except FileNotFoundError:
+                print ("ERROR DAILY JSON NOT FOUND")
+                current_file_dir = os.path.dirname(__file__)
+                default_daily_file = os.path.join(current_file_dir, 'daily.json')
+                print(f"USING DEFAULT DAILY FROM {default_daily_file}")
+                with open(default_daily_file, 'r', encoding='utf-8') as f:
+                    self.daily_data = json.load(f)
+                with open(daily_file, 'w', encoding='utf-8') as f:
+                    json.dump(self.daily_data, f, ensure_ascii=False, indent=4)
+                    print(f"Daily.json copied from {current_file_dir} to {self.plugin_folder}")
+        else: 
+            self.daily_data = self.settings 
     
     @hookimpl
     def startup(self):

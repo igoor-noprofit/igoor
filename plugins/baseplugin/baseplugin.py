@@ -70,11 +70,11 @@ class Baseplugin:
         """
         return self.settings_manager.get_plugin_settings(self.plugin_name)
 
-    def mass_update_settings(self, json_data):
+    def mass_update_my_settings(self, json_data):
         try:
             # Check if the input is a valid JSON object
             parsed_data = json.loads(json_data)
-            self.settings_manager.save_settings(parsed_data)
+            self.settings_manager.update_plugin_settings(self.plugin_name,parsed_data)
         except json.JSONDecodeError:
             self.logger.error("Invalid JSON data provided for mass update.")
 
@@ -87,6 +87,8 @@ class Baseplugin:
         current_settings[key] = value
         self.settings_manager.update_plugin_settings(self.plugin_name, current_settings)
         self.settings_manager.save_settings()
+        
+        
         
     def update_status(self, status):
         self.logger.info(f"Plugin {self.__class__.__name__} received status update: {status}")

@@ -1,40 +1,288 @@
 <template>
+  <div class="daily-settings container daily-plugin main">
+    <div v-if="currentView === 'main'" class="options">
+      <draggable v-model="mainCategories" group="categories" class="categories-row" :options="{animation:150, direction:'horizontal'}">
+        <div v-for="(category, catIdx) in mainCategories" :key="category.name" class="options-col category-col bordered">
+          <div class="category-header">
+            <span v-if="!category.editing" @click="editCategoryName('main', catIdx)">{{ category.name }}</span>
+            <input v-else v-model="category.editName" @blur="saveCategoryName('main', catIdx)" @keyup.enter="saveCategoryName('main', catIdx)" />
+            <button class="delete-btn" @click="deleteCategory('main', catIdx)">✕</button>
+          </div>
+          <draggable v-model="category.itemsArr" :group="'items'" :options="{animation:150, handle:'.drag-handle'}">
+            <div v-for="(item, itemIdx) in category.itemsArr" :key="item.key" class="item-row">
+              <span v-if="!item.editing" @click="editItemName('main', catIdx, itemIdx)">{{ item.key }}</span>
+              <input v-else v-model="item.editName" @blur="saveItemName('main', catIdx, itemIdx)" @keyup.enter="saveItemName('main', catIdx, itemIdx)" />
+              <label class="switch">
+                <input type="checkbox" v-model="item.fixed" />
+                <span class="slider"></span>
+              </label>
+              <span class="drag-handle" v-if="!item.fixed">☰</span>
+              <button class="delete-btn" @click="deleteItem('main', catIdx, itemIdx)">✕</button>
+            </div>
+          </draggable>
+          <input class="add-item-input" v-model="category.newItem" @keyup.enter="addItem('main', catIdx)" placeholder="+ Ajouter un item" />
+        </div>
+      </draggable>
+      <input class="add-category-input" v-model="newMainCategory" @keyup.enter="addCategory('main')" placeholder="+ Ajouter une catégorie" />
+      <button class="btn btn-side btn-side-right" @click="switchToSecondaryView"><svg class="icon icon-l"><use xlink:href="/img/svgdefs.svg#icon-chevron_right" /></svg></button>
+    </div>
+    <div v-if="currentView === 'secondary'" class="options secondary">
+      <button class="btn btn-side btn-side-left" @click="switchToMainView"><svg class="icon icon-l"><use xlink:href="/img/svgdefs.svg#icon-chevron_left" /></svg></button>
+      <draggable v-model="secondaryCategories" group="categories" class="categories-row" :options="{animation:150, direction:'horizontal'}">
+        <div v-for="(category, catIdx) in secondaryCategories" :key="category.name" class="options-col category-col bordered">
+          <div class="category-header">
+            <span v-if="!category.editing" @click="editCategoryName('secondary', catIdx)">{{ category.name }}</span>
+            <input v-else v-model="category.editName" @blur="saveCategoryName('secondary', catIdx)" @keyup.enter="saveCategoryName('secondary', catIdx)" />
+            <button class="delete-btn" @click="deleteCategory('secondary', catIdx)">✕</button>
+          </div>
+          <draggable v-model="category.itemsArr" :group="'items'" :options="{animation:150, handle:'.drag-handle'}">
+            <div v-for="(item, itemIdx) in category.itemsArr" :key="item.key" class="item-row">
+              <span v-if="!item.editing" @click="editItemName('secondary', catIdx, itemIdx)">{{ item.key }}</span>
+              <input v-else v-model="item.editName" @blur="saveItemName('secondary', catIdx, itemIdx)" @keyup.enter="saveItemName('secondary', catIdx, itemIdx)" />
+              <label class="switch">
+                <input type="checkbox" v-model="item.fixed" />
+                <span class="slider"></span>
+              </label>
+              <span class="drag-handle" v-if="!item.fixed">☰</span>
+              <button class="delete-btn" @click="deleteItem('secondary', catIdx, itemIdx)">✕</button>
+            </div>
+          </draggable>
+          <input class="add-item-input" v-model="category.newItem" @keyup.enter="addItem('secondary', catIdx)" placeholder="+ Ajouter un item" />
+        </div>
+      </draggable>
+      <input class="add-category-input" v-model="newSecondaryCategory" @keyup.enter="addCategory('secondary')" placeholder="+ Ajouter une catégorie" />
+    </div>
+    <div class="settings-actions">
+      <button class="btn btn-primary" @click="saveSettings">Enregistrer</button>
+      <button class="btn btn-secondary" @click="resetSettings">Annuler</button>
+    </div>
+  </div>
 </template>
 
 <script>
+
 import BasePluginComponent from '/js/BasePluginComponent.js';
 
-export default {
-    name: "dailySettings",
-    props: {
-        initialSettings: Object
-    },
-    mixins: [BasePluginComponent],
-    data() {
-        return {
-            formData: {},
-        };
-    },
-    watch: {
-        initialSettings: {
-            handler(newVal) {
-                if (newVal && Array.isArray(newVal) && newVal.length > 0) {
-                    // Extract the first object from the array
-                    this.formData = JSON.parse(JSON.stringify(newVal[0]));
-                } else if (newVal && typeof newVal === 'object' && !Array.isArray(newVal)) {
-                    this.formData = JSON.parse(JSON.stringify(newVal));
-                } else {
-                    this.formData = {};
-                }
-            },
-            immediate: true,
-            deep: true
+module.exports = {
+  name: "dailySettings",
+  mixins: [BasePluginComponent],
+  components: { draggable: window['vuedraggable'] },
+  props: {
+    initialSettings: Object
+  },
+  data() {
+    return {
+      currentView: 'main',
+      mainCategories: [],
+      secondaryCategories: [],
+      newMainCategory: '',
+      newSecondaryCategory: '',
+      originalSettings: null
+    };
+  },
+  watch: {
+    initialSettings: {
+      handler(newVal) {
+        if (newVal && Array.isArray(newVal) && newVal.length > 1) {
+          this.mainCategories = this.processCategories(newVal[0]);
+          this.secondaryCategories = this.processCategories(newVal[1]);
+          this.originalSettings = JSON.parse(JSON.stringify(newVal));
         }
-    },
-    methods: {
+      },
+      immediate: true,
+      deep: true
     }
+  },
+  methods: {
+    processCategories(data) {
+      return Object.entries(data).map(([name, items]) => ({
+        name,
+        editName: name,
+        editing: false,
+        newItem: '',
+        itemsArr: Object.entries(items).map(([key, val]) => ({
+          key,
+          editName: key,
+          editing: false,
+          fixed: val.fixed || false,
+          freq: val.freq || 0
+        }))
+      }));
+    },
+    switchToSecondaryView() {
+      this.currentView = 'secondary';
+    },
+    switchToMainView() {
+      this.currentView = 'main';
+    },
+    editCategoryName(view, catIdx) {
+      const arr = view === 'main' ? this.mainCategories : this.secondaryCategories;
+      arr[catIdx].editing = true;
+      arr[catIdx].editName = arr[catIdx].name;
+    },
+    saveCategoryName(view, catIdx) {
+      const arr = view === 'main' ? this.mainCategories : this.secondaryCategories;
+      const newName = arr[catIdx].editName.trim();
+      if (newName && !arr.some((c, i) => i !== catIdx && c.name === newName)) {
+        arr[catIdx].name = newName;
+        arr[catIdx].editing = false;
+      }
+    },
+    deleteCategory(view, catIdx) {
+      const arr = view === 'main' ? this.mainCategories : this.secondaryCategories;
+      if (confirm('Supprimer cette catégorie ?')) arr.splice(catIdx, 1);
+    },
+    addCategory(view) {
+      const arr = view === 'main' ? this.mainCategories : this.secondaryCategories;
+      const newCat = view === 'main' ? this.newMainCategory.trim() : this.newSecondaryCategory.trim();
+      if (newCat && !arr.some(c => c.name === newCat)) {
+        arr.push({ name: newCat, editName: newCat, editing: false, newItem: '', itemsArr: [] });
+        if (view === 'main') this.newMainCategory = '';
+        else this.newSecondaryCategory = '';
+      }
+    },
+    editItemName(view, catIdx, itemIdx) {
+      const arr = view === 'main' ? this.mainCategories : this.secondaryCategories;
+      arr[catIdx].itemsArr[itemIdx].editing = true;
+      arr[catIdx].itemsArr[itemIdx].editName = arr[catIdx].itemsArr[itemIdx].key;
+    },
+    saveItemName(view, catIdx, itemIdx) {
+      const arr = view === 'main' ? this.mainCategories : this.secondaryCategories;
+      const item = arr[catIdx].itemsArr[itemIdx];
+      const newName = item.editName.trim();
+      if (newName && !arr[catIdx].itemsArr.some((it, i) => i !== itemIdx && it.key === newName)) {
+        item.key = newName;
+        item.editing = false;
+      }
+    },
+    deleteItem(view, catIdx, itemIdx) {
+      const arr = view === 'main' ? this.mainCategories : this.secondaryCategories;
+      if (confirm('Supprimer cet item ?')) arr[catIdx].itemsArr.splice(itemIdx, 1);
+    },
+    addItem(view, catIdx) {
+      const arr = view === 'main' ? this.mainCategories : this.secondaryCategories;
+      const newItem = arr[catIdx].newItem.trim();
+      if (newItem && !arr[catIdx].itemsArr.some(it => it.key === newItem)) {
+        arr[catIdx].itemsArr.push({ key: newItem, editName: newItem, editing: false, fixed: false, freq: 0 });
+        arr[catIdx].newItem = '';
+      }
+    },
+    saveSettings() {
+      // Convert categories/items back to backend format
+      const toObj = cats => {
+        const obj = {};
+        cats.forEach(cat => {
+          const items = {};
+          cat.itemsArr.forEach(item => {
+            items[item.key] = { fixed: item.fixed, freq: item.freq };
+          });
+          obj[cat.name] = items;
+        });
+        return obj;
+      };
+      const payload = [toObj(this.mainCategories), toObj(this.secondaryCategories)];
+      this.sendMsgToBackend({ action: 'saveDailySettings', dailyData: payload });
+      this.originalSettings = JSON.parse(JSON.stringify(payload));
+      alert('Enregistré !');
+    },
+    resetSettings() {
+      if (this.originalSettings) {
+        this.mainCategories = this.processCategories(this.originalSettings[0]);
+        this.secondaryCategories = this.processCategories(this.originalSettings[1]);
+      }
+    }
+  }
 };
 </script>
 
 <style scoped>
+.daily-settings {
+  padding: 1rem;
+}
+.options {
+  display: flex;
+  gap: 1rem;
+}
+.category-col {
+  border: 2px solid #2c3e50;
+  border-radius: 8px;
+  padding: 0.5rem;
+  min-width: 220px;
+  background: #22313a;
+}
+.category-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+.delete-btn {
+  background: none;
+  border: none;
+  color: #e74c3c;
+  font-size: 1.2em;
+  cursor: pointer;
+}
+.item-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+  background: #2c3e50;
+  border-radius: 4px;
+  padding: 0.25rem 0.5rem;
+}
+.add-item-input, .add-category-input {
+  width: 100%;
+  margin-top: 0.5rem;
+  padding: 0.25rem;
+  border-radius: 4px;
+  border: 1px solid #34495e;
+  background: #1a2329;
+  color: #fff;
+}
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 36px;
+  height: 20px;
+}
+.switch input { display: none; }
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: #ccc;
+  border-radius: 20px;
+  transition: .4s;
+}
+.switch input:checked + .slider {
+  background-color: #2196F3;
+}
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 16px;
+  width: 16px;
+  left: 2px;
+  bottom: 2px;
+  background-color: white;
+  border-radius: 50%;
+  transition: .4s;
+}
+.switch input:checked + .slider:before {
+  transform: translateX(16px);
+}
+.drag-handle {
+  cursor: grab;
+  color: #aaa;
+  font-size: 1.2em;
+  margin-left: 0.5em;
+}
+.settings-actions {
+  margin-top: 1.5rem;
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+}
 </style>

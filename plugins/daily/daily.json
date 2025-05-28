@@ -1,6 +1,6 @@
 {
-  "needs": {
-    "fr_FR": [
+  "fr_FR": {
+    "needs": [
       {
         "inconforts": {
           "gratter nez": {
