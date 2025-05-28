@@ -49,7 +49,9 @@ class Daily(Baseplugin):
     def __init__(self, plugin_name,pm):
         self.pm = pm
         super().__init__(plugin_name,pm)
-        self.prompts=AssistantPrompts("locales/","fr_FR")
+        self.global_settings = SettingsManager();
+        self.lang = self.global_settings.get_lang()
+        self.prompts=AssistantPrompts("locales/",self.lang)
         self.global_settings = SettingsManager();
         self.settings = self.get_my_settings()
         bio = self.global_settings.get_bio()
@@ -61,7 +63,8 @@ class Daily(Baseplugin):
         print(f"DAILY FILE PATH: {daily_file}")
         try:
             with open(daily_file, 'r', encoding='utf-8') as f:
-                self.daily_data = json.load(f)
+                data = json.load(f)
+                self.daily_data = data.get('needs', {}).get(self.lang)
                 print(self.daily_data)
                 return True
         except FileNotFoundError:
@@ -105,7 +108,7 @@ class Daily(Baseplugin):
                 asyncio.create_task(self.pm.trigger_hook(hook_name="abandon_conversation",cause="daily"))
                 asyncio.create_task(self.generate_phrases(message_data))
                 pass
-             # SPEAKS THE CHOSEN PHRASE
+            # SPEAKS THE CHOSEN PHRASE
             elif message_data.get('action') == "speak":
                     asyncio.create_task(self.send_switch_view_to_app(view="flow"))
                     msg = message_data.get("msg", "")

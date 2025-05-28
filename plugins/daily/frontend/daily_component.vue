@@ -1,5 +1,5 @@
 <template>
-    <div class="daily container daily-plugin main" :class="{'plugin-error': error}" v-if="appview == 'daily'">
+    <div class="daily container daily-plugin main" :class="{ 'plugin-error': error }" v-if="appview == 'daily'">
         <!-- Back Arrow -->
         <div v-if="currentView === 'main'" class="options">
             <div v-for="(category, index) in mainCategories" :key="index" class="options-col">
@@ -8,26 +8,32 @@
                     :class="{ 'btn-primary': item.fixed, 'btn-secondary': !item.fixed }"
                     @click="selectItem(category.name, key, item)">
                     {{ translateItem(key) }}
-                </button>                
+                </button>
             </div>
-            <button class="btn btn-side btn-side-right" @click="switchToSecondaryView"><svg class="icon icon-l"><use xlink:href="/img/svgdefs.svg#icon-chevron_right"/></svg></button>
+            <button class="btn btn-side btn-side-right" @click="switchToSecondaryView"><svg class="icon icon-l">
+                    <use xlink:href="/img/svgdefs.svg#icon-chevron_right" />
+                </svg></button>
         </div>
 
         <!-- Secondary Categories View -->
         <div v-if="currentView === 'secondary'" class="categories-grid options secondary">
-            <button class="btn btn-side btn-side-left" @click="switchToMainView"><svg class="icon icon-l"><use xlink:href="/img/svgdefs.svg#icon-chevron_left"/></svg></button>
+            <button class="btn btn-side btn-side-left" @click="switchToMainView"><svg class="icon icon-l">
+                    <use xlink:href="/img/svgdefs.svg#icon-chevron_left" />
+                </svg></button>
             <div v-for="(category, index) in secondaryCategories" :key="index" class="options-col">
                 <h3>{{ translateCategory(category.name) }}</h3>
                 <button v-for="(item, key) in category.items" :key="key" class="btn"
                     :class="{ 'btn-primary': item.fixed, 'btn-secondary': !item.fixed }"
                     @click="selectItem(category.name, key, item)">
                     {{ translateItem(key) }}
-                </button>             
+                </button>
             </div>
         </div>
 
-        <div class="answers secondary" v-if="currentView=='answers'">
-            <button class="btn btn-side btn-side-left" @click="switchToMainView"><svg class="icon icon-l"><use xlink:href="/img/svgdefs.svg#icon-chevron_left"/></svg></button>
+        <div class="answers secondary" v-if="currentView == 'answers'">
+            <button class="btn btn-side btn-side-left" @click="switchToMainView"><svg class="icon icon-l">
+                    <use xlink:href="/img/svgdefs.svg#icon-chevron_left" />
+                </svg></button>
             <div class="row">
                 <div v-for="(msg, index) in answers" :key="index">
                     <div :class="['msg msg-small']" @click="$_chooseAnswer(msg, index)">
@@ -57,10 +63,20 @@ module.exports = {
     },
     mounted() {
         console.log('DAILY MOUNTED');
-        this.sendMsgToBackend({ socket: "ready" });
+        this.checkAndSendReady(); // 
     },
     methods: {
-        $_showAutocomplete(){
+        checkAndSendReady() {
+            console.log('Checking if backend is ready...');
+            if (this.dailyData.length === 0) {
+                console.log('Backend not ready or dailyData is empty, sending ready message...');
+                this.sendMsgToBackend({ socket: "ready" });
+                setTimeout(() => {
+                    this.checkAndSendReady();
+                }, 500); 
+            }
+        },
+        $_showAutocomplete() {
             console.log('emitting autocomplete');
             this.$emit('show-autocomplete');
         },
@@ -88,7 +104,7 @@ module.exports = {
                     this.answers = data.answers;
                     this.currentView = 'answers';
                 }
-                if (data.backhome){
+                if (data.backhome) {
                     this.switchToMainView();
                 }
             } catch (error) {
@@ -116,8 +132,8 @@ module.exports = {
             return item;
         },
         selectItem(category, item, data) {
-            if (this.currentView == 'main' || this.currentView=='secondary'){
-                this.answers=[];
+            if (this.currentView == 'main' || this.currentView == 'secondary') {
+                this.answers = [];
                 this.sendMsgToBackend({
                     action: 'generatePhrases',
                     category: category,
@@ -134,7 +150,7 @@ module.exports = {
             console.log(json);
             this.sendMsgToBackend(json);
             /* this.switchToMainView(); */
-            this.answers=[];
+            this.answers = [];
         },
         switchToSecondaryView() {
             this.currentView = 'secondary';
@@ -147,10 +163,11 @@ module.exports = {
 </script>
 
 <style scoped>
-.answers.secondary{
-    display:flex;
+.answers.secondary {
+    display: flex;
     justify-content: center;
 }
+
 .main {
     position: relative;
     z-index: 10;
@@ -167,10 +184,13 @@ module.exports = {
     display: flex;
     gap: 1rem;
 }
-.options.secondary, .answers{
+
+.options.secondary,
+.answers {
     padding-left: 5rem;
 }
-.answers .msg{
+
+.answers .msg {
     margin-bottom: 10px;
 }
 
