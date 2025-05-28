@@ -7,11 +7,11 @@
     </button>
 </div>
 <div id="hidden">
-    <rag  :appview="appview"></rag>
+    
 </div>
 <div id="topbar">
     <div class="topbar-left">
-        <clock  :appview="appview"></clock><meteo  :appview="appview"></meteo>
+        <clock  :appview="appview"></clock>
     </div>
     <div class="topbar-center">
         <a @click="minimize()"><img src="img/logo_small.svg" class="logo_small" id="igoor_logo"></a>
@@ -28,7 +28,7 @@
     <autocompletelauncher @show-autocomplete="showAutocomplete" :appview="appview"></autocompletelauncher>
 </div>
 <main>
-    <daily  :appview="appview"></daily><flow @show-autocomplete="showAutocomplete" :appview="appview"></flow><memory  :appview="appview"></memory>
+    <daily  :appview="appview"></daily><flow @show-autocomplete="showAutocomplete" :appview="appview"></flow>
 </main>
 <footer>
     <shortcuts  :appview="appview"></shortcuts>

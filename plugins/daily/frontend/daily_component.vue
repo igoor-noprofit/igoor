@@ -58,13 +58,6 @@ module.exports = {
     mounted() {
         console.log('DAILY MOUNTED');
         this.sendMsgToBackend({ socket: "ready" });
-        fetch('/plugins/daily/daily.json')
-            .then(response => response.json())
-            .then(data => {
-                this.dailyData = data;
-                this.processCategories();
-            })
-            .catch(error => console.error('Error loading daily.json:', error));
     },
     methods: {
         $_showAutocomplete(){
