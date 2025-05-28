@@ -98,6 +98,7 @@ module.exports = {
                 console.log(data);
                 if (data.dailyData) {
                     this.dailyData = data.dailyData.needs;
+                    // this.tags = data.dailyData.tags;
                     this.processCategories();
                 }
                 if (data.answers) {
