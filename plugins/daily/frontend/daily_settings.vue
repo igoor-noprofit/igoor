@@ -1,19 +1,36 @@
 <template>
   <div class="daily-settings container daily-plugin main">
+    <div class="settings-actions">
+      <button class="btn btn-secondary" @click="resetSettings">Annuler</button>
+      <button v-if="currentView === 'main'" class="btn btn-side btn-side-right" @click="switchToSecondaryView"><svg
+          class="icon icon-l">
+          <use xlink:href="/img/svgdefs.svg#icon-chevron_right" />
+        </svg></button>
+      <button v-if="currentView === 'secondary'" class="btn btn-side btn-side-left" @click="switchToMainView"><svg
+          class="icon icon-l">
+          <use xlink:href="/img/svgdefs.svg#icon-chevron_left" />
+        </svg></button>
+      <button class="btn btn-primary" @click="saveSettings">Enregistrer</button>
+    </div>
     <div v-if="currentView === 'main'" class="options">
-      <draggable v-model="mainCategories" group="categories" class="categories-row" :options="{animation:150, direction:'horizontal'}" item-key="name">
-        <template #item="{element: category, index: catIdx}">
+      <draggable v-model="mainCategories" group="categories" class="categories-row"
+        :options="{ animation: 150, direction: 'horizontal' }" item-key="name">
+        <template #item="{ element: category, index: catIdx }">
           <div :key="category.name" class="options-col category-col bordered">
             <div class="category-header">
               <span v-if="!category.editing" @click="editCategoryName('main', catIdx)">{{ category.name }}</span>
-              <input v-else v-model="category.editName" @blur="saveCategoryName('main', catIdx)" @keyup.enter="saveCategoryName('main', catIdx)" />
+              <input v-else v-model="category.editName" @blur="saveCategoryName('main', catIdx)"
+                @keyup.enter="saveCategoryName('main', catIdx)" />
               <button class="delete-btn" @click="deleteCategory('main', catIdx)">✕</button>
             </div>
-            <draggable v-model="category.itemsArr" :group="'items'" :options="{animation:150, handle:'.drag-handle', filter:'.fixed-item', preventOnFilter:true}" item-key="key">
-              <template #item="{element: item, index: itemIdx}">
-                <div :key="item.key" class="item-row" :class="{'fixed-item': item.fixed}">
+            <draggable v-model="category.itemsArr" :group="'items'"
+              :options="{ animation: 150, handle: '.drag-handle', filter: '.fixed-item', preventOnFilter: true, draggable: '.item-row:not(.fixed-item)' }"
+              item-key="key">
+              <template #item="{ element: item, index: itemIdx }">
+                <div :key="item.key" class="item-row" :class="{ 'fixed-item': item.fixed }">
                   <span v-if="!item.editing" @click="editItemName('main', catIdx, itemIdx)">{{ item.key }}</span>
-                  <input v-else v-model="item.editName" @blur="saveItemName('main', catIdx, itemIdx)" @keyup.enter="saveItemName('main', catIdx, itemIdx)" />
+                  <input v-else v-model="item.editName" @blur="saveItemName('main', catIdx, itemIdx)"
+                    @keyup.enter="saveItemName('main', catIdx, itemIdx)" />
                   <label class="switch">
                     <input type="checkbox" v-model="item.fixed" />
                     <span class="slider"></span>
@@ -23,28 +40,33 @@
                 </div>
               </template>
             </draggable>
-            <input class="add-item-input" v-model="category.newItem" @keyup.enter="addItem('main', catIdx)" placeholder="+ Ajouter un item" />
+            <input class="add-item-input" v-model="category.newItem" @keyup.enter="addItem('main', catIdx)"
+              placeholder="+ Ajouter un item" />
           </div>
         </template>
       </draggable>
-      <input class="add-category-input" v-model="newMainCategory" @keyup.enter="addCategory('main')" placeholder="+ Ajouter une catégorie" />
-      <button class="btn btn-side btn-side-right" @click="switchToSecondaryView"><svg class="icon icon-l"><use xlink:href="/img/svgdefs.svg#icon-chevron_right" /></svg></button>
+      <input class="add-category-input" v-model="newMainCategory" @keyup.enter="addCategory('main')"
+        placeholder="+ Ajouter une catégorie" />
     </div>
     <div v-if="currentView === 'secondary'" class="options secondary">
-      <button class="btn btn-side btn-side-left" @click="switchToMainView"><svg class="icon icon-l"><use xlink:href="/img/svgdefs.svg#icon-chevron_left" /></svg></button>
-      <draggable v-model="secondaryCategories" group="categories" class="categories-row" :options="{animation:150, direction:'horizontal'}" item-key="name">
-        <template #item="{element: category, index: catIdx}">
+      <draggable v-model="secondaryCategories" group="categories" class="categories-row"
+        :options="{ animation: 150, direction: 'horizontal' }" item-key="name">
+        <template #item="{ element: category, index: catIdx }">
           <div :key="category.name" class="options-col category-col bordered">
             <div class="category-header">
               <span v-if="!category.editing" @click="editCategoryName('secondary', catIdx)">{{ category.name }}</span>
-              <input v-else v-model="category.editName" @blur="saveCategoryName('secondary', catIdx)" @keyup.enter="saveCategoryName('secondary', catIdx)" />
+              <input v-else v-model="category.editName" @blur="saveCategoryName('secondary', catIdx)"
+                @keyup.enter="saveCategoryName('secondary', catIdx)" />
               <button class="delete-btn" @click="deleteCategory('secondary', catIdx)">✕</button>
             </div>
-            <draggable v-model="category.itemsArr" :group="'items'" :options="{animation:150, handle:'.drag-handle', filter:'.fixed-item', preventOnFilter:true}" item-key="key">
-              <template #item="{element: item, index: itemIdx}">
-                <div :key="item.key" class="item-row" :class="{'fixed-item': item.fixed}">
+            <draggable v-model="category.itemsArr" :group="'items'"
+              :options="{ animation: 150, handle: '.drag-handle', filter: '.fixed-item', preventOnFilter: true, draggable: '.item-row:not(.fixed-item)' }"
+              item-key="key">
+              <template #item="{ element: item, index: itemIdx }">
+                <div :key="item.key" class="item-row" :class="{ 'fixed-item': item.fixed }">
                   <span v-if="!item.editing" @click="editItemName('secondary', catIdx, itemIdx)">{{ item.key }}</span>
-                  <input v-else v-model="item.editName" @blur="saveItemName('secondary', catIdx, itemIdx)" @keyup.enter="saveItemName('secondary', catIdx, itemIdx)" />
+                  <input v-else v-model="item.editName" @blur="saveItemName('secondary', catIdx, itemIdx)"
+                    @keyup.enter="saveItemName('secondary', catIdx, itemIdx)" />
                   <label class="switch">
                     <input type="checkbox" v-model="item.fixed" />
                     <span class="slider"></span>
@@ -54,15 +76,13 @@
                 </div>
               </template>
             </draggable>
-            <input class="add-item-input" v-model="category.newItem" @keyup.enter="addItem('secondary', catIdx)" placeholder="+ Ajouter un item" />
+            <input class="add-item-input" v-model="category.newItem" @keyup.enter="addItem('secondary', catIdx)"
+              placeholder="+ Ajouter un item" />
           </div>
         </template>
       </draggable>
-      <input class="add-category-input" v-model="newSecondaryCategory" @keyup.enter="addCategory('secondary')" placeholder="+ Ajouter une catégorie" />
-    </div>
-    <div class="settings-actions">
-      <button class="btn btn-primary" @click="saveSettings">Enregistrer</button>
-      <button class="btn btn-secondary" @click="resetSettings">Annuler</button>
+      <input class="add-category-input" v-model="newSecondaryCategory" @keyup.enter="addCategory('secondary')"
+        placeholder="+ Ajouter une catégorie" />
     </div>
   </div>
 </template>
@@ -112,6 +132,17 @@ module.exports = {
     }
   },
   methods: {
+    /*
+    customUpdateSettings() {
+      let data = { 'needs': this.formData }
+      console.log('Saving plugin settings:', this.formData);
+      let plugin_name = this.$options.name;
+      if (plugin_name.endsWith("Settings")) {
+        plugin_name = plugin_name.substring(0, plugin_name.length - "Settings".length);
+      }
+      window.pywebview.api.update_plugin_settings(plugin_name, data);
+    },
+    */
     processCategories(data) {
       console.warn('Processing categories:', data);
       return Object.entries(data).map(([name, items]) => ({
@@ -200,14 +231,24 @@ module.exports = {
         return obj;
       };
       const payload = [toObj(this.mainCategories), toObj(this.secondaryCategories)];
-      this.sendMsgToBackend({ action: 'saveDailySettings', dailyData: payload });
       this.originalSettings = JSON.parse(JSON.stringify(payload));
+      let plugin_name = this.$options.name;
+      if (plugin_name.endsWith("Settings")) {
+        plugin_name = plugin_name.substring(0, plugin_name.length - "Settings".length);
+      }
+      window.pywebview.api.trigger_hook_sync("custom_save_settings", {
+          plugin_name: plugin_name,
+          settings: payload
+      });
       alert('Enregistré !');
     },
     resetSettings() {
       if (this.originalSettings) {
         this.mainCategories = this.processCategories(this.originalSettings[0]);
         this.secondaryCategories = this.processCategories(this.originalSettings[1]);
+      }
+      else {
+        console.warn('No original settings to reset to.');
       }
     }
   }
@@ -218,23 +259,33 @@ module.exports = {
 .daily-settings {
   padding: 1rem;
 }
+
 .options {
   display: flex;
   gap: 1rem;
 }
+
 .category-col {
   border: 2px solid #2c3e50;
   border-radius: 8px;
   padding: 0.5rem;
   min-width: 220px;
   background: #22313a;
+  margin-right: 10px;
+  justify-content: space-between;
 }
+
 .category-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 0.5rem;
 }
+
+.category-header span {
+  text-transform: uppercase;
+}
+
 .delete-btn {
   background: none;
   border: none;
@@ -242,6 +293,7 @@ module.exports = {
   font-size: 1.2em;
   cursor: pointer;
 }
+
 .item-row {
   display: flex;
   align-items: center;
@@ -249,9 +301,12 @@ module.exports = {
   margin-bottom: 0.25rem;
   background: #2c3e50;
   border-radius: 4px;
+  justify-content: space-between;
   padding: 0.25rem 0.5rem;
 }
-.add-item-input, .add-category-input {
+
+.add-item-input,
+.add-category-input {
   width: 100%;
   margin-top: 0.5rem;
   padding: 0.25rem;
@@ -260,24 +315,34 @@ module.exports = {
   background: #1a2329;
   color: #fff;
 }
+
 .switch {
   position: relative;
   display: inline-block;
   width: 36px;
   height: 20px;
 }
-.switch input { display: none; }
+
+.switch input {
+  display: none;
+}
+
 .slider {
   position: absolute;
   cursor: pointer;
-  top: 0; left: 0; right: 0; bottom: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   background-color: #ccc;
   border-radius: 20px;
   transition: .4s;
 }
-.switch input:checked + .slider {
+
+.switch input:checked+.slider {
   background-color: #2196F3;
 }
+
 .slider:before {
   position: absolute;
   content: "";
@@ -289,27 +354,55 @@ module.exports = {
   border-radius: 50%;
   transition: .4s;
 }
-.switch input:checked + .slider:before {
+
+.switch input:checked+.slider:before {
   transform: translateX(16px);
 }
+
 .drag-handle {
   cursor: grab;
   color: #aaa;
   font-size: 1.2em;
   margin-left: 0.5em;
 }
+
 .settings-actions {
-  margin-top: 1.5rem;
+  margin: 20px 0;
   display: flex;
   gap: 1rem;
-  justify-content: flex-end;
+  justify-content: space-around;
 }
+
+.settings-actions {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
 .categories-row {
   display: flex;
   flex-direction: row;
 }
+
 .fixed-item {
   pointer-events: auto;
   opacity: 1;
+  padding: 10px 0;
+}
+
+button.delete-btn {
+  padding: 8px;
+  justify-content: center;
+  display: flex;
+  align-items: center;
+}
+
+.btn-side-right,
+.btn-side-left {
+  position: relative;
+}
+
+.btn-secondary{
+  background-color: #ccc;
 }
 </style>

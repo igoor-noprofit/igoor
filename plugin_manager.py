@@ -50,6 +50,11 @@ class MyAppSpec:
         """Hook for plugins to perform startup activities"""
         pass
     
+    @pluggy.HookspecMarker(app_name)
+    def custom_save_settings(self,plugin_name:str,settings):
+        """Hook for plugins to perform custom save settings"""
+        pass
+    
     '''
         GUI AND APP
     '''
@@ -191,6 +196,9 @@ class MyAppSpec:
     def hide_virtual_keyboard(self):
         """Hook for hiding virtual keyboard"""
         pass    
+    
+
+    
 class PluginManager:
     _instance = None
     def __new__(cls, *args, **kwargs):

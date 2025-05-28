@@ -63,7 +63,6 @@ class Daily(Baseplugin):
             current_file_dir = os.path.dirname(__file__)
             default_daily_file = os.path.join(current_file_dir, 'daily.json')
             self.logger.info("No settings found, using default daily data from daily.json")
-            daily_file = 'daily.json'
             try:
                 with open(default_daily_file, 'r', encoding='utf-8') as f:
                     data = json.load(f)
@@ -79,6 +78,18 @@ class Daily(Baseplugin):
     @hookimpl
     def startup(self):
         self.load_daily_data()
+        
+    @hookimpl
+    def custom_save_settings(self, plugin_name,settings):
+        data={}
+        data["needs"]=settings
+        if plugin_name == self.plugin_name:
+            self.logger.info(f"CUSTOM save settings for {plugin_name}: {data}")
+            self.settings_manager.update_plugin_settings('daily',data)
+            self.send_message_to_frontend({
+                'dailyData': data
+            })
+            return True        
         
     @hookimpl
     def abandon_conversation(self):
