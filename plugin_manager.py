@@ -368,7 +368,8 @@ class PluginManager:
                 "requires_subscription": metadata.get("requires_subscription", False),
                 "is_free": metadata.get("is_free", True),
                 "category": category,
-                "active": plugins_activation.get(plugin_name, False)  # Get activation state from settings.json
+                "active": plugins_activation.get(plugin_name, False),  # Get activation state from settings.json
+                "has_settings": metadata.get("has_settings", False)
             }
             
             plugins_by_category[category].append(plugin_info)
