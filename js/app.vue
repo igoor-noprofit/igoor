@@ -7,7 +7,7 @@
     </button>
 </div>
 <div id="hidden">
-    
+    <rag  :appview="appview"></rag>
 </div>
 <div id="topbar">
     <div class="topbar-left">
@@ -17,7 +17,7 @@
         <a @click="minimize()"><img src="img/logo_small.svg" class="logo_small" id="igoor_logo"></a>
     </div>
     <div class="topbar-right">
-        <onboarding  :appview="appview"></onboarding>
+        <bugreport  :appview="appview"></bugreport><onboarding  :appview="appview"></onboarding>
     </div>
 </div>
 

@@ -1,11 +1,11 @@
 <template>
     <div>
         <!-- Settings Gear Icon -->
-        <div @click="showModal = true" class="settings-gear">
+        <div @click="toggleModal" class="settings-gear">
             <img src="/img/icons/src/settings.svg" width="30">
         </div>
         <!-- Modal Window for Plugin Settings -->
-        <div v-if="showModal" class="modal-overlay">
+        <div v-if="showModal" class="modal-overlay" id="onboardingModal">
             <div class="modal-content settings container onboarding plugin">
                 <!-- Restart Alert -->
                 <div v-if="showRestartAlert" class="restart-alert">
@@ -133,7 +133,7 @@
                                                     @change="togglePlugin(activeTab, plugin.name, $event.target.checked)"><span
                                                     class="slider round"></span></label>
                                             <!-- Settings Icon for non-core plugins -->
-                                            <img v-if="!plugin.is_core && plugin.has_settings" src="/img/icons/src/settings.svg" width="24"
+                                            <img v-if="!plugin.is_core && plugin.has_settings" src="/img/icons/src/settings.svg" width="26"
                                                 class="plugin-settings-icon" alt="Settings" title="Configure plugin"
                                                 @click="showPluginSettingsView(plugin)">
                                         </div>
@@ -251,6 +251,9 @@ export default {
         }
     },
     methods: {
+        toggleModal() {
+            this.showModal = !this.showModal;
+        },
         closeModal(){
             this.showModal=false
         },
@@ -562,7 +565,11 @@ button:disabled {
     font-size: 1.2rem;
     cursor: pointer;
     text-align: center;
-    filter: invert(100%)
+    filter: invert(100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px;
 }
 
 /* Modal overlay styles */
@@ -696,6 +703,7 @@ button:disabled {
     filter: invert(100%);
     /* If your icons are dark and background is dark, or vice-versa */
     opacity: 0.7;
+    padding: 6px;
 }
 
 .plugin-settings-icon:hover {

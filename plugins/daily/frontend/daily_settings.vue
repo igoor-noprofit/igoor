@@ -266,11 +266,11 @@ module.exports = {
 }
 
 .category-col {
+  background-color: #1e2223;
   border: 2px solid #2c3e50;
   border-radius: 8px;
   padding: 0.5rem;
   min-width: 220px;
-  background: #22313a;
   margin-right: 10px;
   justify-content: space-between;
 }
@@ -299,7 +299,7 @@ module.exports = {
   align-items: center;
   gap: 0.5rem;
   margin-bottom: 0.25rem;
-  background: #2c3e50;
+  background: #2f535b;
   border-radius: 4px;
   justify-content: space-between;
   padding: 0.25rem 0.5rem;

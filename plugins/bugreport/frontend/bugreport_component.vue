@@ -5,7 +5,7 @@
             <img src="/img/icons/src/bug.svg" width="30">
         </div>
         <!-- Modal Window for Plugin Settings -->
-        <div v-if="showModal" class="modal-overlay" @click.self="closeModal"> <!-- Changed method name -->
+        <div id="bugModal" v-if="showBugModal" class="modal-overlay" @click.self="closeModal"> <!-- Changed method name -->
             <div class="modal-content settings container">
                 <button @click="closeModal" class="close-button">✖</button> <!-- Changed method name -->
                 <!-- Display the status message from the backend -->
@@ -40,7 +40,7 @@ export default {
     mixins: [BasePluginComponent],
     data() {
         return {
-            showModal: false,
+            showBugModal: false,
             reportStatusMessage: '',
             reportFolderPath: '',
             consoleLogHistory: [], // Array to store console messages
@@ -56,7 +56,6 @@ export default {
         async triggerReportIssue() {
             this.reportStatusMessage = 'Je suis en train de générer un report de bug...';
             // Optionally show modal immediately
-            // this.showModal = true;
 
             // Prepare console log data (e.g., join array into a string)
             const consoleLogString = this.consoleLogHistory.join('\n');
@@ -139,8 +138,8 @@ export default {
             if (shouldShowModal) {
                 this.reportStatusMessage = statusMsg;
                 this.reportFolderPath = folderPath; // Make sure path is stored
-                this.showModal = true;
-                console.log("Attempting to show modal. this.showModal is now:", this.showModal);
+                this.showBugModal = true;
+                console.log("Attempting to show modal. this.showModal is now:", this.showBugModal);
             }
 
             // --- Conditional call to mixin's handler ---
@@ -177,7 +176,7 @@ export default {
 
 
         closeModal() {
-            this.showModal = false;
+            this.showBugModal = false;
             this.reportStatusMessage = '';
             this.reportFolderPath = ''; // Clear path
             this.userComment = ''; // Clear comment textarea
@@ -189,7 +188,7 @@ export default {
                 this.autoCloseTimer = null;
                 console.log("Manual close: Cleared auto-close timer.");
             }
-            console.log("Modal closed. showModal is now:", this.showModal);
+            console.log("Modal closed. showModal is now:", this.showBugModal);
         },
 
         // --- Console Interception Logic ---
@@ -266,7 +265,7 @@ export default {
 };
 </script>
 
-<style>
+<style scoped>
 /* Style for the gear icon */
 .settings-gear {
     font-size: 1.2rem;

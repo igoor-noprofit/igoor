@@ -120,7 +120,7 @@ class SettingsManager:
             self.settings['plugins'][plugin_name] = {}
         
         self.settings['plugins'][plugin_name].update(new_settings)
-        self.logger.info(f"----------------UPDATED GLOBAL SETTINGS: {self.settings}")
+        #self.logger.info(f"----------------UPDATED GLOBAL SETTINGS: {self.settings}")
         self.save_settings()
         
     def save_settings(self, settings=None):
@@ -128,7 +128,7 @@ class SettingsManager:
         if settings is not None:
             self.settings = settings
         os.makedirs(os.path.dirname(self.settings_file), exist_ok=True)
-        self.logger.info(f"*********** Saving settings as: {self.settings}")
+        # self.logger.info(f"*********** Saving settings as: {self.settings}")
         with open(self.settings_file, 'w', encoding='utf-8') as f:
             json.dump(self.settings, f, indent=4)
         
