@@ -207,17 +207,6 @@ def on_loaded():
     detector = IdleDetector(callback=on_idle_change, idle_threshold=idle_threshold, check_interval=10) 
     detector.start()
     return True
-    '''
-    print("TESTING RAG:::")
-    queries = [
-        "Qu'est-ce que t'as fait hier ?"
-    ]
-    for query in queries:
-        asyncio.run(manager.trigger_hook(hook_name="add_msg_to_conversation", msg=query, author="def"))
-        asyncio.run(manager.trigger_hook(hook_name="asr_msg", msg="Q: " + query))
-        # asyncio.run(manager.trigger_hook(hook_name="abandon_conversation"))
-        # asyncio.run(asyncio.sleep(5))  # Wait 5 seconds before each query
-    '''
 
 def start_webview():
     try:

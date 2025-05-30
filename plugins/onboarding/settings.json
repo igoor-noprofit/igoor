@@ -1,9 +1,9 @@
 {
     "bio":{
         "name":"Igor",
-        "pronoun": "He/him",
-        "birth_date": "12/05/1973",
-        "health_state": "Ne peut pas parler",
+        "pronoun": "Il",
+        "birth_date": "1973",
+        "health_state": "Parle à travers une tablette et cette IA, appeée IGOOR",
         "style": "",
         "style_weight": "2 r\u00e9ponse sur 6 MAXIMUM"
     },

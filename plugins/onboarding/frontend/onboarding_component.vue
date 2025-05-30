@@ -39,7 +39,11 @@
                         <div class="bio right">
                             <div>
                                 <label>Health State</label>
-                                <textarea v-model="bio.health_state"></textarea>
+                                <textarea class="health" v-model="bio.health_state"></textarea>
+                            </div>
+                            <div>
+                                <label>Style</label>
+                                <textarea class="style" v-model="bio.style"></textarea>
                             </div>
                         </div>
                     </div>
@@ -52,21 +56,24 @@
                                     <!--option value="en_EN">English</option-->
                                 </select>
                             </div>
-                            <div>
+                            <!--div>
                                 <label>Automatic dark/Light Mode</label>
                                 <label class="switch disabled">
                                     <input type="checkbox" v-model="prefs.darklight" true-value="dark"
                                         false-value="light">
                                     <span class="slider round"></span>
                                 </label>
-                            </div>
+                            </div-->
                             <div>
                                 <label>Locale</label><input type="text" v-model="prefs.locale" disabled>
+                            </div>
+                            <div>
+                                <label>Idle threshold (seconds before the user is considered idle)</label><input type="number" v-model="prefs.idle_threshold" min="60" max="6000" step="100">
                             </div>
                         </div>
                     </div>
                     <div v-if="currentTab === 'ai'">
-                        <div class="class=ai left">
+                        <div class="ai left">
                             <div>
                                 <label>Provider</label>
                                 <select v-model="ai.provider">
@@ -76,11 +83,9 @@
                             </div>
                             <div>
                                 <label>API Key</label><input type="text" v-model="ai.api_key" disabled>
-                                <!--p>Groq is our default provider. <a href="https://console.groq.com/login" target="_blank">To
-                                        obtain
-                                        a FREE api key sign up here</a>
-                                    <a href="https://groq.com/privacy-policy/">Our default provider privacy policy</a>
-                                </p-->
+                                <p>Groq is our default provider: <a class="extlink" href="https://console.groq.com/login" target="_blank">To obtain a FREE api key sign up here</a>
+                                <br><a class="extlink" href="https://groq.com/privacy-policy/">Our default provider privacy policy</a>
+                                </p>
                             </div>
                             <div>
                                 <label>Model Name</label>
@@ -100,7 +105,8 @@
                     <div v-if="currentTab === 'plugins'">
                         <!-- View for Plugin-Specific Settings -->
                         <div v-if="viewingPluginSettings && selectedPluginComponent">
-                            <button @click="closePluginSettingsView" class="back-to-plugins-button">&larr; Back to Plugins</button>
+                            <button @click="closePluginSettingsView" class="back-to-plugins-button">&larr; Back to
+                                Plugins</button>
                             <!--h3>Settings for {{ selectedPluginForSettings.title }}</h3-->
                             <component :is="selectedPluginComponent" :initial-settings="currentPluginInitialSettings"
                                 :plugin-name="selectedPluginForSettings.name" @save-settings="handlePluginSettingsSave"
@@ -133,7 +139,8 @@
                                                     @change="togglePlugin(activeTab, plugin.name, $event.target.checked)"><span
                                                     class="slider round"></span></label>
                                             <!-- Settings Icon for non-core plugins -->
-                                            <img v-if="!plugin.is_core && plugin.has_settings" src="/img/icons/src/settings.svg" width="26"
+                                            <img v-if="!plugin.is_core && plugin.has_settings"
+                                                src="/img/icons/src/settings.svg" width="26"
                                                 class="plugin-settings-icon" alt="Settings" title="Configure plugin"
                                                 @click="showPluginSettingsView(plugin)">
                                         </div>
@@ -254,8 +261,8 @@ export default {
         toggleModal() {
             this.showModal = !this.showModal;
         },
-        closeModal(){
-            this.showModal=false
+        closeModal() {
+            this.showModal = false
         },
         async saveSettings() { // This is for main settings (bio, prefs, ai)
             this.isSaving = true;
@@ -415,8 +422,8 @@ export default {
             } finally {
                 this.isSaving = false;
                 setTimeout(() => {
-                    if (this.saveStatus.type ==='success') {
-                        this.showModal=false
+                    if (this.saveStatus.type === 'success') {
+                        this.showModal = false
                     }
                     this.saveStatus = null;
                 }, 3000);
@@ -478,6 +485,18 @@ export default {
     bottom: 0;
     background-color: #ccc;
     transition: .4s;
+}
+
+.onboarding.plugin textarea {
+    font-size: 1rem;
+}
+
+.onboarding.plugin textarea.health {
+    height: 35vh !important;
+}
+
+.onboarding.plugin textarea.style {
+    height: 15vh !important;
 }
 
 .slider:before {
@@ -667,7 +686,7 @@ button:disabled {
 
 .plugin-description {
     color: #fff;
-        text-align: left;
+    text-align: left;
     font-size: 0.9em;
     margin: 8px 0;
     line-height: 1.4;
@@ -739,5 +758,8 @@ button:disabled {
     display: flex;
     align-items: center;
     gap: 10px;
+}
+a.extlink{
+    color: #fff; 
 }
 </style>
