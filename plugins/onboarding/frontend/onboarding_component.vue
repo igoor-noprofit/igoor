@@ -101,7 +101,7 @@
                         <!-- View for Plugin-Specific Settings -->
                         <div v-if="viewingPluginSettings && selectedPluginComponent">
                             <button @click="closePluginSettingsView" class="back-to-plugins-button">&larr; Back to Plugins</button>
-                            <h3>Settings for {{ selectedPluginForSettings.title }}</h3>
+                            <!--h3>Settings for {{ selectedPluginForSettings.title }}</h3-->
                             <component :is="selectedPluginComponent" :initial-settings="currentPluginInitialSettings"
                                 :plugin-name="selectedPluginForSettings.name" @save-settings="handlePluginSettingsSave"
                                 class="plugin-settings-component"></component>
@@ -133,7 +133,7 @@
                                                     @change="togglePlugin(activeTab, plugin.name, $event.target.checked)"><span
                                                     class="slider round"></span></label>
                                             <!-- Settings Icon for non-core plugins -->
-                                            <img v-if="!plugin.is_core" src="/img/icons/src/settings.svg" width="24"
+                                            <img v-if="!plugin.is_core && plugin.has_settings" src="/img/icons/src/settings.svg" width="24"
                                                 class="plugin-settings-icon" alt="Settings" title="Configure plugin"
                                                 @click="showPluginSettingsView(plugin)">
                                         </div>
@@ -246,10 +246,14 @@ export default {
                     p => !excluded.includes(p.name)
                 );
             }
+            console.log("Filtered plugins by category:", filtered);
             return filtered;
         }
     },
     methods: {
+        closeModal(){
+            this.showModal=false
+        },
         async saveSettings() { // This is for main settings (bio, prefs, ai)
             this.isSaving = true;
             this.saveStatus = null;
@@ -260,10 +264,6 @@ export default {
                     prefs: this.prefs,
                     ai: this.ai
                 };
-
-                // Assuming sendMsgToBackend is still relevant for these general settings
-                // If you have a direct pywebview.api for this, use it.
-                // For example: await window.pywebview.api.save_main_settings(dataToSend);
                 await this.sendMsgToBackend({ // Or your specific API call
                     action: 'save_settings', // Or a more specific action
                     data: dataToSend
@@ -275,7 +275,7 @@ export default {
                 };
                 this.$emit('settings-saved', dataToSend);
                 setTimeout(() => {
-                    this.showModal=false
+                    this.closeModal();
                 }, 3000); // Show the alert after 5 seconds
             } catch (error) {
                 console.error('Error saving main settings:', error);
@@ -347,25 +347,17 @@ export default {
                 this.showRestartAlert = false;
             }, 4000);
         },
-        // selectPlugin is effectively replaced by showPluginSettingsView
-        // async selectPlugin(category, pluginName) {
-        //     this.selectedPlugin = this.pluginData[category].find(p => p.name === pluginName);
-        //     this.loadPluginComponent(pluginName);
-        // },
-
         showPluginSettingsView(plugin) {
             this.selectedPluginForSettings = plugin;
             this.viewingPluginSettings = true;
             this.loadPluginComponent(plugin.name);
         },
-
         closePluginSettingsView() {
             this.viewingPluginSettings = false;
             this.selectedPluginComponent = null;
             this.selectedPluginForSettings = null;
             this.currentPluginInitialSettings = {};
         },
-
         async loadPluginComponent(pluginName) {
             this.selectedPluginComponent = null; // Clear previous one
             this.currentPluginInitialSettings = {};
@@ -375,7 +367,7 @@ export default {
                 // Vite/Webpack usually handle /path from project root or specific alias.
                 const componentModule = await import(/* @vite-ignore */ `/plugins/${pluginName}/frontend/${pluginName}_settings.vue`);
 
-                const settings = await window.pywebview.api.get_plugin_settings(pluginName);
+                const settings = await window.pywebview.api.get_current_plugin_settings(pluginName);
                 console.log(`Settings for ${pluginName}:`, settings);
 
                 this.currentPluginInitialSettings = settings || {};
@@ -389,7 +381,6 @@ export default {
                 this.closePluginSettingsView(); // Go back if loading fails
             }
         },
-
         // Inside onboarding_component.vue methods
         async handlePluginSettingsSave(pluginNameFromEmit, settingsData) { // Expects two arguments
             if (!pluginNameFromEmit) {

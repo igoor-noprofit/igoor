@@ -4,11 +4,19 @@ import os
 from utils import resource_path, setup_logger
 
 class SettingsManager:
+    _instance = None
+
+    def __new__(cls, *args, **kwargs):
+        if cls._instance is None:
+            cls._instance = super(SettingsManager, cls).__new__(cls)
+            cls._instance._initialized = False
+        return cls._instance
+    
     ''' 
     HANDLES global app settings.json file with all the plugins settings, api keys etc.
     '''
     def __init__(self):
-        if hasattr(self, '_initialized') and self._initialized:
+        if self._initialized:
             return
         self._initialized = True
         
@@ -91,14 +99,6 @@ class SettingsManager:
         
         return self.settings  # Make sure to return the settings
 
-    def save_settings(self, settings=None):
-        """Save settings to the JSON file."""
-        if settings is not None:
-            self.settings = settings
-        os.makedirs(os.path.dirname(self.settings_file), exist_ok=True)
-        with open(self.settings_file, 'w', encoding='utf-8') as f:
-            json.dump(self.settings, f, indent=4)
-
     def get_settings(self):
         """Return all settings (alias for get_all_settings)."""
         return self.settings
@@ -120,7 +120,17 @@ class SettingsManager:
             self.settings['plugins'][plugin_name] = {}
         
         self.settings['plugins'][plugin_name].update(new_settings)
+        self.logger.info(f"----------------UPDATED GLOBAL SETTINGS: {self.settings}")
         self.save_settings()
+        
+    def save_settings(self, settings=None):
+        """Save settings to the JSON file."""
+        if settings is not None:
+            self.settings = settings
+        os.makedirs(os.path.dirname(self.settings_file), exist_ok=True)
+        self.logger.info(f"*********** Saving settings as: {self.settings}")
+        with open(self.settings_file, 'w', encoding='utf-8') as f:
+            json.dump(self.settings, f, indent=4)
         
     def as_json(self):
         """Return settings as a formatted JSON string."""

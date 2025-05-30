@@ -49,14 +49,16 @@ class Daily(Baseplugin):
     def __init__(self, plugin_name,pm):
         self.pm = pm
         super().__init__(plugin_name,pm)
-        self.global_settings = SettingsManager();
+        self.global_settings = SettingsManager()
         self.lang = self.global_settings.get_lang()
         self.prompts=AssistantPrompts("locales/",self.lang)
-        self.global_settings = SettingsManager();
-        self.settings = self.get_my_settings()
+        self.load_settings()
         bio = self.global_settings.get_bio()
         self.bio_name = bio.get("name")
         self.daily_data = None
+        
+    def load_settings(self):
+        self.settings = self.get_my_settings()
         
     def load_daily_data(self):
         if (not self.settings):
@@ -80,7 +82,9 @@ class Daily(Baseplugin):
         self.load_daily_data()
         
     @hookimpl
-    def custom_save_settings(self, plugin_name,settings):
+    def custom_save_settings(self, plugin_name:str,settings):
+        print("CUSTOM SAVE SETTINGS CALLED with plugin_name:", plugin_name)
+        print("AND SETTINGS:", settings)
         data={}
         data["needs"]=settings
         if plugin_name == self.plugin_name:
@@ -89,6 +93,7 @@ class Daily(Baseplugin):
             self.send_message_to_frontend({
                 'dailyData': data
             })
+            asyncio.create_task(self.send_switch_view_to_app(view="daily"))
             return True        
         
     @hookimpl

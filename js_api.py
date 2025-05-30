@@ -20,13 +20,17 @@ class Api:
         print("Fetching plugins by category")
         return plugin_manager.get_plugins_by_category()
     
+    def get_current_plugin_settings(self, plugin_name):
+        # print("Fetching current plugin settings for", plugin_name) # OLD SETTINGS ERROR HERE !!!
+        # print(sm.get_plugin_settings(plugin_name))
+        return sm.get_plugin_settings(plugin_name)
+    
     def get_plugin_settings(self,plugin_name):
-        print("Fetching plugin settings")
         return plugin_manager.plugin_has_settings(plugin_name,True)
     
     def update_plugin_settings(self,plugin_name,settings):
-        print("Saving plugin settings")
-        print(settings)
+        # print("Saving plugin settings")
+        # print(settings)
         return sm.update_plugin_settings(plugin_name,settings)
     
     def toggle_plugin(self, pn, active):

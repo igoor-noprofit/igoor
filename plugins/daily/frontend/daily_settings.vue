@@ -99,7 +99,7 @@ module.exports = {
     initialSettings: Object
   },
   mounted() {
-    
+
     // Always extract needs from initialSettings, whether it's an object or array
     let needs = this.initialSettings && this.initialSettings.needs ? this.initialSettings.needs : this.initialSettings;
     if (needs && Array.isArray(needs) && needs.length > 1) {

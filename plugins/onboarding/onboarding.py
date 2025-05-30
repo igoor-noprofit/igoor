@@ -79,6 +79,7 @@ class Onboarding(Baseplugin):
             })
     
     def handle_save_settings(self, new_settings):
+        self.logger.info("NEW SETTINGS: %s", json.dumps(new_settings, indent=2))
         """
         Handle saving of new settings.
         
