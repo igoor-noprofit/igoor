@@ -99,6 +99,7 @@ module.exports = {
     initialSettings: Object
   },
   mounted() {
+    
     // Always extract needs from initialSettings, whether it's an object or array
     let needs = this.initialSettings && this.initialSettings.needs ? this.initialSettings.needs : this.initialSettings;
     if (needs && Array.isArray(needs) && needs.length > 1) {
@@ -132,17 +133,6 @@ module.exports = {
     }
   },
   methods: {
-    /*
-    customUpdateSettings() {
-      let data = { 'needs': this.formData }
-      console.log('Saving plugin settings:', this.formData);
-      let plugin_name = this.$options.name;
-      if (plugin_name.endsWith("Settings")) {
-        plugin_name = plugin_name.substring(0, plugin_name.length - "Settings".length);
-      }
-      window.pywebview.api.update_plugin_settings(plugin_name, data);
-    },
-    */
     processCategories(data) {
       console.warn('Processing categories:', data);
       return Object.entries(data).map(([name, items]) => ({
