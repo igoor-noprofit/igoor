@@ -12,7 +12,7 @@ Based on Pluggy to handle plugins, Pywebview to display the main Vue app and its
     
 - websocket_server.py allows communications between plugins' backend and frontend
 - context_manager.py shares info about the context between main app and plugins (conversation,datetime, geoloc, weather etc.)
-- settings_manager.py loads and writes to a simple JSON user settings file located in the user APPDATA folder in Windows. Example:
+- settings_manager.py is a singleton that loads and writes to a simple JSON user settings file located in the user APPDATA folder in Windows. Example:
 {
 "plugins": {
         "elevenlabs": {

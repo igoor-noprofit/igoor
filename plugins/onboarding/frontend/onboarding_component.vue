@@ -714,10 +714,10 @@ button:disabled {
 }
 
 .plugin-settings-component {
-    padding: 15px;
+    /* padding: 15px; */
     border: 1px solid #eee;
     border-radius: 5px;
-    margin-top: 10px;
+    /* margin-top: 10px; */
     background-color: #0d1117;
     /* Or your preferred background for settings */
 }
