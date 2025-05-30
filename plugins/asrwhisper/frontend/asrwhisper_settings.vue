@@ -79,3 +79,8 @@ export default {
 
 };
 </script>
+<style>
+.plugin-settings-component{
+    padding: 15px !important;
+}
+</style>

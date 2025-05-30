@@ -647,7 +647,9 @@ button:disabled {
     justify-content: space-between;
     align-items: center;
     margin-bottom: 12px;
+    text-align: left;
 }
+
 
 .plugin-title {
     margin: 0;
@@ -658,6 +660,7 @@ button:disabled {
 
 .plugin-description {
     color: #fff;
+        text-align: left;
     font-size: 0.9em;
     margin: 8px 0;
     line-height: 1.4;

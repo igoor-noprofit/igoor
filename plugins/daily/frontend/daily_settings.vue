@@ -234,7 +234,7 @@ module.exports = {
           plugin_name: plugin_name,
           settings: payload
       });
-      alert('Enregistré !');
+      console.log('Settings saved:', payload);
     },
     resetSettings() {
       if (this.originalSettings) {
