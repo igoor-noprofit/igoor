@@ -68,7 +68,8 @@
                                 <label>Locale</label><input type="text" v-model="prefs.locale" disabled>
                             </div>
                             <div>
-                                <label>Idle threshold (seconds before the user is considered idle)</label><input type="number" v-model="prefs.idle_threshold" min="60" max="6000" step="100">
+                                <label>Idle threshold (seconds before the user is considered idle)</label><input
+                                    type="number" v-model="prefs.idle_threshold" min="60" max="6000" step="100">
                             </div>
                         </div>
                     </div>
@@ -83,22 +84,33 @@
                             </div>
                             <div>
                                 <label>API Key</label><input type="text" v-model="ai.api_key" disabled>
-                                <p>Groq is our default provider: <a class="extlink" href="https://console.groq.com/login" target="_blank">To obtain a FREE api key sign up here</a>
-                                <br><a class="extlink" href="https://groq.com/privacy-policy/">Our default provider privacy policy</a>
+                                <p>Groq is our default provider: <a class="extlink"
+                                        href="https://console.groq.com/login" target="_blank">To obtain a FREE api key
+                                        sign up here</a>
+                                    <br><a class="extlink" href="https://groq.com/privacy-policy/">Our default provider
+                                        privacy policy</a>
                                 </p>
                             </div>
                             <div>
                                 <label>Model Name</label>
                                 <select v-model="ai.model_name">
-                                    <option value="llama-3.3-70b-versatile">Llama 3.3-70B</option>
+                                    <option value="llama-3.3-70b-versatile">Llama 3.3-70B (stable)</option>
                                     <option value="meta-llama/llama-4-maverick-17b-128e-instruct">Llama 4-17b-128e
+                                        (beta)
                                     </option>
-                                    <option value="meta-llama/llama-4-scout-17b-16e-instruct">Llama 4-17b-16e</option>
+                                    <option value="meta-llama/llama-4-scout-17b-16e-instruct">Llama 4-17b-16e (beta)
+                                    </option>
                                     <!--option value="en_EN">English</option-->
                                 </select>
                             </div>
                             <div>
-                                <label>Temperature</label><input type="text" v-model="ai.temperature">
+                                <label>Temperature</label>
+                                <div style="display: flex; align-items: center; gap: 12px;">
+                                    <input type="range" v-model.number="ai.temperature" min="0" max="1" step="0.01"
+                                        style="flex: 1 1 60%;">
+                                    <input type="number" v-model.number="ai.temperature" step="0.1" min="0" max="1"
+                                        placeholder="0.2" style="width: 60px;">
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -514,6 +526,10 @@ input:checked+.slider {
     background-color: #2196F3;
 }
 
+input[type="range"]{
+    max-width: 400px !important;
+    border: 1px solid #f00 !important;
+}
 input:focus+.slider {
     box-shadow: 0 0 1px #2196F3;
 }
@@ -759,7 +775,8 @@ button:disabled {
     align-items: center;
     gap: 10px;
 }
-a.extlink{
-    color: #fff; 
+
+a.extlink {
+    color: #fff;
 }
 </style>

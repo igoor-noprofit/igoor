@@ -1,6 +1,6 @@
 {
-    "category": "AI",
-    "title": "Daily",
+    "category": "PREDICTIONS",
+    "title": "Daily needs",
     "description": "Interface for user's quick access to daily needs",
     "layout": {
         "part": "main",
