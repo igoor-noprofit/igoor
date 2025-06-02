@@ -149,6 +149,11 @@ class MyAppSpec:
         """Hook to reset conversation timeout when user does something"""
         pass
     
+    @pluggy.HookspecMarker(app_name)
+    async def get_conversation_msgs_containing(self, query_text: str):
+        """Hook to search previous conversation messages containing query for autocomplete etc."""
+        pass
+    
     '''
         ************ AI FLOW AND RAG **************
     '''

@@ -88,6 +88,30 @@ class Conversation(Baseplugin):
         self.topic = topic
 
     @hookimpl
+    async def get_conversation_msgs_containing(self, query_text: str):
+        """
+        Gets last 10 conversation messages containing the query_text.
+        Returns a list of matching messages by datetime ASC
+        """
+        if not query_text:
+            return []
+
+        sql = """
+            SELECT * FROM msgs
+            WHERE msg LIKE ? AND author = 'master'
+            ORDER BY datetime DESC
+            LIMIT 10 
+        """
+        params = (f"%{query_text}%",)
+        results = await self.db_execute(sql, params)
+        print(f"Found {len(results)} messages containing '{query_text}' in conversation")
+        if not results:
+            return ""
+        # Reverse to get ASC order after limiting DESC
+        lines = [f"{row['datetime']}\t{row['msg']}" for row in reversed(results)]
+        return "\n".join(lines)
+
+    @hookimpl
     async def abandon_conversation(self, cause):
         if (not self.conversation_is_open):
             self.logger.info("Abandon conversation called, but conversation is not open")

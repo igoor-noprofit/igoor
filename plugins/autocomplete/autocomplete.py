@@ -48,6 +48,11 @@ Prédictions précédentes:
 {successful_predictions}
 ---
 
+SEULEMENT SI COMPATIBLES, utilise aussi les éventuels conversations précédentes:
+
+{past_conversations_msgs}
+--- 
+
 S'il y a une conversation en cours donne la priorité à la conversation en cours, ex.:
 INPUT
     conversation: "Q: Qu'est-ce que tu veux manger ce soir ?"
@@ -269,6 +274,10 @@ class Autocomplete(Baseplugin):
         self.logger.info(f"FILTERED RESULTS: {filtered_results}")
         # Get successful predictions for this input
         successful_predictions = await self.format_successful_predictions(msg)
+        past_conversations_msgs = await self.pm.trigger_hook(
+            hook_name="get_conversation_msgs_containing",
+            query_text=msg
+        )
         
         system_prompt = self.prompts.get_system_prompt("fr_FR", assistant_type) 
         pm = PromptManager(template=PROMPT_TEMPLATE)
@@ -281,6 +290,7 @@ class Autocomplete(Baseplugin):
             short_term='\n'.join(actual_filtered_results.get(2, [])), # Use actual_filtered_results
             dynamic_context=dynamic_context, 
             successful_predictions=successful_predictions,
+            past_conversations_msgs=past_conversations_msgs, 
             input=msg
         )       
         print(f"FINAL HUMAN PROMPT : {prompt}")
