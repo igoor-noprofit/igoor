@@ -1,7 +1,7 @@
 {
   "category": "Knowledge Base",
   "title": "Knowledge base",
-  "description": "Static and evolutive knowledge about the user",
+  "description": "Retrieves existing static and evolutive knowledge about the user",
   "layout": {
     "part": "hidden",
     "order": 0
