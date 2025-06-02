@@ -1,7 +1,7 @@
 <template>
   <div class="daily-settings container daily-plugin main">
     <div class="settings-actions">
-      <button class="btn btn-secondary" @click="resetSettings">Revenir</button>
+      <button class="btn btn-secondary" @click="resetSettings">Annuler</button>
       <button v-if="currentView === 'main'" class="btn btn-side btn-side-right" @click="switchToSecondaryView"><svg
           class="icon icon-l">
           <use xlink:href="/img/svgdefs.svg#icon-chevron_right" />
@@ -10,7 +10,7 @@
           class="icon icon-l">
           <use xlink:href="/img/svgdefs.svg#icon-chevron_left" />
         </svg></button>
-      <button class="btn btn-primary" @click="saveSettings">Enregistrer</button>
+      <button class="btn btn-primary" @click="saveSettings" :disabled="!hasUnsavedChanges">Enregistrer</button>
     </div>
     <div v-if="currentView === 'main'" class="options">
       <draggable v-model="mainCategories" group="categories" class="categories-row"
@@ -121,6 +121,24 @@ module.exports = {
       newSecondaryCategory: '',
       originalSettings: null
     };
+  },
+  computed: {
+    hasUnsavedChanges() {
+      // Helper to convert categories to backend format for comparison
+      const toObj = cats => {
+        const obj = {};
+        cats.forEach(cat => {
+          const items = {};
+          cat.itemsArr.forEach(item => {
+            items[item.key] = { fixed: item.fixed, freq: item.freq };
+          });
+          obj[cat.name] = items;
+        });
+        return obj;
+      };
+      const current = [toObj(this.mainCategories), toObj(this.secondaryCategories)];
+      return JSON.stringify(current) !== JSON.stringify(this.originalSettings);
+    }
   },
   watch: {
     initialSettings: {
@@ -386,6 +404,10 @@ module.exports = {
 .categories-row {
   display: flex;
   flex-direction: row;
+}
+
+.item-row[data-draggable="true"],.category-col[data-draggable="true"] .category-header{
+  cursor: grab;
 }
 
 .fixed-item {
