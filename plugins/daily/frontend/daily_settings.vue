@@ -1,7 +1,7 @@
 <template>
   <div class="daily-settings container daily-plugin main">
     <div class="settings-actions">
-      <button class="btn btn-secondary" @click="resetSettings">Annuler</button>
+      <button class="btn btn-secondary" @click="resetSettings" :disabled="!hasUnsavedChanges">Annuler</button>
       <button v-if="currentView === 'main'" class="btn btn-side btn-side-right" @click="switchToSecondaryView"><svg
           class="icon icon-l">
           <use xlink:href="/img/svgdefs.svg#icon-chevron_right" />
