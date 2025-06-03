@@ -51,6 +51,7 @@ Prédictions précédentes:
 SEULEMENT SI COMPATIBLES, utilise aussi les éventuels conversations précédentes:
 
 {past_conversations_msgs}
+---
 --- 
 
 S'il y a une conversation en cours donne la priorité à la conversation en cours, ex.:
@@ -65,11 +66,11 @@ OUTPUT:
     "..."
 
 ---
-
 Rappelle-toi que tes prédictions doivent être des phrases du point de vue de {bio_name}.
 
 Retourne toujours tes prédictions dans le format JSON indiqué.
-Prédis la suite de: {input}
+Prédis la suite de: {input} dans le contexte de la conversation en cours: {conversation}
+
 """
 
 class Autocomplete(Baseplugin):  
@@ -289,6 +290,7 @@ class Autocomplete(Baseplugin):
             long_term='\n'.join(actual_filtered_results.get(1, [])),  # Use actual_filtered_results
             short_term='\n'.join(actual_filtered_results.get(2, [])), # Use actual_filtered_results
             dynamic_context=dynamic_context, 
+            conversation=conversation,
             successful_predictions=successful_predictions,
             past_conversations_msgs=past_conversations_msgs, 
             input=msg
