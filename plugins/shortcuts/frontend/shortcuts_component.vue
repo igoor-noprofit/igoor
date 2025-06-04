@@ -14,6 +14,11 @@
             </svg>
             <h3>Toilette</h3>
         </button>
+        <button class="btn btn-shortcut" @click="$_parole()"><svg class="icon icon-l">
+                <use xlink:href="img/svgdefs.svg#icon-talk"></use>
+            </svg>
+            <h3>Parole</h3>
+        </button>
         <button class="btn btn-shortcut" @click="$_speak('Oui')"><svg class="icon icon-l">
                 <use xlink:href="img/svgdefs.svg#icon-ok"></use>
             </svg>
@@ -44,7 +49,14 @@ export default {
     data() {
         return {
             websocket: null,  // Store WebSocket instance
-            status: 'loading'
+            status: 'loading',
+            paroles: [
+                'J\'arrive, je termine d\'écrire',
+                'Juste un instant, je termine',
+                'Une seconde et c\'est bon',
+                'Donne moi juste deux secondes',
+                'Je suis en train de finir'
+            ]
         };
     },
     created() {
@@ -62,6 +74,11 @@ export default {
         },
         $_minimise(){
             window.pywebview.api.win_minimize()
+        },
+        $_parole(){
+            const randomIndex = Math.floor(Math.random() * this.paroles.length);
+            const randomMsg = this.paroles[randomIndex];
+            this.$_speak(randomMsg);
         }
     }
 };
