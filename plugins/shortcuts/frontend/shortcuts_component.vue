@@ -59,12 +59,6 @@ export default {
             ]
         };
     },
-    created() {
-        
-    },
-    beforeUnmount() {
-        
-    },
     methods: {
         $_speak(msg) {
             const json = { action: "speak", msg: msg };
