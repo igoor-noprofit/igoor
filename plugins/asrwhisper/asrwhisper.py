@@ -5,13 +5,12 @@ import threading
 import json
 import time
 import asyncio
-import os # Ensure os is imported
-import pyaudio # Ensure pyaudio is imported
-import wave # Ensure wave is imported
-import groq # Ensure groq is imported
-# from groq.types.audio import Transcription # Only needed if you type hint or directly use Transcription class
-from utils import setup_logger, get_base_language_code # Added get_base_language_code
-import webrtcvad  # Add this import
+import os 
+import pyaudio
+import wave
+import groq
+from utils import setup_logger, get_base_language_code
+import webrtcvad  
 
 class Asrwhisper(Baseplugin):
     def __init__(self, plugin_name, pm):
