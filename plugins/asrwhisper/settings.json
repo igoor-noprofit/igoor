@@ -4,7 +4,7 @@
     "continuous": false,
     "provider": "groq",
     "api_key": "",
-    "silence_frames": 1000,
+    "silence_frames": 1150,
     "max_recording_time": 60,
     "vad_level": 2
 }
