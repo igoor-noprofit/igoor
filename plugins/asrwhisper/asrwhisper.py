@@ -238,7 +238,7 @@ class Asrwhisper(Baseplugin):
             sample_rate = self.sample_rate
             frame_duration = 30  # ms, must be 10, 20, or 30 for webrtcvad
             frame_bytes = int(sample_rate * frame_duration / 1000) * 2  # 2 bytes per sample (16-bit)
-            silence_frames = int(self.settings.get("silence_frames", 1500) / frame_duration)  # 800ms of silence
+            silence_frames = int(self.settings.get("silence_frames", 1500) / frame_duration) 
             max_frames = int(10000 / frame_duration)  # 10 seconds max
             
             while True:
