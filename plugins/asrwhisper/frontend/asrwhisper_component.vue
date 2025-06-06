@@ -82,7 +82,10 @@ export default {
                     this.sendMsgToBackend({ action: 'start_recording' });
                 }
                 else {
-                    console.warn("No action taken because not in listening mode");
+                    if (this.status === 'recording') {
+                        this.sendMsgToBackend({ action: 'stop_recording' });
+                    }
+                    console.warn("No action taken because not in listening or recording mode");
                 }
             }
             else {
