@@ -231,7 +231,7 @@ class Asrwhisper(Baseplugin):
                         await asyncio.sleep(0.5)
             except KeyboardInterrupt:
                 print("\nStopping...")
-        else:
+        else: # NON-CONTINUOUS MODE
             await self.send_status("listening")
             self.start_stream()
             vad = self.vad
