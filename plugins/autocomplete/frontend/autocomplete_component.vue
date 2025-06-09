@@ -17,12 +17,19 @@
 
             <!-- Input and suggestions -->
             <div v-else>
+                <!--button class="btn paste-btn" @click="$_pasteFromClipboard"
+                    :disabled="isLoading || error" title="Coller">
+                    <svg class="icon icon-l">
+                        <use xlink:href="img/svgdefs.svg#icon-paste"></use>
+                    </svg>
+                </button-->
                 <input type="text" v-model="userInput" autocomplete="off" spellcheck="true" name="autocomplete"
                     placeholder="" ref="autocompleteInput" :disabled="isLoading || error" @focus="$_showKeyboard">
             </div>
         </div>
 
-        <button @click="$_speakInput()" class="btn btn-side btn-side-right speak" :disabled="isLoading || error || !userInput.trim()">
+        <button @click="$_speakInput()" class="btn btn-side btn-side-right speak"
+            :disabled="isLoading || error || !userInput.trim()">
             <svg class="icon icon-l">
                 <use xlink:href="img/svgdefs.svg#icon-talk"></use>
             </svg>
@@ -103,6 +110,18 @@ module.exports = {
         await this.loadDictionary();
     },
     methods: {
+        /* async $_pasteFromClipboard() {
+            try {
+                const text = await navigator.clipboard.readText();
+                if (text) {
+                    this.userInput += (this.userInput && !this.userInput.endsWith(' ')) ? ' ' : '';
+                    this.userInput += text;
+                    this.$refs.autocompleteInput.focus();
+                }
+            } catch (e) {
+                this.error = "Impossible de coller depuis le presse-papiers.";
+            }
+        },*/
         $_showKeyboard() {
             this.showKeyboard = false;  // Changed from isInputFocused
         },
