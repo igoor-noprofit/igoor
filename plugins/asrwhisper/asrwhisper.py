@@ -299,6 +299,8 @@ class Asrwhisper(Baseplugin):
                     
                     # Process recorded audio
                     if len(audio_buffer) > 0:
+                        await self.send_status("listening")
+                        self.recording = False
                         print(f"Processing audio: {len(audio_buffer)} chunks, speech detected: {speech_started}")
                         self.save_audio_to_file(audio_buffer)
                         text = await self.transcribe_audio()
