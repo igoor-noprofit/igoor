@@ -2,12 +2,14 @@
     <div class="flow container flow-plugin" :class="{ 'plugin-error': error }"
         v-if="appview != 'daily' && appview != 'onboarding'">
         <button v-if="answers"
-            :class="['btn', 'btn-side', 'btn-side-left', 'abandon', appview == 'autocomplete' ? 'autocomplete' : '',$root.headerExpanded ? 'expanded' : '']"
+            :class="['btn', 'btn-side', 'btn-side-left', 'abandon', appview == 'autocomplete' ? 'autocomplete' : '', $root.headerExpanded ? 'expanded' : '']"
             @click="$_abandonConversation(true)">
-            <svg data-v-c03b73d2a84b39e50bcf45cec4f7bd79="" class="icon icon-l"><use data-v-c03b73d2a84b39e50bcf45cec4f7bd79="" xlink:href="/img/svgdefs.svg#icon-chevron_left"></use></svg>
+            <svg data-v-c03b73d2a84b39e50bcf45cec4f7bd79="" class="icon icon-l">
+                <use data-v-c03b73d2a84b39e50bcf45cec4f7bd79="" xlink:href="/img/svgdefs.svg#icon-chevron_left"></use>
+            </svg>
             Changer de sujet
         </button>
-        
+
         <div class="answers">
             <div class="row">
                 <div v-for="(msg, index) in answers" :key="index">
@@ -15,7 +17,8 @@
                         {{ msg }}
                     </div>
                 </div>
-                <a class="autocompletelauncher msg msg-small" @click="$_showAutocomplete()" v-show="appview != 'autocomplete'">
+                <a class="autocompletelauncher msg msg-small" @click="$_showAutocomplete()"
+                    v-show="appview != 'autocomplete'">
                     <img src="/img/icons/src/keyboard.svg" />
                     <img src="/img/icons/src/more.svg" />
                 </a>
@@ -78,16 +81,16 @@ module.exports = {
                 } else {
                     console.log("************ ANSWERS *********");
                     console.table(data);
-                    
+
                     // Check if this is an autocomplete response (has input field)
                     if (data.input) {
                         this.currentInput = data.input;
-                        this.answers = data.completions || [];
+                        this.answers = (data.completions || []).filter(a => a && a.trim());
                     } else {
-                        this.answers = data.answers || [];
+                        this.answers = (data.answers || []).filter(a => a && a.trim());
                         this.currentInput = ""; // Clear input if not autocomplete
                     }
-                    
+
                     this.selectedCard = null;
                 }
             } catch (e) {
@@ -99,11 +102,11 @@ module.exports = {
             let text = msg;
             // Remove the selected answer from the array
             this.answers.splice(index, 1);
-            
+
             // Check if we're in autocomplete mode and have an input
             if (this.appview === 'autocomplete' && this.currentInput) {
                 console.log("STORING PREDICTION because view = " + this.appview);
-                
+
                 try {
                     // Use the synchronous wrapper method instead
                     window.pywebview.api.trigger_hook_sync("store_autocomplete_prediction", {
@@ -115,7 +118,7 @@ module.exports = {
                     console.error("Error storing prediction:", error);
                 }
             }
-            
+
             const json = { action: "speak", msg: text };
             console.log("sending JSON");
             console.log(json);
@@ -137,11 +140,13 @@ module.exports = {
     padding-bottom: 8px;
     display: block;
     width: 100px;
-    img{
+
+    img {
         max-height: 40px;
-        filter:invert(1)
+        filter: invert(1)
     }
 }
+
 .flow-plugin {
     margin: 10px 0;
     flex-direction: row;
