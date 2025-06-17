@@ -42,7 +42,7 @@ class Ttsdefault(Baseplugin):
 
     @hookimpl
     def speak_fallback(self, message):
-        self.logger.info("§§§§ FALLBACK SPEAKING *********************************************** :", message)
+        self.logger.info("§§§§ FALLBACK SPEAKING *********************************************** : {message}")
         # Schedule the speak_func to run in the background
         if (self.fallback_only):
             asyncio.create_task(self.run_speak_func(message))
