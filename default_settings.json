@@ -69,20 +69,26 @@
             },
             "prefs": {
                 "lang": "fr_FR",
-                "darklight": "automatic",
+                "darklight": "light",
                 "locale": "fr_FR.UTF-8",
-                "idle_time": "15"
+                "idle_threshold": 600
             },
             "ai": {
                 "provider": "groq",
                 "api_key": "",
-                "model_name": "llama-3.3-70b-specdec",
+                "model_name": "meta-llama/llama-4-scout-17b-16e-instruct",
                 "temperature": "0.2"
             }
         },
         "ttsdefault": {
             "fallback_only": true,
             "speaker_voice": 0
+        },
+        "speechifytts": {
+            "api_key": "",
+            "voice_id": "",
+            "model_id": "simba-multilingual",
+            "use_ssml": false
         }
     },
     "plugins_activation": {
