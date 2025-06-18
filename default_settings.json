@@ -49,8 +49,8 @@
             "temperature": "1"
         },
         "conversation": {
-            "timeout": "15000",
-            "warning_time": "5000"
+            "timeout": "180000",
+            "warning_time": "30000"
         },
         "clock": {},
         "ramcpu": {
