@@ -55,7 +55,7 @@ def setup_logger(name, appdata_folder, separate_plugin_log=False):
         
         # Create logs directory if it doesn't exist
         logs_dir = Path(appdata_folder) / 'logs'
-        logs_dir.mkdir(exist_ok=True)
+        logs_dir.mkdir(parents=True, exist_ok=True)
         
         # Create handlers
         console_handler = logging.StreamHandler(sys.stdout)
@@ -81,7 +81,7 @@ def setup_logger(name, appdata_folder, separate_plugin_log=False):
         if separate_plugin_log and 'plugins.' in name:
             plugin_name = name.split('plugins.')[-1]
             plugin_logs_dir = Path(appdata_folder) / 'logs' / 'plugins'
-            plugin_logs_dir.mkdir(exist_ok=True)
+            plugin_logs_dir.mkdir(parents=True, exist_ok=True)
             
             plugin_file_handler = logging.FileHandler(
                 plugin_logs_dir / f'{plugin_name}_{datetime.now().strftime("%Y%m%d")}.log',
@@ -112,7 +112,7 @@ def setup_jsonl_logger(name, appdata_folder):
         
         # Create logs directory if it doesn't exist
         logs_dir = Path(appdata_folder) / 'logs'
-        logs_dir.mkdir(exist_ok=True)
+        logs_dir.mkdir(parents=True, exist_ok=True)
         
         # Create daily rotating file handler for JSONL
         # Use date in filename for simplicity, matching the original plan
