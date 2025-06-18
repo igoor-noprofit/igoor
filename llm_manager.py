@@ -42,7 +42,7 @@ class LLMManager:
             self.logger.error(f"Exception setting JSON schema: {e}")
             return e
         
-    def invoke(self, system_prompt, prompt, retries=3):
+    def invoke(self, system_prompt, prompt, retries=5):
         messages = [
             ("system", system_prompt),
             ("human", prompt)
