@@ -173,4 +173,3 @@ Daily logs are in:
 ```
 IGOOR_FOLDER/logs/
 ```
-

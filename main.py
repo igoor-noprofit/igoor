@@ -17,7 +17,10 @@ import asyncio
 from utils import resource_path, setup_logger
 from idle_detector import IdleDetector
 
-logger = setup_logger('main', os.path.join(os.getenv('APPDATA'), __appname__))
+appdata_dir = os.path.join(os.getenv('APPDATA'), __appname__)
+if not os.path.exists(appdata_dir):
+    os.makedirs(appdata_dir)
+logger = setup_logger('main', appdata_dir)
 prompts=None
 context_manager = ContextManager()
 manager = PluginManager()
