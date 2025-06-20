@@ -76,7 +76,7 @@ def show_splash_screen(image_path):
 
 def signal_handler(sig, frame):
     logger.info('Exiting application...')
-    os._exit(0)
+    on_closing()
     
 signal.signal(signal.SIGINT, signal_handler)
 
@@ -200,6 +200,9 @@ def load_frontend_components():
 
     return final_html
 
+def on_closing():
+    websocket_server.stop()  # Make sure you have a stop method to close connections and resources
+    print("WebSocket server has been closed.")
 
 def on_loaded():
     logger.info("GUI window is now loaded and available!")
@@ -218,16 +221,11 @@ def start_webview():
         window = webview.create_window("IGOOR", "index.html", js_api=Api(), 
                                         resizable=True, fullscreen=fullscreen,on_top=on_top)
         window.events.loaded += on_loaded
+        window.events.closing += on_closing
         webview.start(debug=IGOOR_DEBUG.lower() == 'true')
     except KeyboardInterrupt:
         logger.warning("KeyboardInterrupt detected. Shutting down...")
-        
-        # Safely close the websocket server
-        websocket_server.stop()  # Make sure you have a stop method to close connections and resources
-        
-        print("WebSocket server has been closed.")    
-        os._exit()
-
+        on_closing()
 
 if __name__ == "__main__":
     splash_screen = show_splash_screen('img/igoor_logo.png')
