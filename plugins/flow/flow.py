@@ -199,7 +199,7 @@ class Flow(Baseplugin):
         
         print(f"FINAL PROMPT : {prompt}")
         try:
-            llm = LLMManager(self.settings.get("provider"), self.settings.get("api_key"), self.settings.get("model_name"))
+            llm = LLMManager(self.settings.get("provider"), self.settings.get("api_key"), self.settings.get("model_name"), temperature=self.settings.get("temperature",1))
             llm.set_json_schema(Answers)
             answers = llm.invoke(system_prompt,prompt)
             has_error, answers = self.handle_llm_error(answers)
