@@ -84,9 +84,9 @@
                             </div>
                             <div>
                                 <label>{{ translations["API Key"] }}</label><input type="text" v-model="ai.api_key" disabled>
-                                <p>{{ translations["Groq is our default provider:"] }} <a class="extlink"
+                                <p>{{ translations["Groq is our default provider:"] }} <br><a class="extlink"
                                         href="https://console.groq.com/login" target="_blank">{{ translations["To obtain a FREE api key sign up here"] }}</a>
-                                    <br><a class="extlink" href="https://groq.com/privacy-policy/">{{ translations["Our default provider privacy policy"]}}</a>
+                                    <br><a class="extlink" href="https://groq.com/privacy-policy/" target="_blank">{{ translations["Our default provider privacy policy"]}}</a>
                                 </p>
                             </div>
                             <div>
