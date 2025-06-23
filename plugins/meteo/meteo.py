@@ -157,7 +157,7 @@ class Meteo(Baseplugin):
     
     def get_geoloc(self):
         ip_geo = self.get_ip_geolocation()
-        if ip_geo.get('status') == 'success':
+        if ip_geo is not None and ip_geo.get('status') == 'success':
             ip_geo['latHome'] = self.settings.get("lat_home")
             ip_geo['lngHome'] = self.settings.get("lng_home")
             return ip_geo
