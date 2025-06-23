@@ -12,44 +12,13 @@ from pydantic import BaseModel
 from typing import List
 from utils import normalize_filter_by_timeframe_result
 
-PROMPT_TEMPLATE = """
-La personne affectée par la maladie s'appelle {bio_name}. Considère son état actuel pour éviter des prédictions incompatibles avec ses capacités physiques:
-
-{health_state}
-
----
-Pour répondre tu peux utiliser le contexte statique extrait des documents sur la vie de {bio_name}:
-
-{static_context}
-
----
-Tu peux utiliser aussi les informations de la mémoire à long terme,ordonnées par date croissante:
-
-{long_term}
-
----
-
-Tu peux utiliser aussi les informations de la mémoire à court terme,ordonnées par date croissante:
-
-{short_term}
-
---- 
-Si besoin utilises aussi les infos du contexte dynamique suivant:
-
-{dynamic_context}
-
----
-Rappelle-toi que tes prédictions doivent être des phrases du point de vue de {bio_name}
-
-Voici le contexte du besoin:
-"catégorie":{category}","thème":"{theme}","tags": "{tags}"
-
-"""
 class Daily(Baseplugin):  
     def __init__(self, plugin_name,pm):
         self.pm = pm
         super().__init__(plugin_name,pm)
-        self.prompts=AssistantPrompts("locales/",self.lang)
+        # self.prompts=AssistantPrompts("locales/",self.lang)
+        self.prompts=self.get_my_prompts()
+        print(f"PROMPTS LOADED: {self.prompts}")
         self.load_settings()
         bio = self.settings_manager.get_bio()
         self.bio_name = bio.get("name")
@@ -161,9 +130,9 @@ class Daily(Baseplugin):
         actual_filtered_results = normalize_filter_by_timeframe_result(filtered_results)
         # del dynamic_context["conversation"]
         assistant_type = "daily"
-        system_prompt = self.prompts.get_system_prompt("fr_FR", assistant_type) 
+        system_prompt = self.prompts.get("daily", {}).get("system")
         print(f"SYSTEM PROMPT IS : {system_prompt}")   
-        pm = PromptManager(template=PROMPT_TEMPLATE)
+        pm = PromptManager(template=self.prompts.get("daily", {}).get("usr"))
         dynamic_context = dynamic_context
         prompt = pm.create_prompt(
             bio_name=bio_name,
