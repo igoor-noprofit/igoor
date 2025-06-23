@@ -20,7 +20,7 @@
                         <li :class="{ active: currentTab === 'ai' }"
                             @click="currentTab = 'ai'; viewingPluginSettings = false;">AI</li>
                         <li :class="{ active: currentTab === 'plugins' }"
-                            @click="currentTab = 'plugins'; viewingPluginSettings = false;">Plugins</li>
+                            @click="currentTab = 'plugins'; viewingPluginSettings = false;">{{translations.Plugins}}</li>
                         <li :class="{ active: currentTab === 'about' }"
                             @click="currentTab = 'about'; viewingPluginSettings = false;">About</li>
                     </ul>

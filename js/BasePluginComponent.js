@@ -10,8 +10,8 @@ module.exports = {
     },
     lang: {
       type: String,
-      required: true
-    }
+      required: true,
+    },
   },
   data() {
     return {
@@ -19,22 +19,45 @@ module.exports = {
       error: false,
       connectionAttempts: 0,
       maxRetries: 5,
-      retryDelay: 1000, // Start with 1 second delay
+      retryDelay: 1000,
+      translations: {}
     };
   },
   methods: {
+    async loadTranslations() {
+      try {
+        const pluginName = this.$options.name
+          .replace(/Settings$/, "")
+          .toLowerCase();
+        const lang = this.lang || "en";
+        const url = `/plugins/${pluginName}/locales/${lang}/${pluginName}_${lang}.json`;
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`Could not load ${url}`);
+        this.translations = await response.json();
+        console.log(
+          `Loaded translations for ${pluginName}:`,
+          this.translations
+        );
+      } catch (e) {
+        console.error("Translation loading failed:", e);
+        this.translations = {};
+      }
+    },
     requestSettings() {
       this.sendMsgToBackend({
         action: "get_settings",
       });
     },
-    updateSettings(){
-      console.log('Saving plugin settings:', this.formData);
+    updateSettings() {
+      console.log("Saving plugin settings:", this.formData);
       let plugin_name = this.$options.name;
       if (plugin_name.endsWith("Settings")) {
-        plugin_name = plugin_name.substring(0, plugin_name.length - "Settings".length);
+        plugin_name = plugin_name.substring(
+          0,
+          plugin_name.length - "Settings".length
+        );
       }
-      window.pywebview.api.update_plugin_settings(plugin_name,this.formData);
+      window.pywebview.api.update_plugin_settings(plugin_name, this.formData);
     },
     sendMsgToBackend(data, plugin_name = null) {
       const targetUrl = plugin_name
@@ -160,6 +183,7 @@ module.exports = {
     this.ws_url = `${BASE_WS_URL}${path}`;
     console.log("Plugin path = " + this.ws_url);
     this.initializeWebSocket();
+    this.loadTranslations();
   },
   beforeDestroy() {
     if (this.websocketUtil) {
