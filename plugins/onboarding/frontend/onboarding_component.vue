@@ -179,7 +179,7 @@
                 </div>
                 <div class="save-section" v-if="currentTab !== 'plugins' || !viewingPluginSettings">
                     <button @click="saveSettings" :disabled="isSaving">
-                        {{ isSaving ? 'Saving...' : 'Save Main Settings' }}
+                        {{ isSaving ? translations['Saving...'] : translations['Save main settings'] }}
                     </button>
                     <span v-if="saveStatus" :class="['save-status', saveStatus.type]">
                         {{ saveStatus.message }}

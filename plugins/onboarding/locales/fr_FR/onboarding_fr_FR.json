@@ -31,5 +31,7 @@
     "© 2025 Developed by": "© 2025 Développé par",
     "in partnership with": "en partenariat avec",
     "Main settings saved!": "Paramètres principaux enregistrés !",
-    "Failed to save main settings. Please try again.": "Échec de l'enregistrement des paramètres principaux. Veuillez réessayer."
+    "Failed to save main settings. Please try again.": "Échec de l'enregistrement des paramètres principaux. Veuillez réessayer.",
+    "Saving...": "Enregistrement en cours...",
+    "Save main settings": "Enregistrer les paramètres principaux"
 }
