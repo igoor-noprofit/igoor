@@ -2,42 +2,42 @@
     <div class="shortcuts shortcuts-plugin">
         <button class="btn btn-shortcut" @click="$_minimise()">
             <img src="img/minimize.svg">
-            <h3>Réduire la fenetre</h3>
+            <h3>{{translations['Minimize']}}</h3>
         </button>
         <button class="btn btn-shortcut" @click="$_speak('J\'ai soif')"><svg class="icon icon-l">
                 <use xlink:href="img/svgdefs.svg#icon-drink"></use>
             </svg>
-            <h3>Boire</h3>
+            <h3>{{translations['Drink']}}</h3>
         </button>
         <button class="btn btn-shortcut" @click="$_speak('J\'ai besoin d\'aller au toilette')"><svg class="icon icon-l">
                 <use xlink:href="img/svgdefs.svg#icon-toilet"></use>
             </svg>
-            <h3>Toilette</h3>
+            <h3>{{translations['Toilet']}}</h3>
         </button>
         <button class="btn btn-shortcut" @click="$_parole()"><svg class="icon icon-l">
                 <use xlink:href="img/svgdefs.svg#icon-talk"></use>
             </svg>
-            <h3>Parole</h3>
+            <h3>{{ translations['Just a sec'] }}</h3>
         </button>
         <button class="btn btn-shortcut" @click="$_speak('Oui')"><svg class="icon icon-l">
                 <use xlink:href="img/svgdefs.svg#icon-ok"></use>
             </svg>
-            <h3>Oui</h3>
+            <h3>{{translations['Yes']}}</h3>
         </button>
         <button class="btn btn-shortcut" @click="$_speak('Non')"><svg class="icon icon-l">
                 <use xlink:href="img/svgdefs.svg#icon-no"></use>
             </svg>
-            <h3>Non</h3>
+            <h3>{{translations['No']}}</h3>
         </button>
         <button class="btn btn-shortcut" @click="$_speak('Merci')"><svg class="icon icon-l">
                 <use xlink:href="img/svgdefs.svg#icon-thankyou"></use>
             </svg>
-            <h3>Merci</h3>
+            <h3>{{translations['Thanks']}}</h3>
         </button>
         <button class="btn btn-shortcut btn-hilite" @click="$_speak('Aidez-moi c\'est urgent!')"><svg class="icon icon-l">
                 <use xlink:href="img/svgdefs.svg#icon-sos"></use>
             </svg>
-            <h3>Aide!</h3>
+            <h3>{{translations['Help!']}}</h3>
         </button>
     </div>
 </template>
@@ -51,11 +51,11 @@ export default {
             websocket: null,  // Store WebSocket instance
             status: 'loading',
             paroles: [
-                'J\'arrive, je termine d\'écrire',
-                'Juste un instant, je termine',
-                'Une seconde et c\'est bon',
-                'Donne moi juste deux secondes',
-                'Je suis en train de finir'
+                translations["I'm on my way, just finishing writing"],
+                translations["Just a moment, I'll finish"],
+                translations["One second and it's done"],
+                translations["Just give me two seconds"],
+                translations["I'm just finishing"]
             ]
         };
     },
