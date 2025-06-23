@@ -53,7 +53,12 @@ class Baseplugin:
         else:
             print("FOLDER EXISTING: " + self.plugin_folder)
         websocket_server.register_message_handler(self.plugin_name, self.process_incoming_message)
-
+        # 
+        this_dir = os.path.dirname(os.path.abspath(__file__))  # This will be the plugin folder
+        plugin_folder = os.path.abspath(os.path.join(this_dir, '..'))
+        self._app_plugin_folder = os.path.join(plugin_folder, self.plugin_name)
+        # print(f"PLUGIN ROOT = {self._app_plugin_folder}")
+        
         
     @hookimpl
     def get_frontend_components(self):
@@ -70,6 +75,26 @@ class Baseplugin:
         Retrieve settings specific to the plugin.
         """
         return self.settings_manager.get_plugin_settings(self.plugin_name)
+    
+    def get_my_prompts(self) -> dict:
+        """
+        Retrieve prompts specific to the plugin in the folder
+        locales/<lang>/prompts.json
+        """ 
+        prompts_path = os.path.join(self._app_plugin_folder, 'locales', self.lang, 'prompts.json')
+        print(f"Loading prompts from {prompts_path}")
+        if not os.path.exists(prompts_path):
+            self.logger.warning(f"Prompts file not found: {prompts_path}")
+            return {}
+        try:
+            with open(prompts_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except json.JSONDecodeError as e:
+            self.logger.error(f"Error decoding prompts JSON: {e}")
+            return {}
+        
+        
+        
 
     def mass_update_my_settings(self, json_data):
         try:
