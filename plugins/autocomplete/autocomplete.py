@@ -13,71 +13,12 @@ from typing import List, Dict
 import numpy as np
 from utils import normalize_filter_by_timeframe_result
 
-PROMPT_TEMPLATE = """
-La personne affectée par la maladie s'appelle {bio_name}. Considère son état actuel pour éviter des prédictions incompatibles avec ses capacités physiques:
-
-{health_state}
-
-Prends aussi en considération le style expressif de {bio_name}:
-
-{bio_style}
----
-Pour répondre tu peux utiliser le contexte statique extrait des documents sur la vie de {bio_name}:
-
-{static_context}
-
----
-Tu peux utiliser aussi les informations de la mémoire à long terme,ordonnées par date croissante:
-
-{long_term}
-
----
-
-Tu peux utiliser aussi les informations de la mémoire à court terme,ordonnées par date croissante:
-
-{short_term}
-
---- 
-Si besoin utilises aussi les infos du contexte dynamique suivant:
-
-{dynamic_context}
-
----
-Prédictions précédentes:
-
-{successful_predictions}
----
-
-SEULEMENT SI COMPATIBLES, utilise aussi les éventuels conversations précédentes:
-
-{past_conversations_msgs}
----
---- 
-
-S'il y a une conversation en cours donne la priorité à la conversation en cours, ex.:
-INPUT
-    conversation: "Q: Qu'est-ce que tu veux manger ce soir ?"
-    input à compléter: "je "
-    RAG: "{bio_name} aime manger des pâtes"
-    
-OUTPUT: 
-    "je voudrais manger des pâtes",
-    "je n'ai pas trop faim ce soir",
-    "..."
-
----
-Rappelle-toi que tes prédictions doivent être des phrases du point de vue de {bio_name}.
-
-Retourne toujours tes prédictions dans le format JSON indiqué.
-Prédis la suite de: {input} dans le contexte de la conversation en cours: {conversation}
-
-"""
 
 class Autocomplete(Baseplugin):  
     def __init__(self, plugin_name,pm):
         self.pm = pm
         super().__init__(plugin_name,pm)
-        self.prompts=AssistantPrompts("locales/","fr_FR")
+        self.prompts=self.get_my_prompts()
         self.global_settings = SettingsManager()
         self.settings = self.get_my_settings()
         bio = self.global_settings.get_bio()
@@ -280,8 +221,8 @@ class Autocomplete(Baseplugin):
             query_text=msg
         )
         
-        system_prompt = self.prompts.get_system_prompt("fr_FR", assistant_type) 
-        pm = PromptManager(template=PROMPT_TEMPLATE)
+        system_prompt = self.prompts.get("autocomplete", {}).get("system")
+        pm = PromptManager(template=self.prompts.get("autocomplete", {}).get("usr"))
         prompt = pm.create_prompt(
             bio_name=bio_name,
             bio_style=bio_style,
