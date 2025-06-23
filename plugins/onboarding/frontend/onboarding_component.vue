@@ -9,40 +9,40 @@
             <div class="modal-content settings container onboarding plugin">
                 <!-- Restart Alert -->
                 <div v-if="showRestartAlert" class="restart-alert">
-                    Please restart the app for plugin changes to take effect.
+                    {{ translations["Please restart the app for plugin changes to take effect."] }}
                 </div>
                 <div>
                     <ul class="tabs">
                         <li :class="{ active: currentTab === 'bio' }"
-                            @click="currentTab = 'bio'; viewingPluginSettings = false;">Bio</li>
+                            @click="currentTab = 'bio'; viewingPluginSettings = false;">{{ translations["Bio"] }}</li>
                         <li :class="{ active: currentTab === 'prefs' }"
-                            @click="currentTab = 'prefs'; viewingPluginSettings = false;">Preferences</li>
+                            @click="currentTab = 'prefs'; viewingPluginSettings = false;">{{ translations["Preferences"] }}</li>
                         <li :class="{ active: currentTab === 'ai' }"
-                            @click="currentTab = 'ai'; viewingPluginSettings = false;">AI</li>
+                            @click="currentTab = 'ai'; viewingPluginSettings = false;">{{ translations["AI"] }}</li>
                         <li :class="{ active: currentTab === 'plugins' }"
                             @click="currentTab = 'plugins'; viewingPluginSettings = false;">{{translations.Plugins}}</li>
                         <li :class="{ active: currentTab === 'about' }"
-                            @click="currentTab = 'about'; viewingPluginSettings = false;">About</li>
+                            @click="currentTab = 'about'; viewingPluginSettings = false;">{{ translations["About"] }}</li>
                     </ul>
                     <div v-if="currentTab === 'bio'" class="bio-container">
                         <div class="bio left">
                             <div>
-                                <label>Name</label><input type="text" v-model="bio.name">
+                                <label>{{ translations["Name"] }}</label><input type="text" v-model="bio.name">
                             </div>
                             <div>
-                                <label>Pronoun</label><input type="text" v-model="bio.pronoun">
+                                <label>{{ translations["Pronoun"] }}</label><input type="text" v-model="bio.pronoun">
                             </div>
                             <div>
-                                <label>Year of birth</label><input type="text" v-model="bio.birth_date">
+                                <label>{{ translations["Year of birth"] }}</label><input type="text" v-model="bio.birth_date">
                             </div>
                         </div>
                         <div class="bio right">
                             <div>
-                                <label>Health State</label>
+                                <label>{{ translations["Health State"] }}</label>
                                 <textarea class="health" v-model="bio.health_state"></textarea>
                             </div>
                             <div>
-                                <label>Style</label>
+                                <label>{{ translations["Style"] }}</label>
                                 <textarea class="style" v-model="bio.style"></textarea>
                             </div>
                         </div>
@@ -50,9 +50,9 @@
                     <div v-if="currentTab === 'prefs'">
                         <div class="prefs left">
                             <div>
-                                <label>Language</label>
+                                <label>{{ translations["Language"] }}</label>
                                 <select v-model="prefs.lang">
-                                    <option value="fr_FR">Français</option>
+                                    <option value="fr_FR">{{ translations["French"] }}</option>
                                     <!--option value="en_EN">English</option-->
                                 </select>
                             </div>
@@ -65,10 +65,10 @@
                                 </label>
                             </div-->
                             <div>
-                                <label>Locale</label><input type="text" v-model="prefs.locale" disabled>
+                                <label>{{ translations["Locale"] }}</label><input type="text" v-model="prefs.locale" disabled>
                             </div>
                             <div>
-                                <label>Idle threshold (seconds before the user is considered idle)</label><input
+                                <label>{{ translations["Idle threshold (n. of seconds before the user is considered idle)"]}}"</label><input
                                     type="number" v-model="prefs.idle_threshold" min="60" max="6000" step="100">
                             </div>
                         </div>
@@ -76,23 +76,21 @@
                     <div v-if="currentTab === 'ai'">
                         <div class="ai left">
                             <div>
-                                <label>Provider</label>
+                                <label>{{ translations["Provider"] }}</label>
                                 <select v-model="ai.provider">
                                     <option value="groq">Groq</option>
                                     <!--option value="openai">OpenAI</option-->
                                 </select>
                             </div>
                             <div>
-                                <label>API Key</label><input type="text" v-model="ai.api_key" disabled>
-                                <p>Groq is our default provider: <a class="extlink"
-                                        href="https://console.groq.com/login" target="_blank">To obtain a FREE api key
-                                        sign up here</a>
-                                    <br><a class="extlink" href="https://groq.com/privacy-policy/">Our default provider
-                                        privacy policy</a>
+                                <label>{{ translations["API Key"] }}</label><input type="text" v-model="ai.api_key" disabled>
+                                <p>{{ translations["Groq is our default provider:"] }} <a class="extlink"
+                                        href="https://console.groq.com/login" target="_blank">{{ translations["To obtain a FREE api key sign up here"] }}</a>
+                                    <br><a class="extlink" href="https://groq.com/privacy-policy/">{{ translations["Our default provider privacy policy"]}}</a>
                                 </p>
                             </div>
                             <div>
-                                <label>Model Name</label>
+                                <label>{{ translations["Model Name"] }}</label>
                                 <select v-model="ai.model_name">
                                     <option value="llama-3.3-70b-versatile">Llama 3.3-70B (stable)</option>
                                     <option value="meta-llama/llama-4-maverick-17b-128e-instruct">Llama 4-17b-128e
@@ -100,11 +98,10 @@
                                     </option>
                                     <option value="meta-llama/llama-4-scout-17b-16e-instruct">Llama 4-17b-16e (beta)
                                     </option>
-                                    <!--option value="en_EN">English</option-->
                                 </select>
                             </div>
                             <div>
-                                <label>Temperature</label>
+                                <label>{{ translations["Temperature"] }}</label>
                                 <div style="display: flex; align-items: center; gap: 12px;">
                                     <input type="range" v-model.number="ai.temperature" min="0" max="1" step="0.01"
                                         style="flex: 1 1 60%;">
@@ -117,8 +114,7 @@
                     <div v-if="currentTab === 'plugins'">
                         <!-- View for Plugin-Specific Settings -->
                         <div v-if="viewingPluginSettings && selectedPluginComponent">
-                            <button @click="closePluginSettingsView" class="back-to-plugins-button">&larr; Back to
-                                Plugins</button>
+                            <button @click="closePluginSettingsView" class="back-to-plugins-button">&larr; {{ translations["Back to Plugins"] }}</button>
                             <!--h3>Settings for {{ selectedPluginForSettings.title }}</h3-->
                             <component :is="selectedPluginComponent" :initial-settings="currentPluginInitialSettings"
                                 :plugin-name="selectedPluginForSettings.name" :lang="lang" @save-settings="handlePluginSettingsSave"
@@ -143,7 +139,7 @@
                                     <div class="plugin-header">
                                         <h3 class="plugin-title">
                                             {{ plugin.title }}
-                                            <span v-if="plugin.is_core" class="core-badge">CORE</span>
+                                            <span v-if="plugin.is_core" class="core-badge">{{ translations["CORE"] }}</span>
                                         </h3>
                                         <div class="plugin-actions">
                                             <label class="switch"><input type="checkbox" :checked="plugin.active"
@@ -157,17 +153,16 @@
                                                 @click="showPluginSettingsView(plugin)">
                                         </div>
                                     </div>
-                                    <p class="plugin-description">{{ plugin.description || 'No description available' }}
-                                    </p>
+                                    <p class="plugin-description">{{ plugin.description || translations['No description available'] }}</p>
                                     <div class="plugin-requirements">
                                         <span v-if="plugin.is_core" class="requirement core">
-                                            🔒 Core Plugin
+                                            🔒 {{ translations["Core Plugin"] }}
                                         </span>
                                         <span v-if="plugin.requires_internet" class="requirement">
-                                            🌐 Requires Internet
+                                            🌐 {{ translations["Requires Internet"] }}
                                         </span>
                                         <span v-if="plugin.requires_subscription" class="requirement">
-                                            ⭐ Requires Subscription
+                                            ⭐ {{ translations["Requires Subscription"] }}
                                         </span>
                                     </div>
                                 </div>
@@ -176,10 +171,9 @@
                     </div>
                     <div v-if="currentTab === 'about'">
                         <div class="about about-tab left">
-                            <p>Concept by Igor Novitzki</p>
-                            <p>© 2025 Developed by <a href="https://igoor.org/?utm_source=igoor_app"
-                                    target="_blank">IGOOR</a>, in partnership
-                                with <a href="https://www.arsla.org/?utm_source=igoor_app" target="_blank">ARSLA</a></p>
+                            <p>{{ translations["Concept by Igor Novitzki"] }}</p>
+                            <p>{{ translations["© 2025 Developed by"] }} <a href="https://igoor.org/?utm_source=igoor_app"
+                                    target="_blank">IGOOR</a>, {{ translations["in partnership with"] }} <a href="https://www.arsla.org/?utm_source=igoor_app" target="_blank">ARSLA</a></p>
                         </div>
                     </div>
                 </div>
@@ -293,7 +287,7 @@ export default {
 
                 this.saveStatus = {
                     type: 'success',
-                    message: 'Main settings saved successfully!'
+                    message: this.translations['Main settings saved!']
                 };
                 this.$emit('settings-saved', dataToSend);
                 setTimeout(() => {
@@ -303,7 +297,7 @@ export default {
                 console.error('Error saving main settings:', error);
                 this.saveStatus = {
                     type: 'error',
-                    message: 'Failed to save main settings. Please try again.'
+                    message: this.translations['Failed to save main settings. Please try again.']
                 };
             } finally {
                 this.isSaving = false;

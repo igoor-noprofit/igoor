@@ -39,7 +39,7 @@ module.exports = {
           this.translations
         );
       } catch (e) {
-        console.error("Translation loading failed:", e);
+        // console.warn("Translation loading failed:", e);
         this.translations = {};
       }
     },
