@@ -121,7 +121,7 @@
                                 Plugins</button>
                             <!--h3>Settings for {{ selectedPluginForSettings.title }}</h3-->
                             <component :is="selectedPluginComponent" :initial-settings="currentPluginInitialSettings"
-                                :plugin-name="selectedPluginForSettings.name" @save-settings="handlePluginSettingsSave"
+                                :plugin-name="selectedPluginForSettings.name" :lang="lang" @save-settings="handlePluginSettingsSave"
                                 class="plugin-settings-component"></component>
                             <!-- The save button is now expected to be WITHIN the loaded component -->
                         </div>
