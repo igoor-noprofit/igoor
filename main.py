@@ -235,15 +235,12 @@ if __name__ == "__main__":
     logger.info(bio)
     prefs = settings.get_nested(["plugins", "onboarding", "prefs"], default={})
     lang = prefs.get("lang")
-    print ("lang = " + lang)
     
     if IGOOR_CLI.lower() != 'true':
         final_html = load_frontend_components(lang=lang)
         if (IGOOR_OUTPUT_HTML.lower() == 'true'):
             print(final_html)
-
-    # print(settings.get_all_settings())
-    
+            
     prompts = AssistantPrompts("locales/",lang)
     # LAUNCH WINDOW APP
     if IGOOR_CLI.lower() != 'true':
