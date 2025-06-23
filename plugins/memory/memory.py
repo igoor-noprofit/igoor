@@ -219,6 +219,7 @@ class Memory(Baseplugin):
         self.pm = pm
         super().__init__(plugin_name,pm)
         self.global_settings = SettingsManager()
+        self.prompts=self.get_my_prompts()
         self.settings = self.get_my_settings()
         bio = self.global_settings.get_bio()
         self.bio_name = bio.get("name")
@@ -288,12 +289,12 @@ class Memory(Baseplugin):
             self.logger.debug(f"last_conversation contents: {last_conversation}")
         
         # SYSTEM PROMPT
-        sys_pm = PromptManager(template=MEMORY_SYSTEM_PROMPT)
+        sys_pm = PromptManager(template=self.prompts.get("memory", {}).get("system"))
         system_prompt = sys_pm.create_prompt(bio_name=self.bio_name)
         
         # HUMAN PROMPT
         conversation = last_conversation.get("txt")   
-        pm = PromptManager(template=PROMPT_TEMPLATE)
+        pm = PromptManager(template=self.prompts.get("memory", {}).get("usr"))
         prompt = pm.create_prompt(conversation=conversation)       
         
         try:
@@ -435,10 +436,10 @@ class Memory(Baseplugin):
             }
             
             # Set up prompts
-            sys_pm = PromptManager(template=MEMORY_REVIEW_SYSTEM_PROMPT)
+            sys_pm = PromptManager(template=self.prompts.get("memory_review", {}).get("system"))
             system_prompt = sys_pm.create_prompt(bio_name=self.bio_name)
             
-            pm = PromptManager(template=MEMORY_REVIEW_PROMPT_TEMPLATE)
+            pm = PromptManager(template=self.prompts.get("memory_review", {}).get("usr"))
             prompt = pm.create_prompt(memory_to_be_checked=json.dumps(memory_to_be_checked))
 
             # Call LLM with ValidationResponse schema
