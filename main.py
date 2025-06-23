@@ -92,7 +92,7 @@ def load_settings():
     settings = SettingsManager()
     return settings
 
-def load_frontend_components():
+def load_frontend_components(lang):
     '''
     Sort of webpack that constructs the final HTML frontend,
     based on the Vue components from the active plugins 
@@ -164,7 +164,7 @@ def load_frontend_components():
     # Also passes the appview variable
     replacements = {
         f'<!-- {category.upper()}_COMPONENTS -->': ''.join(
-            f'<{comp["name"].lower()} {comp["event_bindings"]} :appview="appview"></{comp["name"].lower()}>'
+            f'<{comp["name"].lower()} {comp["event_bindings"]} :appview="appview" :lang="lang"></{comp["name"].lower()}>'
             for comp in components
         )
         for category, components in components_by_category.items()
@@ -174,7 +174,6 @@ def load_frontend_components():
     for placeholder, replacement in replacements.items():
         html_content = html_content.replace(placeholder, replacement)
 
-    # Insert the Vue loader script into HTML content
     final_html = html_content
 
     # Write the final vue to app.vue
@@ -185,7 +184,9 @@ def load_frontend_components():
     # Load and modify the JAVASCRIPT
     with open('js/app_template.js', 'r') as f:
         js_content = f.read()
-    
+
+    js_content = js_content.replace('{{LANG}}', f'{lang}')
+
     replacements = {
         '//** JS_COMPONENTS */': ', '.join(vue_component_definitions)
     }        
@@ -196,7 +197,7 @@ def load_frontend_components():
     
     # Load and modify the JAVASCRIPT
     with open('js/app.js', 'w') as f:
-        js_content = f.write(js_content)  
+        f.write(js_content)  
 
     return final_html
 
@@ -229,19 +230,20 @@ def start_webview():
 
 if __name__ == "__main__":
     splash_screen = show_splash_screen('img/igoor_logo.png')
-    settings = load_settings();
-    
-    if IGOOR_CLI.lower() != 'true':
-        final_html = load_frontend_components()
-        if (IGOOR_OUTPUT_HTML.lower() == 'true'):
-            print(final_html)
-
-    # print(settings.get_all_settings())
+    settings = load_settings()
     bio = settings.get_nested(["plugins", "onboarding", "bio"], default={})
     logger.info(bio)
     prefs = settings.get_nested(["plugins", "onboarding", "prefs"], default={})
     lang = prefs.get("lang")
     print ("lang = " + lang)
+    
+    if IGOOR_CLI.lower() != 'true':
+        final_html = load_frontend_components(lang=lang)
+        if (IGOOR_OUTPUT_HTML.lower() == 'true'):
+            print(final_html)
+
+    # print(settings.get_all_settings())
+    
     prompts = AssistantPrompts("locales/",lang)
     # LAUNCH WINDOW APP
     if IGOOR_CLI.lower() != 'true':
@@ -249,3 +251,4 @@ if __name__ == "__main__":
         start_webview()
     else:
         print("CLI ONLY VERSION")
+

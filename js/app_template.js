@@ -44,8 +44,9 @@ async function initializeApp() {
         websocketUtil: null,
         minimized: false,
         headerExpanded: false,
-        pywebviewready: false  // Add this line
-      };
+        pywebviewready: false,
+        lang: "{{LANG}}"
+      }
     },
     components: {
       //** JS_COMPONENTS */

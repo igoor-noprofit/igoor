@@ -8,6 +8,10 @@ module.exports = {
       type: String,
       required: false,
     },
+    lang: {
+      type: String,
+      required: true
+    }
   },
   data() {
     return {
