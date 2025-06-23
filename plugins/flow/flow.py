@@ -14,49 +14,12 @@ from enum import Enum
 from datetime import datetime
 from utils import normalize_filter_by_timeframe_result
 
-PROMPT_TEMPLATE = """
-La personne affectée par la maladie s'appelle {bio_name}. Considère son état actuel pour éviter des prédictions incompatibles avec ses capacités physiques:
-
-{health_state}
-
----
-Pour répondre tu peux utiliser le contexte statique extrait des documents sur la vie de {bio_name}:
-
-{static_context}
-
----
-Tu peux utiliser aussi les informations de la mémoire à long terme,ordonnées par date croissante:
-
-{long_term}
-
----
-
-Tu peux utiliser aussi les informations de la mémoire à court terme,ordonnées par date croissante:
-
-{short_term}
-
---- 
-Si besoin utilises aussi les infos du contexte dynamique suivant:
-
-{dynamic_context}
-
----
-Prends en considération le style expressif de {bio_name}:
-
-{bio_style}
-
-Propose des réponses influencés par le style dans la mesure de: {bio_style_weight}.
-
----
-Réponds en utilisant aussi les contextes ci-dessus à la dernière question de cette conversation: {conversation}
-"""
-
 class Flow(Baseplugin):  
     def __init__(self, plugin_name,pm):
         self.pm = pm
         super().__init__(plugin_name,pm)
-        self.prompts=AssistantPrompts("locales/","fr_FR")
-        self.global_settings = SettingsManager();
+        self.prompts=self.get_my_prompts()
+        self.global_settings = SettingsManager()
         self.settings = self.get_my_settings()
         bio = self.global_settings.get_bio()
         self.bio_name = bio.get("name")
@@ -179,9 +142,8 @@ class Flow(Baseplugin):
 
         # Continue with the rest of your function
         del dynamic_context["conversation"]
-        assistant_type = "flow"
-        system_prompt = self.prompts.get_system_prompt("fr_FR", assistant_type) 
-        pm = PromptManager(template=PROMPT_TEMPLATE)
+        system_prompt = self.prompts.get("flow", {}).get("system")
+        pm = PromptManager(template=self.prompts.get("flow", {}).get("usr"))
         
         # Pass the context to the prompt
         prompt = pm.create_prompt(
@@ -238,8 +200,7 @@ class Flow(Baseplugin):
     async def preflow(self,conversation:str) -> dict:
         start_time = time.time()
         """Performs a first LLM call to create or update conversation topic and to know WHICH memory to search"""
-        assistant_type = "preflow"
-        system_prompt = self.prompts.get_system_prompt("fr_FR", assistant_type) 
+        system_prompt = self.prompts.get("preflow", {}).get("system")
         pm = PromptManager(template="Jour et heure actuelle: {datetime} Conversation : {conversation}")
         now = datetime.now()
         formatted_datetime = now.strftime("%A %d %B %Y %H:%M")  # e.g., "Monday 22 April 2025"
