@@ -127,7 +127,6 @@ class Daily(Baseplugin):
         # self.logger.info(f"FILTERED RESULTS: {filtered_results}")
         actual_filtered_results = normalize_filter_by_timeframe_result(filtered_results)
         # del dynamic_context["conversation"]
-        assistant_type = "daily"
         system_prompt = self.prompts.get("daily", {}).get("system")
         print(f"SYSTEM PROMPT IS : {system_prompt}")   
         pm = PromptManager(template=self.prompts.get("daily", {}).get("usr"))
