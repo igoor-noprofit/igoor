@@ -9,19 +9,19 @@
             <div class="modal-content settings container">
                 <button @click="closeModal" class="close-button">✖</button> <!-- Changed method name -->
                 <!-- Display the status message from the backend -->
-                <h4>Bug Report Status</h4>
+                <h4>{{ translations["Bug Report Status"]}}</h4>
                 <p>{{ reportStatusMessage }}</p>
                 <!-- Optionally add a button to open the folder -->
                 <!-- <button v-if="reportFolderPath" @click="openReportFolder">Open Folder</button> -->
                 <!-- User Comment Section -->
                 <div class="comment-section" v-if="reportFolderPath"> <!-- Show only after report is saved -->
                     <hr>
-                    <h5>Aidez-nous à améliorer IGOOR (optionnel)</h5>
-                    <textarea v-model="userComment" placeholder="Décrivez comment le bug s'est produit..." rows="4"
+                    <h5>{{ translations["Help us improve IGOOR (optional)"]}}</h5>
+                    <textarea v-model="userComment" v-bind:placeholder="translations['Please describe what happened']" rows="4"
                         style="width: 100%; margin-bottom: 10px; font-size: 16px;"></textarea>
                     <button class="button" @click="sendUserComment" :disabled="!userComment.trim() || isSendingComment"
                         style="margin-right: 10px;">
-                        {{ isSendingComment ? 'Sauvegarde en cours...' : 'Ajouter commentaire' }}
+                        {{ isSendingComment ? translations['Saving...'] : translations['Add comment'] }}
                     </button>
                     <span class="comment-status">{{ commentStatusMessage }}</span>
                 </div>
@@ -54,7 +54,7 @@ export default {
     methods: {
         // Renamed to avoid confusion with backend method
         async triggerReportIssue() {
-            this.reportStatusMessage = 'Je suis en train de générer un report de bug...';
+            this.reportStatusMessage = this.translations["Generating bug report..."];
             // Optionally show modal immediately
 
             // Prepare console log data (e.g., join array into a string)
@@ -103,7 +103,7 @@ export default {
                 handled = true; // Mark as handled
                 this.isSendingComment = false; // *** THIS IS THE KEY FIX - Reset button state ***
                 if (message.status === 'success') {
-                    this.commentStatusMessage = 'Merci, votre commentaire a été ajouté !';
+                    this.commentStatusMessage = this.translations['Thanks,your comment has been added'];
                     console.log("Comment saved successfully, starting auto-close timer.");
                     // Start timer to close modal after 5 seconds
                     this.autoCloseTimer = setTimeout(() => {
@@ -154,11 +154,11 @@ export default {
 
         async sendUserComment() {
             if (!this.userComment.trim() || !this.reportFolderPath) {
-                this.commentStatusMessage = "Cannot send empty comment or missing report path.";
+                this.commentStatusMessage = this.translations["Cannot send empty comment or missing report path."];
                 return;
             }
             this.isSendingComment = true;
-            this.commentStatusMessage = 'Sauvegarde en cours...';
+            this.commentStatusMessage = this.translations['Saving...'];
             // Clear any existing auto-close timer when sending a new comment
             if (this.autoCloseTimer) {
                 clearTimeout(this.autoCloseTimer);

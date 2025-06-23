@@ -1,0 +1,10 @@
+{
+    "Bug Report Status": "Statut de la signalation de bug",
+    "Help us improve IGOOR (optional)": "Aidez-nous à améliorer IGOOR (optionnel)",
+    "Please describe what happened": "Décrivez comment le bug s'est produit...",
+    "Saving...": "Sauvegarde en cours...",
+    "Add comment": "Ajouter commentaire",
+    "Generating bug report...": "Je suis en train de générer un report de bug...",
+    "Thanks,your comment has been added": "Merci, votre commentaire a été ajouté !",
+    "Cannot send empty comment or missing report path.":"Il est impossible d'envoyer le commentaire pour l'instant, ou une autre erreur s'est produite"
+}

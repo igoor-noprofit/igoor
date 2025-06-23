@@ -169,6 +169,7 @@ class Bugreport(Baseplugin):
 
 
         # --- Send status message back to the frontend ---
+        # smsg = self.lang
         status_message = f"Report saved in folder: {report_subfolder}"
         # Add details about missing files if necessary
         if not log_copy_success and log_path:
