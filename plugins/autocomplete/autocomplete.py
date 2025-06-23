@@ -4,7 +4,6 @@ from plugin_manager import hookimpl
 from concurrent.futures import ThreadPoolExecutor
 from prompt_manager import PromptManager
 from context_manager import context_manager
-from prompts import AssistantPrompts
 from settings_manager import SettingsManager
 from llm_manager import LLMManager
 import asyncio,json,time

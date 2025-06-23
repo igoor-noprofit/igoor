@@ -1,6 +1,5 @@
 import asyncio
 import webview
-# from prompts import AssistantPrompts
 from context_manager import ContextManager
 context_manager = ContextManager()
 from plugin_manager import PluginManager

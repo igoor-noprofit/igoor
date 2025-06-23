@@ -4,7 +4,6 @@ from plugin_manager import hookimpl
 from concurrent.futures import ThreadPoolExecutor
 from prompt_manager import PromptManager
 from context_manager import context_manager
-from prompts import AssistantPrompts
 from settings_manager import SettingsManager
 from llm_manager import LLMManager
 import asyncio,json,time,os
@@ -16,7 +15,6 @@ class Daily(Baseplugin):
     def __init__(self, plugin_name,pm):
         self.pm = pm
         super().__init__(plugin_name,pm)
-        # self.prompts=AssistantPrompts("locales/",self.lang)
         self.prompts=self.get_my_prompts()
         print(f"PROMPTS LOADED: {self.prompts}")
         self.load_settings()

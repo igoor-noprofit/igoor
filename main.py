@@ -9,7 +9,6 @@ load_dotenv()
 from context_manager import ContextManager
 from js_api import Api
 from settings_manager import SettingsManager
-from prompts import AssistantPrompts
 from websocket_server import websocket_server
 import signal,sys
 import tkinter as tk
@@ -241,7 +240,6 @@ if __name__ == "__main__":
         if (IGOOR_OUTPUT_HTML.lower() == 'true'):
             print(final_html)
             
-    prompts = AssistantPrompts("locales/",lang)
     # LAUNCH WINDOW APP
     if IGOOR_CLI.lower() != 'true':
         splash_screen.destroy()
