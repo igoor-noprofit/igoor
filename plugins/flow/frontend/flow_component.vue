@@ -7,7 +7,7 @@
             <svg data-v-c03b73d2a84b39e50bcf45cec4f7bd79="" class="icon icon-l">
                 <use data-v-c03b73d2a84b39e50bcf45cec4f7bd79="" xlink:href="/img/svgdefs.svg#icon-chevron_left"></use>
             </svg>
-            Changer de sujet
+            {{ translations['Change topic'] }}
         </button>
 
         <div class="answers">

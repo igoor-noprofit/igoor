@@ -9,7 +9,7 @@
         <div class="autocomplete_input">
             <!-- Show loading or error state -->
             <div v-if="isLoading" class="status-message loading">
-                Chargement du dictionnaire...
+                {{ translations["Loading dictionary..."] }}
             </div>
             <div v-else-if="error" class="status-message error">
                 {{ error }}
@@ -33,7 +33,7 @@
             <svg class="icon icon-l">
                 <use xlink:href="img/svgdefs.svg#icon-talk"></use>
             </svg>
-            <h3>dire la phrase</h3>
+            <h3>{{ translations["say the phrase"]}}</h3>
         </button>
     </div>
     <!------------------------------ VIRTUAL KEYBOARD ------------------------>
