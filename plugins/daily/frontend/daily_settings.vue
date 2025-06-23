@@ -1,7 +1,7 @@
 <template>
   <div class="daily-settings container daily-plugin main">
     <div class="settings-actions">
-      <button class="btn btn-secondary" @click="resetSettings" :disabled="!hasUnsavedChanges">Annuler</button>
+      <button class="btn btn-secondary" @click="resetSettings" :disabled="!hasUnsavedChanges">{{translations['Cancel']}}</button>
       <button v-if="currentView === 'main'" class="btn btn-side btn-side-right" @click="switchToSecondaryView"><svg
           class="icon icon-l">
           <use xlink:href="/img/svgdefs.svg#icon-chevron_right" />
@@ -10,7 +10,7 @@
           class="icon icon-l">
           <use xlink:href="/img/svgdefs.svg#icon-chevron_left" />
         </svg></button>
-      <button class="btn btn-primary" @click="saveSettings" :disabled="!hasUnsavedChanges">Enregistrer</button>
+      <button class="btn btn-primary" @click="saveSettings" :disabled="!hasUnsavedChanges">{{translations['Save']}}</button>
     </div>
     <div v-if="currentView === 'main'" class="options">
       <draggable v-model="mainCategories" group="categories" class="categories-row"
@@ -41,13 +41,13 @@
               </template>
             </draggable>
             <input class="add-item-input" v-model="category.newItem" @keyup.enter="addItem('main', catIdx)"
-              placeholder="+ Item" />
+              v-bind:placeholder="translations['+ Item']" />
           </div>
         </template>
       </draggable>
       <div v-if="mainCategories.length < 6">
         <input class="add-category-input" v-model="newMainCategory" @keyup.enter="addCategory('main')"
-          placeholder="+ Catégorie" />
+          v-bind:placeholder="translations['+ Category']" />
       </div>
     </div>
     <div v-if="currentView === 'secondary'" class="options secondary">
@@ -79,13 +79,13 @@
               </template>
             </draggable>
             <input class="add-item-input" v-model="category.newItem" @keyup.enter="addItem('secondary', catIdx)"
-              placeholder="+ Item" />
+              v-bind:placeholder="translations['+ Item']" />
           </div>
         </template>
       </draggable>
       <div v-if="secondaryCategories.length < 6">
         <input class="add-category-input" v-model="newSecondaryCategory" @keyup.enter="addCategory('secondary')"
-          placeholder="+ Catégorie" />
+          v-bind:placeholder="translations['+ Category']" />
       </div>
     </div>
   </div>
@@ -192,7 +192,7 @@ module.exports = {
     },
     deleteCategory(view, catIdx) {
       const arr = view === 'main' ? this.mainCategories : this.secondaryCategories;
-      if (confirm('Supprimer cette catégorie ?')) arr.splice(catIdx, 1);
+      if (confirm(this.translations['Do you really want to delete this delete this category?'])) arr.splice(catIdx, 1);
     },
     addCategory(view) {
       const arr = view === 'main' ? this.mainCategories : this.secondaryCategories;
@@ -219,7 +219,7 @@ module.exports = {
     },
     deleteItem(view, catIdx, itemIdx) {
       const arr = view === 'main' ? this.mainCategories : this.secondaryCategories;
-      if (confirm('Supprimer cet item ?')) arr[catIdx].itemsArr.splice(itemIdx, 1);
+      if (confirm(this.translations['Do you really want to delete this delete this item?'])) arr[catIdx].itemsArr.splice(itemIdx, 1);
     },
     addItem(view, catIdx) {
       const arr = view === 'main' ? this.mainCategories : this.secondaryCategories;
