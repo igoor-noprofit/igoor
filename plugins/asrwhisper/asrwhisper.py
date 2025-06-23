@@ -28,12 +28,11 @@ class Asrwhisper(Baseplugin):
         self.settings = self.get_my_settings()
         
         # Get global language preference and process it
-        global_lang_full = self.settings_manager.get_nested(["plugins", "onboarding", "prefs", "lang"])
-        self.lang = get_base_language_code(global_lang_full, default_lang="fr") # Default to 'fr' if not found or empty
+        self.lang_code = get_base_language_code(self.lang, default_lang="fr") # Default to 'fr' if not found or empty
         
         self.wakeword = self.settings.get("wakeword")
         self.continuous = self.settings.get("continuous", False) # Ensure default for continuous
-        print (f"WHISPER settings: {self.settings}, Global Lang for ASR: {self.lang}")
+        print (f"WHISPER settings: {self.settings}, Global Lang for ASR: {self.lang_code}")
         
         self.model_thread = threading.Thread(target=self.load_model, daemon=True)
         self.model_thread.start()
@@ -415,7 +414,7 @@ class Asrwhisper(Baseplugin):
                 transcription = self.client.audio.transcriptions.create(
                     file=audio_file,
                     model=self.model,
-                    language=self.lang  # Use the processed global language
+                    language=self.lang_code  # Use the processed global language
                 )
                 return transcription.text
         except Exception as e:

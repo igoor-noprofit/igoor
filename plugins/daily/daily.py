@@ -49,11 +49,9 @@ class Daily(Baseplugin):
     def __init__(self, plugin_name,pm):
         self.pm = pm
         super().__init__(plugin_name,pm)
-        self.global_settings = SettingsManager()
-        self.lang = self.global_settings.get_lang()
         self.prompts=AssistantPrompts("locales/",self.lang)
         self.load_settings()
-        bio = self.global_settings.get_bio()
+        bio = self.settings_manager.get_bio()
         self.bio_name = bio.get("name")
         self.daily_data = None
         
@@ -143,7 +141,7 @@ class Daily(Baseplugin):
         if not isinstance(data, dict):
             print("Error: Data is not a dictionary")
             return
-        health_state=self.global_settings.get_health_state()
+        health_state=self.settings_manager.get_health_state()
         bio_name=self.bio_name
         start_time = time.time()
         dynamic_context = self.get_dynamic_context().copy()

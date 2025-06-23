@@ -39,9 +39,9 @@ class Speechifytts(Baseplugin):
             if (not self.voice_id):
                 self.logger.error("Speechify Voice ID not set in settings,cannot generate speech")
                 return False
-            self.lang = self.settings_manager.get_nested(["plugins", "onboarding", "prefs", "lang"]).replace("_", "-")
-            if self.lang not in self.supported_lang:
-                self.logger.warning(f"Configured language '{self.lang}' is not officially supported by Speechify plugin. Check documentation for compatibility.")
+            self.lang_code = self.lang.replace("_", "-")
+            if self.lang_code not in self.supported_lang:
+                self.logger.warning(f"Configured language '{self.lang_code}' is not officially supported by Speechify plugin. Check documentation for compatibility.")
             try:
                 self.client = Speechify(token=self.api_key)
                 self.is_loaded = True
@@ -86,7 +86,7 @@ class Speechifytts(Baseplugin):
                 response = self.client.tts.audio.speech(
                     input=message,
                     voice_id=self.voice_id,
-                    language=self.lang,
+                    language=self.lang_code,
                     model="simba-multilingual"
                     # format=OUTPUT_FORMAT # Add if needed/supported
                 )

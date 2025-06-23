@@ -31,6 +31,7 @@ class Baseplugin:
         
         self.plugin_name = plugin_name
         self.settings_manager = SettingsManager()
+        self.lang = self.settings_manager.get_lang()
         self.status_manager = StatusManager()
         
         # Load plugin metadata
