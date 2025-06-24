@@ -52,11 +52,16 @@ SIMPLIFIED FOLDER STRUCTURE
 ├── llm_manager.py
 ├── plugin_manager.py
 ├── plugins
-│   ├── asrvosk
-│   │   ├── asrvosk.py
+│   ├── daily
+│   │   ├── daily.py                    (the plugin backend)
+│   │   ├── locales
+│   │   │   ├── fr_FR
+│   │   │   │   ├── daily_fr_FR.json    (translations for backend/frontend: use self.get_my_translations)
+│   │   │   │   ├── prompts.json        (AI prompts for the plugin where needed: : use self.get_my_prompts)
+│   │   │   ├── ...
 │   │   ├── frontend
-│   │   │   ├── asrvosk_component.vue
-│   │   │   └── asrvosk_settings.vue
+│   │   │   ├── daily_component.vue     (the plugin frontend)
+│   │   │   └── daily_settings.vue      (the plugin settings frontend)
 │   │   ├── plugin.json
 │   │   └── settings.json
 │   ├── other plugin...
