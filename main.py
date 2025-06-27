@@ -16,6 +16,7 @@ import asyncio
 from utils import resource_path, setup_logger
 from idle_detector import IdleDetector
 
+
 appdata_dir = os.path.join(os.getenv('APPDATA'), __appname__)
 if not os.path.exists(appdata_dir):
     os.makedirs(appdata_dir)
@@ -31,6 +32,8 @@ def on_idle_change(is_idle):
     else:
         logger.info("User is now active!")
         # 10 MINUTES TOTAL INACTIVITY
+        
+
 
 def show_splash_screen(image_path):
     """Create a simple splash screen with a logo."""
@@ -156,7 +159,7 @@ def load_frontend_components(lang):
             )
 
     # Load and modify the VUE template
-    with open('js/app_template.vue', 'r') as f:
+    with open(resource_path('js/app_template.vue'), 'r') as f:
         html_content = f.read()
         
     # Define the placeholders and their corresponding replacements
@@ -176,12 +179,12 @@ def load_frontend_components(lang):
     final_html = html_content
 
     # Write the final vue to app.vue
-    with open('js/app.vue', 'w') as f:
+    with open(resource_path('js/app.vue'), 'w') as f:
         f.write(final_html)
         f.close()
     
     # Load and modify the JAVASCRIPT
-    with open('js/app_template.js', 'r') as f:
+    with open(resource_path('js/app_template.js'), 'r') as f:
         js_content = f.read()
 
     js_content = js_content.replace('{{LANG}}', f'{lang}')
@@ -195,7 +198,7 @@ def load_frontend_components(lang):
         js_content = js_content.replace(placeholder, replacement)
     
     # Load and modify the JAVASCRIPT
-    with open('js/app.js', 'w') as f:
+    with open(resource_path('js/app.js'), 'w') as f:
         f.write(js_content)  
 
     return final_html

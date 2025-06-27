@@ -16,11 +16,6 @@ hookspec = pluggy.HookspecMarker(app_name)
 hookimpl = pluggy.HookimplMarker(app_name)
 logger = setup_logger('pm', os.path.join(os.getenv('APPDATA'), app_name))
 
-if hasattr(sys, '_MEIPASS'):
-    print(f"_MEIPASS directory: {sys._MEIPASS}")
-else:
-    print("Running in Python mode.")
-
 class MyAppSpec:
     '''
         ************ PLUGINS CYCLE **************
@@ -216,7 +211,7 @@ class PluginManager:
         if hasattr(self, '_initialized') and self._initialized:
             return
         self._initialized = True
-        self.plugin_folder="plugins"
+        self.plugin_folder=resource_path('plugins')
         self.status_manager = StatusManager()
         self.plugins = []
         self.plugin_manager = pluggy.PluginManager(app_name)
