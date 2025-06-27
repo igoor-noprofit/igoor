@@ -11,6 +11,11 @@ from version import __appname__, __version__, __codename__
 plugin_manager = PluginManager()
 
 class Bugreport(Baseplugin):
+    def __init__(self, plugin_name,pm):
+        self.pm = pm
+        super().__init__(plugin_name,pm)
+        self.translations=self.get_my_translations()
+    
     @hookimpl
     def startup(self):
         self.is_loaded = True
@@ -21,7 +26,6 @@ class Bugreport(Baseplugin):
             base_plugin_dir = os.path.join(os.getenv('APPDATA'), __appname__, 'plugins')
             self.plugin_folder = os.path.join(base_plugin_dir, self.__class__.__name__.lower())
             self.logger.info(f"Plugin folder explicitly set to: {self.plugin_folder}")
-
 
     def process_incoming_message(self, message):
         print("Received msg in BUGREPORT: " + message)

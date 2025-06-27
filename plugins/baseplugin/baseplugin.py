@@ -76,26 +76,29 @@ class Baseplugin:
         """
         return self.settings_manager.get_plugin_settings(self.plugin_name)
     
+    def load_translation_file(self,translation_file_path):
+        if not os.path.exists(translation_file_path):
+            self.logger.warning(f"Translation file not found: {translation_file_path}")
+            return {}
+        try:
+            with open(translation_file_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except json.JSONDecodeError as e:
+            self.logger.error(f"Error decoding prompts JSON: {e}")
+            return {}
+    
+    def get_my_translations(self) -> dict:
+        translations_path = os.path.join(self._app_plugin_folder, 'locales', self.lang, self.plugin_name + "_" + self.lang + ".json")
+        return self.load_translation_file(translations_path)
+    
     def get_my_prompts(self) -> dict:
         """
         Retrieve prompts specific to the plugin in the folder
         locales/<lang>/prompts.json
         """ 
         prompts_path = os.path.join(self._app_plugin_folder, 'locales', self.lang, 'prompts.json')
-        print(f"Loading prompts from {prompts_path}")
-        if not os.path.exists(prompts_path):
-            self.logger.warning(f"Prompts file not found: {prompts_path}")
-            return {}
-        try:
-            with open(prompts_path, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        except json.JSONDecodeError as e:
-            self.logger.error(f"Error decoding prompts JSON: {e}")
-            return {}
+        return self.load_translation_file(prompts_path)
         
-        
-        
-
     def mass_update_my_settings(self, json_data):
         try:
             # Check if the input is a valid JSON object
