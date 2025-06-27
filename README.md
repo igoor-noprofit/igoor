@@ -153,19 +153,48 @@ igoor.bat
 
 to open a on-top window, without debug console (CLI window will open and then disappear in the system bar).
 
-## CREATE AN INSTALLER
+## CREATE AN EXECUTABLE
 
 Currently the pyinstaller does NOT work.
+### REQUIREMENTS 
 
-The pyinstaller uses igoor.spec 
+First of all, upgrade pyinstaller: 
+
+```
+pip install --upgrade pyinstaller
+```
+
+and hooks-contrib
+
+```
+pip install --upgrade pyinstaller-hooks-contrib
+```
+
+### WEBRTCVAD-WHEELS
+
+Modify the hook in the virtual environment folder:
+
+\venv\lib\site-packages\_pyinstaller_hooks_contrib\stdhooks\hook-webrtcvad.py
+
+Replace code with this code:
+```
+from PyInstaller.utils.hooks import copy_metadata
+
+datas = copy_metadata('webrtcvad-wheels')
+```
+
+### CREATE THE EXECUTABLE
 
 ```
 pyinstaller igoor.spec --noconfirm
 ```
-To update requirements: 
-```
-pip freeze > requirements.txt
-```
+
+In a CMD window, launch /dist/igoor/igoor.exe 
+
+(so you can see the logs if there's any error)
+
+WARNING: AS OF NOW, THE PYINSTALLER SCRIPT STILL HAS ERRORS (it compiles, but the created executable does not work).
+
 
 ## IGOOR LOGS
 Daily logs are in:
