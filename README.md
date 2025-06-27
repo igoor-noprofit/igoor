@@ -186,6 +186,7 @@ datas = copy_metadata('webrtcvad-wheels')
 ### CREATE THE EXECUTABLE
 
 ```
+copy igoor.spec.txt igoor.spec
 pyinstaller igoor.spec --noconfirm
 ```
 

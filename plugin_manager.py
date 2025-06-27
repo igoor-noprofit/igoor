@@ -384,7 +384,7 @@ class PluginManager:
     def get_plugins_metadata(self):
         """Gathers metadata for all plugins from their respective plugin.json files."""
         plugins_metadata = {}
-        
+        print(f"Plugin folder: {self.plugin_folder}")
         for plugin_name in os.listdir(self.plugin_folder):
             plugin_path = resource_path(os.path.join(self.plugin_folder, plugin_name))
             metadata_file = resource_path(os.path.join(plugin_path, 'plugin.json'))
