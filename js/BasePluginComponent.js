@@ -189,5 +189,5 @@ module.exports = {
     if (this.websocketUtil) {
       this.websocketUtil.close();
     }
-  },
+  }
 };
