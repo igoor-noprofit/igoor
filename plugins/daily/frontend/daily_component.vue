@@ -30,6 +30,9 @@
             </div>
         </div>
 
+        <div class="secondary" v-if="currentView == 'loadingAnswers'">
+            loading...
+        </div>
         <div class="answers secondary" v-if="currentView == 'answers'">
             <button class="btn btn-side btn-side-left" @click="switchToMainView"><svg class="icon icon-l">
                     <use xlink:href="/img/svgdefs.svg#icon-chevron_left" />
@@ -73,7 +76,7 @@ module.exports = {
                 this.sendMsgToBackend({ socket: "ready" });
                 setTimeout(() => {
                     this.checkAndSendReady();
-                }, 500); 
+                }, 500);
             }
         },
         $_showAutocomplete() {
@@ -134,13 +137,15 @@ module.exports = {
         },
         selectItem(category, item, data) {
             if (this.currentView == 'main' || this.currentView == 'secondary') {
+                this.currentView = 'loadingAnswers';
+                console.warn("ITEM SELECTED");
+                
                 this.answers = [];
                 this.sendMsgToBackend({
                     action: 'generatePhrases',
                     category: category,
                     theme: item
                 });
-                this.currentView = 'answers';
             }
         },
         /* Sending final phrase */
