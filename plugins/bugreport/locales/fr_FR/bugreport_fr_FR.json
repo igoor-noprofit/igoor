@@ -6,5 +6,21 @@
     "Add comment": "Ajouter commentaire",
     "Generating bug report...": "Je suis en train de générer un report de bug...",
     "Thanks,your comment has been added": "Merci, votre commentaire a été ajouté !",
-    "Cannot send empty comment or missing report path.":"Il est impossible d'envoyer le commentaire pour l'instant, ou une autre erreur s'est produite"
+    "Cannot send empty comment or missing report path.":"Il est impossible d'envoyer le commentaire pour l'instant, ou une autre erreur s'est produite",
+    "Missing required data (folder path or comment).": "Données requises manquantes (chemin du dossier ou commentaire).",
+    "Internal configuration error: Plugin folder not set.": "Erreur de configuration interne : le dossier du plugin n'est pas défini.",
+    "Failed to create report subfolder.": "Échec de la création du sous-dossier du rapport.",
+    "Failed to take screenshot.": "Échec de la capture d'écran.",
+    "Invalid folder path specified.": "Chemin de dossier spécifié invalide.",
+    "Report folder not found.": "Dossier de rapport introuvable.",
+    "Comment saved successfully.": "Commentaire enregistré avec succès.",
+    "Failed to write comment file: {error}": "Échec de l'écriture du fichier de commentaire : {error}",
+    "Internal error processing request: {error}": "Erreur interne lors du traitement de la demande : {error}",
+    " (Backend log could not be copied).": " (Le journal du backend n'a pas pu être copié).",
+    " (Backend log not found).": " (Journal du backend introuvable).",
+    "Report saved in folder: {folder}": "Rapport enregistré dans le dossier : {folder}",
+    " (Browser log could not be saved).": " (Le journal du navigateur n'a pas pu être enregistré).",
+    " (No browser log received).": " (Aucun journal de navigateur reçu).",
+    " (LLM log could not be copied/found).": " (Le journal LLM n'a pas pu être copié/trouvé).",
+    " (LLM log not searched).": " (Journal LLM non recherché)."
 }

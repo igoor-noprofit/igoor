@@ -47,7 +47,7 @@ class Bugreport(Baseplugin):
                     self.send_message_to_frontend({
                         "status": "error",
                         "action": "comment_saved", # Use same action for consistency in frontend handling
-                        "message": "Missing required data (folder path or comment)."
+                        "message": self.translations.get("Missing required data (folder path or comment).")
                     })
             else:
                 self.logger.debug(f"Unknown or unhandled action: {action}")
@@ -62,7 +62,7 @@ class Bugreport(Baseplugin):
             self.logger.error(f"Error processing message in bugreport: {e}", exc_info=True)
             self.send_message_to_frontend({
                 "status": "error",
-                "message": f"Internal error processing request: {e}"
+                "message": self.translations.get("Internal error processing request: {error}",f"Internal error processing request: {e}").format(error=e)
             })
 
 
@@ -89,7 +89,7 @@ class Bugreport(Baseplugin):
         # Ensure self.plugin_folder is valid before joining
         if not hasattr(self, 'plugin_folder') or not self.plugin_folder or not os.path.isdir(self.plugin_folder):
             self.logger.error(f"Invalid or missing plugin_folder attribute: {getattr(self, 'plugin_folder', 'Not Set')}")
-            self.send_message_to_frontend({"status": "error", "message": "Internal configuration error: Plugin folder not set."})
+            self.send_message_to_frontend({"status": "error", "message": self.translations.get("Internal configuration error: Plugin folder not set.")})
             return
 
         report_subfolder = os.path.join(self.plugin_folder, f'bugreport_{report_timestamp}')
@@ -99,7 +99,7 @@ class Bugreport(Baseplugin):
         except OSError as e:
             self.logger.error(f"Failed to create report subfolder {report_subfolder}: {e}")
             # Send error back to frontend
-            self.send_message_to_frontend({"status": "error", "message": "Failed to create report subfolder."})
+            self.send_message_to_frontend({"status": "error", "message": self.translations.get("Failed to create report subfolder.")})
             return # Stop processing
 
         # --- Take Screenshot (Save to Subfolder) ---
@@ -107,7 +107,7 @@ class Bugreport(Baseplugin):
         if not screenshot_path:
             # Error already logged in take_screenshot
             # Send error back to frontend
-            self.send_message_to_frontend({"status": "error", "message": "Failed to save screenshot."})
+            self.send_message_to_frontend({"status": "error", "message": self.translations.get("Failed to take screenshot.")})
             return # Stop processing
         self.logger.info(f"Screenshot saved to: {screenshot_path}")
 
@@ -174,21 +174,21 @@ class Bugreport(Baseplugin):
 
         # --- Send status message back to the frontend ---
         # smsg = self.lang
-        status_message = f"Report saved in folder: {report_subfolder}"
+        status_message = self.translations.get("Report saved in folder: {folder}",f"Report saved in folder: {report_subfolder}").format(folder=report_subfolder)
         # Add details about missing files if necessary
         if not log_copy_success and log_path:
-            status_message += " (Backend log could not be copied)."
+            status_message += self.translations.get(" (Backend log could not be copied).")
         elif not log_path:
-            status_message += " (Backend log not found)."
+            status_message += self.translations.get(" (Backend log not found).")
         if not console_log_saved and console_log_data is not None:
-            status_message += " (Browser log could not be saved)."
+            status_message += self.translations.get(" (Browser log could not be saved).")
         elif console_log_data is None:
-            status_message += " (No browser log received)."
+            status_message += self.translations.get(" (No browser log received).")
         # Add LLM log status
         if not llm_log_copy_success and log_path: # Check log_path again to avoid redundant message if main log wasn't found
-            status_message += " (LLM log could not be copied/found)."
+            status_message += self.translations.get(" (LLM log could not be copied/found).")
         elif not log_path:
-             status_message += " (LLM log not searched)."
+             status_message += self.translations.get(" (LLM log not searched).")
 
 
         self.send_message_to_frontend({
@@ -219,7 +219,7 @@ class Bugreport(Baseplugin):
                 self.send_message_to_frontend({
                     "status": "error",
                     "action": "comment_saved",
-                    "message": "Invalid folder path specified."
+                    "message": self.translations.get("Invalid folder path specified.")
                 })
                 return
 
@@ -229,7 +229,7 @@ class Bugreport(Baseplugin):
                 self.send_message_to_frontend({
                 "status": "error",
                 "action": "comment_saved",
-                "message": "Report folder not found."
+                "message": self.translations.get("Report folder not found.")
                 })
                 return
 
@@ -251,7 +251,7 @@ class Bugreport(Baseplugin):
             self.send_message_to_frontend({
                 "status": "success",
                 "action": "comment_saved",
-                "message": "Comment saved successfully."
+                "message": self.translations.get("Comment saved successfully.")
             })
         except Exception as e:
             self.logger.error(f"Failed to save user comment to {destination_comment_path}: {e}")
@@ -259,7 +259,7 @@ class Bugreport(Baseplugin):
             self.send_message_to_frontend({
                 "status": "error",
                 "action": "comment_saved",
-                "message": f"Failed to write comment file: {e}"
+                "message": self.translations.get("Failed to write comment file: {error}", f"Failed to write comment file: {e}").format(error=e)
             })
 
         # Return value is less critical now that we send status via websocket
