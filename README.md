@@ -126,7 +126,7 @@ Allowed formats:
 .txt
 .md
 
-If the index folder (IGOOR_FOLDER/plugins/rag/faiss_index) does not exist, but the medias folder do exist and it's not empty, at startup the plugin will create the index by ingesting all the files in the medias folder.
+If the index folder (IGOOR_FOLDER/plugins/rag/faiss_index) does not exist, but the medias folder do exist and it's not empty, at startup the plugin will create or update the index by ingesting all the (new) documents in the medias folder.
 
 ### EMBEDDING MODELS FOR RAG
 
@@ -185,16 +185,16 @@ datas = copy_metadata('webrtcvad-wheels')
 
 ### CREATE THE EXECUTABLE
 
+In powershell (VS Code terminal):
+
 ```
-copy igoor.spec.txt igoor.spec
-pyinstaller igoor.spec --noconfirm
+.\create_exe.bat
 ```
 
 In a CMD window, launch /dist/igoor/igoor.exe 
-
 (so you can see the logs if there's any error)
 
-WARNING: AS OF NOW, THE PYINSTALLER SCRIPT STILL HAS ERRORS (it compiles, but the created executable does not work).
+WARNING: AS OF NOW, THE PYINSTALLER SCRIPT STILL HAS ERRORS (it compiles, but the created executable has a websocket problem).
 
 
 ## IGOOR LOGS
@@ -203,3 +203,5 @@ Daily logs are in:
 ```
 IGOOR_FOLDER/logs/
 ```
+
+Separate llm_invocations contain a JSON of all LLM calls, with prompt and answer.
