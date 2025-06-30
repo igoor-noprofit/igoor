@@ -6,8 +6,10 @@
 </template>
 
 <script>
-export default {
+import BasePluginComponent from '/js/BasePluginComponent.js';
+module.exports = {
     name: "clock",
+    mixins: [BasePluginComponent],
     data() {
         return {
             formattedDate: '',
@@ -28,12 +30,14 @@ export default {
     },
     methods: {
         updateDateTime() {
+            // Convert lang to BCP 47 format (fr_FR -> fr-FR)
+            let locale = (this.lang || 'en-EN').replace('_', '-');
             const now = new Date();
             const optionsDate = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
-            const dateString = now.toLocaleDateString(this.lang, optionsDate);
+            const dateString = now.toLocaleDateString(locale, optionsDate);
 
             const optionsTime = { hour: '2-digit', minute: '2-digit' };
-            const timeString = now.toLocaleTimeString(this.lang, optionsTime);
+            const timeString = now.toLocaleTimeString(locale, optionsTime);
 
             this.formattedDate = `${dateString}`
             this.formattedTime = `${timeString}`;
