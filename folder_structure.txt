@@ -101,6 +101,11 @@
 │   │   ├── frontend
 │   │   │   ├── asrwhisper_component.vue
 │   │   │   └── asrwhisper_settings.vue
+│   │   ├── locales
+│   │   │   ├── en_EN
+│   │   │   │   └── asrwhisper_en_EN.json
+│   │   │   └── fr_FR
+│   │   │       └── asrwhisper_fr_FR.json
 │   │   ├── plugin.json
 │   │   ├── samples
 │   │   │   ├── LICENSE.txt
@@ -113,6 +118,8 @@
 │   │   ├── frontend
 │   │   │   └── autocomplete_component.vue
 │   │   ├── locales
+│   │   │   ├── en_EN
+│   │   │   │   └── autocomplete_en_EN.json
 │   │   │   └── fr_FR
 │   │   │       ├── autocomplete_fr_FR.json
 │   │   │       └── prompts.json
@@ -202,6 +209,7 @@
 │   │   │   └── memory_component.vue
 │   │   ├── locales
 │   │   │   └── fr_FR
+│   │   │       ├── memory_fr_FR.json
 │   │   │       └── prompts.json
 │   │   ├── memory.py
 │   │   ├── plugin.json
@@ -221,6 +229,7 @@
 │   │   ├── frontend
 │   │   │   └── onboarding_component.vue
 │   │   ├── locales
+│   │   │   ├── en_EN
 │   │   │   └── fr_FR
 │   │   │       └── onboarding_fr_FR.json
 │   │   ├── onboarding.py
