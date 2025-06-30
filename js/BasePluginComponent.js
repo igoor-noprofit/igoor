@@ -29,7 +29,12 @@ module.exports = {
         const pluginName = this.$options.name
           .replace(/Settings$/, "")
           .toLowerCase();
-        const lang = this.lang || "en";
+        const lang = this.lang || "en_EN";
+        if (lang === "en_EN") {
+          // No need to fetch, use empty translations for English
+          this.translations = {};
+          return;
+        }
         const url = `/plugins/${pluginName}/locales/${lang}/${pluginName}_${lang}.json`;
         const response = await fetch(url);
         if (!response.ok) throw new Error(`Could not load ${url}`);
