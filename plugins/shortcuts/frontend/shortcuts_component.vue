@@ -59,11 +59,11 @@ export default {
                 return [];
             }
             return [
-                this.translations["I'm on my way, just finishing writing"],
-                this.translations["Just a moment, I'll finish"],
-                this.translations["One second and it's done"],
-                this.translations["Just give me two seconds"],
-                this.translations["I'm just finishing"]
+                this.t("I'm on my way, just finishing writing"),
+                this.t("Just a moment, I'll finish"),
+                this.t("One second and it's done"),
+                this.t("Just give me two seconds"),
+                this.t("I'm just finishing")
             ];
         }
     },

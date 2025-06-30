@@ -1,6 +1,6 @@
 {
     "Plugins": "Extensions",
-    "Please restart the app for plugin changes to take effect.": "Veuillez redémarrer l'application pour que les modifications des extensions prennent effet.",
+    "Please restart the app for changes to take effect.": "Veuillez redémarrer l'application pour que les modifications des extensions prennent effet.",
     "Bio": "Bio",
     "Preferences": "Préférences",
     "AI": "IA",
@@ -12,6 +12,7 @@
     "Style": "Style",
     "Language": "Langue",
     "French": "Français",
+    "English": "Anglais",
     "Locale": "Locale",
     "Idle threshold (n. of seconds before the user is considered idle)": "Seuil d'inactivité (n. de secondes avant que l'utilisateur soit considéré comme inactif)",
     "Provider": "Fournisseur",

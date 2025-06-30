@@ -1,5 +1,5 @@
 <template>
-    <a v-show="appview!=='autocomplete'" class="autocompletelauncher plugin" @click="$_showAutocomplete()">{{  translations["say something..."] }}</a>
+    <a v-show="appview!=='autocomplete'" class="autocompletelauncher plugin" @click="$_showAutocomplete()">{{ t("say something...") }}</a>
 </template>
 
 <script>

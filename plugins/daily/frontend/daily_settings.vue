@@ -192,7 +192,7 @@ module.exports = {
     },
     deleteCategory(view, catIdx) {
       const arr = view === 'main' ? this.mainCategories : this.secondaryCategories;
-      if (confirm(this.translations['Do you really want to delete this delete this category?'])) arr.splice(catIdx, 1);
+      if (confirm(this.t('Do you really want to delete this delete this category?'))) arr.splice(catIdx, 1);
     },
     addCategory(view) {
       const arr = view === 'main' ? this.mainCategories : this.secondaryCategories;
@@ -219,7 +219,7 @@ module.exports = {
     },
     deleteItem(view, catIdx, itemIdx) {
       const arr = view === 'main' ? this.mainCategories : this.secondaryCategories;
-      if (confirm(this.translations['Do you really want to delete this delete this item?'])) arr[catIdx].itemsArr.splice(itemIdx, 1);
+      if (confirm(this.t('Do you really want to delete this delete this item?'))) arr[catIdx].itemsArr.splice(itemIdx, 1);
     },
     addItem(view, catIdx) {
       const arr = view === 'main' ? this.mainCategories : this.secondaryCategories;
