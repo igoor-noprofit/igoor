@@ -1,5 +1,4 @@
 {
-    "lang": "fr_FR",
     "wakeword": "Igor",
     "model_size": "big",
     "continuous": false,

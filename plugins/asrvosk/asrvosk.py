@@ -114,7 +114,7 @@ class Asrvosk(Baseplugin):
     def load_model(self):
         global model, rec
         start_time = time.time()
-        model_path = os.path.join(self.plugin_folder, "models", self.settings.get("lang"), self.settings.get("model_size"))
+        model_path = os.path.join(self.plugin_folder, "models", self.lang, self.settings.get("model_size"))
         
         self.logger.info(f"Attempting to load model from: {model_path}")
         
@@ -131,7 +131,7 @@ class Asrvosk(Baseplugin):
                     models_db = json.load(f)
                 
                 # Get download URL based on language and size
-                lang = self.settings.get("lang")
+                lang = self.lang
                 size = self.settings.get("model_size")
                 self.logger.info(f"Looking for model with lang={lang}, size={size}")
                 

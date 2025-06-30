@@ -9,7 +9,7 @@
             "size":"1.4G"
         }
     },
-    "en_US":{
+    "en_EN":{
         "small": {
             "url":"https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip",
             "size":"40M"
