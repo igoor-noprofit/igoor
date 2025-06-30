@@ -30,10 +30,10 @@ export default {
         updateDateTime() {
             const now = new Date();
             const optionsDate = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
-            const dateString = now.toLocaleDateString('fr-FR', optionsDate);
+            const dateString = now.toLocaleDateString(this.lang, optionsDate);
 
             const optionsTime = { hour: '2-digit', minute: '2-digit' };
-            const timeString = now.toLocaleTimeString('fr-FR', optionsTime);
+            const timeString = now.toLocaleTimeString(this.lang, optionsTime);
 
             this.formattedDate = `${dateString}`
             this.formattedTime = `${timeString}`;
