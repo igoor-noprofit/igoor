@@ -20,7 +20,7 @@ module.exports = {
       connectionAttempts: 0,
       maxRetries: 5,
       retryDelay: 1000,
-      translations: {}
+      translations: {},
     };
   },
   methods: {
@@ -42,6 +42,10 @@ module.exports = {
         // console.warn("Translation loading failed:", e);
         this.translations = {};
       }
+    },
+    t(key) {
+      // Return the translated string or the key itself if not found
+      return this.translations[key] || key;
     },
     requestSettings() {
       this.sendMsgToBackend({
@@ -189,5 +193,5 @@ module.exports = {
     if (this.websocketUtil) {
       this.websocketUtil.close();
     }
-  }
+  },
 };
