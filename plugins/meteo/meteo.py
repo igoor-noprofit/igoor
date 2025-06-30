@@ -76,7 +76,7 @@ class Meteo(Baseplugin):
 
         # Configure language
         config_dict = get_default_config()
-        config_dict['language'] = os.getenv("METEO_LANG")  # 'fr' for French language
+        config_dict['language'] = self.lang
 
         # Initialize the OWM object with your API key
         api_key = self.settings.get("api_key")  # Ensure your API key is set in the environment variable
