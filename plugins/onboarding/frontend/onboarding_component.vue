@@ -153,7 +153,7 @@
                                                 @click="showPluginSettingsView(plugin)">
                                         </div>
                                     </div>
-                                    <p class="plugin-description">{{ plugin.description || translations['No description available'] }}</p>
+                                    <p class="plugin-description">{{ plugin.description || t('No description available') }}</p>
                                     <div class="plugin-requirements">
                                         <span v-if="plugin.is_core" class="requirement core">
                                             🔒 {{ t("Core Plugin") }}

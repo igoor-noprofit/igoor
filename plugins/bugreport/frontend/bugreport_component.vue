@@ -17,11 +17,11 @@
                 <div class="comment-section" v-if="reportFolderPath"> <!-- Show only after report is saved -->
                     <hr>
                     <h5>{{ t("Help us improve IGOOR (optional)") }}</h5>
-                    <textarea v-model="userComment" v-bind:placeholder="translations['Please describe what happened']" rows="4"
+                    <textarea v-model="userComment" v-bind:placeholder="t('Please describe what happened')" rows="4"
                         style="width: 100%; margin-bottom: 10px; font-size: 16px;"></textarea>
                     <button class="button" @click="sendUserComment" :disabled="!userComment.trim() || isSendingComment"
                         style="margin-right: 10px;">
-                        {{ isSendingComment ? translations['Saving...'] : translations['Add comment'] }}
+                        {{ isSendingComment ? t('Saving...') : t('Add comment') }}
                     </button>
                     <span class="comment-status">{{ commentStatusMessage }}</span>
                 </div>
