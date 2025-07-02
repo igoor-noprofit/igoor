@@ -53,7 +53,7 @@ SIMPLIFIED FOLDER STRUCTURE
 ├── plugin_manager.py
 ├── plugins
 │   ├── daily
-│   │   ├── daily.py                    (the plugin backend)
+│   │   ├── daily.py                    (the plugin backend, based on baseplugin.py)
 │   │   ├── locales
 │   │   │   ├── fr_FR
 │   │   │   │   ├── daily_fr_FR.json    (translations for backend/frontend: use self.get_my_translations)
