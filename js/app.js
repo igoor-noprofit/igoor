@@ -45,7 +45,7 @@ async function initializeApp() {
         minimized: false,
         headerExpanded: false,
         pywebviewready: false,
-        lang: "en_EN"
+        lang: "fr_FR"
       }
     },
     components: {

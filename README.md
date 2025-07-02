@@ -194,7 +194,8 @@ In powershell (VS Code terminal):
 In a CMD window, launch /dist/igoor/igoor.exe 
 (so you can see the logs if there's any error)
 
-WARNING: AS OF NOW, THE PYINSTALLER SCRIPT STILL HAS ERRORS (it compiles, but the created executable has a websocket problem).
+### KNOWN ISSUE ###
+AS OF NOW, THE PYINSTALLER SCRIPT STILL HAS ERRORS (it compiles, but the created executable has a websocket problem between frontend and backend on onboarding plugin).
 
 
 ## IGOOR LOGS
