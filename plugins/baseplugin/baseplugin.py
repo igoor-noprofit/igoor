@@ -75,6 +75,24 @@ class Baseplugin:
         Retrieve settings specific to the plugin.
         """
         return self.settings_manager.get_plugin_settings(self.plugin_name)
+
+    
+    def get_my_translations(self) -> dict:
+        translations_path = os.path.join(self._app_plugin_folder, 'locales', self.lang, self.plugin_name + "_" + self.lang + ".json")
+        return self.load_translation_file(translations_path)
+    
+    # Example: load prompts from a .py file
+    def get_my_prompts(self) -> dict:
+        try:
+            import importlib.util
+            prompts_path = os.path.join(self._app_plugin_folder, 'locales', self.lang, 'prompts.py')
+            spec = importlib.util.spec_from_file_location("prompts", prompts_path)
+            prompts_module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(prompts_module)
+        except (FileNotFoundError, ImportError) as e:
+            self.logger.error(f"Error loading prompts from {prompts_path}: {e}")
+            return {}
+        return prompts_module.prompts
     
     def load_translation_file(self,translation_file_path):
         if not os.path.exists(translation_file_path):
@@ -86,18 +104,6 @@ class Baseplugin:
         except json.JSONDecodeError as e:
             self.logger.error(f"Error decoding prompts JSON: {e}")
             return {}
-    
-    def get_my_translations(self) -> dict:
-        translations_path = os.path.join(self._app_plugin_folder, 'locales', self.lang, self.plugin_name + "_" + self.lang + ".json")
-        return self.load_translation_file(translations_path)
-    
-    def get_my_prompts(self) -> dict:
-        """
-        Retrieve prompts specific to the plugin in the folder
-        locales/<lang>/prompts.json
-        """ 
-        prompts_path = os.path.join(self._app_plugin_folder, 'locales', self.lang, 'prompts.json')
-        return self.load_translation_file(prompts_path)
         
     def mass_update_my_settings(self, json_data):
         try:
