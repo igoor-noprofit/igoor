@@ -27,14 +27,6 @@ class Memory(Baseplugin):
     @hookimpl
     def startup(self):
         loop = asyncio.get_event_loop()
-        '''
-        if loop.is_running():
-            # If the loop is already running, use create_task
-            asyncio.create_task(self.test_after_conversation_end())
-        else:
-            # If no loop is running, start a new one
-            loop.run_until_complete(self.test_after_conversation_end())
-        '''
         try:
             loop = asyncio.get_event_loop()
         except RuntimeError:
@@ -76,28 +68,32 @@ class Memory(Baseplugin):
     '''
     @hookimpl
     async def after_conversation_end(self, last_conversation: dict) -> None:
-        start_time = time.time()
+        # start_time = time.time()
         
         # Get conversation ID if available and log it
         conversation_id = last_conversation.get("thread_id")
-        self.logger.info(f"Processing conversation end with ID: {conversation_id}")
         
         if conversation_id is None:
             self.logger.warning("No conversation_id found in last_conversation")
             self.logger.debug(f"last_conversation contents: {last_conversation}")
-        
+        else:
+            self.logger.info(f"Processing conversation end with ID: {conversation_id}")
+
         # SYSTEM PROMPT
-        sys_pm = PromptManager(template=self.prompts.get("memory", {}).get("system"))
+        template=self.prompts.get("memory", {}).get("system")
+        sys_pm = PromptManager(template)
         system_prompt = sys_pm.create_prompt(bio_name=self.bio_name)
+        print(f"Memory system prompt: {system_prompt}")
         
         # HUMAN PROMPT
-        conversation = last_conversation.get("txt")   
+        conversation = last_conversation.get("txt")
+        print(f"Conversation text: {conversation}")
         pm = PromptManager(template=self.prompts.get("memory", {}).get("usr"))
         prompt = pm.create_prompt(conversation=conversation)       
-        
+
         try:
             # Get memories from first LLM call
-            llm = LLMManager(self.settings.get("provider"), self.settings.get("api_key"), self.settings.get("model_name"), log_folder=self.plugin_folder)
+            llm = LLMManager(self.settings.get("provider"), self.settings.get("api_key"), self.settings.get("model_name"))
             llm.set_json_schema(DataModel)
             memories = llm.invoke(system_prompt, prompt)
             has_error, memories = self.handle_llm_error(memories)
