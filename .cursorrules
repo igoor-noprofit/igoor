@@ -45,6 +45,7 @@ VUE COMPONENTS
 Syntax for internal methods is $_funcname,in order to avoid confusion with global methods.
 
 SIMPLIFIED FOLDER STRUCTURE
+├── main.py (main app)
 ├── context_manager.py
 ├── css (frontend css)
 ├── img (frontend img)
@@ -57,7 +58,7 @@ SIMPLIFIED FOLDER STRUCTURE
 │   │   ├── locales
 │   │   │   ├── fr_FR
 │   │   │   │   ├── daily_fr_FR.json    (translations for backend/frontend: use self.get_my_translations)
-│   │   │   │   ├── prompts.json        (AI prompts for the plugin where needed: : use self.get_my_prompts)
+│   │   │   │   ├── prompts.py          (dict of AI prompts for the plugin where needed: : use self.get_my_prompts)
 │   │   │   ├── ...
 │   │   ├── frontend
 │   │   │   ├── daily_component.vue     (the plugin frontend)
