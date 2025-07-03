@@ -284,17 +284,19 @@ class Baseplugin:
                 self.logger.error(f"Error while sending message to {target_plugin_name} frontend: {e}")
         else:
             self.logger.warning(f"{target_plugin_name} frontend is not ready")
+    
+    def send_settings_to_frontend(self):
+        settings = self.get_my_settings()
+        self.send_message_to_frontend({
+            "type": "settings",
+            "settings": settings
+        })
             
     def process_incoming_message(self, message):
         try:
             message_dict = json.loads(message)
-            
             if message_dict.get('action') == 'get_settings':
-                settings = self.get_my_settings()
-                self.send_message_to_frontend({
-                    "type": "settings",
-                    "settings": settings
-                })
+                self.send_settings_to_frontend()
                 return
             
             if message_dict.get('action') == 'save_settings':

@@ -23,7 +23,6 @@ export default {
         };
     },
     created() {
-        this.requestSettings();
         this.audio = {
             on: new Audio('/plugins/asrvosk/samples/on.wav'),
             off: new Audio('/plugins/asrvosk/samples/off.wav')

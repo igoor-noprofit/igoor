@@ -113,6 +113,7 @@ class Asrwhisper(Baseplugin):
         self.model_thread.join()
         print("Model is ready to use.")
         await self.send_status("ready")
+        self.send_settings_to_frontend()
         await self.start()
         # await self.test_wake_word()
     
