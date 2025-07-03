@@ -28,7 +28,7 @@
         <!-- Silence Frames -->
         <div class="form-label">{{t('Silence Frames')}}</div>
         <div class="form-input">
-            <select name="silence_frames" v-model="formData.silence_frames">
+            <select name="silence_frames" v-model.number="formData.silence_frames">
                 <option value="500">500: {{t('Faster ASR')}}</option>
                 <option value="1250">1250: {{t('Recommended for most cases')}}</option>
                 <option value="1500">1500: {{t('Recommended for most cases')}}</option>
