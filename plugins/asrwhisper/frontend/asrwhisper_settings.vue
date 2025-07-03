@@ -32,6 +32,24 @@
                 {{t('The higher, the slower the speech detection, but better quality')}}
             </p>
         </field>
+        <field>
+            <label>{{t('Microphone Activation Shortcut')}}</label>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <input
+                    type="text"
+                    readonly
+                    :value="formData.shortcut"
+                    @focus="startRecordingShortcut"
+                    @keydown.prevent="recordShortcut"
+                    @blur="stopRecordingShortcut"
+                    v-bind:placeholder="t('Click and press a key or key combination')"
+                    style="width: 180px;"
+                    tabindex="0"
+                />
+                <button type="button" @click="clearShortcut" style="margin-left: 4px;">{{t('Clear')}}</button>
+            </div>
+            <p style="font-size: 0.95em; color: #aaa;">{{t('Click the box and press a key or combination (e.g., Ctrl+R) to set the shortcut.')}}</p>
+        </field>
         <!--field>
             <label>Continuous Mode</label>
             <input type="checkbox" name="continuous">
@@ -47,37 +65,73 @@
 <script>
 import BasePluginComponent from '/js/BasePluginComponent.js';
 
+function formatShortcut(e) {
+    let keys = [];
+    if (e.ctrlKey) keys.push('Ctrl');
+    if (e.altKey) keys.push('Alt');
+    if (e.shiftKey) keys.push('Shift');
+    if (e.metaKey) keys.push('Meta');
+    // Ignore modifier-only
+    if (e.key && !['Control', 'Shift', 'Alt', 'Meta'].includes(e.key)) {
+        keys.push(e.key.length === 1 ? e.key.toUpperCase() : e.key);
+    }
+    return keys.join('+');
+}
+
 export default {
     name: "asrwhisperSettings",
     props: {
         initialSettings: Object
     },
-    mixins: [BasePluginComponent], // Use the mixin
+    mixins: [BasePluginComponent],
     data() {
-
         return {
             formData: {
                 model_name: '',
                 vad_level:'',
-                silence_frames:1500
-            }
+                silence_frames:1500,
+                shortcut: ''
+            },
+            isRecordingShortcut: false
         };
     },
     watch: {
         initialSettings: {
             handler(newVal) {
                 if (newVal) {
-                    // Merge carefully to preserve structure if settings are partial
                     this.formData = { ...this.formData, ...newVal };
                 }
             },
-            immediate: true, // Apply initial values when component loads
+            immediate: true,
             deep: true
         }
+    },
+    methods: {
+        startRecordingShortcut(e) {
+            this.isRecordingShortcut = true;
+        },
+        stopRecordingShortcut() {
+            this.isRecordingShortcut = false;
+        },
+        recordShortcut(e) {
+            if (!this.isRecordingShortcut) return;
+            // Only set shortcut if a non-modifier key is pressed
+            if (!['Control', 'Shift', 'Alt', 'Meta'].includes(e.key)) {
+                const shortcut = formatShortcut(e);
+                if (shortcut) {
+                    this.formData.shortcut = shortcut;
+                    this.isRecordingShortcut = false;
+                    e.target.blur();
+                }
+            }
+        },
+        clearShortcut() {
+            this.formData.shortcut = '';
+        }
     }
-
 };
 </script>
+
 <style>
 .plugin-settings-component{
     padding: 15px !important;
