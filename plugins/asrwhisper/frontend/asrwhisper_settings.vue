@@ -1,64 +1,71 @@
 <template>
-    <div class="asrwhisper-plugin-settings">
-        <field>
-            <label>{{t('Model name')}}</label>
+    <div class="asrwhisper-plugin-settings form-grid">
+        <!-- Model Name -->
+        <div class="form-label">{{t('Model name')}}</div>
+        <div class="form-input">
             <select name="model_name" v-model="formData.model_name">
                 <option value="whisper-large-v3">Whisper Large v3</option>
                 <option value="whisper-large-v3-turbo">Whisper Large v3 Turbo</option>
             </select>
-        </field>
-        <field>
-            <label>{{t('VAD level')}}</label>
+        </div>
+        <div class="form-note"></div>
+
+        <!-- VAD Level -->
+        <div class="form-label">{{t('VAD level')}}</div>
+        <div class="form-input">
             <select name="vad_level" v-model="formData.vad_level">
                 <option value="0">0 ({{t('Less aggressive')}})</option>
                 <option value="1">1</option>
                 <option value="2">2 ({{t('Recommended')}})</option>
                 <option value="3">3 ({{t('Most aggressive')}})</option>
             </select>
-            <p>
-                {{t('The VAD level determines how aggressive the algorithm is at detecting speech.')}}
-                <br>{{t('Higher levels works better in noisy environments. ')}}
-            </p>
-        </field>
-        <field>
-            <label>{{t('Silence Frames')}}</label>
+        </div>
+        <div class="form-note">
+            {{t('The VAD level determines how aggressive the algorithm is at detecting speech.')}}<br>
+            {{t('Higher levels works better in noisy environments. ')}}
+        </div>
+
+        <!-- Silence Frames -->
+        <div class="form-label">{{t('Silence Frames')}}</div>
+        <div class="form-input">
             <select name="silence_frames" v-model="formData.silence_frames">
                 <option value="500">500: {{t('Faster ASR')}}</option>
                 <option value="1250">1250: {{t('Recommended for most cases')}}</option>
                 <option value="1500">1500: {{t('Recommended for most cases')}}</option>
                 <option value="2000">2000: {{t('Slower ASR: For people making big pauses')}}</option>
             </select>
-            <p>{{t('The lower, the faster the speech detection, but also less quality.')}}<br>
-                {{t('The higher, the slower the speech detection, but better quality')}}
-            </p>
-        </field>
-        <field>
-            <label>{{t('Microphone Activation Shortcut')}}</label>
-            <div style="display: flex; align-items: center; gap: 8px;">
-                <input
-                    type="text"
-                    readonly
-                    :value="formData.shortcut"
-                    @focus="startRecordingShortcut"
-                    @keydown.prevent="recordShortcut"
-                    @blur="stopRecordingShortcut"
-                    v-bind:placeholder="t('Click and press a key or key combination')"
-                    style="width: 180px;"
-                    tabindex="0"
-                />
-                <button type="button" @click="clearShortcut" style="margin-left: 4px;">{{t('Clear')}}</button>
-            </div>
-            <p style="font-size: 0.95em; color: #aaa;">{{t('Click the box and press a key or combination (e.g., Ctrl+R) to set the shortcut.')}}</p>
-        </field>
-        <!--field>
-            <label>Continuous Mode</label>
-            <input type="checkbox" name="continuous">
-        </field>
-        <field>
-            <label>Wakeword</label><input type="text" value="" name="wakeword" placeholder="ex. Alexa"
-                v-model="formData.wakeword">
-        </field-->
-        <button @click="updateSettings">{{t('SAVE PLUGIN SETTINGS')}}</button>
+        </div>
+        <div class="form-note">
+            {{t('The lower, the faster the speech detection, but also less quality.')}}<br>
+            {{t('The higher, the slower the speech detection, but better quality')}}
+        </div>
+
+        <!-- Shortcut -->
+        <div class="form-label">{{t('Microphone Activation Shortcut')}}</div>
+        <div class="form-input" style="display: flex; align-items: center; gap: 8px;">
+            <input
+                type="text"
+                readonly
+                :value="formData.shortcut"
+                @focus="startRecordingShortcut"
+                @keydown.prevent="recordShortcut"
+                @blur="stopRecordingShortcut"
+                v-bind:placeholder="t('Key shortcut')"
+                style="width: 180px;"
+                tabindex="0"
+            />
+            <button type="button" @click="clearShortcut" style="margin-left: 4px;" :disabled="!formData.shortcut">{{t('Clear')}}</button>
+        </div>
+        <div class="form-note">
+            {{t('Click the box and press a key or combination (e.g., Ctrl+R) to set the shortcut.')}}
+        </div>
+
+        <!-- Save Button (spans all columns) -->
+        <div class="form-label"></div>
+        <div class="form-input">
+            <button @click="updateSettings">{{t('SAVE PLUGIN SETTINGS')}}</button>
+        </div>
+        <div class="form-note"></div>
     </div>
 </template>
 
@@ -133,7 +140,50 @@ export default {
 </script>
 
 <style>
-.plugin-settings-component{
-    padding: 15px !important;
+.asrwhisper-plugin-settings.form-grid {
+    display: grid;
+    grid-template-columns: 200px 1fr 2fr;
+    gap: 12px 18px;
+    align-items: start;
+    background: none;
+    padding: 18px 0;
+}
+.form-label {
+    font-weight: 500;
+    padding-top: 6px;
+    color: #e0e0e0;
+    text-align: right;
+}
+.form-input {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.form-note {
+    font-size: 0.97em;
+    color: #aaa;
+    line-height: 1.4;
+    padding-top: 2px;
+}
+select, input[type="text"] {
+    background: #222;
+    color: #fff;
+    border: 1px solid #444;
+    border-radius: 4px;
+    padding: 6px 10px;
+    font-size: 1em;
+}
+button {
+    background: #3ca23c;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    padding: 6px 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+button:hover {
+    background: #338a33;
 }
 </style>
