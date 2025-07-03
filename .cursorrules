@@ -27,14 +27,15 @@ Based on Pluggy to handle plugins, Pywebview to display the main Vue app and its
 - db_manager.py handles the local sqlite3 db. Each plugin can access it via self.db
 
 MOST IMPORTANT PLUGINS OVERVIEW
-- onboarding:handles basic user preferences and infos
-- asrvosk:speech recognition via Vosk (supports continuous listening or on click listening)
+- onboarding:handles basic user preferences and AI settings
+- asrvosk/asrshiper:speech recognition via Vosk (supports continuous listening or on click listening) or Whisper on Groq
 - autocomplete:based on LLM predictions
 - conversation:handles current conversation
 - daily:handles user's daily needs
+- flow:leverages ASR to create answer predictions
 - rag:indexes ingested documents in FAISS vectore and sqlite db
 - memory:handles long-term and short term memory additions in FAISS db
-- elevenlabs:TTS
+- elevenlabs/speechify:TTS
 
 FRONTEND
 Main Vue app is js/app_template.vue. App_template.js contains Vue components dynamically loaded with httpVueLoader.
@@ -49,7 +50,9 @@ SIMPLIFIED FOLDER STRUCTURE
 ├── context_manager.py
 ├── css (frontend css)
 ├── img (frontend img)
-├── js (main Vue app, Baseplugincomponent)
+├── js (main Vue app, )
+│   ├── app_template.vue (main Vue app)
+│   ├── Baseplugincomponent (frontend version of Baseplugin)
 ├── llm_manager.py
 ├── plugin_manager.py
 ├── plugins
@@ -58,7 +61,7 @@ SIMPLIFIED FOLDER STRUCTURE
 │   │   ├── locales
 │   │   │   ├── fr_FR
 │   │   │   │   ├── daily_fr_FR.json    (translations for backend/frontend: use self.get_my_translations)
-│   │   │   │   ├── prompts.py          (dict of AI prompts for the plugin where needed: : use self.get_my_prompts)
+│   │   │   │   ├── prompts.py          (dict of AI prompts for the plugin, where needed: : use self.get_my_prompts)
 │   │   │   ├── ...
 │   │   ├── frontend
 │   │   │   ├── daily_component.vue     (the plugin frontend)

@@ -16,5 +16,6 @@
     "Model Name": "Nom du modèle",
     "Key shortcut": "Raccourci",
     "Click the box and press a key or combination (e.g., Ctrl+R) to set the shortcut.": "Cliquez sur la case et appuyez sur une touche ou une combinaison (par exemple, Ctrl+R) pour définir le raccourci.",
-    "Microphone Activation Shortcut": "Raccourci d'activation du microphone"
+    "Microphone Activation Shortcut": "Raccourci d'activation du microphone",
+    "Continuous mode": "Mode continu"
 }

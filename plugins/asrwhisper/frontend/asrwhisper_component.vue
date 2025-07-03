@@ -3,8 +3,8 @@
         <div class="mic" :class="[status, { 'clickable': !continuous }]" @click="$_handleMicClick">
             <img src="/img/mic.png">
         </div>
-        <button v-show="continuous" class="mode-toggle btn btn-small" :class="{ 'active': continuous }" @click="$_toggleMode"
-            title="Toggle continuous mode">EN CONTINU
+        <button v-show="continuous" class="mode-toggle btn btn-small" :class="{ 'active': continuous }"
+            @click="$_toggleMode" title="Toggle continuous mode">{{ t('Continuous mode') }}
         </button>
     </div>
 </template>
@@ -19,10 +19,11 @@ export default {
             status: 'loading',
             audio: {},
             continuous: false,
-            keyboardShortcuts: ['c', 'v']
+            keyboardShortcut: null
         };
     },
     created() {
+        this.requestSettings();
         this.audio = {
             on: new Audio('/plugins/asrvosk/samples/on.wav'),
             off: new Audio('/plugins/asrvosk/samples/off.wav')
@@ -40,19 +41,36 @@ export default {
     },
     methods: {
         $_handleKeyPress(event) {
-            if (event.ctrlKey && this.keyboardShortcuts.includes(event.key.toLowerCase())) {
-                event.preventDefault(); // Prevent default Ctrl+C/V behavior
+            console.log("Key pressed:", event.key, "with modifiers:", {
+                ctrl: event.ctrlKey,
+                alt: event.altKey,
+                shift: event.shiftKey,
+                meta: event.metaKey
+            });
+            const pressed = [];
+            if (event.ctrlKey) pressed.push("Ctrl");
+            if (event.altKey) pressed.push("Alt");
+            if (event.shiftKey) pressed.push("Shift");
+            if (event.metaKey) pressed.push("Meta");
+            if (!["Control", "Shift", "Alt", "Meta"].includes(event.key)) {
+                pressed.push(event.key.length === 1 ? event.key.toUpperCase() : event.key);
+            }
+            const pressedCombo = pressed.join("+");
+            if (this.keyboardShortcut && pressedCombo === this.keyboardShortcut) {
+                event.preventDefault();
                 this.$_handleMicClick();
             }
         },
         /* DOESN'T WORK ON SECOND TOGGLE */
         $_toggleMode() {
             return false;
+            /*
             this.continuous = !this.continuous;
             this.sendMsgToBackend({
                 action: 'set_continuous_mode',
                 continuous: this.continuous
             });
+            */
         },
         handleIncomingMessage(event) {
             // Let the base component try to handle it first
@@ -64,8 +82,12 @@ export default {
                 const data = JSON.parse(event.data);
                 if (data.type === "settings") {
                     this.settings = data.settings;
-                    console.log('ASRVOSK SETTINGS:', this.settings);
+                    console.warn('ASRWHISPER SETTINGS:', this.settings);
                     this.continuous = this.settings.continuous || false;
+                    if (this.settings.shortcut) {
+                        console.warn('ASRWHISPER SHORTCUT:', this.settings.shortcut);
+                        this.keyboardShortcut = this.settings.shortcut; 
+                    }
                 }
                 if (data.status) {
                     this.status = data.status;
