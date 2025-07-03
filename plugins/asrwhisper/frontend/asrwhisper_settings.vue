@@ -1,36 +1,35 @@
 <template>
     <div class="asrwhisper-plugin-settings">
         <field>
-            <label>Model Name</label>
+            <label>{{t('Model name')}}</label>
             <select name="model_name" v-model="formData.model_name">
                 <option value="whisper-large-v3">Whisper Large v3</option>
                 <option value="whisper-large-v3-turbo">Whisper Large v3 Turbo</option>
             </select>
         </field>
         <field>
-            <label>VAD level</label>
+            <label>{{t('VAD level')}}</label>
             <select name="vad_level" v-model="formData.vad_level">
-                <option value="0">0 (Less aggressive)</option>
+                <option value="0">0 ({{t('Less aggressive')}})</option>
                 <option value="1">1</option>
-                <option value="2">2 (Recommended)</option>
-                <option value="3">3 (Most aggressive)</option>
+                <option value="2">2 ({{t('Recommended')}})</option>
+                <option value="3">3 ({{t('Most aggressive')}})</option>
             </select>
             <p>
-                The VAD level determines how aggressive the algorithm is at detecting speech.
-                Higher levels works better in noisy environments. 
+                {{t('The VAD level determines how aggressive the algorithm is at detecting speech.')}}
+                <br>{{t('Higher levels works better in noisy environments. ')}}
             </p>
         </field>
         <field>
-            <label>Silence Frames</label>
+            <label>{{t('Silence Frames')}}</label>
             <select name="silence_frames" v-model="formData.silence_frames">
-                <option value="500">500: Faster ASR / More</option>
-                <option value="1250">1250: Recommended for most cases</option>
-                <option value="1500">1500: Recommended for most cases</option>
-                <option value="2000">2000: Slower ASR: For people making big pauses</option>
+                <option value="500">500: {{t('Faster ASR')}}</option>
+                <option value="1250">1250: {{t('Recommended for most cases')}}</option>
+                <option value="1500">1500: {{t('Recommended for most cases')}}</option>
+                <option value="2000">2000: {{t('Slower ASR: For people making big pauses')}}</option>
             </select>
-            <p>The time (in ms) of silence before speech detection automatically ends.
-                The lower, the faster speech detection but also the more likely you'll miss speech.
-                The higher, the slower speech detection.
+            <p>{{t('The lower, the faster the speech detection, but also less quality.')}}<br>
+                {{t('The higher, the slower the speech detection, but better quality')}}
             </p>
         </field>
         <!--field>
@@ -41,7 +40,7 @@
             <label>Wakeword</label><input type="text" value="" name="wakeword" placeholder="ex. Alexa"
                 v-model="formData.wakeword">
         </field-->
-        <button @click="updateSettings">SAVE PLUGIN SETTINGS</button>
+        <button @click="updateSettings">{{t('SAVE PLUGIN SETTINGS')}}</button>
     </div>
 </template>
 

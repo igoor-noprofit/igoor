@@ -1,1 +1,17 @@
-{}
+{
+    "Less aggressive": "Moins agressif",
+    "Recommended": "Recommandé",
+    "Most aggressive": "Le plus agressif",
+    "VAD level": "Niveau VAD",
+    "The VAD level determines how aggressive the algorithm is at detecting speech.":"Le niveau VAD détermine à quel point l'algorithme est agressif dans la détection de la voix.",
+    "Higher levels works better in noisy environments.":"Les niveaux plus élevés fonctionnent mieux dans les environnements bruyants.",
+    "The time (in ms) of silence before speech detection automatically ends.": "Le temps (en ms) de silence avant que la détection de la parole ne se termine automatiquement.",
+    "The lower, the faster the speech detection, but also less quality.": "Le plus bas, plus rapide est la détection de la parole, mais aussi moins de qualité.",
+    "The higher, the slower the speech detection, but better quality": "Plus élevé, plus lente est la détection de la parole, mais meilleure la qualité.",
+    "Silence Frames": "Frames de silence",
+    "Faster ASR":" ASR plus rapide",
+    "Recommended for most cases": "Recommandé pour la plupart des cas",
+    "Slower ASR: For people making big pauses": "ASR plus lent :Pour les personnes faisant de grandes pauses",
+    "SAVE PLUGIN SETTINGS": "ENREGISTRER LES PARAMÈTRES DU PLUGIN",
+    "Model Name": "Nom du modèle"
+}
