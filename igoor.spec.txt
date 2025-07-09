@@ -5,7 +5,7 @@ a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[],
-    datas=[('dictionary','dictionary'), ('css', 'css'), ('img', 'img'), ('js', 'js'), ('plugins', 'plugins'), ('tools', 'tools'), ('.env', '.'), ('README.md', '.'), ('TODO.md', '.'), ('requirements.txt', '.'), ('index.html', '.')],
+    datas=[('dictionary','dictionary'), ('css', 'css'), ('img', 'img'), ('js', 'js'), ('plugins', 'plugins'), ('tools', 'tools'), ('.env', '.'), ('README.md', '.'), ('requirements.txt', '.'), ('index.html', '.')],
     hiddenimports=['pydub.playback','speechify','pymupdf4llm', 'PIL.ImageGrab','webrtcvad','pyaudio', 'vosk', 'prompt_manager', 'context_manager', 'settings_manager', 'llm_manager','db_manager','pydantic.deprecated.decorator'],
     hookspath=[],
     hooksconfig={},
