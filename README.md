@@ -207,3 +207,16 @@ IGOOR_FOLDER/logs/
 ```
 
 Separate llm_invocations contain a JSON of all LLM calls, with prompt and answer.
+
+## ADDING A LANGUAGE
+
+### REQUIREMENTS
+For each plugin, check if the language is supported. Start by Vosk and Whisper models.
+For each LLM, check if the language is supported too.
+For TTS, check if the external model supports the language (Eleven Labs, Speechify etc.)
+
+### PLUGINS
+
+### WHISPER
+Whisper models have a known bug that can convert silences or very low, inaudible sounds, to specific strings never uttered by the user (ex. "Sous-titrage ST' 501"). These are cleaned by the function "clean_whisper_silence" in plugins/asrwhisper.py (added in 0.1.3.5). 
+New languages may require new filters to be applied.

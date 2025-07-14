@@ -85,7 +85,7 @@ export default {
                     this.continuous = this.settings.continuous || false;
                     if (this.settings.shortcut) {
                         console.warn('ASRWHISPER SHORTCUT:', this.settings.shortcut);
-                        this.keyboardShortcut = this.settings.shortcut; 
+                        this.keyboardShortcut = this.settings.shortcut;
                     }
                 }
                 if (data.status) {
@@ -125,6 +125,11 @@ export default {
                 else if (oldStatus === 'recording' && newStatus === 'listening') {
                     this.audio.off.play();
                 }
+            }
+            if (newStatus === 'empty') {
+                console.warn("Playing OFF sound");
+                this.audio.off.play();
+                this.status = 'listening'; // Reset to listening after empty
             }
         }
     }

@@ -217,7 +217,10 @@ class Asrwhisper(Baseplugin):
                             audio_buffer = []
                             
                             if text:
-                                print(f"Recognized text: {text}")
+                                text = self.clean_whisper_silence(text)
+                                if not text.strip():
+                                    await self.send_status("empty")
+                                    continue  # Skip further processing
                                 if self.wakeword_detected:
                                     await self.handle_wake_word(text)
                                 elif self.wakeword.lower() in text.lower():
@@ -310,8 +313,11 @@ class Asrwhisper(Baseplugin):
                         await self.send_status("listening")
                         
                         if text:
-                            print(f"Recognized text: {text}")
-                            await self.handle_wake_word(text)
+                            text = self.clean_whisper_silence(text)
+                            if not text.strip():
+                                await self.send_status("empty")
+                            else:
+                                await self.handle_wake_word(text)
                         else:
                             print("No text recognized from audio")
                     else:
@@ -421,3 +427,22 @@ class Asrwhisper(Baseplugin):
         except Exception as e:
             self.logger.error(f"Groq transcription error: {e}")
             return ""
+        
+    def clean_whisper_silence(self, text):
+        print(f"Transcribed text: {text}")
+        """Remove known silence artifacts from Whisper output."""
+        SILENCE_STRINGS = [
+            "Sous-titrage ST' 501",
+            "Sous-titrage Société Radio-Canada"
+        ]
+        for s in SILENCE_STRINGS:
+            # Remove at start
+            if text.strip().startswith(s):
+                text = text.strip()[len(s):].strip()
+            # Remove at end
+            if text.strip().endswith(s):
+                text = text.strip()[:-len(s)].strip()
+            print(f"Cleaned text: {text}")
+        if text == "." or text == " ." or not text:
+            return ""
+        return text
