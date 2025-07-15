@@ -63,6 +63,7 @@ class Daily(Baseplugin):
         
     @hookimpl
     def abandon_conversation(self):
+        asyncio.create_task(self.send_switch_view_to_app(view="daily"))
         self.send_message_to_frontend({'backhome': True})
     
     async def startup_async(self):
