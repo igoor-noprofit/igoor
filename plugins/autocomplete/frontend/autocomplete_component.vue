@@ -16,7 +16,7 @@
             </div>
 
             <!-- Input and suggestions -->
-            <div v-else>
+            <div v-else class="input-container">
                 <!--button class="btn paste-btn" @click="$_pasteFromClipboard"
                     :disabled="isLoading || error" title="Coller">
                     <svg class="icon icon-l">
@@ -280,6 +280,7 @@ module.exports = {
 </script>
 
 <style scoped>
+
 .status-message {
     text-align: center;
     padding: 1rem;
@@ -312,7 +313,7 @@ module.exports = {
 }
 
 .autocomplete.plugin {
-    width: 100%;
+    width: 100%; 
 }
 
 .answers .msg {
@@ -335,5 +336,13 @@ module.exports = {
 
 button {
     cursor: pointer;
+}
+.input-container{
+    height: 50%;
+}
+.input-container input{
+    height: 100% !important;
+    min-height: 50px;
+    border: 1px solid #999 !important;
 }
 </style>
