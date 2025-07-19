@@ -92,7 +92,7 @@ Retourne EXCLUSIVEMENT un JSON valide avec la structure suivante:
 <examples>
 Entrée :
 {"conv": "Q: Que veux-tu manger aujourd'hui ?"}
-[Sortie :
+Sortie :
 {"theme": "Prévisions repas", "m_type": ["short", "long"], "cat": ["daily"], "timeframe": {"type": "relative", "reference": "today", "relative_days": 0, "period": "full_day"}}
 
 Entrée :
