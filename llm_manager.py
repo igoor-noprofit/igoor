@@ -36,7 +36,7 @@ class LLMManager:
             return ChatOpenAI(temperature=self.temperature, openai_api_key=self.api_key, model_name=self.model_name)
         else:
             error_msg = f"Unsupported provider: {self.provider}"
-            self.logger.error(error_msg)
+            self.logger.error(error_msg) 
             raise ValueError(error_msg)
             
     def set_json_schema(self, schema):

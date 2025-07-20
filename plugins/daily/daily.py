@@ -147,7 +147,15 @@ class Daily(Baseplugin):
         try:
             llm = LLMManager(self.settings.get("provider"), self.settings.get("api_key"), self.settings.get("model_name"))
             llm.set_json_schema(Answers)
-            answers = llm.invoke(system_prompt,prompt)
+            answers = llm.invoke(system_prompt, prompt)
+            print(f"RAW LLM OUTPUT: {answers}")
+            if isinstance(answers, str):
+                try:
+                    answers = Answers.model_validate_json(answers)
+                except Exception as e:
+                    print(f"Failed to parse answers: {e}")
+                    self.send_error_to_frontend("llm_error", e)
+                    return
             has_error, answers = self.handle_llm_error(answers)
             if has_error:
                 return answers
