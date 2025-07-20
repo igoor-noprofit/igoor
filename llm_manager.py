@@ -1,5 +1,8 @@
 from version import __appname__, __version__, __codename__
 from langchain_groq import ChatGroq  # Import other chat classes as needed
+from langchain.callbacks import StdOutCallbackHandler
+import langchain
+langchain.debug = True  # Enable debug mode for LangChain
 import os, time, json
 from settings_manager import SettingsManager
 from utils import setup_logger, setup_jsonl_logger
@@ -24,7 +27,10 @@ class LLMManager:
     def _create_chat(self):
         if self.provider == "groq":
             self.logger.info(f"Creating Groq chat instance with model: {self.model_name}")
-            return ChatGroq(temperature=self.temperature, groq_api_key=self.api_key, model_name=self.model_name)
+            return ChatGroq(temperature=self.temperature, 
+                            groq_api_key=self.api_key, 
+                            model_name=self.model_name, 
+                            callbacks=[StdOutCallbackHandler()])
         elif self.provider == "openai":
             self.logger.info(f"Creating OpenAI chat instance with model: {self.model_name}")
             return ChatOpenAI(temperature=self.temperature, openai_api_key=self.api_key, model_name=self.model_name)
@@ -87,6 +93,11 @@ class LLMManager:
                 return response_content
                 
             except Exception as e:
+                print(f"Exception in LLMManager.invoke: {e}")
+                if hasattr(e, 'response'):
+                    print(f"Exception response: {e.response}")
+                if hasattr(e, 'body'):
+                    print(f"Exception body: {e.body}")
                 attempt += 1
                 last_exception = e
                 error_message = str(e)
