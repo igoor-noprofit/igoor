@@ -94,7 +94,12 @@
           "état de santé": {
             "freq": 0
           },
-          "alerte aux soignants": {
+          "VNI": {
+            "fixed": false,
+            "freq": 0
+          },
+          "aerosol": {
+            "fixed": false,
             "freq": 0
           }
         },
@@ -150,13 +155,36 @@
           }
         },
         "communication": {
+          "Dire bonjour": {
+            "fixed": true,
+            "freq": 0
+          },
+          "Dire bonne nuit": {
+            "fixed": false,
+            "freq": 0
+          },
+          "remercier": {
+            "fixed": true,
+            "freq": 0
+          },
+          "Dire au revoir": {
+            "fixed": false,
+            "freq": 0
+          },
           "appeler quelqu'un": {
+            "fixed": false,
             "freq": 0
           },
-          "écrire un message": {
+          "\u00e9crire un message": {
+            "fixed": false,
             "freq": 0
           },
-          "inviter des amis / famille": {
+          "raconter une blague": {
+            "fixed": false,
+            "freq": 0
+          },
+          "raconter une an\u00e9cdote de ma vie": {
+            "fixed": false,
             "freq": 0
           }
         },
