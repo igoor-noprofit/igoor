@@ -29,7 +29,7 @@
             </svg>
             <h3>{{ t('No') }}</h3>
         </button>
-        <button class="btn btn-shortcut" @click="$_speak(t('Thank you'))"><svg class="icon icon-l">
+        <button class="btn btn-shortcut" @click="$_speak(t('Thanks'))"><svg class="icon icon-l">
                 <use xlink:href="img/svgdefs.svg#icon-thankyou"></use>
             </svg>
             <h3>{{ t('Thanks') }}</h3>
