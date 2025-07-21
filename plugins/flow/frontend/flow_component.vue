@@ -154,7 +154,7 @@ module.exports = {
 }
 
 .answers .msg {
-    margin-bottom: 10px;
+    margin-bottom: 2.2vh;
 }
 
 .fade-out {
