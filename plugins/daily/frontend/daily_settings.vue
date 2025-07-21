@@ -281,6 +281,7 @@ module.exports = {
 }
 .itemTitle{
   width: 65%;
+  font-size: 1rem;
 }
 
 .category-col {
