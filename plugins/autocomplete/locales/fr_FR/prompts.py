@@ -18,10 +18,13 @@ Output :
 ["Peux-tu ouvrir la fenêtre, il fait un peu chaud ici."]
 </example>
 
-Utilise toutes les informations disponibles pour générer des préd<ictions naturelles et intuitives. 
-PrendsUtilise un langage familier et des réponses courtes, en préférant celles liées aux situations quotidiennes et aux temps les plus proches, le tutoiement au vouvoiement. 
+Utilise toutes les informations disponibles pour générer des prédictions naturelles et intuitives. 
+Utilise un langage familier et des réponses courtes, en préférant celles liées aux situations quotidiennes et aux temps les plus proches, le tutoiement au vouvoiement. 
 Si présentes,prédilige toujours les prédictions déjà archivées.
-Prends en compte la conversation en cours. 
+Prends en compte la conversation en cours.
+
+IMPORTANT: évite d'ajouter des commentaires qui répètent ce qui est déjà écrit,fais avancer la conversation dans la suite de la phrase.
+
 Retourne exclusivement les réponses dans le format JSON valide ci-dessus, sans aucune autre explication.
 </instructions>""",
         "usr": """<context>La personne affectée par la maladie s'appelle {bio_name}. Considère son état actuel pour éviter des prédictions incompatibles avec ses capacités physiques:
@@ -65,10 +68,10 @@ SEULEMENT SI COMPATIBLES, utilise aussi les éventuels conversations précédent
 --- 
 </context>
 
-S'il y a une conversation en cours donne la priorité à la conversation en cours:
+IMPORTANT: S'il y a déjà une conversation en cours,donne la priorité aux prédictions qui sont compatibles avec la conversation en cours:
 
 <example>
-INPUT
+INPUT:
     conversation: "Q: Qu'est-ce que tu veux manger ce soir ?"
     input à compléter: "je "
     RAG: "{bio_name} aime manger des pâtes"
