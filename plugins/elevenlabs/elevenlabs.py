@@ -24,6 +24,7 @@ class Elevenlabs(Baseplugin):
             # self.input_streamer=ReusableInputStreamer(self.voice)
         except Exception as e:
             print(f"Error occurred while setting user : {e}")
+            # DEFAULT SYSTEMATICALLY TO TTSDEFAULT
             return False
         
     @hookimpl
@@ -44,13 +45,16 @@ class Elevenlabs(Baseplugin):
         success = await self.safe_speak_func(message)
 
     async def safe_speak_func(self, message):
+        print("SAFE SPEAK FUNC:", message)
         try:
             result = await self.speak_func(message)
+            print(f"RESULT OF SPEAK FUNC: {result}")
             if not result:
                 print("Speak function encountered an issue but handled gracefully.")
-                await self.pm.trigger_hook(hook_name="speak_fallback", message=message)
+                await self.call_fallback(message=message)
         except Exception as e:
             print(f"An unexpected error occurred: {e}")
+            await self.call_fallback(message=message)
 
     async def speak_func(self, message):
         print("SPEAK FUNC:" + message)
@@ -76,8 +80,8 @@ class Elevenlabs(Baseplugin):
                 audio_data = audio_future.result()
             except Exception as inner_e:
                 print(f"Error retrieving audio data: {inner_e}")
-                await self.pm.trigger_hook(hook_name="speak_fallback", message=message)
-                return True    
+                await self.call_fallback(message=message) 
+                return False    
             # Play it back
             await self.pm.trigger_hook(hook_name="pause_asr")
             play_audio_v2(audio_data)
@@ -86,5 +90,8 @@ class Elevenlabs(Baseplugin):
 
         except Exception as e:
             print(f"Error occurred while speaking: {e}")
-            await self.pm.trigger_hook(hook_name="speak_fallback",message=message) 
+            await self.call_fallback(message=message) 
             return False
+        
+    async def call_fallback(self,message):
+        await self.pm.trigger_hook(hook_name="speak_fallback",message=message) 
