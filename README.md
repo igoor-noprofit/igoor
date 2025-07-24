@@ -29,6 +29,20 @@ Thank you for your understanding and cooperation in ensuring the successful deve
 
 **Microsoft Windows. Tested on Windows 11.**
 
+### INTERNET CONNECTION
+
+While we are working on a fully local, offline-first version, as of now the software only works with a working Internet connection.
+
+### AI INFERENCE PROVIDER
+
+The only AI inference provider currently meeting our requirements of speed, quality and opensource is Groq.
+Signup for a FREE-tier access to Groq's API here:
+
+https://console.groq.com/login
+
+For production use, you will need a developer tier self-serve (Pay per Token) access, 
+or you'll rapidly incur in rate limits errors. 
+
 ### DISK SPACE
 
 In the user's data folder, big ASR models (like Vosk) take around 2.3Gb, plus 1.4 for the zip file.
