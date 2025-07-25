@@ -2,10 +2,8 @@ from settings_manager import SettingsManager
 from plugins.baseplugin.baseplugin import Baseplugin
 from plugin_manager import hookimpl, PluginManager
 import threading
-import json
-import time
+import json,os, requests,time
 import asyncio
-import os 
 import pyaudio
 import wave
 import groq
@@ -31,8 +29,15 @@ class Asrwhisper(Baseplugin):
         self.lang_code = get_base_language_code(self.lang, default_lang="fr") # Default to 'fr' if not found or empty
         
         self.wakeword = self.settings.get("wakeword")
+        
         self.continuous = self.settings.get("continuous", False) # Ensure default for continuous
         print (f"WHISPER settings: {self.settings}, Global Lang for ASR: {self.lang_code}")
+
+        self.model_provider = self.settings.get("model_provider", "Groq")  # Default to Groq if not set
+        if self.model_provider not in self.settings.get("allowed_model_providers", []):
+            self.logger.error(f"Model provider '{self.model_provider}' is not allowed. Defaulting to 'Groq'.")
+            self.model_provider = "Groq"
+            print("Model provider not found, using default model provider: Groq")
         
         self.model_thread = threading.Thread(target=self.load_model, daemon=True)
         self.model_thread.start()
@@ -118,63 +123,67 @@ class Asrwhisper(Baseplugin):
         # await self.test_wake_word()
     
     def load_model(self):
-        """Initialize the Groq client for Whisper transcription"""
-        try:
-            # Attempt to get AI settings from onboarding plugin
-            # Correctly fetch the 'ai' settings from the 'onboarding' plugin's root
-            onboarding_ai_settings = self.settings_manager.get_nested(["plugins", "onboarding", "ai"])
-            self.logger.info(f"Onboarding AI settings found: {onboarding_ai_settings}") # Corrected f-string
-            api_key_to_use = None
-            
-            if onboarding_ai_settings and \
-                onboarding_ai_settings.get("provider") == "groq" and \
-                onboarding_ai_settings.get("api_key"):
-                api_key_to_use = onboarding_ai_settings.get("api_key")
-                self.logger.info("Using Groq API key from global AI settings (onboarding).")
-            else:
-                # Fallback to plugin's own settings
-                api_key_to_use = self.settings.get("api_key")
-                if api_key_to_use:
-                    self.logger.info("Using Groq API key from asrwhisper plugin settings.")
-                else:
-                    self.logger.error("No Groq API key found in global AI settings or asrwhisper plugin settings.")
-                    self.is_loaded = False # Ensure is_loaded is false if API key is missing
-                    return
-
-            if not api_key_to_use: # Double check if api_key_to_use ended up being None or empty
-                self.logger.error("No Groq API key could be determined.")
-                self.is_loaded = False
-                return
+        if (self.model_provider == "Groq"):
+            """Initialize the Groq client for Whisper transcription"""
+            try:
+                # Attempt to get AI settings from onboarding plugin
+                # Correctly fetch the 'ai' settings from the 'onboarding' plugin's root
+                onboarding_ai_settings = self.settings_manager.get_nested(["plugins", "onboarding", "ai"])
+                self.logger.info(f"Onboarding AI settings found: {onboarding_ai_settings}") # Corrected f-string
+                api_key_to_use = None
                 
-            # Initialize Groq client
-            self.client = groq.Groq(api_key=api_key_to_use)
-            # Get model name from settings, default to whisper-large-v3
-            self.model = self.settings.get("model_name", "whisper-large-v3")
+                if onboarding_ai_settings and \
+                    onboarding_ai_settings.get("provider") == "groq" and \
+                    onboarding_ai_settings.get("api_key"):
+                    api_key_to_use = onboarding_ai_settings.get("api_key")
+                    self.logger.info("Using Groq API key from global AI settings (onboarding).")
+                else:
+                    # Fallback to plugin's own settings
+                    api_key_to_use = self.settings.get("api_key")
+                    if api_key_to_use:
+                        self.logger.info("Using Groq API key from asrwhisper plugin settings.")
+                    else:
+                        self.logger.error("No Groq API key found in global AI settings or asrwhisper plugin settings.")
+                        self.is_loaded = False # Ensure is_loaded is false if API key is missing
+                        return
+
+                if not api_key_to_use: # Double check if api_key_to_use ended up being None or empty
+                    self.logger.error("No Groq API key could be determined.")
+                    self.is_loaded = False
+                    return
+                    
+                # Initialize Groq client
+                self.client = groq.Groq(api_key=api_key_to_use)
+                # Get model name from settings, default to whisper-large-v3
+                self.model = self.settings.get("model_name", "whisper-large-v3")
+                
+                # Mark as loaded
+                self.is_loaded = True
+                # Removed: asyncio.create_task(self.send_status("ready"))
+                # This was causing the "no running event loop" error and is redundant
+                # as monitor_loading handles sending the "ready" status.
+                self.logger.info(f"Groq Whisper initialized successfully with model: {self.model}")
+            except ImportError as e:
+                self.logger.error(f"Failed to import required modules: {e}")
+                self.is_loaded = False
+                # raise # Optionally re-raise if it's critical
+            except Exception as e:
+                self.logger.error(f"Error initializing Groq client: {e}")
+                self.is_loaded = False
+                # raise # Optionally re-raise
+        elif (self.model_provider == "Voxtral"):
+            self.model=self.settings.get("model_name", "voxtral-mini")
             
-            # Set up audio parameters
-            self.sample_rate = 16000
-            self.audio_format = pyaudio.paInt16
-            self.channels = 1
-            self.chunk_size = 4000
-            
-            # Set up temporary file for audio storage
-            self.temp_audio_file = os.path.join(self.plugin_folder, "temp_audio.wav")
-            
-            # Mark as loaded
-            self.is_loaded = True
-            # Removed: asyncio.create_task(self.send_status("ready"))
-            # This was causing the "no running event loop" error and is redundant
-            # as monitor_loading handles sending the "ready" status.
-            self.logger.info(f"Groq Whisper initialized successfully with model: {self.model}")
-            
-        except ImportError as e:
-            self.logger.error(f"Failed to import required modules: {e}")
-            self.is_loaded = False
-            # raise # Optionally re-raise if it's critical
-        except Exception as e:
-            self.logger.error(f"Error initializing Groq client: {e}")
-            self.is_loaded = False
-            # raise # Optionally re-raise
+        # Set up audio parameters
+        self.sample_rate = 16000
+        self.audio_format = pyaudio.paInt16
+        self.channels = 1
+        self.chunk_size = 4000
+        
+        # Set up temporary file for audio storage
+        self.temp_audio_file = os.path.join(self.plugin_folder, "temp_audio.wav")
+        
+        self.is_loaded=True
     
     async def handle_wake_word(self,following_text):
         print(f"Wake word detected! Text: '{following_text}'")
@@ -302,12 +311,10 @@ class Asrwhisper(Baseplugin):
                     
                     # Process recorded audio
                     if len(audio_buffer) > 0:
-                        await self.send_status("listening")
                         self.recording = False
                         print(f"Processing audio: {len(audio_buffer)} chunks, speech detected: {speech_started}")
                         self.save_audio_to_file(audio_buffer)
                         text = await self.transcribe_audio()
-                        
                         # Always stop recording after processing
                         self.recording = False
                         await self.send_status("listening")
@@ -320,6 +327,7 @@ class Asrwhisper(Baseplugin):
                                 await self.handle_wake_word(text)
                         else:
                             print("No text recognized from audio")
+                            await self.send_status("empty")
                     else:
                         print("No audio recorded")
                         self.recording = False
@@ -408,10 +416,40 @@ class Asrwhisper(Baseplugin):
                 
             # Use asyncio to run the transcription in a separate thread
             loop = asyncio.get_running_loop()
-            result = await loop.run_in_executor(None, self._transcribe_with_groq)
+            if (self.model_provider == "Groq"):
+                result = await loop.run_in_executor(None, self._transcribe_with_groq)
+            elif (self.model_provider == "Voxtral"):
+                result = await loop.run_in_executor(None, self._transcribe_with_voxtral)
             return result
         except Exception as e:
             self.logger.error(f"Error transcribing audio: {e}")
+            return ""
+
+    def _transcribe_with_voxtral(self):
+        """Helper method to run Voxtral transcription in a separate thread"""
+        try:
+            url = "https://api.mistral.ai/v1/audio/transcriptions"
+            api_key = self.settings.get("voxtral_api_key", "")
+            if not api_key:
+                self.logger.error("No Voxtral API key provided.")
+                return ""
+            headers = {
+                "x-api-key": api_key
+            }
+            files = {
+                "file": open(self.temp_audio_file, "rb"),
+                "model": (None, self.model),
+                "language": (None, self.lang_code)
+            }
+            response = requests.post(url, headers=headers, files=files)
+            if response.status_code == 200:
+                data = response.json()
+                return data.get("text", "")
+            else:
+                self.logger.error(f"Voxtral API error: {response.status_code} {response.text}")
+                return ""
+        except Exception as e:
+            self.logger.error(f"Voxtral transcription error: {e}")
             return ""
             
     def _transcribe_with_groq(self):
