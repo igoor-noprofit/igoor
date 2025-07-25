@@ -1,17 +1,26 @@
 <template>
     <div class="asrwhisper-plugin-settings form-grid">
+        <!-- Model Provider -->
+        <div class="form-label">{{t('Model provider')}}</div>
+        <div class="form-input">
+            <select name="provider" v-model="formData.provider" @change="onProviderChange">
+                <option value="groq">Groq</option>
+                <option value="mistral">Mistral (BETA)</option>
+            </select>
+        </div>
+        <div class="form-note"></div>
         <!-- Model Name -->
         <div class="form-label">{{t('Model name')}}</div>
         <div class="form-input">
             <select name="model_name" v-model="formData.model_name">
-                <option value="whisper-large-v3">Whisper Large v3</option>
-                <option value="whisper-large-v3-turbo">Whisper Large v3 Turbo</option>
-                <option value="voxtral-mini-latest">Voxtral Mini Latest</option>
+                <option value="whisper-large-v3" v-show="formData.provider === 'groq'">Whisper Large v3</option>
+                <option value="whisper-large-v3-turbo" v-show="formData.provider === 'groq'">Whisper Large v3 Turbo</option>
+                <option value="voxtral-mini-latest" v-show="formData.provider === 'mistral'">Voxtral Mini Latest</option>
             </select>
         </div>
         <div class="form-note"></div>
         <!-- VOXTRAL API KEY -->
-        <div class="form-label" v-show="formData.model_name === 'voxtral-mini-latest'">{{t('Voxtral API Key (experimental)')}}</div>
+        <div class="form-label" v-show="formData.model_name === 'voxtral-mini-latest'">{{t('Voxtral API Key (BETA)')}}</div>
         <div class="form-input" v-show="formData.model_name === 'voxtral-mini-latest'">
             <input
                 type="text"
@@ -111,6 +120,7 @@ export default {
     mixins: [BasePluginComponent],
     data() {
         return {
+            originalSettings: null,
             formData: {
                 model_name: '',
                 vad_level:'',
@@ -122,11 +132,21 @@ export default {
             voxtralKeyError: false
         };
     },
+    computed: {
+        hasChanges() {
+            if (!this.originalSettings) return false;
+            return Object.keys(this.formData).some(key => 
+                JSON.stringify(this.formData[key]) !== JSON.stringify(this.originalSettings[key])
+            );
+        }
+    },
     watch: {
         initialSettings: {
             handler(newVal) {
                 if (newVal) {
                     this.formData = { ...this.formData, ...newVal };
+                    // Store original settings for comparison
+                    this.originalSettings = JSON.parse(JSON.stringify(newVal));
                 }
             },
             immediate: true,
@@ -168,6 +188,18 @@ export default {
             }
             this.voxtralKeyError = false;
             this.updateSettings(this.formData);
+        },
+        onProviderChange() {
+            // Reset model_name if not compatible with provider
+            if (this.formData.provider === 'groq') {
+                if (!['whisper-large-v3', 'whisper-large-v3-turbo'].includes(this.formData.model_name)) {
+                    this.formData.model_name = 'whisper-large-v3';
+                }
+            } else if (this.formData.provider === 'mistral') {
+                if (this.formData.model_name !== 'voxtral-mini-latest') {
+                    this.formData.model_name = 'voxtral-mini-latest';
+                }
+            }
         }
     }
 };
