@@ -22,7 +22,7 @@
             />
         </div>
         <div class="form-note" :style="{color: voxtralKeyError ? '#ff6666' : undefined}" v-show="formData.model_name === 'voxtral-mini-latest'">
-            {{ voxtralKeyError ? t('Voxtral API Key is required.') : t('Mixtral API Key is required for Voxtral models.') }}
+            {{ voxtralKeyError ? t('Voxtral API Key is required.') : t('Mistral API Key is required for Voxtral models') }}
         </div>
         
 
@@ -52,8 +52,8 @@
             </select>
         </div>
         <div class="form-note">
-            {{t('The lower,the faster the automatic transcription ends,but risky if')}}<br>
-            {{t('The higher,the slower the speech detection,but better quality')}}
+            {{t('The lower,the faster the transcription starts,but risks of cutting people speaking after a pause')}}<br>
+            {{t('The higher,the slower the transcription starts, but less risky for people making big pauses speaking')}}
         </div>
 
         <!-- Shortcut -->
