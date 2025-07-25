@@ -9,6 +9,15 @@
                     </div>
                 </div>
             </div>
+            <div v-if="status=='transcribing_started'" class="card msg def msg-other transcribing-card">
+                <div class="card-body">
+                    <div class="typing-indicator">
+                        <span class="dot"></span>
+                        <span class="dot"></span>
+                        <span class="dot"></span>
+                    </div>
+                </div>
+            </div>
         </div>
         <div v-if="showProgressBar" class="progress-bar-container">
             <div class="progress-bar" :style="{ width: progressBarWidth + '%' }"></div>
@@ -34,7 +43,8 @@ module.exports = {
             progressBarWidth: 0,
             countdownInterval: null,
             isExpanded: false,
-            showExpandButton: false // <-- add this
+            showExpandButton: false,
+            status: ''
         }
     },
     mounted() {
@@ -99,7 +109,15 @@ module.exports = {
                 const duration = data.duration || 5000;
                 this.startProgressBar(duration);
                 // Logic to show progress bar
-            } else {
+            } else if (data.status) {
+                console.warn("CONVERSATION Status update:", data.status);
+                this.status = data.status;
+                if (data.status === 'transcribing_started') {
+                   this.scrollToBottom();
+                }
+            }
+            else {
+                this.status='';
                 this.thread.push(data);
                 console.log("ADDING MESSAGE", data);
                 this.scrollToBottom();
@@ -277,5 +295,44 @@ module.exports = {
 
 .icon.rotated {
     transform: rotate(180deg);
+}
+
+.transcribing-card {
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    min-height: 60px;
+    margin-bottom: 10px;
+}
+
+.typing-indicator {
+    display: flex;
+    align-items: center;
+    height: 32px;
+    justify-content: flex-start;
+}
+
+.typing-indicator .dot {
+    height: 12px;
+    width: 12px;
+    margin: 0 4px;
+    background-color: #fff;
+    border-radius: 50%;
+    display: inline-block;
+    opacity: 0.6;
+    animation: typing 1.2s infinite;
+}
+
+.typing-indicator .dot:nth-child(2) {
+    animation-delay: 0.2s;
+}
+.typing-indicator .dot:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+@keyframes typing {
+    0% { opacity: 0.6; transform: scale(1);}
+    20% { opacity: 1; transform: scale(1.2);}
+    100% { opacity: 0.6; transform: scale(1);}
 }
 </style>

@@ -81,10 +81,10 @@ export default {
                 const data = JSON.parse(event.data);
                 if (data.type === "settings") {
                     this.settings = data.settings;
-                    console.warn('ASRWHISPER SETTINGS:', this.settings);
+                    console.log('ASRWHISPER SETTINGS:', this.settings);
                     this.continuous = this.settings.continuous || false;
                     if (this.settings.shortcut) {
-                        console.warn('ASRWHISPER SHORTCUT:', this.settings.shortcut);
+                        console.log('ASRWHISPER SHORTCUT:', this.settings.shortcut);
                         this.keyboardShortcut = this.settings.shortcut;
                     }
                 }

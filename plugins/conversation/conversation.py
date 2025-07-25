@@ -166,7 +166,15 @@ class Conversation(Baseplugin):
             )
         )
         
+    @hookimpl
+    async def transcribing_started(self):
+        self.logger.info("Transcribing started")
+        await self.send_status("transcribing_started")
         
+    @hookimpl
+    async def transcribing_ended(self):
+        self.logger.info("Transcribing ended")
+        await self.send_status("transcribing_ended")
         
     @hookimpl
     async def add_msg_to_conversation(self, msg: str, author: str, msg_input: str) -> None:

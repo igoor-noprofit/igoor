@@ -149,6 +149,16 @@ class MyAppSpec:
         """Hook to search previous conversation messages containing query for autocomplete etc."""
         pass
     
+    @pluggy.HookspecMarker(app_name)
+    async def transcribing_started(self):
+        """Hook to communicate with plugins that transcription has started"""
+        pass
+    
+    @pluggy.HookspecMarker(app_name)
+    async def transcribing_ended(self):
+        """Hook to communicate with plugins that transcription has ended"""
+        pass
+    
     '''
         ************ AI FLOW AND RAG **************
     '''

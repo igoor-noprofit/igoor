@@ -255,6 +255,7 @@ class Asrwhisper(Baseplugin):
             
             while True:
                 if self.recording:
+                    await self.pm.trigger_hook(hook_name="transcribing_started")
                     audio_buffer = []
                     silence_counter = 0
                     speech_started = False
@@ -318,7 +319,6 @@ class Asrwhisper(Baseplugin):
                         # Always stop recording after processing
                         self.recording = False
                         await self.send_status("listening")
-                        
                         if text:
                             text = self.clean_whisper_silence(text)
                             if not text.strip():
@@ -328,6 +328,7 @@ class Asrwhisper(Baseplugin):
                         else:
                             print("No text recognized from audio")
                             await self.send_status("empty")
+                        await self.pm.trigger_hook(hook_name="transcribing_ended")
                     else:
                         print("No audio recorded")
                         self.recording = False
