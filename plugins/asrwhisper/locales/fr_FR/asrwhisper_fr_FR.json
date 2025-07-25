@@ -4,7 +4,7 @@
     "Most aggressive": "Le plus agressif",
     "VAD level": "Niveau VAD",
     "The VAD level determines how aggressive the algorithm is at detecting speech.":"Le niveau VAD détermine à quel point l'algorithme est agressif dans la détection de la voix.",
-    "Higher levels works better in noisy environments.":"Les niveaux plus élevés fonctionnent mieux dans les environnements bruyants.",
+    "Higher levels work better in noisy environments.":"Des niveaux plus élevés fonctionnent mieux dans les environnements bruyants.",
     "The time (in ms) of silence before speech detection automatically ends.": "Le temps (en ms) de silence avant que la détection de la parole ne se termine automatiquement.",
     "The lower, the faster the speech detection, but also less quality.": "Le plus bas, plus rapide est la détection de la parole, mais aussi moins de qualité.",
     "The higher, the slower the speech detection, but better quality": "Plus élevé, plus lente est la détection de la parole, mais meilleure la qualité.",
@@ -15,7 +15,8 @@
     "SAVE PLUGIN SETTINGS": "ENREGISTRER LES PARAMÈTRES DU PLUGIN",
     "Model Name": "Nom du modèle",
     "Key shortcut": "Raccourci",
-    "Click the box and press a key or combination (e.g., Ctrl+R) to set the shortcut.": "Cliquez sur la case et appuyez sur une touche ou une combinaison (par exemple, Ctrl+R) pour définir le raccourci.",
+    "Click the box and press a key or combination (e.g., Ctrl+R) to set the shortcut.": "Cliquez à l'intérieur du champ et appuyez sur une touche ou une combinaison (par exemple, Ctrl+K) pour définir le raccourci.",
     "Microphone Activation Shortcut": "Raccourci d'activation du microphone",
-    "Continuous mode": "Mode continu"
+    "Continuous mode": "Mode continu",
+    "This keyboard combination STARTS / STOPS the speech detection process": "Cette combinaison de touches DÉMARRE / ARRÊTE le processus de reconnaissance vocale"
 }

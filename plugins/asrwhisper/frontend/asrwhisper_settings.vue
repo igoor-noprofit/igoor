@@ -6,9 +6,25 @@
             <select name="model_name" v-model="formData.model_name">
                 <option value="whisper-large-v3">Whisper Large v3</option>
                 <option value="whisper-large-v3-turbo">Whisper Large v3 Turbo</option>
+                <option value="voxtral-mini-latest">Voxtral Mini Latest</option>
             </select>
         </div>
         <div class="form-note"></div>
+        <!-- VOXTRAL API KEY -->
+        <div class="form-label" v-show="formData.model_name === 'voxtral-mini-latest'">{{t('Voxtral API Key (experimental)')}}</div>
+        <div class="form-input" v-show="formData.model_name === 'voxtral-mini-latest'">
+            <input
+                type="text"
+                v-model="formData.voxtral_api_key"
+                :class="{'input-error': voxtralKeyError}"
+                :placeholder="t('Required for Voxtral')"
+                required
+            />
+        </div>
+        <div class="form-note" :style="{color: voxtralKeyError ? '#ff6666' : undefined}" v-show="formData.model_name === 'voxtral-mini-latest'">
+            {{ voxtralKeyError ? t('Voxtral API Key is required.') : t('Mixtral API Key is required for Voxtral models.') }}
+        </div>
+        
 
         <!-- VAD Level -->
         <div class="form-label">{{t('VAD level')}}</div>
@@ -22,7 +38,7 @@
         </div>
         <div class="form-note">
             {{t('The VAD level determines how aggressive the algorithm is at detecting speech.')}}<br>
-            {{t('Higher levels works better in noisy environments. ')}}
+            {{t('Higher levels work better in noisy environments.')}}
         </div>
 
         <!-- Silence Frames -->
@@ -36,8 +52,8 @@
             </select>
         </div>
         <div class="form-note">
-            {{t('The lower, the faster the speech detection, but also less quality.')}}<br>
-            {{t('The higher, the slower the speech detection, but better quality')}}
+            {{t('The lower,the faster the automatic transcription ends,but risky if')}}<br>
+            {{t('The higher,the slower the speech detection,but better quality')}}
         </div>
 
         <!-- Shortcut -->
@@ -58,12 +74,14 @@
         </div>
         <div class="form-note">
             {{t('Click the box and press a key or combination (e.g., Ctrl+R) to set the shortcut.')}}
+            <br>
+            {{t('This keyboard combination STARTS / STOPS the speech detection process')}}
         </div>
 
         <!-- Save Button (spans all columns) -->
         <div class="form-label"></div>
         <div class="form-input">
-            <button @click="updateSettings">{{t('SAVE PLUGIN SETTINGS')}}</button>
+            <button @click="checkBeforeUpdating">{{t('SAVE PLUGIN SETTINGS')}}</button>
         </div>
         <div class="form-note"></div>
     </div>
@@ -97,9 +115,11 @@ export default {
                 model_name: '',
                 vad_level:'',
                 silence_frames:1500,
-                shortcut: ''
+                shortcut: '',
+                voxtral_api_key: ''
             },
-            isRecordingShortcut: false
+            isRecordingShortcut: false,
+            voxtralKeyError: false
         };
     },
     watch: {
@@ -134,6 +154,20 @@ export default {
         },
         clearShortcut() {
             this.formData.shortcut = '';
+        },
+        checkBeforeUpdating() {
+            console.log("Updating settings with:", this.formData);
+            // Require Voxtral API key if voxtral model is selected
+            if (
+                this.formData.model_name === 'voxtral-mini-latest' &&
+                (!this.formData.voxtral_api_key || !this.formData.voxtral_api_key.trim())
+            ) {
+                this.voxtralKeyError = true;
+                console.warn('Voxtral API Key is required for Voxtral models.');
+                return;
+            }
+            this.voxtralKeyError = false;
+            this.updateSettings(this.formData);
         }
     }
 };
@@ -164,6 +198,7 @@ export default {
     color: #aaa;
     line-height: 1.4;
     padding-top: 2px;
+    text-align: left;
 }
 select, input[type="text"] {
     background: #222;
@@ -185,5 +220,9 @@ button {
 }
 button:hover {
     background: #338a33;
+}
+.input-error {
+    border-color: #ff6666;
+    background: #2a1818;
 }
 </style>
