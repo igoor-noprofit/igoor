@@ -211,9 +211,6 @@ In powershell (VS Code terminal):
 In a CMD window, launch /dist/igoor/igoor.exe 
 (so you can see the logs if there's any error)
 
-### KNOWN ISSUE ###
-AS OF NOW, THE PYINSTALLER SCRIPT STILL HAS ERRORS (it compiles, but the created executable has a websocket problem between frontend and backend on onboarding plugin).
-
 
 ## IGOOR LOGS
 Daily logs are in:
@@ -236,3 +233,8 @@ For TTS, check if the external model supports the language (Eleven Labs, Speechi
 ### WHISPER
 Whisper models have a known bug that can convert silences or very low, inaudible sounds, to specific strings never uttered by the user (ex. "Sous-titrage ST' 501"). These are cleaned by the function "clean_whisper_silence" in plugins/asrwhisper.py (added in 0.1.3.5). 
 New languages may require new filters to be applied.
+
+## KNOWN ISSUES ##
+1) AS OF NOW, THE PYINSTALLER SCRIPT STILL HAS ERRORS (it compiles, but the created executable has a websocket problem between frontend and backend on onboarding plugin).
+
+2) ASR models can interpret silence or very low, inaudible sounds as speech and return texts like "Thank you" instead of empty texts. This depends on the ASR models, not the IGOOR app.
