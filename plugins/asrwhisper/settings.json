@@ -7,5 +7,5 @@
     "silence_frames": 1150,
     "max_recording_time": 60,
     "vad_level": 2,
-    "shortcut": "Ctrl+R"
+    "shortcut": "Ctrl+K"
 }
