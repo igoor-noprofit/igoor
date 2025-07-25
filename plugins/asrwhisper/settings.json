@@ -1,11 +1,12 @@
 {
-    "wakeword": "Igor",
-    "model_name": "whisper-large-v3",
-    "continuous": false,
-    "provider": "groq",
-    "api_key": "",
-    "silence_frames": 1150,
-    "max_recording_time": 60,
-    "vad_level": 2,
-    "shortcut": "Ctrl+K"
+  "wakeword": "Igor",
+  "allowed_model_providers": ["groq", "mistral"],
+  "model_provider": "groq",
+  "model_name": "whisper-large-v3",
+  "continuous": false,
+  "api_key": "",
+  "silence_frames": 1150,
+  "max_recording_time": 60,
+  "vad_level": 2,
+  "shortcut": "Ctrl+K"
 }

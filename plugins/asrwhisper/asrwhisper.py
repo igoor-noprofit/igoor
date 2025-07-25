@@ -33,10 +33,10 @@ class Asrwhisper(Baseplugin):
         self.continuous = self.settings.get("continuous", False) # Ensure default for continuous
         print (f"WHISPER settings: {self.settings}, Global Lang for ASR: {self.lang_code}")
 
-        self.model_provider = self.settings.get("model_provider", "Groq")  # Default to Groq if not set
+        self.model_provider = self.settings.get("model_provider", "groq")  # Default to Groq if not set
         if self.model_provider not in self.settings.get("allowed_model_providers", []):
-            self.logger.error(f"Model provider '{self.model_provider}' is not allowed. Defaulting to 'Groq'.")
-            self.model_provider = "Groq"
+            self.logger.error(f"Model provider '{self.model_provider}' is not allowed. Defaulting to groq")
+            self.model_provider = "groq"
             print("Model provider not found, using default model provider: Groq")
         
         self.model_thread = threading.Thread(target=self.load_model, daemon=True)
@@ -123,7 +123,7 @@ class Asrwhisper(Baseplugin):
         # await self.test_wake_word()
     
     def load_model(self):
-        if (self.model_provider == "Groq"):
+        if (self.model_provider == "groq"):
             """Initialize the Groq client for Whisper transcription"""
             try:
                 # Attempt to get AI settings from onboarding plugin
@@ -171,8 +171,8 @@ class Asrwhisper(Baseplugin):
                 self.logger.error(f"Error initializing Groq client: {e}")
                 self.is_loaded = False
                 # raise # Optionally re-raise
-        elif (self.model_provider == "Voxtral"):
-            self.model=self.settings.get("model_name", "voxtral-mini")
+        elif (self.model_provider == "mistral"):
+            self.model=self.settings.get("model_name", "voxtral-mini-latest")
             
         # Set up audio parameters
         self.sample_rate = 16000
@@ -416,9 +416,9 @@ class Asrwhisper(Baseplugin):
                 
             # Use asyncio to run the transcription in a separate thread
             loop = asyncio.get_running_loop()
-            if (self.model_provider == "Groq"):
+            if (self.model_provider == "groq"):
                 result = await loop.run_in_executor(None, self._transcribe_with_groq)
-            elif (self.model_provider == "Voxtral"):
+            elif (self.model_provider == "mistral"):
                 result = await loop.run_in_executor(None, self._transcribe_with_voxtral)
             return result
         except Exception as e:
@@ -436,6 +436,7 @@ class Asrwhisper(Baseplugin):
             headers = {
                 "x-api-key": api_key
             }
+            print (f"Transcribing with Voxtral using model: {self.model}, language: {self.lang_code}")
             files = {
                 "file": open(self.temp_audio_file, "rb"),
                 "model": (None, self.model),

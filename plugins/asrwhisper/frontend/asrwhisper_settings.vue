@@ -3,7 +3,7 @@
         <!-- Model Provider -->
         <div class="form-label">{{t('Model provider')}}</div>
         <div class="form-input">
-            <select name="provider" v-model="formData.provider" @change="onProviderChange">
+            <select name="model_provider" v-model="formData.model_provider" @change="onProviderChange">
                 <option value="groq">Groq</option>
                 <option value="mistral">Mistral (BETA)</option>
             </select>
@@ -19,7 +19,7 @@
             </select>
         </div>
         <div class="form-note"></div>
-        <!-- VOXTRAL API KEY -->
+        <!-- MISTRAL API KEY -->
         <div class="form-label" v-show="formData.model_name === 'voxtral-mini-latest'">{{t('Voxtral API Key (BETA)')}}</div>
         <div class="form-input" v-show="formData.model_name === 'voxtral-mini-latest'">
             <input
@@ -191,11 +191,11 @@ export default {
         },
         onProviderChange() {
             // Reset model_name if not compatible with provider
-            if (this.formData.provider === 'groq') {
+            if (this.formData.model_provider === 'groq') {
                 if (!['whisper-large-v3', 'whisper-large-v3-turbo'].includes(this.formData.model_name)) {
                     this.formData.model_name = 'whisper-large-v3';
                 }
-            } else if (this.formData.provider === 'mistral') {
+            } else if (this.formData.model_provider === 'mistral') {
                 if (this.formData.model_name !== 'voxtral-mini-latest') {
                     this.formData.model_name = 'voxtral-mini-latest';
                 }
