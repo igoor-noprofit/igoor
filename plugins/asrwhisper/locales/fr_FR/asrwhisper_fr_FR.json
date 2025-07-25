@@ -19,5 +19,6 @@
     "Microphone Activation Shortcut": "Raccourci d'activation du microphone",
     "Continuous mode": "Mode continu",
     "This keyboard combination STARTS / STOPS the speech detection process": "Cette combinaison de touches DÉMARRE / ARRÊTE le processus de reconnaissance vocale",
-    "Mistral API Key is required for Voxtral models":"La clé API Mistral est requise pour les modèles Voxtral"
+    "Mistral API Key is required for Voxtral models":"La clé API Mistral est requise pour les modèles Voxtral",
+    "Mistral API Key is required": "La clé API Mistral est obligatoire"
 }

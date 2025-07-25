@@ -22,7 +22,7 @@
             />
         </div>
         <div class="form-note" :style="{color: voxtralKeyError ? '#ff6666' : undefined}" v-show="formData.model_name === 'voxtral-mini-latest'">
-            {{ voxtralKeyError ? t('Voxtral API Key is required.') : t('Mistral API Key is required for Voxtral models') }}
+            {{ voxtralKeyError ? t('Mistral API Key is required') : t('Mistral API Key is required for Voxtral models') }}
         </div>
         
 
