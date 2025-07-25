@@ -131,6 +131,8 @@ In this case the final path is :
 
 IGOOR_FOLDER/plugins/asrvosk/models/language/model_size
 
+NOTE: Because of its high WER compared to Whisper and Voxtral, we recommend using Vosk only if audio privacy is paramount.
+
 ### Static Knowledge Base from patient documents (RAG, RetrievalAugmentedGeneration)
 
 Documents in IGOOR_FOLDER/plugins/rag/medias/ are scanned by the RAG plugin.
