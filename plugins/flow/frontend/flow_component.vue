@@ -4,24 +4,25 @@
         <button v-if="answers"
             :class="['btn', 'btn-side', 'btn-side-left', 'abandon', appview == 'autocomplete' ? 'autocomplete' : '', $root.headerExpanded ? 'expanded' : '']"
             @click="$_abandonConversation(true)">
-            <svg data-v-c03b73d2a84b39e50bcf45cec4f7bd79="" class="icon icon-l">
-                <use data-v-c03b73d2a84b39e50bcf45cec4f7bd79="" xlink:href="/img/svgdefs.svg#icon-chevron_left"></use>
+            <svg class="icon icon-l">
+                <use xlink:href="/img/svgdefs.svg#icon-chevron_left"></use>
             </svg>
             {{ t('Change topic') }}
         </button>
 
         <div class="answers">
-            <div class="row">
-                <div v-for="(msg, index) in answers" :key="index">
-                    <div :class="['msg msg-small']" @click="$_chooseAnswer(msg, index)">
+            <div class="row columns">
+                <div v-for="col in ['left', 'center', 'right']" :key="col" :class="['column', col]">
+                    <div v-for="(msg, idx) in answers[col]" :key="col + '-' + idx" class="msg msg-small"
+                        @click="$_chooseAnswer(msg, idx, col)">
                         {{ msg }}
                     </div>
                 </div>
                 <a class="autocompletelauncher msg msg-small" @click="$_showAutocomplete()"
-                    v-show="appview != 'autocomplete'">
-                    <img src="/img/icons/src/keyboard.svg" />
-                    <img src="/img/icons/src/more.svg" />
-                </a>
+                        v-show="appview != 'autocomplete'">
+                        <img src="/img/icons/src/keyboard.svg" />
+                        <img src="/img/icons/src/more.svg" />
+                    </a>
             </div>
         </div>
     </div>
@@ -37,15 +38,15 @@ module.exports = {
     data() {
         return {
             selectedCard: null,
-            answers: [],
+            answersRaw: [],
+            answers: { left: [], center: [], right: [] },
             waitingai: true,
-            currentInput: "" // Store the current input for autocomplete
+            currentInput: ""
         }
     },
     methods: {
         async $_abandonConversation(trigger_hook = false) {
             try {
-                console.log("FLOW abandons conversation");
                 if (trigger_hook) {
                     this.sendMsgToBackend({ "action": "abandon_conversation" });
                 }
@@ -55,77 +56,54 @@ module.exports = {
             }
         },
         $_clearAnswers() {
-            this.answers = []
-            this.currentInput = ""
+            this.answersRaw = [];
+            this.answers = { left: [], center: [], right: [] };
+            this.currentInput = "";
         },
         handleIncomingMessage(event) {
             const handled = BasePluginComponent.methods.handleIncomingMessage.call(this, event);
             if (handled) return true;
-            console.log(this.$options.name + ' handling message');
-            let data; // Declare the variable 'data'
+            let data;
             try {
                 data = JSON.parse(event.data);
                 if (data.action) {
-                    switch (data.action) { // Use 'data.action' instead of 'event.data.action'
+                    switch (data.action) {
                         case 'abandon_conversation':
-                            trigger_hook = data.trigger_hook ? true : false
                             this.$_abandonConversation(data.trigger_hook);
                             break;
                         case 'clear_answers':
                             this.$_clearAnswers();
                             break;
                         default:
-                            console.error("No handler for action " + data.action);
                             break;
                     }
                 } else {
-                    console.log("************ ANSWERS *********");
-                    console.table(data);
-
-                    // Check if this is an autocomplete response (has input field)
-                    if (data.input) {
-                        this.currentInput = data.input;
-                        this.answers = (data.completions || []).filter(a => a && a.trim());
+                    // Organise answers into columns for new JSON structure
+                    if (data.answers && typeof data.answers === 'object') {
+                        this.answersRaw = data.answers;
+                        this.answers = {
+                            left: data.answers.left || [],
+                            center: data.answers.center || [],
+                            right: data.answers.right || []
+                        };
                     } else {
-                        this.answers = (data.answers || []).filter(a => a && a.trim());
-                        this.currentInput = ""; // Clear input if not autocomplete
+                        this.answersRaw = [];
+                        this.answers = { left: [], center: [], right: [] };
                     }
-
+                    this.currentInput = "";
                     this.selectedCard = null;
                 }
             } catch (e) {
                 console.warn("Error parsing JSON in FLOW component");
-                console.log("WRONG JSON:" + event.data)
             }
         },
-        async $_chooseAnswer(msg, index) {
-            let text = msg;
-            // Remove the selected answer from the array
-            this.answers.splice(index, 1);
-
-            // Check if we're in autocomplete mode and have an input
-            if (this.appview === 'autocomplete' && this.currentInput) {
-                console.log("STORING PREDICTION because view = " + this.appview);
-
-                try {
-                    // Use the synchronous wrapper method instead
-                    window.pywebview.api.trigger_hook_sync("store_autocomplete_prediction", {
-                        input_text: this.currentInput,
-                        completion: text
-                    });
-                    console.log("Successfully stored prediction");
-                } catch (error) {
-                    console.error("Error storing prediction:", error);
-                }
-            }
-
-            const json = { action: "speak", msg: text };
-            console.log("sending JSON");
-            console.log(json);
+        async $_chooseAnswer(msg, idx, col) {
+            // Remove the selected answer from the column
+            this.answers[col].splice(idx, 1);
+            const json = { action: "speak", msg: msg };
             this.sendMsgToBackend(json);
         },
         $_showAutocomplete() {
-            console.log('emitting autocomplete');
             this.$emit('show-autocomplete');
         }
     }
@@ -133,6 +111,22 @@ module.exports = {
 </script>
 
 <style scoped>
+.columns {
+    display: flex;
+    flex-direction: row;
+    gap: 20px;
+}
+
+.column {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.answers .msg {
+    margin-bottom: 2.2vh;
+}
+
 .autocompletelauncher {
     cursor: pointer;
     margin-top: 10px;
@@ -140,28 +134,5 @@ module.exports = {
     padding-bottom: 8px;
     display: block;
     width: 100px;
-
-    img {
-        max-height: 40px;
-        filter: invert(1)
-    }
-}
-
-.flow-plugin {
-    margin: 10px 0;
-    flex-direction: row;
-    display: flex
-}
-
-.answers .msg {
-    margin-bottom: 2.2vh;
-}
-
-.fade-out {
-    display: none;
-}
-
-.fade-out {
-    pointer-events: none;
 }
 </style>

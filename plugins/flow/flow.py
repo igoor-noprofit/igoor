@@ -8,7 +8,7 @@ from settings_manager import SettingsManager
 from llm_manager import LLMManager
 import asyncio,json,time
 from pydantic import BaseModel, Field
-from typing import List, Optional, Literal
+from typing import List, Optional, Literal, Union, Dict
 from enum import Enum
 from datetime import datetime
 from utils import normalize_filter_by_timeframe_result
@@ -239,10 +239,9 @@ class Flow(Baseplugin):
         ]
         for query in queries:
             asyncio.run(self.asr_msg(query))
-        
 
 class Answers(BaseModel):
-    answers: List[str]
+    answers: Dict[str, List[str]]  # keys: "left", "center", "right"
 
 class TimeframeType(str, Enum):
     ABSOLUTE = "absolute"

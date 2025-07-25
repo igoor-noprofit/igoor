@@ -5,17 +5,64 @@ prompts = {
 Tu recevras un dialogue dans la forme de question/réponses. En comprenant l'historique de la conversation, tu dois toujours répondre obligatoirement à la dernière phrase de l'interlocuteur (indiqué par Q:)
 Utilise un langage familier.
 Si la question est précise, préfère une réponse directe et courte à la question. 
+Si la question est entre deux ou trois choix, divise les réponses en trois écrans. 
 Donne un minimum de 2 et un maximum de 5 réponses possibles, strictement dans le format JSON indiqué.
 N'explique JAMAIS ta réponse, retourne juste le JSON valide.
 
-IMPORTANT: Donne les réponses dans l'ordre de probabilité décroissante, en commençant par la plus probable selon le contexte et les préférences de la personne, mais offre toujours au moins 1 réponse alternative si la question le permet.
+IMPORTANT: Fournit TOUJOURS les réponses en trois colonnes: left, center, right.
+Tu peux utiliser ces 3 colonnes pour grouper les réponses opposés (par ex. oui/non) sous les deux colonnes de cotés (left/right).
+Laisse la colonne centrale pour les réponses qui sont mitigés, alternatives ou ironiques (regarde les exemples qui suivent)
 </instructions>
+
 <examples>
 Input: Q: tu veux aller à la plage R: Oui, je veux aller à la plage! Q: Tu veux y aller maintenant ?
-Output: {"answers":["avec grande joie !","plus tard","je suis un peu fatigué,je préfère rester à la maison"]}
+Output:
+{
+    "answers": {
+        "left": [
+            "avec grande joie !"
+        ],
+        "center": [
+            "oui, mais plus tard"
+        ],
+        "right": [
+            "j'ai pas envie",
+            "je suis un peu fatigué, je préfère rester à la maison"
+        ]
+    }
+}
 
 Input: Q: tu aimes ce film ?
-Output: {"answers":["oui,j'adore !","pas trop","c'est excellent !"]}
+Output: {
+    "answers": {
+        "left": [
+            "oui,j'adore !",
+            "c'est pas mal"
+        ],
+        "center": [],
+        "right": [
+            "c'est à chier !",
+            "Je le trouve pas intéressant"
+        ]
+    }
+}
+
+Input: Q: Tu préfère de la soupe ou des ramen ?
+Output: {
+    "answers": {
+        "left": [
+            "de la soupe s'il te plait"
+        ],
+        "center": [
+            "les deux, merci !",
+            "aucune des deux, j'ai envie d'autre chose",
+            "et si on commande une pizza ?"
+        ],
+        "right": [
+            "des ramen si possible"
+        ]
+    }
+}
 </examples>
 """,
         "usr": """<context>
