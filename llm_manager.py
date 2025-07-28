@@ -27,10 +27,14 @@ class LLMManager:
     def _create_chat(self):
         if self.provider == "groq":
             self.logger.info(f"Creating Groq chat instance with model: {self.model_name}")
-            return ChatGroq(temperature=self.temperature, 
-                            groq_api_key=self.api_key, 
-                            model_name=self.model_name, 
-                            callbacks=[StdOutCallbackHandler()])
+            base_chat = ChatGroq(
+                temperature=self.temperature, 
+                groq_api_key=self.api_key, 
+                model_name=self.model_name, 
+                callbacks=[StdOutCallbackHandler()]
+            )
+            # Return the instance with tools disabled by default
+            return base_chat.bind(tool_choice="none")
         elif self.provider == "openai":
             self.logger.info(f"Creating OpenAI chat instance with model: {self.model_name}")
             return ChatOpenAI(temperature=self.temperature, openai_api_key=self.api_key, model_name=self.model_name)
@@ -47,7 +51,11 @@ class LLMManager:
         except Exception as e:
             self.logger.error(f"Exception setting JSON schema: {e}")
             return e
-        
+    
+    def get_no_tools_instance(self):
+        """Returns a chat instance with tools explicitly disabled."""
+        return self.chat_instance.bind(tool_choice="none")
+    
     def invoke(self, system_prompt, prompt, retries=3):
         messages = [
             ("system", system_prompt),

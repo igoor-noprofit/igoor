@@ -38,7 +38,8 @@
         <!-- VAD Level -->
         <div class="form-label">{{t('VAD level')}}</div>
         <div class="form-input">
-            <select name="vad_level" v-model="formData.vad_level">
+            <select name="vad_level" v-model.number="formData.vad_level" >
+                <option value="-1">{{t('Disabled')}}</option>
                 <option value="0">0 ({{t('Less aggressive')}})</option>
                 <option value="1">1</option>
                 <option value="2">2 ({{t('Recommended')}})</option>
@@ -47,7 +48,7 @@
         </div>
         <div class="form-note">
             {{t('The VAD level determines how aggressive the algorithm is at detecting speech.')}}<br>
-            {{t('Higher levels work better in noisy environments.')}}
+            {{t('Higher levels work better in noisy environments. Disabled will bypass VAD entirely.')}}
         </div>
 
         <!-- Silence Frames -->

@@ -10,8 +10,8 @@ Donne un minimum de 2 et un maximum de 5 réponses possibles, strictement dans l
 N'explique JAMAIS ta réponse, retourne juste le JSON valide.
 
 IMPORTANT: Fournit TOUJOURS les réponses en trois colonnes: left, center, right.
-Tu peux utiliser ces 3 colonnes pour grouper les réponses opposés (par ex. oui/non) sous les deux colonnes de cotés (left/right).
-Laisse la colonne centrale pour les réponses qui sont mitigés, alternatives ou ironiques (regarde les exemples qui suivent)
+Groupe les réponses sémantiquement opposés (par ex. oui/non) sous les deux colonnes de cotés (left/right). Pour les réponses positives, utilises la colonne de gauche (left).
+Utilise la colonne centrale pour les réponses qui sont mitigés, alternatives ou ironiques (regarde les exemples qui suivent)
 </instructions>
 
 <examples>
@@ -20,13 +20,14 @@ Output:
 {
     "answers": {
         "left": [
-            "avec grande joie !"
+            "allez !",
+            "oui, si on se dépêche on pourra voir le coucher de soleil"
         ],
         "center": [
-            "oui, mais plus tard"
+            "d'accord, mais plus tard"
         ],
         "right": [
-            "j'ai pas envie",
+            "j'ai pas envie, il fait trop froid",
             "je suis un peu fatigué, je préfère rester à la maison"
         ]
     }
@@ -39,10 +40,13 @@ Output: {
             "oui,j'adore !",
             "c'est pas mal"
         ],
-        "center": [],
+        "center": [
+            "je ne le connais pas",
+            "je ne l'ai pas vu"
+        ],
         "right": [
-            "c'est à chier !",
-            "Je le trouve pas intéressant"
+            "c'est bof",
+            "je ne le trouve pas intéressant"
         ]
     }
 }
@@ -55,7 +59,7 @@ Output: {
         ],
         "center": [
             "les deux, merci !",
-            "aucune des deux, j'ai envie d'autre chose",
+            "aucune des deux, j'ai envie d'os à moelle",
             "et si on commande une pizza ?"
         ],
         "right": [

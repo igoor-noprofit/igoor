@@ -18,7 +18,6 @@ class Asrwhisper(Baseplugin):
         self.is_loaded = False  # Make sure this is initialized
         self.wakeword_detected = False  # Initialize wakeword state
         super().__init__(plugin_name, pm)
-        self.vad = webrtcvad.Vad(2)  # 0-3, 3 is most aggressive, 2 is a good balance
         
     @hookimpl
     def startup(self):
@@ -29,6 +28,12 @@ class Asrwhisper(Baseplugin):
         self.lang_code = get_base_language_code(self.lang, default_lang="fr") # Default to 'fr' if not found or empty
         
         self.wakeword = self.settings.get("wakeword")
+        
+        self.vad_level = self.settings.get("vad_level", 2)  # Default to 2 if not set
+        if (self.vad_level >0):
+            self.vad = webrtcvad.Vad(self.vad_level)  # 0-3, 3 is most aggressive, 2 is a good balance
+        else:
+            self.vad = None
         
         self.continuous = self.settings.get("continuous", False) # Ensure default for continuous
         print (f"WHISPER settings: {self.settings}, Global Lang for ASR: {self.lang_code}")
@@ -269,19 +274,22 @@ class Asrwhisper(Baseplugin):
                     
                     # Process audio with both approaches
                     while self.recording and (time.time() - recording_start) < max_recording_time:
-                        # Read a full chunk for buffer
                         chunk_data = self.stream.read(self.chunk_size, exception_on_overflow=False)
                         if len(chunk_data) == 0:
                             continue
-                            
-                        # Store the data in our buffer regardless of VAD
+
                         audio_buffer.append(chunk_data)
-                        
+
+                        # BYPASS VAD if vad_level == -1 and self.vad is None
+                        if self.settings.get("vad_level", 2) == -1 and self.vad is None:
+                            # Just record until max_recording_time or manual stop
+                            await asyncio.sleep(0.01)
+                            continue
+
                         # Process VAD on smaller frames
-                        # We need to process frame_bytes sized chunks for VAD
                         for i in range(0, len(chunk_data) - frame_bytes + 1, frame_bytes):
                             frame = chunk_data[i:i+frame_bytes]
-                            if len(frame) == frame_bytes:  # Ensure frame is complete
+                            if len(frame) == frame_bytes:
                                 frame_count += 1
                                 try:
                                     is_speech = vad.is_speech(frame, sample_rate)
@@ -292,22 +300,19 @@ class Asrwhisper(Baseplugin):
                                     elif speech_started:
                                         silence_counter += 1
                                 except Exception as e:
-                                    # Just log and continue on VAD errors
                                     print(f"VAD error: {e}")
-                                
-                                # Check if we've recorded enough and detected end of speech
+
                                 if (speech_started and 
                                     silence_counter >= silence_frames and 
                                     frame_count > min_frames):
                                     print(f"Detected end of speech after {silence_counter} silent frames")
                                     break
-                        
-                        # If we detected silence after min duration, break the outer loop too
+
                         if (speech_started and 
                             silence_counter >= silence_frames and 
                             frame_count > min_frames):
                             break
-                            
+
                         await asyncio.sleep(0.01)
                     
                     # Process recorded audio
