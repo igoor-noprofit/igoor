@@ -50,6 +50,11 @@ class MyAppSpec:
         """Hook for plugins to perform custom save settings"""
         pass
     
+    @pluggy.HookspecMarker(app_name)
+    def settings_updated(self, plugin_name: str, new_settings: dict):
+        """Hook called when a plugin's settings are updated"""
+        pass
+    
     '''
         GUI AND APP
     '''
