@@ -3,7 +3,7 @@ from langchain_groq import ChatGroq  # Import other chat classes as needed
 from langchain.callbacks import StdOutCallbackHandler
 import langchain
 langchain.debug = True  # Enable debug mode for LangChain
-import os, time, json
+import os, time
 from settings_manager import SettingsManager
 from utils import setup_logger, setup_jsonl_logger
 
@@ -18,7 +18,7 @@ class LLMManager:
         self.provider = provider or ai.get("provider")
         self.api_key = api_key or ai.get("api_key")
         self.model_name = model_name or ai.get("model_name")
-        self.temperature = kwargs.get("temperature", 1) or ai.get("temperature")
+        self.temperature = kwargs.get("temperature") or ai.get("temperature")
         self.chat_instance = self._create_chat()
         self.json_schema = False
         # Setup dedicated logger for LLM invocations
