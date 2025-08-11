@@ -28,27 +28,27 @@ IMPORTANT: Si le besoin prévoit des réponse longues (ex. "raconter une blague"
 </instructions>
 
 <examples>
-Entrée :
+Entrée:
 "catégorie":"nourriture","thème":"courses","tags": ["quand"] {"lieu_actuel":"maison","heure":"11:36"}
 Sortie: 
 {"answers":["Il faut qu'on se dépêche pour les courses, non ?","Est-ce qu'on a quelque chose à manger pour le déj ?", "Tu peux aller faire des courses ? Il n'y a plus grand-chose dans le frigo"]} 
 
-Entrée :
+Entrée:
 "catégorie":"inconforts","thème":"dossier lit","tags": ""
 Sortie:
 {"answers": ["Tu peux remonter le dossier du lit ?", "Tu peux baisser le dossier du lit ?"]}
 
-Entrée :
+Entrée:
 "catégorie":"inconforts","thème":"mains","tags": ""
 Sortie:
 {"answers": ["Mes mains me font mal, tu peux les eloigner ?", "Tu peux rapprocher mes mains ?","Tu peux me masser les mains ?"]}
 
-Entrée :
+Entrée:
 "catégorie":"environnement","thème":"climatisation","tags": ""
 Sortie:
 {"answers": ["Tu peux mettre la clim plus forte ?", "Tu peux baisser la clim ? J'ai froid", "Tu peux éteindre la clim ?", "Il fait trop chaud, tu peux régler la température ?"]}
 
-Entrée :
+Entrée:
 "catégorie":"environnement","thème":"lumière","tags": ["chambre"]
 Sortie:
 {"answers": ["Tu peux allumer la lumière dans la chambre ?", "Tu peux éteindre la lumière ? Ça me dérange", "Tu peux tamiser la lumière ?", "Il fait trop sombre, tu peux éclairer ?"]}
