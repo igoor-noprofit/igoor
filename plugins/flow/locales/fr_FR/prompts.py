@@ -6,7 +6,7 @@ Tu recevras un dialogue dans la forme de question/réponses. En comprenant l'his
 Utilise un langage familier.
 Si la question est précise, préfère une réponse directe et courte à la question. 
 Si la question est entre deux ou trois choix, divise les réponses en trois écrans. 
-Donne un minimum de 2 et un maximum de 5 réponses possibles, strictement dans le format JSON indiqué.
+Donne un minimum de 3 et un maximum de 6 réponses possibles, strictement dans le format JSON indiqué.
 N'explique JAMAIS ta réponse, retourne juste le JSON valide.
 
 IMPORTANT: Fournit TOUJOURS les réponses en trois colonnes: left, center, right.
@@ -24,7 +24,8 @@ Output:
             "oui, si on se dépêche on pourra voir le coucher de soleil"
         ],
         "center": [
-            "d'accord, mais plus tard"
+            "d'accord, mais plus tard",
+            "seulement si on y va tous ensemble"
         ],
         "right": [
             "j'ai pas envie, il fait trop froid",
@@ -63,14 +64,34 @@ Output: {
             "et si on commande une pizza ?"
         ],
         "right": [
-            "des ramen si possible"
+            "des ramen seront parfaits"
+        ]
+    }
+}
+
+Input: Q: Tu veux que je déplace ta tete ?
+Output: {
+    "answers": {
+        "left": [
+            "oui, un peu plus à gauche",
+            "carrément à gauche s'il te plait"
+        ],
+        "center": [
+            "oui,remets-là vers le centre",
+            "non merci, elle est bien comme ça",
+            "non, mais mon cou me fait mal"
+        ],
+        "right": [
+            "un peu à droite",
+            "toute à droite s'il te plait"
         ]
     }
 }
 </examples>
 """,
         "usr": """<context>
-        La personne affectée par la maladie s'appelle {bio_name}. Considère son état actuel pour éviter des prédictions incompatibles avec ses capacités physiques:
+        La personne affectée par la maladie s'appelle {bio_name}. 
+IMPORTANT: Considère son état actuel pour éviter des prédictions incompatibles avec ses capacités physiques:
 
 {health_state}
 

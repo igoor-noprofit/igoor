@@ -1,6 +1,7 @@
 <template>
     <div class="flow container flow-plugin" :class="{ 'plugin-error': error }"
         v-if="appview != 'daily' && appview != 'onboarding'">
+
         <button v-if="answers"
             :class="['btn', 'btn-side', 'btn-side-left', 'abandon', appview == 'autocomplete' ? 'autocomplete' : '', $root.headerExpanded ? 'expanded' : '']"
             @click="$_abandonConversation(true)">
@@ -18,13 +19,14 @@
                         {{ msg }}
                     </div>
                 </div>
-                <a class="autocompletelauncher msg msg-small" @click="$_showAutocomplete()"
-                        v-show="appview != 'autocomplete'">
-                        <img src="/img/icons/src/keyboard.svg" />
-                        <img src="/img/icons/src/more.svg" />
-                    </a>
+                <!--a class="autocompletelauncher msg msg-small" @click="$_showAutocomplete()"
+                    v-show="appview != 'autocomplete'">
+                    <img src="/img/icons/src/keyboard.svg" />
+                    <img src="/img/icons/src/more.svg" />
+                </a-->
             </div>
         </div>
+
     </div>
     <div v-else></div>
 </template>
@@ -111,16 +113,38 @@ module.exports = {
 </script>
 
 <style scoped>
+.flow.container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.answers {
+    flex: 1 1 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    border: 1px solid #0f0;
+    /* green box */
+    min-height: 0;
+    /* prevents overflow issues */
+    width: calc(100% - 120px);
+    margin-left: 120px;
+}
+
 .columns {
     display: flex;
     flex-direction: row;
-    gap: 20px;
+    gap: 30px;
+    height: 100%;
+    width: 100%;
 }
 
 .column {
     flex: 1;
     display: flex;
     flex-direction: column;
+    padding: 20px;
 }
 
 .answers .msg {
@@ -134,5 +158,9 @@ module.exports = {
     padding-bottom: 8px;
     display: block;
     width: 100px;
+    min-height: 40px;
+}
+.autocompletelauncher img{
+    filter: invert(1)
 }
 </style>
