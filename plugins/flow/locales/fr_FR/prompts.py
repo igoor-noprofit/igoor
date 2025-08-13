@@ -9,7 +9,7 @@ Si la question est entre deux ou trois choix, divise les réponses en trois écr
 Donne un minimum de 3 et un maximum de 6 réponses possibles, strictement dans le format JSON indiqué.
 N'explique JAMAIS ta réponse, retourne juste le JSON valide.
 
-IMPORTANT: Fournit TOUJOURS les réponses en trois colonnes: left, center, right.
+IMPORTANT: Fournis TOUJOURS les réponses en trois colonnes: left, center, right.
 Groupe les réponses sémantiquement opposés (par ex. oui/non) sous les deux colonnes de cotés (left/right). Pour les réponses positives, utilises la colonne de gauche (left).
 Utilise la colonne centrale pour les réponses qui sont mitigés, alternatives ou ironiques (regarde les exemples qui suivent)
 </instructions>

@@ -33,17 +33,17 @@
         <div class="secondary" v-if="currentView == 'loadingAnswers'">
             loading...
         </div>
-        <div class="answers secondary" v-if="currentView == 'answers'">
+        <div class="answers" v-if="currentView == 'answers'">
             <button class="btn btn-side btn-side-left" @click="switchToMainView"><svg class="icon icon-l">
                     <use xlink:href="/img/svgdefs.svg#icon-chevron_left" />
                 </svg></button>
-            <div class="row">
-                <div v-for="(msg, index) in answers" :key="index">
-                    <div :class="['msg msg-small']" @click="$_chooseAnswer(msg, index)">
+            <div class="row columns">
+                <div v-for="col in ['left', 'center', 'right']" :key="col" :class="['column', col]">
+                    <div v-for="(msg, idx) in answers[col]" :key="col + '-' + idx" class="msg msg-small"
+                        @click="$_chooseAnswer(msg, idx, col)">
                         {{ msg }}
                     </div>
                 </div>
-                <!--a v-show="appview!=='autocomplete'" class="autocompletelauncher plugin" @click="$_showAutocomplete()">...</a-->
             </div>
         </div>
     </div>
@@ -139,7 +139,7 @@ module.exports = {
             if (this.currentView == 'main' || this.currentView == 'secondary') {
                 this.currentView = 'loadingAnswers';
                 console.warn("ITEM SELECTED");
-                
+
                 this.answers = [];
                 this.sendMsgToBackend({
                     action: 'generatePhrases',
@@ -172,6 +172,35 @@ module.exports = {
 .answers.secondary {
     display: flex;
     justify-content: center;
+}
+
+.answers {
+    flex: 1 1 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    border: 1px solid #0f0;
+    /* green box */
+    min-height: 0;
+}
+
+.columns {
+    display: flex;
+    flex-direction: row;
+    gap: 30px;
+    height: 100%;
+    width: 100%;
+}
+
+.column {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+}
+
+.answers .msg {
+    margin-bottom: 2.2vh;
 }
 
 .main {

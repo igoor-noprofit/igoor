@@ -8,7 +8,7 @@ from settings_manager import SettingsManager
 from llm_manager import LLMManager
 import asyncio,json,time,os
 from pydantic import BaseModel
-from typing import List
+from typing import List, Dict
 from utils import normalize_filter_by_timeframe_result
 
 class Daily(Baseplugin):  
@@ -180,4 +180,4 @@ class Daily(Baseplugin):
         print(f"Flow plugin received new status: {status}")
 
 class Answers(BaseModel):
-    answers: List[str]
+    answers: Dict[str, List[str]]

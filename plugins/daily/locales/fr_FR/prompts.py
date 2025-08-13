@@ -13,7 +13,7 @@ Tu recevras aussi un JSON avec des infos du contexte dynamique, ex.:
 {"lieu_actuel":"maison","heure":"11:36"}
 
 Dans l'exemple, il est probable que la personne en situation d'handicap souhaite savoir si quelqu'un peut aller faire des courses,parce qu'il commence à être tard pour le déjeuner. 
-Propose de 3 à 5 phrases qui tiennent compte en premier lieu du thème, ainsi que des handicaps de la personne; mais aussi des tags proposés et,si pertinentes,des informations venant du contexte (mémoire à court terme, à long terme etc). 
+Propose d6 phrases qui tiennent compte en premier lieu du thème, ainsi que des handicaps de la personne; mais aussi des tags proposés et,si pertinentes,des informations venant du contexte (mémoire à court terme, à long terme etc). 
 Pars des situations les plus probables au quotidien.
 Le résultat doit être obligatoirement un objet JSON avec un champ "answers" contenant une liste de phrase.
 Retourne uniquement un JSON, sans guillemets, sans balises Markdown, sans explication.
@@ -25,33 +25,93 @@ Pour les thèmes qui impliquent des réglages ou des ajustements (température, 
 N'explique JAMAIS ta réponse, retourne EXCLUSIVEMENT le JSON valide.
 
 IMPORTANT: Si le besoin prévoit des réponse longues (ex. "raconter une blague", "raconter une anecdote", "raconter une fable" etc.) tu peux proposer des réponses avec une petite blague, une histoire etc. du début à la fin.
+
+IMPORTANT: Donne un minimum de 3 et un maximum de 6 réponses possibles, strictement dans le format JSON indiqué.
+N'explique JAMAIS ta réponse, retourne juste le JSON valide.
+
+IMPORTANT: Fournis TOUJOURS les phrases organisées en trois colonnes: left, center, right.
+Groupe les phrases sémantiquement opposés (par ex. à gauche/à droite) sous les deux colonnes de cotés (left/right). Pour les réponses positives, utilises la colonne de gauche (left).
+Utilise la colonne centrale pour les réponses alternatives (regarde les exemples qui suivent),
+maix exprime TOUJOURS un besoin dans les phrases.
+
 </instructions>
 
 <examples>
 Entrée:
-"catégorie":"nourriture","thème":"courses","tags": ["quand"] {"lieu_actuel":"maison","heure":"11:36"}
-Sortie: 
-{"answers":["Il faut qu'on se dépêche pour les courses, non ?","Est-ce qu'on a quelque chose à manger pour le déj ?", "Tu peux aller faire des courses ? Il n'y a plus grand-chose dans le frigo"]} 
-
-Entrée:
 "catégorie":"inconforts","thème":"dossier lit","tags": ""
 Sortie:
-{"answers": ["Tu peux remonter le dossier du lit ?", "Tu peux baisser le dossier du lit ?"]}
+{
+    "answers": {
+        "left": [
+            "tu peux remonter le dossier du lit ?"
+        ],
+        "center": [
+            "le dossier du lit me fait mal",
+            "s'il te plait, remet le dossier du lit en position normale"
+        ],
+        "right": [
+            "tu peux baisser le dossier du lit ?"
+        ]
+    }
+}
 
 Entrée:
 "catégorie":"inconforts","thème":"mains","tags": ""
 Sortie:
-{"answers": ["Mes mains me font mal, tu peux les eloigner ?", "Tu peux rapprocher mes mains ?","Tu peux me masser les mains ?"]}
+{
+    "answers": {
+        "left": [
+            "Tu peux rapprocher mes mains ?",
+            "Tu peux monter mes mains ?"
+        ],
+        "center": [
+            "Tu peux me masser les mains ?",
+            "J'ai une douleur aux mains"
+        ],
+        "right": [
+            "Mes mains me font mal, tu peux les eloigner ?",
+            "Tu peux baisser mes mains ?"
+        ]
+    }
+}
 
 Entrée:
 "catégorie":"environnement","thème":"climatisation","tags": ""
 Sortie:
-{"answers": ["Tu peux mettre la clim plus forte ?", "Tu peux baisser la clim ? J'ai froid", "Tu peux éteindre la clim ?", "Il fait trop chaud, tu peux régler la température ?"]}
+{
+    "answers": {
+        "left": [
+            "Tu peux mettre la clim plus forte ?",
+            "Il fait trop chaud, tu peux régler la température ?
+        ],
+        "center": [
+            "Tu peux éteindre la clim ?",
+            "La climatisation dérange ma respiration"
+        ],
+        "right": [
+            "Tu peux baisser la clim ? J'ai froid"
+        ]
+    }
+}
 
 Entrée:
 "catégorie":"environnement","thème":"lumière","tags": ["chambre"]
 Sortie:
-{"answers": ["Tu peux allumer la lumière dans la chambre ?", "Tu peux éteindre la lumière ? Ça me dérange", "Tu peux tamiser la lumière ?", "Il fait trop sombre, tu peux éclairer ?"]}
+{
+    "answers": {
+        "left": [
+            "Tu peux allumer la lumière dans la chambre ?",
+            "Il fait trop chaud, tu peux régler la température ?
+        ],
+        "center": [
+            "Tu peux tamiser la lumière ?",
+            "Il fait trop sombre, tu peux éclairer ?"
+        ],
+        "right": [
+            "Tu peux éteindre la lumière ? Ça me dérange"
+        ]
+    }
+}
 </examples>
 """,
         "usr": """<context>
