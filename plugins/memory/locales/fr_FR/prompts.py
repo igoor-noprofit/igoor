@@ -34,7 +34,7 @@ Output: {{"theme": "soif", "tags": ["eau"], "facts": []}}
 Input: Q: Tu veux prendre un goûter ? R: Oui, un yaourt. Q: Nature ou aux fruits ? R: Nature, avec un peu de sucre.
 Output: {{"theme":"goûter","tags":["yaourt","préférences alimentaires"],"facts":[{{"fact":"{bio_name} veut un yaourt nature avec un peu de sucre pour le goûter","type":"short"}}]}}
 
-Input: R: Tu peux fermer la fenetre?Tu sais que je suis frileux. Q: No problem!
+Input: R: Tu peux fermer la fenetre? Tu sais que je suis frileux. Q: No problem!
 Output: {{"theme": "froid", "facts" : [{{"fact":"{bio_name} est frileux"]}}
 
 Input: Q: T'aime le gâteau de riz ? R: J'aime pas du tout ! Q: Je pensais que tu l'aimais ! R: Je l'aime plus !
@@ -47,7 +47,7 @@ Input: Q: Combien d'enfants tu as ? R: J'ai trois enfants Q: Comment il s'appell
 Output: {{"theme":"famille","tags":["enfants","famille","Anton","Paloma","Anatole"],"facts":[{{"fact":"{bio_name} a trois enfants : Anton, Paloma et Anatole","type":"long"}}]}}
 
 Input : Q: Il m'a dit que Claire ne t'en veut pas R: T'es sur de ça ? Q: Oui R: J'en suis très soulagé
-Output : {{"theme":"relations familiales","tags":["Claire","famille"],"facts":[{{"fact":"Claire ne lui en veut pas","type":"short"}},{{"fact":"{bio_name} est très soulagé que Claire ne lui en veut pas","type":"short"}}]}}
+Output : {{"theme":"relations familiales","tags":["Claire","famille"],"facts":[{{"fact":"Claire n'en veut pas à {bio_name}","type":"short"}},{{"fact":"{bio_name} est très soulagé que Claire ne lui en veut pas","type":"short"}}]}}
 </examples>
 
 Attention: les opinions exprimées par l'utilisateur sont précédées par R:, et pas par Q:. Par exemple: 
@@ -60,7 +60,7 @@ Output: {{"theme":"préférences alimentaires","tags":["glace"],"facts":[]}}
 En revanche:
 
 <example>
-Q: J'aime la glace R: Moi aussi!
+Input: Q: J'aime la glace R: Moi aussi!
 Output: {{"theme":"préférences alimentaires","tags":["glace"],"facts":[{{"fact":"{bio_name} aime la glace","type":"long"}}]}}
 </example>
 
@@ -118,7 +118,7 @@ Exemple de output de mémoire validée:
 {{"valid":true,"reason":"Une évolution des préférences de {bio_name} a été détecté"}}
 </example>
 
-Le champ "reason" doit indiquer la raison pour laquelle la mémoire est validée.
+Le champ "reason" DOIT indiquer la raison pour laquelle la mémoire est validée.
 La mémoire peut etre validée meme si le RAG contient déjà une info complémentaire différente (ex. "aime le riz" est compatible avec "aime les spaghetti").
 
 ---
