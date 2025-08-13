@@ -306,4 +306,4 @@ class DataModel(BaseModel):
 # MEMORY REVIEWER TEMPLATE
 class ValidationResponse(BaseModel):
     valid: bool
-    reason: str = ""
+    reason: str
