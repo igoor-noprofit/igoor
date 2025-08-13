@@ -28,7 +28,7 @@
     <autocompletelauncher @show-autocomplete="showAutocomplete" :appview="appview" :lang="lang"></autocompletelauncher>
 </div>
 <main>
-    <daily  :appview="appview" :lang="lang"></daily><flow @show-autocomplete="showAutocomplete" :appview="appview" :lang="lang"></flow>
+    <daily  :appview="appview" :lang="lang"></daily><flow @show-autocomplete="showAutocomplete" :appview="appview" :lang="lang"></flow><memory  :appview="appview" :lang="lang"></memory>
 </main>
 <footer>
     <shortcuts  :appview="appview" :lang="lang"></shortcuts>

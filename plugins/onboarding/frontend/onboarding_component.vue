@@ -92,12 +92,11 @@
                             <div>
                                 <label>{{ t("Model Name") }}</label>
                                 <select v-model="ai.model_name">
-                                    <option value="llama-3.3-70b-versatile">Llama 3.3-70B (stable)</option>
-                                    <option value="meta-llama/llama-4-maverick-17b-128e-instruct">Llama 4-17b-128e
-                                        (beta)
-                                    </option>
-                                    <option value="meta-llama/llama-4-scout-17b-16e-instruct">Llama 4-17b-16e (beta)
-                                    </option>
+                                    <option value="llama-3.3-70b-versatile">Llama 3.3-70B</option>
+                                    <option value="meta-llama/llama-4-maverick-17b-128e-instruct">Llama 4-17b-128e</option>
+                                    <option value="meta-llama/llama-4-scout-17b-16e-instruct">Llama 4-17b-16e</option>
+                                    <option value="openai/gpt-oss-120b">OpenAI OSS-GPT-120B (beta)</option>
+                                    <option value="openai/gpt-oss-20b">OpenAI OSS-GPT-20B (beta)</option>
                                 </select>
                             </div>
                             <div>
