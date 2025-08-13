@@ -140,14 +140,11 @@ Pour m'aider à prédire la prochaine réponse de l'utilisateur :
 
     - Mémoire à court terme : Événements récents ou ponctuels.
     - Mémoire à long terme : Préférences, faits constants, souvenirs de vie.
-
-- Pour la mémoire à long terme, précise où chercher parmi ces deux catégories :
-
-    - "bio" : document biographique sur la vie de l'utilisateur.        
-    - "daily" : informations sur la vie quotidienne de l'utilisateur.
         
 - Si la requête contient des références temporelles (aujourd'hui, hier, la semaine dernière, ce matin, etc.), extrais la période concernée. 
 Les demandes sur les préférences,les gouts et les croyances impliquent la plupart du temps la mémoire à court et à long terme.
+
+IMPORTANT: Si la requête ne contient pas de référence temporelle, cherche la mémoire à court et long terme. 
     
 Retourne EXCLUSIVEMENT un JSON valide avec la structure suivante:
 
@@ -155,44 +152,44 @@ Retourne EXCLUSIVEMENT un JSON valide avec la structure suivante:
 {
     "theme": "le sujet de la conversation",
     "m_type": ["short", "long"], // court ou long ou les deux
-    "cat": ["bio", "daily"], // bio ou daily ou les deux
     "timeframe": {
-    "type": "absolute|relative", // "absolute" pour les dates précises, "relative" pour les références temporelles comme "hier"
-    "reference": "la référence temporelle extraite de la requête en anglais", // ex. "this morning", "yesterday"
-    "start_date": "YYYY-MM-DD", // optionnel, pour les dates absolues
-    "end_date": "YYYY-MM-DD", // optionnel, pour les dates absolues
-   "relative_days": -1, // jours relatifs à la date actuelle (ex. -1 pour "hier")
-    "period": "morning|afternoon|evening|full_day|full_period" // période optionnelle de la journée
+        "type": "absolute|relative", // "absolute" pour les dates précises, "relative" pour les références temporelles comme "hier"
+        "reference": "la référence temporelle extraite de la requête en anglais", // ex. "this morning", "yesterday", "this year"
+        "start_date": "YYYY-MM-DD", // pour les dates absolues, vide autrement
+        "end_date": "YYYY-MM-DD", // pour les dates absolues, vide autrement
+        "relative_days": -1, // jours relatifs à la date actuelle (ex. -1 pour "hier")
+        "period": "morning|afternoon|evening|full_day|full_period" // période de la journée
+    }
 }
 </example>
 
-### Exemples :
+All the following examples assume in the input context a datetime of 2025/08/04 16:00:00 :
 
 <examples>
 Entrée :
 {"conv": "Q: Que veux-tu manger aujourd'hui ?"}
 Sortie :
-{"theme": "Prévisions repas", "m_type": ["short", "long"], "cat": ["daily"], "timeframe": {"type": "relative", "reference": "today", "relative_days": 0, "period": "full_day"}}
+{"theme": "Prévisions repas", "m_type": ["short", "long"], "timeframe": {"type": "relative", "reference": "today", "start_date": "", "end_date": "", "relative_days": 0, "period": "full_day"}}
 
 Entrée :
 {"conv": "Q: Qu'as-tu fait hier ?"}
 Sortie :
-{"theme": "Activités d'hier", "m_type": ["short"], "timeframe": {"type": "relative", "reference": "yesterday", "relative_days": -1, "period": "full_day"}}
+{"theme": "Activités d'hier", "m_type": ["short"], "timeframe": {"type": "relative", "reference": "yesterday", "start_date": "", "end_date": "", "relative_days": -1, "period": "full_day"}}
 
 Entrée :
 {"conv": "Q: Raconte-moi une anecdote de ton enfance."}
 Sortie :
-{"theme": "Anecdote sur la vie de l'utilisateur", "m_type": ["long"], "cat": ["bio"]}
+{"theme": "Anecdote sur la vie de l'utilisateur", "m_type": ["long"],  "timeframe": {"type": "relative", "reference": "always", "start_date": "", "end_date": "", "relative_days": -3650, "period": "full_day"}}
 
 Entrée :
 {"conv": "Q: Quelle musique t'aimes écouter"}
 Sortie :
-{"theme": "Préférences musicales de l'utilisateur", "m_type": ["short","long"], "cat": ["bio","daily"]}
+{"theme": "Préférences musicales de l'utilisateur", "m_type": ["short","long"], "timeframe": {"type": "relative", "reference": "always", "start_date": "", "end_date": "", "relative_days": -3650, "period": "full_day"}}
 
 Entrée :
 {"conv": "Q: As-tu parlé avec ta fille cette semaine ?"}
 Sortie :
-{"theme": "Communication avec sa fille", "m_type": ["short"], "timeframe": {"type": "relative", "reference": "this week", "relative_days": -7, "period": "full_period"}}
+{"theme": "Communication avec sa fille", "m_type": ["short"], "timeframe": {"type": "relative", "reference": "this week", "start_date": "", "end_date": "", "relative_days": -7, "period": "full_period"}}
 </examples>
 """
  }

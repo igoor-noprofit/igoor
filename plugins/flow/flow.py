@@ -241,7 +241,7 @@ class Flow(Baseplugin):
             asyncio.run(self.asr_msg(query))
 
 class Answers(BaseModel):
-    answers: Dict[str, List[str]]  # keys: "left", "center", "right"
+    answers: Dict[str, List[str]]
 
 class TimeframeType(str, Enum):
     ABSOLUTE = "absolute"
@@ -258,20 +258,15 @@ class MType(str, Enum):
     SHORT = "short"
     LONG = "long"
 
-class Category(str, Enum):
-    BIO = "bio"
-    DAILY = "daily"
-
 class Timeframe(BaseModel):
     type: TimeframeType = Field(description="absolute for specific dates, relative for references like 'yesterday'")
     reference: str = Field(description="the original time reference from the query")
-    start_date: Optional[str] = Field(None, pattern=r"^\d{4}-\d{2}-\d{2}$", description="YYYY-MM-DD format, optional for absolute dates")
-    end_date: Optional[str] = Field(None, pattern=r"^\d{4}-\d{2}-\d{2}$", description="YYYY-MM-DD format, optional for absolute dates")
-    relative_days: Optional[int] = Field(None, description="days relative to current date (e.g., -1 for yesterday)")
-    period: Optional[Period] = Field(None, description="optional period of the day")
+    start_date: str = Field(pattern=r"^$|^\d{4}-\d{2}-\d{2}$", description="YYYY-MM-DD format or empty")
+    end_date: str = Field(pattern=r"^$|^\d{4}-\d{2}-\d{2}$", description="YYYY-MM-DD format or empty")
+    relative_days: int = Field(description="days relative to current date (e.g., -1 for yesterday)")
+    period: Period = Field(description="period of the day")
 
 class ConversationModel(BaseModel):
     theme: str = Field(description="the subject of the conversation")
     m_type: List[MType] = Field(description="short or long or both")
-    cat: List[Category] = Field(description="bio or daily or both")
-    timeframe: Optional[Timeframe] = Field(None, description="timeframe for the query, can be null")
+    timeframe: Timeframe = Field(description="timeframe for the query")
