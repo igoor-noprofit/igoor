@@ -1,6 +1,4 @@
 from version import __appname__, __version__, __codename__
-from langchain_groq import ChatGroq  # Import other chat classes as needed
-from langchain.callbacks import StdOutCallbackHandler
 import langchain
 langchain.debug = True  # Enable debug mode for LangChain
 import os, time
@@ -26,6 +24,7 @@ class LLMManager:
 
     def _create_chat(self):
         if self.provider == "groq":
+            '''
             self.logger.info(f"Creating Groq chat instance with model: {self.model_name}")
             base_chat = ChatGroq(
                 temperature=self.temperature, 
@@ -35,6 +34,7 @@ class LLMManager:
             )
             # Return the instance with tools disabled by default
             return base_chat.bind(tool_choice="none")
+            '''
         elif self.provider == "openai":
             self.logger.info(f"Creating OpenAI chat instance with model: {self.model_name}")
             return ChatOpenAI(temperature=self.temperature, openai_api_key=self.api_key, model_name=self.model_name)
@@ -47,46 +47,77 @@ class LLMManager:
         """Sets the JSON schema for structured output."""
         try:
             self.json_schema = True
-            self.structured_chat_instance = self.chat_instance.with_structured_output(schema)
+            self.schema_model = schema  # Store the Pydantic model
+            if self.provider == "groq":
+                # For Groq SDK, we use the schema at invocation time
+                self.structured_chat_instance = None
+            else:
+                self.structured_chat_instance = self.chat_instance.with_structured_output(schema)
         except Exception as e:
             self.logger.error(f"Exception setting JSON schema: {e}")
             return e
-    
+
     def get_no_tools_instance(self):
         """Returns a chat instance with tools explicitly disabled."""
         return self.chat_instance.bind(tool_choice="none")
     
     def invoke(self, system_prompt, prompt, retries=3):
-        messages = [
-            ("system", system_prompt),
-            ("human", prompt)
-        ]
+        import json
         attempt = 0
+        last_exception = None
         while attempt < retries:
             try:
-                if self.json_schema:
-                    result = self.structured_chat_instance.invoke(messages)
-                    # Generic conversion of any Pydantic model to dict
-                    if hasattr(result, 'model_dump'):
-                        result_dict = result.model_dump()
-                    elif hasattr(result, 'dict'):
-                        result_dict = result.dict()
+                if self.provider == "groq" and self.json_schema and hasattr(self, "schema_model"):
+                    # Import Groq SDK at runtime
+                    from groq import Groq
+                    client = Groq(api_key=self.api_key)
+                    # Prepare messages in OpenAI format
+                    messages = [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": prompt}
+                    ]
+                    schema = self.schema_model
+                    if self.model_name == "llama-3.3-70b-versatile":
+                        response_format={
+                            "type": "json_object"
+                        }
                     else:
-                        result_dict = str(result)
+                        response_format={
+                            "type": "json_schema",
+                            "json_schema": {
+                                "name": schema.__name__,
+                                "schema": schema.model_json_schema()
+                            }
+                        }      
+                    response = client.chat.completions.create(
+                        model=self.model_name,
+                        messages=messages,
+                        temperature=self.temperature,
+                        # reasoning_format="parsed",
+                        response_format=response_format
+                    )
+                    raw_content = response.choices[0].message.content
+                    print("Groq raw model output:", raw_content)
+                    raw_result = json.loads(raw_content or "{}")
+                    result = schema.model_validate(raw_result)
                     response_content = result
-                    # Generic conversion of any Pydantic model to dict for logging
-                    if hasattr(result, 'model_dump'):
-                        response_log_content = result.model_dump()
-                    elif hasattr(result, 'dict'):
-                        response_log_content = result.dict()
-                    else:
-                        response_log_content = str(result)
-                    # self.logger.info(f"Structured LLM Response:\n{json.dumps(response_log_content, indent=2, ensure_ascii=False)}") # Keep regular log minimal
+                    response_log_content = result.model_dump() if hasattr(result, "model_dump") else str(result)
+                elif self.json_schema:
+                    # LangChain structured output
+                    result = self.structured_chat_instance.invoke([
+                        ("system", system_prompt),
+                        ("human", prompt)
+                    ])
+                    response_content = result
+                    response_log_content = result.model_dump() if hasattr(result, "model_dump") else str(result)
                 else:
-                    response_content = self.chat_instance.invoke(messages)
+                    # Unstructured output
+                    response_content = self.chat_instance.invoke([
+                        ("system", system_prompt),
+                        ("human", prompt)
+                    ])
                     response_log_content = str(response_content)
-                    # self.logger.info(f"Unstructured LLM Response:\n{str(response_content)}") # Keep regular log minimal
-                
+
                 # Log invocation details to JSONL file
                 log_data = {
                     "p": self.provider,
@@ -97,9 +128,8 @@ class LLMManager:
                     "resp": response_log_content
                 }
                 self.invocation_logger.info(log_data)
-                
                 return response_content
-                
+
             except Exception as e:
                 print(f"Exception in LLMManager.invoke: {e}")
                 if hasattr(e, 'response'):
@@ -109,22 +139,21 @@ class LLMManager:
                 attempt += 1
                 last_exception = e
                 error_message = str(e)
-                
+
                 # Check if this is a rate limit error
                 is_rate_limit = (
-                    "rate limit" in error_message.lower() or 
+                    "rate limit" in error_message.lower() or
                     "429" in error_message
                 )
-                
+
                 if is_rate_limit:
-                    # Extract wait time from error message if available
                     import re
                     wait_time = 15 * 60  # default 15 minutes in seconds
                     time_match = re.search(r'try again in (\d+)m([\d.]+)s', error_message)
                     if time_match:
                         minutes, seconds = time_match.groups()
                         wait_time = int(minutes) * 60 + float(seconds)
-                    
+
                     self.logger.warning(f"Rate limit reached. Suggested wait time: {wait_time} seconds")
                     return {
                         "error": True,
@@ -132,9 +161,9 @@ class LLMManager:
                         "message": error_message,
                         "wait_time": wait_time
                     }
-                
+
                 self.logger.error(f"Invocation failed on attempt {attempt}: {error_message}")
-                
+
                 if attempt < retries:
                     delay = 2 ** attempt  # 2, 4, 8 seconds
                     self.logger.info(f"Waiting {delay} seconds before retry...")
