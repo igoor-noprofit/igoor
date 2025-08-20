@@ -204,7 +204,7 @@ datas = copy_metadata('webrtcvad-wheels')
 In powershell (VS Code terminal):
 
 ```
-\venv\scripts\Activate
+venv\scripts\Activate
 .\create_exe.bat
 ```
 
