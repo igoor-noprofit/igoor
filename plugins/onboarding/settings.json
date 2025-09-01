@@ -16,7 +16,7 @@
     "ai":{
         "provider": "groq",
         "api_key": "",
-        "model_name": "llama-3.3-70b-versatile",
-        "temperature": "0.2"
+        "model_name": "meta-llama/llama-4-maverick-17b-128e-instruct",
+        "temperature": 0.2
     }
 }
