@@ -2,7 +2,7 @@
     "provider": "",
     "api_key": "",
     "model_name": "",
-    "temperature": "0.0",
+    "temperature": 1,
     "allow_virtual_keyboard": false,
     "only_exact_matches": true
 }
