@@ -16,7 +16,16 @@ class LLMManager:
         self.provider = provider or ai.get("provider")
         self.api_key = api_key or ai.get("api_key")
         self.model_name = model_name or ai.get("model_name")
-        self.temperature = kwargs.get("temperature") or ai.get("temperature")
+        # Prefer an explicitly passed temperature (even if falsy like 0); otherwise use saved settings.
+        if "temperature" in kwargs:
+            temp_raw = kwargs["temperature"]
+        else:
+            temp_raw = ai.get("temperature")
+        try:
+            self.temperature = float(temp_raw)
+        except (TypeError, ValueError):
+            self.logger.warning(f"Invalid temperature value {temp_raw!r}; falling back to 0.7")
+            self.temperature = 0.7
         self.chat_instance = self._create_chat()
         self.json_schema = False
         # Setup dedicated logger for LLM invocations
