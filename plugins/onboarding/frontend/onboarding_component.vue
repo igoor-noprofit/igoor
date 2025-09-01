@@ -172,7 +172,8 @@
                         <div class="about about-tab left">
                             <p>{{ t("Concept by Igor Novitzki") }}</p>
                             <p>{{ t("© 2025 Developed by") }} <a href="https://igoor.org/?utm_source=igoor_app"
-                                    target="_blank">IGOOR</a>, {{ t("in partnership with") }} <a href="https://www.arsla.org/?utm_source=igoor_app" target="_blank">ARSLA</a></p>
+                                    target="_blank">IGOOR</a>, {{ t("in partnership with") }} <a href="https://www.arsla.org/?utm_source=igoor_app" target="_blank">ARSLA</a>
+                            </p>
                         </div>
                     </div>
                 </div>
