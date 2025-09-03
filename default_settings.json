@@ -109,6 +109,7 @@
     "asrwhisper": true,
     "autocomplete": true,
     "autocompletelauncher": true,
+    "bugreport": true,
     "clock": true,
     "conversation": true,
     "daily": true,
@@ -118,6 +119,7 @@
     "shortcuts": true,
     "ttsdefault": true,
     "speechifytts": true,
-    "rag":true
+    "rag":true,
+    "memory": true
   }
 }
