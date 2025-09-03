@@ -3,9 +3,9 @@ import webview
 import threading
 import os
 import re
-from plugin_manager import PluginManager
 from dotenv import load_dotenv
 load_dotenv()
+from plugin_manager import PluginManager
 from context_manager import ContextManager
 from js_api import Api
 from settings_manager import SettingsManager
