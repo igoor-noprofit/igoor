@@ -789,7 +789,7 @@ class Rag(Baseplugin):
             await self.loading_event.wait()             
             
             # Get the number of chunks to retrieve per store from settings
-            chunk_num = self.settings.get("chunk_num", 4)  # Default to 4 if not specified
+            chunk_num = self.settings.get("chunk_num", 10)
             self.logger.debug(f"Using chunk_num={chunk_num} from settings")
             
             # Default to all store types if none specified
