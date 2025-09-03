@@ -117,6 +117,7 @@
     "settings": true,
     "shortcuts": true,
     "ttsdefault": true,
-    "speechifytts": true
+    "speechifytts": true,
+    "rag":true
   }
 }
