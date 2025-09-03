@@ -47,7 +47,7 @@
       "provider": "",
       "api_key": "",
       "model_name": "",
-      "temperature": 0.8
+      "temperature": 1
     },
     "memory": {
       "provider": "",
@@ -90,7 +90,7 @@
         "provider": "groq",
         "api_key": "",
         "model_name": "meta-llama/llama-4-maverick-17b-128e-instruct",
-        "temperature": 0.2
+        "temperature": 0.5
       }
     },
     "ttsdefault": {
