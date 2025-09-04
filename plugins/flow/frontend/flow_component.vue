@@ -80,7 +80,7 @@ module.exports = {
                             break;
                     }
                 } else {
-                    // Organise answers into columns for new JSON structure
+                    // Organise answers into columns for new JSON structure or accept autocomplete completions
                     if (data.answers && typeof data.answers === 'object') {
                         this.answersRaw = data.answers;
                         this.answers = {
@@ -88,11 +88,22 @@ module.exports = {
                             center: data.answers.center || [],
                             right: data.answers.right || []
                         };
+                        this.currentInput = data.input || "";
+                    } else if (Array.isArray(data.completions)) {
+                        // Map completions (array) to single-element columns: left, center, right
+                        const comps = data.completions;
+                        this.answersRaw = { input: data.input || "", completions: comps.slice() };
+                        this.answers = {
+                            left: comps[0] ? [comps[0]] : [],
+                            center: comps[1] ? [comps[1]] : [],
+                            right: comps[2] ? [comps[2]] : []
+                        };
+                        this.currentInput = data.input || "";
                     } else {
                         this.answersRaw = [];
                         this.answers = { left: [], center: [], right: [] };
+                        this.currentInput = "";
                     }
-                    this.currentInput = "";
                     this.selectedCard = null;
                 }
             } catch (e) {

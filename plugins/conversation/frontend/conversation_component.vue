@@ -255,7 +255,7 @@ module.exports = {
 
 .container {
     background: #333;
-    border: 1px solid #0f0;
+    /* border: 1px solid #0f0; */
 }
 
 .card-body {

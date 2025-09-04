@@ -7,11 +7,11 @@
     </button>
 </div>
 <div id="hidden">
-    <rag  :appview="appview" :lang="lang"></rag>
+    <baseplugin  :appview="appview" :lang="lang"></baseplugin><rag  :appview="appview" :lang="lang"></rag>
 </div>
 <div id="topbar">
     <div class="topbar-left">
-        <clock  :appview="appview" :lang="lang"></clock>
+        <clock  :appview="appview" :lang="lang"></clock><meteo  :appview="appview" :lang="lang"></meteo>
     </div>
     <div class="topbar-center">
         <a @click="minimize()"><img src="img/logo_small.svg" class="logo_small" id="igoor_logo"></a>

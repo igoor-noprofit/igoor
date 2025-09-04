@@ -179,7 +179,7 @@ module.exports = {
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
-    border: 1px solid #0f0;
+    /* border: 1px solid #0f0;
     /* green box */
     min-height: 0;
 }
