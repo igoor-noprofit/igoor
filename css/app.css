@@ -211,7 +211,7 @@ main {
   border: none;
   background: #28373b;
   color: #fff;
-  font-size: 1rem;
+  font-size: 1.3rem;
   width: 33vw;
 }
 .autocomplete.plugin .speak {
