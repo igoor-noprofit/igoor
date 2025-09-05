@@ -312,6 +312,19 @@ main {
   margin-top: 20px;
   font-size: 1rem;
 }
+.columns {
+  height: auto !important;
+}
+.column {
+  padding: 20px 30px !important;
+}
+.column.center {
+  border-left: 1px solid #ddd !important;
+  border-right: 1px solid #ddd !important;
+}
+.column .answers .msg {
+  margin-bottom: 2.2vh !important;
+}
 .conversation-plugin .scrollableConv {
   width: calc(100% - 4rem - 22px);
   display: flex;
