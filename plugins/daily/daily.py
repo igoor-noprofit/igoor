@@ -16,7 +16,7 @@ class Daily(Baseplugin):
         self.pm = pm
         super().__init__(plugin_name,pm)
         self.prompts=self.get_my_prompts()
-        print(f"PROMPTS LOADED: {self.prompts}")
+        # print(f"PROMPTS LOADED: {self.prompts}")
         self.load_settings()
         bio = self.settings_manager.get_bio()
         self.bio_name = bio.get("name")
