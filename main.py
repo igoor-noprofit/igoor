@@ -222,7 +222,7 @@ def start_webview():
         fullscreen = os.getenv('IGOOR_FULLSCREEN', 'False').lower() == 'true'
         on_top = os.getenv('IGOOR_ONTOP', 'False').lower() == 'true'
         window = webview.create_window("IGOOR", "index.html", js_api=Api(), 
-                                        resizable=True, fullscreen=fullscreen,on_top=on_top)
+                                        resizable=True, fullscreen=fullscreen,on_top=on_top,min_size=(1280,960))
         window.events.loaded += on_loaded
         window.events.closing += on_closing
         webview.start(debug=IGOOR_DEBUG.lower() == 'true')
