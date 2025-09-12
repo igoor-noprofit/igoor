@@ -7,28 +7,28 @@
     </button>
 </div>
 <div id="hidden">
-    <baseplugin  :appview="appview" :lang="lang"></baseplugin><rag  :appview="appview" :lang="lang"></rag>
+    <baseplugin  :appview="appview" :lang="lang"></baseplugin>
 </div>
 <div id="topbar">
     <div class="topbar-left">
-        <clock  :appview="appview" :lang="lang"></clock><meteo  :appview="appview" :lang="lang"></meteo>
+        <clock  :appview="appview" :lang="lang"></clock>
     </div>
     <div class="topbar-center">
         <a @click="minimize()"><img src="img/logo_small.svg" class="logo_small" id="igoor_logo"></a>
     </div>
     <div class="topbar-right">
-        <bugreport  :appview="appview" :lang="lang"></bugreport><onboarding  :appview="appview" :lang="lang"></onboarding>
+        <onboarding  :appview="appview" :lang="lang"></onboarding>
     </div>
 </div>
 
 <header v-show="appview !== 'onboarding'" :class="{ 'expanded': headerExpanded }">
-    <asrwhisper  :appview="appview" :lang="lang"></asrwhisper><autocomplete  :appview="appview" :lang="lang"></autocomplete><conversation  :appview="appview" :lang="lang"></conversation>
+    <autocomplete  :appview="appview" :lang="lang"></autocomplete><conversation  :appview="appview" :lang="lang"></conversation>
 </header>
 <div class="after_header" v-show="appview !== 'onboarding'">
     <autocompletelauncher @show-autocomplete="showAutocomplete" :appview="appview" :lang="lang"></autocompletelauncher>
 </div>
 <main>
-    <daily  :appview="appview" :lang="lang"></daily><flow @show-autocomplete="showAutocomplete" :appview="appview" :lang="lang"></flow><memory  :appview="appview" :lang="lang"></memory>
+    <daily  :appview="appview" :lang="lang"></daily><flow @show-autocomplete="showAutocomplete" :appview="appview" :lang="lang"></flow>
 </main>
 <footer>
     <shortcuts  :appview="appview" :lang="lang"></shortcuts>
