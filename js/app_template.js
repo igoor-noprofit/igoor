@@ -71,7 +71,7 @@ async function initializeApp() {
 
       // Set up WebSocket event listeners
       this.websocketUtil.onopen = function () {
-        console.log("WebSocket connection opened");
+        console.log("APP WebSocket connection opened");
       };
 
       this.websocketUtil.onmessage = (event) => {
