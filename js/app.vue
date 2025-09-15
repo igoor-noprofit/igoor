@@ -17,12 +17,12 @@
         <a @click="minimize()"><img src="img/logo_small.svg" class="logo_small" id="igoor_logo"></a>
     </div>
     <div class="topbar-right">
-        <onboarding  :appview="appview" :lang="lang"></onboarding>
+        <bugreport  :appview="appview" :lang="lang"></bugreport><onboarding  :appview="appview" :lang="lang"></onboarding>
     </div>
 </div>
 
 <header v-show="appview !== 'onboarding'" :class="{ 'expanded': headerExpanded }">
-    <autocomplete  :appview="appview" :lang="lang"></autocomplete><conversation  :appview="appview" :lang="lang"></conversation>
+    <asrwhisper  :appview="appview" :lang="lang"></asrwhisper><autocomplete  :appview="appview" :lang="lang"></autocomplete><conversation  :appview="appview" :lang="lang"></conversation>
 </header>
 <div class="after_header" v-show="appview !== 'onboarding'">
     <autocompletelauncher @show-autocomplete="showAutocomplete" :appview="appview" :lang="lang"></autocompletelauncher>
