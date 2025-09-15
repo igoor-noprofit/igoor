@@ -18,11 +18,14 @@ class WebSocketServer:
         return cls._instance
     
     def is_socket_open(self, plugin_name: str) -> bool:
+        # print (self.active_connections)
         """
         Check if a specific WebSocket connection is open for a given plugin.
         """
         if plugin_name in self.active_connections:
             return any(websocket.open for websocket in self.active_connections[plugin_name])
+        else:
+            print(f"Not in active connections: {plugin_name}: {self.active_connections}") # Reverted to print
         return False
     
     def __init__(self):
