@@ -278,11 +278,7 @@ class Conversation(Baseplugin):
             message_dict = json.loads(message)
             
             if message_dict.get('action') == 'get_settings':
-                settings = self.get_my_settings()
-                self.send_message_to_frontend({
-                    "type": "settings",
-                    "settings": settings
-                })
+                self.send_settings_to_frontend()
                 return
             
             # Add handling for speak action

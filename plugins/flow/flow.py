@@ -67,8 +67,18 @@ class Flow(Baseplugin):
                     asyncio.create_task(self.pm.trigger_hook(hook_name="add_msg_to_conversation", msg=msg, author="master", msg_input="flow"))
                 elif action == "abandon_conversation":
                     asyncio.create_task(self.pm.trigger_hook(hook_name="abandon_conversation", cause="abandoned"))
+                elif action == "get_settings":
+                    self.send_settings_to_frontend()
                 else:
-                    print("Unrecognized action in incoming message.")
+                    # Dump the raw message and the parsed dictionary to help debugging unknown actions
+                    try:
+                        self.logger.error(f"FLOW: Unrecognized action in incoming message. Raw message: {message}")
+                        self.logger.error(f"FLOW: Parsed message dict: {message_dict}")
+                    except Exception:
+                        # Fallback if logger formatting fails for any reason
+                        print("FLOW: Unrecognized action in incoming message.")
+                        print("Raw message:", message)
+                        print("Parsed dict:", message_dict)
                     
         except json.JSONDecodeError:
             print("Received message is not valid JSON.")
