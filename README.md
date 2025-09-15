@@ -208,6 +208,16 @@ venv\scripts\Activate
 .\create_exe.bat
 ```
 
+This takes around 10 minutes.
+Or you can do the fast version without cleaning all dirs:
+
+```
+venv\scripts\Activate
+.\create_exe_fast.bat
+```
+
+This takes around 7 minutes.
+
 In a CMD window, launch /dist/igoor/igoor.exe 
 (so you can see the logs if there's any error)
 
