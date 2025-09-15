@@ -40,6 +40,7 @@ MOST IMPORTANT PLUGINS OVERVIEW
 FRONTEND
 Main Vue app is js/app_template.vue. App_template.js contains Vue components dynamically loaded with httpVueLoader.
 Each plugin has a frontend folder with a corresponding Vue component. Vue components are based on js/Baseplugincomponent.js
+IMPORTANT: NEVER EDIT DIRECTLY app.js or app.vue, edit app_template.js or app_template.vue instead.
 I don't use bundlers for the Vue 3 app,I use httpVueLoader to load SFC.
 
 VUE COMPONENTS
