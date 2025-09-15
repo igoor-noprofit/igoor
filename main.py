@@ -204,7 +204,7 @@ def load_frontend_components(lang):
     return final_html
 
 def on_closing():
-    websocket_server.stop()  # Make sure you have a stop method to close connections and resources
+    websocket_server.stop()  
     print("WebSocket server has been closed.")
 
 def on_loaded():
