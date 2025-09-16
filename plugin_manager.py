@@ -297,9 +297,9 @@ class PluginManager:
         active_list = active_list or []
         exclude_list = exclude_list or []
 
-        for plugin_name in os.listdir(resource_path(self.plugin_folder)):
+        for plugin_name in os.listdir(self.plugin_folder):
             if plugin_name != "baseplugin":
-                plugin_path = resource_path(os.path.join(self.plugin_folder, plugin_name))
+                plugin_path = os.path.join(self.plugin_folder, plugin_name)
                 is_active = self.is_active(plugin_name)
                 self.logger.info (f": {plugin_path}")
                 # Check if the plugin should be activated or excluded based on the lists
@@ -341,10 +341,10 @@ class PluginManager:
         """Gathers activation status and other metadata for all plugins."""
         plugins_metadata = {}
 
-        for plugin_name in os.listdir(resource_path(self.plugin_folder)):
-            plugin_path = resource_path(os.path.join(self.plugin_folder, plugin_name))
-            # self.logger.info(f"PLUGIN PATH: {plugin_path}" )
-            metadata_file = resource_path(os.path.join(plugin_path, 'plugin.json'))
+        for plugin_name in os.listdir(self.plugin_folder):
+            plugin_path = os.path.join(self.plugin_folder, plugin_name)
+            self.logger.info(f"PLUGIN PATH: {plugin_path}" )
+            metadata_file = os.path.join(plugin_path, 'plugin.json')
             if os.path.isdir(plugin_path) and os.path.exists(metadata_file):
                 try:
                     with open(metadata_file, 'r') as f:
@@ -396,8 +396,8 @@ class PluginManager:
         plugins_metadata = {}
         print(f"Plugin folder: {self.plugin_folder}")
         for plugin_name in os.listdir(self.plugin_folder):
-            plugin_path = resource_path(os.path.join(self.plugin_folder, plugin_name))
-            metadata_file = resource_path(os.path.join(plugin_path, 'plugin.json'))
+            plugin_path = os.path.join(self.plugin_folder, plugin_name)
+            metadata_file = os.path.join(plugin_path, 'plugin.json')
             if os.path.isdir(plugin_path) and os.path.exists(metadata_file):
                 try:
                     with open(metadata_file, 'r') as f:

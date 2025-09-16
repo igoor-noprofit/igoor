@@ -16,7 +16,8 @@ datas = [
     ('.env', '.'),
     ('README.md', '.'),
     ('requirements.txt', '.'),
-    ('index.html', '.')
+    ('index.html', '.'),
+    ('default_settings.json','.')
 ] + webview_datas
 
 a = Analysis(
