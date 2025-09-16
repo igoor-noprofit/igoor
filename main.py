@@ -16,6 +16,8 @@ import asyncio
 from utils import resource_path, setup_logger
 from idle_detector import IdleDetector
 
+window = None
+
 
 appdata_dir = os.path.join(os.getenv('APPDATA'), __appname__)
 if not os.path.exists(appdata_dir):
@@ -208,24 +210,128 @@ def on_closing():
     print("WebSocket server has been closed.")
 
 def on_loaded():
-    logger.info("GUI window is now loaded and available!")
-    asyncio.run(manager.trigger_hook("gui_ready"))
-    prefs = settings.get_prefs()
-    idle_threshold = prefs.get("idle_threshold", 10)
-    print(f"idle_threshold = {idle_threshold}")
-    detector = IdleDetector(callback=on_idle_change, idle_threshold=idle_threshold, check_interval=10) 
-    detector.start()
+    global window
+    logger.info("=== on_loaded function triggered ===")
+    
+    # Check if window object is available
+    if window is None:
+        logger.error("Window object is None! Cannot proceed with evaluate_js")
+        return False
+    
+    try:
+        logger.info("GUI window is now loaded and available!")
+        
+        # Test evaluate_js with multiple approaches
+        logger.info("Testing evaluate_js functionality...")
+        
+        # Simple test first
+        try:
+            window.evaluate_js("console.log('Python evaluate_js test - basic log');")
+            logger.info("✓ Basic evaluate_js test successful")
+        except Exception as e:
+            logger.error(f"✗ Basic evaluate_js failed: {e}")
+            
+        # Test with warning
+        try:
+            window.evaluate_js("console.warn('Calling READYPY');")
+            window.evaluate_js("console.warn(app); app.readypy();")
+            logger.info("✓ Warning evaluate_js test successful")
+        except Exception as e:
+            logger.error(f"✗ Warning evaluate_js failed: {e}")
+            
+        # Test with DOM manipulation
+        try:
+            window.evaluate_js("document.body.style.backgroundColor = '#f0f0f0';")
+            logger.info("✓ DOM manipulation test successful")
+        except Exception as e:
+            logger.error(f"✗ DOM manipulation failed: {e}")
+            
+    except Exception as e:
+        logger.error(f"Critical error in on_loaded: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+    
+    try:
+        asyncio.run(manager.trigger_hook("gui_ready"))
+        logger.info("✓ gui_ready hook triggered successfully")
+    except Exception as e:
+        logger.error(f"Failed to trigger gui_ready hook: {e}")
+    
+    try:
+        prefs = settings.get_prefs()
+        idle_threshold = prefs.get("idle_threshold", 10)
+        logger.info(f"idle_threshold = {idle_threshold}")
+        
+        detector = IdleDetector(callback=on_idle_change, idle_threshold=idle_threshold, check_interval=10) 
+        detector.start()
+        logger.info("✓ IdleDetector started successfully")
+    except Exception as e:
+        logger.error(f"Failed to start IdleDetector: {e}")
+        
+    logger.info("=== on_loaded function completed ===")
     return True
 
 def start_webview():
+    global window
+    logger.info("=== start_webview function called ===")
+    
     try:
+        # Check if running as executable
+        is_executable = getattr(sys, 'frozen', False)
+        debug_enabled = (IGOOR_DEBUG.lower() == 'true')
+        
+        logger.info(f"Running as executable: {is_executable}")
+        logger.info(f"Debug mode: {debug_enabled}")
+        logger.info(f"Current working directory: {os.getcwd()}")
+        
+        # Check if index.html exists
+        index_path = resource_path('index.html')
+        logger.info(f"Looking for index.html at: {index_path}")
+        if os.path.exists(index_path):
+            logger.info("✓ index.html found")
+        else:
+            logger.error("✗ index.html NOT found")
+            
+        # Log webview configuration
         fullscreen = os.getenv('IGOOR_FULLSCREEN', 'False').lower() == 'true'
         on_top = os.getenv('IGOOR_ONTOP', 'False').lower() == 'true'
-        window = webview.create_window("IGOOR", "index.html", js_api=Api(), 
-                                        resizable=True, fullscreen=fullscreen,on_top=on_top,min_size=(1280,960))
+        
+        logger.info(f"Webview config - fullscreen: {fullscreen}, on_top: {on_top}")
+        
+        # Create window
+        logger.info("Creating webview window...")
+        window = webview.create_window(
+            "IGOOR", 
+            "index.html", 
+            js_api=Api(), 
+            resizable=True, 
+            fullscreen=fullscreen,
+            on_top=on_top,
+            min_size=(1280,960)
+        )
+        
+        if window is None:
+            logger.error("Failed to create window - window is None")
+            return
+        else:
+            logger.info("✓ Window created successfully")
+            
+        # Bind events
+        logger.info("Binding window events...")
         window.events.loaded += on_loaded
         window.events.closing += on_closing
-        webview.start(debug=IGOOR_DEBUG.lower() == 'true')
+        logger.info("✓ Events bound successfully")
+        
+        # Start webview
+        logger.info("Starting webview...")
+        webview.start(debug=True)
+        logger.info("✓ Webview started successfully")
+        
+    except Exception as e:
+        logger.error(f"Critical error in start_webview: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        
     except KeyboardInterrupt:
         logger.warning("KeyboardInterrupt detected. Shutting down...")
         on_closing()

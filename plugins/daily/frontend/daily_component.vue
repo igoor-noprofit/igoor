@@ -70,7 +70,7 @@ module.exports = {
     },
     methods: {
         checkAndSendReady() {
-            console.log('Checking if backend is ready...');
+            console.log('DAILY: Checking if backend is ready...');
             if (this.dailyData.length === 0) {
                 console.log('Backend not ready or dailyData is empty, sending ready message...');
                 this.sendMsgToBackend({ socket: "ready" });
