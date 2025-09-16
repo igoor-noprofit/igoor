@@ -217,39 +217,14 @@ def on_loaded():
     if window is None:
         logger.error("Window object is None! Cannot proceed with evaluate_js")
         return False
-    
+        
+    # Test with warning
     try:
-        logger.info("GUI window is now loaded and available!")
-        
-        # Test evaluate_js with multiple approaches
-        logger.info("Testing evaluate_js functionality...")
-        
-        # Simple test first
-        try:
-            window.evaluate_js("console.log('Python evaluate_js test - basic log');")
-            logger.info("✓ Basic evaluate_js test successful")
-        except Exception as e:
-            logger.error(f"✗ Basic evaluate_js failed: {e}")
-            
-        # Test with warning
-        try:
-            window.evaluate_js("console.warn('Calling READYPY');")
-            window.evaluate_js("console.warn(app); app.readypy();")
-            logger.info("✓ Warning evaluate_js test successful")
-        except Exception as e:
-            logger.error(f"✗ Warning evaluate_js failed: {e}")
-            
-        # Test with DOM manipulation
-        try:
-            window.evaluate_js("document.body.style.backgroundColor = '#f0f0f0';")
-            logger.info("✓ DOM manipulation test successful")
-        except Exception as e:
-            logger.error(f"✗ DOM manipulation failed: {e}")
-            
+        window.evaluate_js("console.warn('Calling READYPY');")
+        window.evaluate_js("console.warn(app); app.readypy();")
+        logger.info("✓ Warning evaluate_js test successful")
     except Exception as e:
-        logger.error(f"Critical error in on_loaded: {e}")
-        import traceback
-        logger.error(traceback.format_exc())
+        logger.error(f"✗ Warning evaluate_js failed: {e}")            
     
     try:
         asyncio.run(manager.trigger_hook("gui_ready"))
@@ -267,13 +242,11 @@ def on_loaded():
         logger.info("✓ IdleDetector started successfully")
     except Exception as e:
         logger.error(f"Failed to start IdleDetector: {e}")
-        
-    logger.info("=== on_loaded function completed ===")
+    
     return True
 
 def start_webview():
     global window
-    logger.info("=== start_webview function called ===")
     
     try:
         # Check if running as executable

@@ -2,6 +2,12 @@ var data = {
   pywebviewready: false,
 };
 let app;
+
+window.addEventListener("pywebviewready", () => {
+  console.log("✅ pywebviewready fired");
+  window.pywebview.api.ping().then(console.log);
+});
+
 /*
 if ('AmbientLightSensor' in window) {
   alert("Ambient Light Sensor detected");

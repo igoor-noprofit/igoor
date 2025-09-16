@@ -14,7 +14,7 @@ class Api:
         self.was_fullscreen = os.getenv('IGOOR_FULLSCREEN', 'False').lower() == 'true'
         self.initial_width = 1920  # Or your preferred default width
         self.initial_height = 1080  # Or your preferred default height
-        
+    
     def get_plugins_by_category(self):
         print("Fetching plugins by category")
         return plugin_manager.get_plugins_by_category()
