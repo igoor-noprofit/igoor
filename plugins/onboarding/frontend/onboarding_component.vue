@@ -321,7 +321,7 @@ export default {
                 if (data.type && data.type == "error"){
                     this.saveStatus = {
                         type: 'error',
-                        message: this.t(data.error_type) + " : " + data.missing_field + " (" + data.category + ")"
+                        message: this.t(data.error_type) + " : " + this.t(data.missing_field) + " (" + this.t(data.category) + ")"
                     };
                 }
                 if (data.type && data.type == "success"){

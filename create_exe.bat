@@ -6,7 +6,7 @@ echo Starting build at %date% %time%
 
 copy /Y igoor.spec.txt igoor.spec
 rmdir /s /q build
-rmdir /s /q dist
+rmdir /s /q dist/igoor
 pyinstaller igoor.spec --noconfirm
 
 rem Record end time
