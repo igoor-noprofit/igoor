@@ -14,7 +14,14 @@ class Onboarding(Baseplugin):
         self.pm = pm
         self.onboarding_completed = False
         super().__init__(plugin_name,pm)
-
+    
+    @hookimpl
+    async def force_onboarding(self):
+        print("ONBOARDING PLUGIN is forcing onboard")
+        self.onboarding_completed = False
+        await self.
+        send_message_to_frontend({"action": "show_modal"})
+    
     @hookimpl
     def startup(self):
         self.settings = self.get_my_settings()
@@ -129,12 +136,15 @@ class Onboarding(Baseplugin):
                     print(f"Traceback: {traceback.format_exc()}")
                     raise save_error
             else:
-                error_msg = f'Missing required field: {missing_info["missing_field"]} in {missing_info["category"]}'
+                error_msg = f'{missing_info["missing_field"]} in {missing_info["category"]}'
                 print(f"Validation failed: {error_msg}")
                 self.send_message_to_frontend({
                     'type': 'error',
-                    'message': error_msg
+                    'error_type': 'A mandatory field is missing',
+                    'missing_field': missing_info["missing_field"],
+                    'category': missing_info["category"]
                 })
+                # self.send_switch_view_to_app('onboarding')
                 
         except Exception as e:
             print(f"Error saving settings: {str(e)}")

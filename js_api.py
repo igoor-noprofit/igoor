@@ -76,6 +76,9 @@ class Api:
     def change_view(self,lastview,currentview):
         asyncio.run(self.trigger_hook("change_view",lastview=lastview,currentview=currentview))
     
+    def force_onboarding(self):
+        asyncio.run(self.trigger_hook("force_onboarding"))
+    
     def get_context_all(self):
         print(context_manager.get_context())
     

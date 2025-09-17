@@ -83,7 +83,7 @@
                                 </select>
                             </div>
                             <div>
-                                <label>{{ t("API Key") }}</label><input type="text" v-model="ai.api_key" disabled>
+                                <label>{{ t("API Key") }}</label><input type="text" v-model="ai.api_key">
                                 <p>{{ t("Groq is our default provider:") }} <br><a class="extlink"
                                         href="https://console.groq.com/login" target="_blank">{{ t("To obtain a FREE api key sign up here") }}</a>
                                     <br><a class="extlink" href="https://groq.com/privacy-policy/" target="_blank">{{ t("Our default provider privacy policy") }}</a>
@@ -299,15 +299,6 @@ export default {
                     action: 'save_settings', // Or a more specific action
                     data: dataToSend
                 });
-
-                this.saveStatus = {
-                    type: 'success',
-                    message: this.t('Main settings saved!')
-                };
-                this.$emit('settings-saved', dataToSend);
-                setTimeout(() => {
-                    this.closeModal();
-                }, 3000); // Show the alert after 5 seconds
             } catch (error) {
                 console.error('Error saving main settings:', error);
                 this.saveStatus = {
@@ -317,16 +308,37 @@ export default {
             } finally {
                 this.isSaving = false;
                 if (this.saveStatus?.type === 'success') {
-                    setTimeout(() => {
+                    /* setTimeout(() => {
                         this.saveStatus = null;
-                    }, 3000);
+                    }, 3000); */
                 }
             }
         },
         handleIncomingMessage(event) {
-            console.log("Custom message handler in " + this.name + " component:", event.data);
+            console.log("Custom message handler in ONBOARDING component:", event.data);
             try {
                 const data = JSON.parse(event.data);
+                if (data.type && data.type == "error"){
+                    this.saveStatus = {
+                        type: 'error',
+                        message: this.t(data.error_type) + " : " + data.missing_field + " (" + data.category + ")"
+                    };
+                }
+                if (data.type && data.type == "success"){
+                    this.isSaving = false;
+                    this.saveStatus = {
+                        type: 'success',
+                        message: this.t('Main settings saved!')
+                    };
+                    setTimeout(() => {
+                        this.closeModal();
+                        this.saveStatus = null;
+                    }, 3000);
+                }
+                if (data.action && data.action == "show_modal"){
+                    console.warn("ONBOARDING FORCED");
+                    this.showModal = true;
+                }
                 if (data.bio) {
                     this.bio = { ...this.bio, ...data.bio };
                 }
@@ -395,7 +407,6 @@ export default {
             try {
                 console.log(`Attempting to load settings component: /plugins/${pluginName}/frontend/${pluginName}_settings.vue`);
                 // Ensure the path is correct for dynamic imports.
-                // Vite/Webpack usually handle /path from project root or specific alias.
                 const componentModule = await import(/* @vite-ignore */ `/plugins/${pluginName}/frontend/${pluginName}_settings.vue`);
 
                 const settings = await window.pywebview.api.get_current_plugin_settings(pluginName);

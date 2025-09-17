@@ -2,6 +2,7 @@ from version import __appname__, __version__, __codename__
 import importlib.util
 import os, sys, asyncio
 import json
+import traceback
 import pluggy
 from settings_manager import SettingsManager
 from dotenv import load_dotenv
@@ -69,6 +70,11 @@ class MyAppSpec:
     @pluggy.HookspecMarker(app_name)
     async def user_idle_on_pc(self):
         """Hook for when the user is completely idle on the PC """
+        pass
+    
+    @pluggy.HookspecMarker(app_name)
+    async def force_onboarding(self):
+        """Hook to force the user to the onboarding plugin """
         pass
     
     '''
@@ -325,6 +331,7 @@ class PluginManager:
                         self.copy_default_plugin_settings_if_needed(plugin_name)
                     except Exception as e:
                         self.logger.error(f"Error loading plugin '{plugin_name}': {e}")
+                        self.logger.error(f"Traceback: {traceback.format_exc()}")
                         if IGOOR_DEBUG:
                             self.logger.critical("EXIT BECAUSE OF ERROR LOADING PLUGIN")
                             os._exit(1)
@@ -352,6 +359,7 @@ class PluginManager:
                         plugins_metadata[plugin_name] = metadata
                 except (OSError, json.JSONDecodeError) as e:
                     self.logger.error(f"Error loading metadata for plugin '{plugin_name}': {e}")
+                    self.logger.error(f"Traceback: {traceback.format_exc()}")
             else:
                 self.logger.warning(f"Plugin '{plugin_name}' does not have a valid plugin.json file.")
 
@@ -443,8 +451,9 @@ class PluginManager:
                 try:
                     plugin_settings = json.load(f)
                     self.settings_manager.update_plugin_settings(plugin_name, plugin_settings)
-                except json.JSONDecodeError:
-                    self.logger.error(f"Invalid JSON in {settings_file_path}.")
+                except json.JSONDecodeError as e:
+                    self.logger.error(f"Invalid JSON in {settings_file_path}: {e}")
+                    self.logger.error(f"Traceback: {traceback.format_exc()}")
         else:
             self.logger.warning(f"Settings file not found for plugin: {plugin_name}")
     
