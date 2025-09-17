@@ -69,9 +69,12 @@ def setup_logger(name, appdata_folder, separate_plugin_log=False):
         main_file_handler.setLevel(logging.DEBUG)
         
         # Create formatters and add it to handlers
-        log_format = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        console_handler.setFormatter(log_format)
-        main_file_handler.setFormatter(log_format)
+        # Enhanced format with filename, line number, and function name
+        detailed_format = logging.Formatter(
+            '%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(funcName)s() - %(message)s'
+        )
+        console_handler.setFormatter(detailed_format)
+        main_file_handler.setFormatter(detailed_format)
         
         # Add handlers to logger
         logger.addHandler(console_handler)
@@ -88,7 +91,7 @@ def setup_logger(name, appdata_folder, separate_plugin_log=False):
                 encoding='utf-8'
             )
             plugin_file_handler.setLevel(logging.DEBUG)
-            plugin_file_handler.setFormatter(log_format)
+            plugin_file_handler.setFormatter(detailed_format)
             logger.addHandler(plugin_file_handler)
         
         # Prevent propagation to root logger if necessary (optional, depends on desired behavior)
