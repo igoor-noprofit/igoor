@@ -34,5 +34,15 @@
     "Main settings saved!": "Paramètres principaux enregistrés !",
     "Failed to save main settings. Please try again.": "Échec de l'enregistrement des paramètres principaux. Veuillez réessayer.",
     "Saving...": "Enregistrement en cours...",
-    "Save main settings": "Enregistrer les paramètres principaux"
+    "Save main settings": "Enregistrer les paramètres principaux",
+    "A mandatory field is missing": "Un champ obligatoire est manquant",
+    "name": "prénom",
+    "pronoun": "pronom",
+    "birth_date": "date de naissance",
+    "health_state": "état de santé",
+    "style": "style",
+    "lang": "langue",
+    "provider": "fournisseur",
+    "api_key": "clé API",
+    "model_name": "nom du modèle"
 }
