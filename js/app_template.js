@@ -119,7 +119,13 @@ async function initializeApp() {
         }
         this.lastview = this.appview;
         this.appview = view;
-        await window.pywebview.api.change_view(this.lastview, view);
+        if (view == 'onboarding'){
+          console.warn("Forcing onboarding");
+          await window.pywebview.api.force_onboarding();
+        }
+        else{
+          await window.pywebview.api.change_view(this.lastview, view);
+        }
       },
       maximize() {
         console.log("MAXIMIZE WINDOW");
