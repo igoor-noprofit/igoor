@@ -57,7 +57,7 @@ class Baseplugin:
         this_dir = os.path.dirname(os.path.abspath(__file__))  # This will be the plugin folder
         plugin_folder = os.path.abspath(os.path.join(this_dir, '..'))
         self._app_plugin_folder = os.path.join(plugin_folder, self.plugin_name)
-        # print(f"PLUGIN ROOT = {self._app_plugin_folder}")
+        print(f"PLUGIN ROOT = {self._app_plugin_folder}")
         
         
     @hookimpl
@@ -260,30 +260,45 @@ class Baseplugin:
             
     def send_message_to_frontend(self, message, plugin_name=None):
         """
-        Sends a message to the designated plugin's frontend channel.
-
+        Sends a message to the designated plugin's frontend channel with retry mechanism.
+        
         :param message: The message to be sent.
         :param plugin_name: (Optional) The plugin name to send the message to. If not provided, uses self.plugin_name.
         """
+        import time
+        
         # Use the provided plugin_name or default to self.plugin_name
         target_plugin_name = plugin_name or self.plugin_name
-
-        if websocket_server.is_socket_open(target_plugin_name):
-            '''
-            if not (target_plugin_name=='app'):
-                # self.logger.info(f"{target_plugin_name} BACKEND => FRONTEND via ws")
+        
+        # Retry configuration
+        max_retries = 5
+        retry_delay = 1  # seconds
+        
+        # Ensure the message is a JSON string
+        if isinstance(message, dict):
+            message = json.dumps(message)
+            
+        # Attempt to send the message with retries
+        for attempt in range(max_retries + 1):
+            if websocket_server.is_socket_open(target_plugin_name):
+                try:
+                    return websocket_server.send_message(target_plugin_name, message)
+                except Exception as e:
+                    if attempt < max_retries:
+                        self.logger.warning(f"Failed to send message to {target_plugin_name} frontend (attempt {attempt + 1}/{max_retries + 1}): {e}")
+                        time.sleep(retry_delay)
+                    else:
+                        self.logger.error(f"Error while sending message to {target_plugin_name} frontend after {max_retries + 1} attempts: {e}")
+                        return False
             else:
-                # self.logger.info(f"{target_plugin_name} BACKEND => APP via ws")
-            '''
-            try:
-                # Ensure the message is a JSON string
-                if isinstance(message, dict):
-                    message = json.dumps(message)
-                return websocket_server.send_message(target_plugin_name, message)
-            except Exception as e:
-                self.logger.error(f"Error while sending message to {target_plugin_name} frontend: {e}")
-        else:
-            self.logger.warning(f"{target_plugin_name} frontend is not ready")
+                if attempt < max_retries:
+                    self.logger.warning(f"{target_plugin_name} frontend is not ready (attempt {attempt + 1}/{max_retries + 1})")
+                    time.sleep(retry_delay)
+                else:
+                    self.logger.error(f"{target_plugin_name} frontend is not ready after {max_retries + 1} attempts")
+                    return False
+        
+        return False
     
     def send_settings_to_frontend(self):
         settings = self.get_my_settings()
