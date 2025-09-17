@@ -19,7 +19,7 @@ class Onboarding(Baseplugin):
     async def force_onboarding(self):
         print("ONBOARDING PLUGIN is forcing onboard")
         self.onboarding_completed = False
-        send_message_to_frontend({"action": "show_modal"})
+        self.send_message_to_frontend({"action": "show_modal"})
     
     @hookimpl
     def startup(self):
