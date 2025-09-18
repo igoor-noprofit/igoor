@@ -27,7 +27,16 @@ Thank you for your understanding and cooperation in ensuring the successful deve
 
 ### OS 
 
-**Microsoft Windows. Tested on Windows 11.**
+**Microsoft Windows. Tested on Windows 10 and 11.**
+
+### WEBEDGEVIEW RUNTIME
+
+Runtime must be installed to display the browser-like window.
+Download it here:
+
+https://developer.microsoft.com/en-us/microsoft-edge/webview2?form=MA13LH#download
+
+NOTE: IGOOR installers sistematically include the runtime.
 
 ### INTERNET CONNECTION
 
@@ -35,13 +44,13 @@ While we are working on a fully local, offline-first version, as of now the soft
 
 ### AI INFERENCE PROVIDER
 
-The only AI inference provider currently meeting our requirements of speed, quality and opensource is Groq.
+The only AI inference provider currently meeting our requirements of speed, privacy, quality and support of opensource models is Groq.
 Signup for a FREE-tier access to Groq's API here:
 
 https://console.groq.com/login
 
 For production use, you will need a developer tier self-serve (Pay per Token) access, 
-or you'll rapidly incur in rate limits errors. 
+or you'll rapidly incur in rate limits errors.
 
 ### DISK SPACE
 
@@ -50,6 +59,13 @@ In the user's data folder, big ASR models (like Vosk) take around 2.3Gb, plus 1.
 The embedding model from HuggingFace currently requires 1.15Gb on disk.
 
 The app should take less than 3Gb.
+
+### FFMPEG
+
+As of now, TTS plugin for Speechify requires ffmpeg, and that the path to ffmpeg\bin folder be included in the system PATH environment variable.
+
+NOTE: Complete IGOOR installers include ffmpeg and automatically set the env variable.
+
 
 ### PYTHON
 
