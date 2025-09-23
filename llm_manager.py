@@ -76,6 +76,7 @@ class LLMManager:
         last_exception = None
         while attempt < retries:
             try:
+                reasoning_log_content = ""  # Initialize reasoning_log_content
                 if self.provider == "groq" and self.json_schema and hasattr(self, "schema_model"):
                     # Import Groq SDK at runtime
                     from groq import Groq
@@ -115,6 +116,7 @@ class LLMManager:
                     response = client.chat.completions.create(**call_args)
                     raw_content = response.choices[0].message.content
                     if reasoning_format == "parsed":
+                        reasoning_log_content = response.choices[0].message.reasoning
                         print (f"REASONING: {response.choices[0].message.reasoning}") 
                     print("Groq raw model output:", raw_content)
                     raw_result = json.loads(raw_content or "{}")
@@ -142,10 +144,13 @@ class LLMManager:
                     "p": self.provider,
                     "m": self.model_name,
                     "t": self.temperature,
-                    "sys": system_prompt,
-                    "usr": prompt,
-                    "resp": response_log_content
+                    "sys": system_prompt[:80],
+                    "usr": prompt
                 }
+                # Add reasoning_log_content if it's not empty
+                if reasoning_log_content:
+                    log_data["reason"] = reasoning_log_content
+                log_data["resp"] = response_log_content
                 self.invocation_logger.info(log_data)
                 return response_content
 
