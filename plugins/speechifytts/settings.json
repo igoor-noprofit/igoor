@@ -2,5 +2,8 @@
     "api_key": "",
     "voice_id": "",
     "model_id": "simba-multilingual",
-    "use_ssml": false
+    "use_ssml": true,
+    "rate": "medium",
+    "pitch": "medium",
+    "volume": "100%"
 }

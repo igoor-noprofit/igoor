@@ -79,12 +79,51 @@ class Speechifytts(Baseplugin):
             self.logger.error(f"An unexpected error occurred: {e}")
             return False
 
+    def get_ssml(self,message, **kwargs):
+        '''Generate SSML with the message and optional voice settings
+        Example:
+            <speak>
+                This is a normal speech pattern.
+                <prosody pitch="high" rate="fast" volume="+20%">
+                    I'm speaking with a higher pitch, faster than usual, and louder!
+                </prosody>
+                Back to normal speech pattern.
+            </speak>
+        '''
+        import html
+        
+        # Escape XML special characters in message
+        safe_message = html.escape(message)
+        
+        # Get voice settings from kwargs or use defaults
+        pitch = kwargs.get('pitch', 'medium')
+        rate = kwargs.get('rate', 'medium') 
+        volume = kwargs.get('volume', 'medium')
+        
+        # Build SSML with f-string formatting
+        ssml = f"""
+        <speak>
+            <prosody pitch="{pitch}" rate="{rate}" volume="{volume}">
+                {safe_message}
+            </prosody>
+        </speak>"""
+        
+        return ssml.strip()
+        
+
     async def speak_func(self, message):
+        print ("SETTINGS", self.settings)
         print("SPEAK FUNC:" + message)
         try:
             try:
+                # Generate SSML with the message
+                
+                ssml_content = self.get_ssml(message, pitch=self.settings.get('pitch', 'medium'), rate=self.settings.get('rate', 'medium'), volume=self.settings.get('volume', 'medium'))
+                print (ssml_content)
+                
+                
                 response = self.client.tts.audio.speech(
-                    input=message,
+                    input=ssml_content,  # Use SSML instead of plain text
                     voice_id=self.voice_id,
                     language=self.lang_code,
                     model="simba-multilingual"
