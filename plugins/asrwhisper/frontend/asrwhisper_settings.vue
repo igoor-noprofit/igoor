@@ -13,9 +13,9 @@
         <div class="form-label">{{t('Model name')}}</div>
         <div class="form-input">
             <select name="model_name" v-model="formData.model_name">
-                <option value="whisper-large-v3" v-show="formData.provider === 'groq'">Whisper Large v3</option>
-                <option value="whisper-large-v3-turbo" v-show="formData.provider === 'groq'">Whisper Large v3 Turbo</option>
-                <option value="voxtral-mini-latest" v-show="formData.provider === 'mistral'">Voxtral Mini Latest</option>
+                <option value="whisper-large-v3" v-show="formData.model_provider === 'groq'">Whisper Large v3</option>
+                <option value="whisper-large-v3-turbo" v-show="formData.model_provider === 'groq'">Whisper Large v3 Turbo</option>
+                <option value="voxtral-mini-latest" v-show="formData.model_provider === 'mistral'">Voxtral Mini Latest</option>
             </select>
         </div>
         <div class="form-note"></div>
