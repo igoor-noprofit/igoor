@@ -86,14 +86,35 @@ class Speechifytts(Baseplugin):
         safe_message = html.escape(message)
         
         # Get voice settings from kwargs or use defaults
-        pitch = kwargs.get('pitch', 'medium')
-        rate = kwargs.get('rate', 'medium') 
-        volume = kwargs.get('volume', 'medium')
+        pitch = kwargs.get('pitch', '0')
+        rate = kwargs.get('rate', '0') 
+        volume = kwargs.get('volume', '0')
+
+        def fmt_percent(v):
+            """Return a string suitable for prosody attributes.
+            If v is numeric (int/float or numeric string) return signed percent like '+10%'/ '-5%'/ '0%'.
+            Otherwise return the original string unchanged (e.g., 'medium').
+            """
+            # try numeric conversion
+            try:
+                # convert booleans to int as well? avoid True/False
+                if isinstance(v, bool):
+                    return str(v)
+                n = int(float(v))
+                sign = '+' if n > 0 else ''
+                return f"{sign}{n}%"
+            except Exception:
+                return str(v)
         
+        # Format numeric settings as signed percentages when possible
+        pitch_attr = fmt_percent(pitch)
+        rate_attr = fmt_percent(rate)
+        volume_attr = fmt_percent(volume)
+
         # Build SSML with f-string formatting
         ssml = f"""
         <speak>
-            <prosody pitch="{pitch}" rate="{rate}" volume="{volume}">
+            <prosody pitch="{pitch_attr}" rate="{rate_attr}" volume="{volume_attr}">
                 {safe_message}
             </prosody>
         </speak>"""
