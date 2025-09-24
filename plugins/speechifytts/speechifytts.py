@@ -80,16 +80,6 @@ class Speechifytts(Baseplugin):
             return False
 
     def get_ssml(self,message, **kwargs):
-        '''Generate SSML with the message and optional voice settings
-        Example:
-            <speak>
-                This is a normal speech pattern.
-                <prosody pitch="high" rate="fast" volume="+20%">
-                    I'm speaking with a higher pitch, faster than usual, and louder!
-                </prosody>
-                Back to normal speech pattern.
-            </speak>
-        '''
         import html
         
         # Escape XML special characters in message
@@ -107,7 +97,6 @@ class Speechifytts(Baseplugin):
                 {safe_message}
             </prosody>
         </speak>"""
-        
         return ssml.strip()
         
 
@@ -117,11 +106,11 @@ class Speechifytts(Baseplugin):
         try:
             try:
                 # Generate SSML with the message
-                
-                ssml_content = self.get_ssml(message, pitch=self.settings.get('pitch', 'medium'), rate=self.settings.get('rate', 'medium'), volume=self.settings.get('volume', 'medium'))
-                print (ssml_content)
-                
-                
+                if (self.settings.get("use_ssml")): # Changed from .lower() == "true"
+                    ssml_content = self.get_ssml(message, pitch=self.settings.get('pitch', 'medium'), rate=self.settings.get('rate', 'medium'), volume=self.settings.get('volume', 'medium'))
+                else:
+                    ssml_content=message
+                print (ssml_content)                
                 response = self.client.tts.audio.speech(
                     input=ssml_content,  # Use SSML instead of plain text
                     voice_id=self.voice_id,
