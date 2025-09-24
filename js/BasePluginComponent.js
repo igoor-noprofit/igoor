@@ -66,7 +66,8 @@ module.exports = {
           plugin_name.length - "Settings".length
         );
       }
-      window.pywebview.api.update_plugin_settings(plugin_name, this.formData);
+      // Return the promise so callers can await and react to success/failure
+      return window.pywebview.api.update_plugin_settings(plugin_name, this.formData);
     },
     sendMsgToBackend(data, plugin_name = null) {
       const targetUrl = plugin_name
