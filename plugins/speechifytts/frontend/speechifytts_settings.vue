@@ -3,7 +3,7 @@
         <!-- API Key -->
         <div class="form-label">{{ t('API Key') }}</div>
         <div class="form-input">
-            <input type="text" v-model="formData.api_key" :class="{'input-error': apiKeyError}" placeholder="{{ t('Required') }}" />
+            <input type="password" v-model="formData.api_key" :class="{'input-error': apiKeyError}" placeholder="{{ t('Required') }}" />
         </div>
         <div class="form-note" :style="{color: apiKeyError ? '#ff6666' : undefined}">
             {{ apiKeyError ? t('API Key is required') : t('API Key used to authenticate with the TTS provider') }}

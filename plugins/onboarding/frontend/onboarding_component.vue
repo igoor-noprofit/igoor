@@ -83,7 +83,7 @@
                                 </select>
                             </div>
                             <div>
-                                <label>{{ t("API Key") }}</label><input type="text" v-model="ai.api_key">
+                                <label>{{ t("API Key") }}</label><input type="password" v-model="ai.api_key">
                                 <p>{{ t("Groq is our default provider:") }} <br><a class="extlink"
                                         href="https://console.groq.com/login" target="_blank">{{ t("To obtain a FREE api key sign up here") }}</a>
                                     <br><a class="extlink" href="https://groq.com/privacy-policy/" target="_blank">{{ t("Our default provider privacy policy") }}</a>
