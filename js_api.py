@@ -40,7 +40,7 @@ class Api:
 
     def win_minimize(self):
         window = webview.windows[0]
-        window.minimize();
+        window.minimize()
 
     def minimize(self):
         print("MIN window")
