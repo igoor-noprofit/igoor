@@ -291,6 +291,9 @@ main {
   padding: 10px 20px;
   font-size: 1.2rem;
 }
+.onboarding.plugin input[type="range"] {
+  padding: 10px 0;
+}
 .onboarding.plugin select {
   height: 50px;
 }
