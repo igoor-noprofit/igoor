@@ -10,6 +10,7 @@ from pydub import AudioSegment
 from pydub.playback import play
 import io
 import base64
+import json
 '''
 Language	Code
 English	en
@@ -59,6 +60,18 @@ class Speechifytts(Baseplugin):
         # Schedule the speak_func to run in the background
         asyncio.create_task(self.run_speak_func(message))
         asyncio.create_task(self.pm.trigger_hook(hook_name="reset_conversation_timeout"))
+        
+    @hookimpl
+    def test_speak(self, message, **kwargs):
+        pitch = kwargs.get('pitch', '0')
+        rate = kwargs.get('rate', '0')  
+        volume = kwargs.get('volume', '0')
+        voice_id = kwargs.get('voice_id', self.voice_id)
+        print(f"TEST SPEAK with pitch={pitch}, rate={rate}, volume={volume}")
+        ssml = self.get_ssml(message, **kwargs)
+        print ("SSML:", ssml)
+        asyncio.create_task(self.call_speechify(input=ssml, voice_id=voice_id, language=self.lang_code, model="simba-multilingual"))
+        
 
     def run_restart_asr(self):
         asyncio.create_task(self.restart_asr())
@@ -78,6 +91,69 @@ class Speechifytts(Baseplugin):
         except Exception as e:
             self.logger.error(f"An unexpected error occurred: {e}")
             return False
+
+    def process_incoming_message(self, message):
+        """Extend the base plugin's message handler with ASR-specific actions"""
+        try:
+            # Normalize incoming message: it can be a dict already, a JSON string,
+            # or even a double-encoded JSON string. Be permissive and robust.
+            data = message
+            # decode bytes
+            if isinstance(message, (bytes, bytearray)):
+                try:
+                    data = message.decode('utf-8')
+                except Exception:
+                    data = message
+
+            # if it's a string, try to parse JSON
+            if isinstance(data, str):
+                try:
+                    data = json.loads(data)
+                except Exception:
+                    # leave as-is (plain string)
+                    pass
+
+            # handle the case where json.loads returned a JSON string (double-encoded)
+            if isinstance(data, str):
+                try:
+                    data2 = json.loads(data)
+                    data = data2
+                except Exception:
+                    pass
+
+            print("INCOMING MESSAGE DATA:", data)
+
+            # If we ended up with a dict, handle actions
+            if isinstance(data, dict) and 'action' in data:
+                # Handle ASR-specific actions
+                if data.get('action', '') == 'test_speak':
+                    # Build kwargs from the payload but remove keys we don't want to pass
+                    payload = data.copy()
+                    payload.pop('action', None)
+                    # Allow the frontend to optionally pass a 'message' field; otherwise use a default
+                    msg = payload.pop('message', None) or "Hello, how are you doing? I feel better today!"
+                    # Call test_speak with a string message and keyword args
+                    # Ensure numeric values are passed as numbers
+                    try:
+                        # convert any numeric-like strings to numbers where sensible
+                        for k in ('pitch', 'rate', 'volume'):
+                            if k in payload:
+                                v = payload[k]
+                                if isinstance(v, str) and v.strip() != '':
+                                    try:
+                                        payload[k] = int(float(v))
+                                    except Exception:
+                                        pass
+                    except Exception:
+                        pass
+
+                    self.test_speak(msg, **payload)
+                    return
+            # fallback to base behaviour
+            super().process_incoming_message(message)
+        except Exception as e:  
+            self.logger.error(f"Error processing incoming message: {e}")
+
 
     def get_ssml(self,message, **kwargs):
         import html
@@ -119,7 +195,49 @@ class Speechifytts(Baseplugin):
             </prosody>
         </speak>"""
         return ssml.strip()
-        
+
+    async def call_speechify(self,input,voice_id,language,model="simba-multilingual"):
+        response = self.client.tts.audio.speech(
+            input=input,  # Use SSML instead of plain text
+            voice_id=voice_id,
+            language=language,
+            model=model
+            # format=OUTPUT_FORMAT # Add if needed/supported
+        )
+        if not response or not response.audio_data:
+            self.logger.error("Received empty audio data from Speechify")
+            return False
+        else:
+            # Decode the Base64-encoded audio data to bytes
+            audio_bytes = base64.b64decode(response.audio_data)
+            print(f"Received {len(audio_bytes)} bytes of audio data. Decoding...")
+
+            # with open("debug_speechify_output.wav", "wb") as f:
+            #    f.write(audio_bytes)
+            # 2. Decode the audio bytes using pydub
+            audio_file_like = io.BytesIO(audio_bytes)
+            audio_segment = AudioSegment.from_file(audio_file_like)
+
+            # Convert to 16-bit PCM mono/stereo if needed
+            audio_segment = audio_segment.set_frame_rate(22050).set_sample_width(2).set_channels(1)
+            samples = np.array(audio_segment.get_array_of_samples()).astype(np.int16)
+            sample_rate = audio_segment.frame_rate
+
+            print("Decoding complete. Preparing for playback...")
+
+            # 3. Play the audio using pydub playback
+            print("Playing audio...")
+            await self.pm.trigger_hook(hook_name="pause_asr")
+
+            def play_audio():
+                play(audio_segment)
+
+            await asyncio.to_thread(play_audio)
+            self.run_restart_asr()
+            print("Playback finished.")
+            
+            return True
+
 
     async def speak_func(self, message):
         print ("SETTINGS", self.settings)
@@ -132,46 +250,8 @@ class Speechifytts(Baseplugin):
                 else:
                     ssml_content=message
                 print (ssml_content)                
-                response = self.client.tts.audio.speech(
-                    input=ssml_content,  # Use SSML instead of plain text
-                    voice_id=self.voice_id,
-                    language=self.lang_code,
-                    model="simba-multilingual"
-                    # format=OUTPUT_FORMAT # Add if needed/supported
-                )
-                if not response or not response.audio_data:
-                    self.logger.error("Received empty audio data from Speechify")
-                    return False
-                else:
-                    # Decode the Base64-encoded audio data to bytes
-                    audio_bytes = base64.b64decode(response.audio_data)
-                    print(f"Received {len(audio_bytes)} bytes of audio data. Decoding...")
-
-                    # with open("debug_speechify_output.wav", "wb") as f:
-                    #    f.write(audio_bytes)
-                    # 2. Decode the audio bytes using pydub
-                    audio_file_like = io.BytesIO(audio_bytes)
-                    audio_segment = AudioSegment.from_file(audio_file_like)
-
-                    # Convert to 16-bit PCM mono/stereo if needed
-                    audio_segment = audio_segment.set_frame_rate(22050).set_sample_width(2).set_channels(1)
-                    samples = np.array(audio_segment.get_array_of_samples()).astype(np.int16)
-                    sample_rate = audio_segment.frame_rate
-
-                    print("Decoding complete. Preparing for playback...")
-
-                    # 3. Play the audio using pydub playback
-                    print("Playing audio...")
-                    await self.pm.trigger_hook(hook_name="pause_asr")
-
-                    def play_audio():
-                        play(audio_segment)
-
-                    await asyncio.to_thread(play_audio)
-                    self.run_restart_asr()
-                    print("Playback finished.")
-                    
-                    return True
+                return await self.call_speechify(input=ssml_content, voice_id=self.voice_id, language=self.lang_code, model="simba-multilingual")
+             
             except Exception as inner_e:
                 self.logger.warning(f"Error playing back audio data: {inner_e}")
                 return False

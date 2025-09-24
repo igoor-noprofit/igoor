@@ -87,6 +87,7 @@ class MyAppSpec:
     
     @pluggy.HookspecMarker(app_name)
     def speak_fallback(self,message: str):
+        """ Fallback function if main TTS fails """
         pass
     
     @pluggy.HookspecMarker(app_name)

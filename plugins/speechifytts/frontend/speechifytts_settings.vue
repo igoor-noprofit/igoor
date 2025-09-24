@@ -91,6 +91,9 @@
                 <span v-if="saveStatus.type==='success'" style="color:#3ca23c">{{ saveStatus.message }}</span>
                 <span v-else style="color:#ff6666">{{ saveStatus.message }}</span>
             </div>
+             <div style="text-align:left">
+                <button class="" type="button" @click="testVoice">{{ t('Test voice') }}</button>
+            </div>
         </div>
         <div class="form-note"></div>
     </div>
@@ -129,8 +132,7 @@ export default {
             // local v-model backing values
             pitchValue: 0,
             rateValue: 0,
-            volumeValue: 0
-            ,
+            volumeValue: 0,
             isSaving: false,
             saveStatus: null
         };
@@ -200,6 +202,18 @@ export default {
             this.formData.pitch = 0;
             this.formData.rate = 0;
             this.formData.volume = 0;
+        },
+        async testVoice(){
+            this.formData.pitch = Math.round(this.pitchValue);
+            this.formData.rate = Math.round(this.rateValue);
+            this.formData.volume = Math.round(this.volumeValue);
+            let msg=this.t('Hello, how are you doing? I feel better today!')
+            let testData = this.formData;
+            testData['action'] = 'test_speak';
+            testData['message'] = msg;
+            console.warn("TEST SPEAK DATA", testData);
+            const result = this.sendMsgToBackend(JSON.stringify(testData),'speechifytts');
+            console.warn(result);
         },
         async checkBeforeUpdating() {
             this.apiKeyError = !this.formData.api_key || !this.formData.api_key.trim();
