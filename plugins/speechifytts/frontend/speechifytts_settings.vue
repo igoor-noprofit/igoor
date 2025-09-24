@@ -86,7 +86,11 @@
         <!-- Save Button -->
         <div class="form-label"></div>
         <div class="form-input">
-            <button @click="checkBeforeUpdating" :disabled="!hasChanges || apiKeyError || voiceIdError" :class="{disabled: !hasChanges || apiKeyError || voiceIdError}">{{ t('SAVE PLUGIN SETTINGS') }}</button>
+            <button @click="checkBeforeUpdating" :disabled="!hasChanges || apiKeyError || voiceIdError || isSaving" :class="{disabled: !hasChanges || apiKeyError || voiceIdError || isSaving}">{{ t('SAVE PLUGIN SETTINGS') }}</button>
+            <div v-if="saveStatus" style="margin-left:12px;">
+                <span v-if="saveStatus.type==='success'" style="color:#3ca23c">{{ saveStatus.message }}</span>
+                <span v-else style="color:#ff6666">{{ saveStatus.message }}</span>
+            </div>
         </div>
         <div class="form-note"></div>
     </div>
@@ -126,6 +130,9 @@ export default {
             pitchValue: 0,
             rateValue: 0,
             volumeValue: 0
+            ,
+            isSaving: false,
+            saveStatus: null
         };
     },
     computed: {
@@ -194,7 +201,7 @@ export default {
             this.formData.rate = 0;
             this.formData.volume = 0;
         },
-        checkBeforeUpdating() {
+        async checkBeforeUpdating() {
             this.apiKeyError = !this.formData.api_key || !this.formData.api_key.trim();
             this.voiceIdError = !this.formData.voice_id || !this.formData.voice_id.trim();
             if (this.apiKeyError || this.voiceIdError) return;
@@ -204,8 +211,20 @@ export default {
             this.formData.rate = Math.round(this.rateValue);
             this.formData.volume = Math.round(this.volumeValue);
 
-            // call inherited update method to persist
-            this.updateSettings(this.formData);
+            try {
+                this.isSaving = true;
+                this.saveStatus = null;
+                await this.updateSettings();
+                this.saveStatus = { type: 'success', message: this.t('Settings saved') };
+                // refresh original snapshot so hasChanges becomes false
+                this.originalSettings = JSON.parse(JSON.stringify(this.formData));
+            } catch (err) {
+                console.error('Error saving settings', err);
+                this.saveStatus = { type: 'error', message: this.t('Failed to save settings') };
+            } finally {
+                this.isSaving = false;
+                setTimeout(() => { this.saveStatus = null; }, 3000);
+            }
         }
     }
 };
