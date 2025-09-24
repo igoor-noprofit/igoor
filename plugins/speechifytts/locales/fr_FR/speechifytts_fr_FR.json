@@ -1,0 +1,21 @@
+{
+    "plugin_name": "Speechify TTS",
+    "plugin_description": "Plugin pour la synthèse vocale utilisant Speechify TTS.",
+    "API Key": "Clé API",
+    "Required": "Obligatoire",
+    "API Key is required": "La clé API est requise",
+    "API Key used to authenticate with the TTS provider": "Clé API utilisée pour s'authentifier auprès du fournisseur TTS",
+    "Voice ID": "Identifiant de voix",
+    "Voice ID is required": "L'identifiant de voix est requis",
+    "The voice identifier to use for synthesis": "L'identifiant de la voix à utiliser pour la synthèse",
+    "Model ID": "ID du modèle",
+    "Use SSML": "Utiliser SSML",
+    "When enabled, you can fine-tune pitch, rate and volume using the sliders.": "Quand activé, vous pouvez modifier la fréquence, la vitesse et le volume de la voix à l'aide des curseurs.",
+    "Reset": "Réinitialiser",
+    "Pitch": "Hauteur",
+    "Rate": "Vitesse",
+    "Volume": "Volume",
+    "SAVE PLUGIN SETTINGS": "ENREGISTRER LES PARAMÈTRES DE L'EXTENSION",
+    "Settings saved": "Paramètres enregistrés",
+    "Failed to save settings": "Échec de l'enregistrement des paramètres"
+}
