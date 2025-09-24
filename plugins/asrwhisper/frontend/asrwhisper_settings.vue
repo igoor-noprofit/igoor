@@ -23,7 +23,7 @@
         <div class="form-label" v-show="formData.model_name === 'voxtral-mini-latest'">{{t('Voxtral API Key (BETA)')}}</div>
         <div class="form-input" v-show="formData.model_name === 'voxtral-mini-latest'">
             <input
-                type="text"
+                type="password"
                 v-model="formData.voxtral_api_key"
                 :class="{'input-error': voxtralKeyError}"
                 :placeholder="t('Required for Voxtral')"

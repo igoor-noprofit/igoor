@@ -5,7 +5,7 @@
     "Most aggressive": "Le plus agressif",
     "VAD level": "Niveau VAD",
     "The VAD level determines how aggressive the algorithm is at detecting speech.":"Le niveau VAD détermine à quel point l'algorithme est agressif dans la détection de la voix.",
-    "Higher levels work better in noisy environments.":"Des niveaux plus élevés fonctionnent mieux dans les environnements bruyants.",
+    "Higher levels work better in noisy environments. Disabled will bypass VAD entirely.":"Des niveaux plus élevés fonctionnent mieux dans les environnements bruyants. Désactivé contournera entièrement le VAD.",
     "The time (in ms) of silence before speech detection automatically ends.": "Le temps (en ms) de silence avant que la détection de la parole ne se termine automatiquement.",
     "The lower,the faster the transcription starts,but risks of cutting people speaking after a pause": "Plus bas, plus rapide est le démarrage de la transcription, mais risque de couper les personnes parlant après une pause.",
     "The higher,the slower the transcription starts, but less risky for people making big pauses speaking": "Plus haut, plus lente est le démarrage de la transcription, mais moins risqué pour les personnes faisant de grandes pauses en parlant.",
