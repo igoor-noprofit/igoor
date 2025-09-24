@@ -18,5 +18,9 @@
     "SAVE PLUGIN SETTINGS": "ENREGISTRER LES PARAMÈTRES DE L'EXTENSION",
     "Settings saved": "Paramètres enregistrés",
     "Failed to save settings": "Échec de l'enregistrement des paramètres",
-    "Hello, how are you doing? I feel better today!": "Bonjour, comment ça va ? Je me sens mieux aujourd'hui !"
+    "Hello, how are you doing? I feel better today!": "Bonjour, comment ça va ? Je me sens mieux aujourd'hui !",
+    "Test voice": "Tester la voix",
+    "A mandatory field is missing": "Un champ obligatoire est manquant",
+    "Test voice played": "Lecture du test vocal effectuée",
+    "Failed to play test voice": "Échec de la lecture du test vocal"
 }

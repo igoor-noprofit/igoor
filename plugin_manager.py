@@ -92,6 +92,13 @@ class MyAppSpec:
     @pluggy.HookspecMarker(app_name)
     def speak_as_igoor(self,message: str):
         pass
+
+    @pluggy.HookspecMarker(app_name)
+    def test_speak(self, message: str, **kwargs):
+        """Hook to request a transient/test speech playback using provided settings.
+        Implementations should accept a message and optional keyword settings (api_key, voice_id, pitch, rate, volume, use_ssml, ...).
+        """
+        pass
     
     '''
         ************ ASR **************
