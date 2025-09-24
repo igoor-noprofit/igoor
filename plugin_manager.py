@@ -56,6 +56,11 @@ class MyAppSpec:
         """Hook called when a plugin's settings are updated"""
         pass
     
+    @pluggy.HookspecMarker(app_name)
+    def global_settings_updated(self):
+        """Hook called when entire settings are updated"""
+        pass
+    
     '''
         GUI AND APP
     '''

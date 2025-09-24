@@ -55,6 +55,11 @@ class Speechifytts(Baseplugin):
             return False
         
     @hookimpl
+    def global_settings_updated(self):
+        print("RELOADING SPEECHIFY SETTINGS")
+        self.startup()
+        
+    @hookimpl
     def speak(self, message):
         print("§§§§ SPEECHIFY SPEAKING *********************************************** :", message)
         # Schedule the speak_func to run in the background
@@ -71,7 +76,7 @@ class Speechifytts(Baseplugin):
         ssml = self.get_ssml(message, **kwargs)
         print ("SSML:", ssml)
         asyncio.create_task(self.call_speechify(input=ssml, voice_id=voice_id, language=self.lang_code, model="simba-multilingual"))
-        
+    
 
     def run_restart_asr(self):
         asyncio.create_task(self.restart_asr())

@@ -7,11 +7,12 @@ import asyncio
 from dotenv import load_dotenv
 load_dotenv()
 from context_manager import context_manager
-
+from settings_manager import SettingsManager
 
 class Onboarding(Baseplugin):
     def __init__(self, plugin_name, pm):
         self.pm = pm
+        self.sm = SettingsManager()
         self.onboarding_completed = False
         super().__init__(plugin_name,pm)
     
@@ -115,6 +116,10 @@ class Onboarding(Baseplugin):
                     # Save the updated settings using update_plugin_settings
                     self.pm.settings_manager.update_plugin_settings('onboarding', current_settings)
                     print("Settings saved successfully")
+                    
+                    self.sm.load_settings()
+                    asyncio.create_task(self.pm.trigger_hook('global_settings_updated'))
+                    
                     
                     # Update local settings
                     self.settings = current_settings
