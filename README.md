@@ -187,7 +187,6 @@ to open a on-top window, without debug console (CLI window will open and then di
 
 ## CREATE AN EXECUTABLE
 
-Currently the pyinstaller does NOT work.
 ### REQUIREMENTS 
 
 First of all, upgrade pyinstaller: 
@@ -245,7 +244,7 @@ Daily logs are in:
 IGOOR_FOLDER/logs/
 ```
 
-Separate llm_invocations contain a JSON of all LLM calls, with prompt and answer.
+Separate llm_invocations contain a JSON of all LLM calls, with prompt/answer and reasoning (where applicable)
 
 ## ADDING A LANGUAGE
 
@@ -261,6 +260,4 @@ Whisper and Voxtral models have a known bug that can convert silences or very lo
 New languages may require new filters to be applied.
 
 ## KNOWN ISSUES ##
-1) AS OF NOW, THE PYINSTALLER SCRIPT STILL HAS ERRORS (it compiles, but the created executable has a websocket problem between frontend and backend on onboarding plugin).
-
-2) ASR models can interpret silence or very low, inaudible sounds as speech and return texts like "Thank you" instead of empty texts. This depends on the ASR models, not the IGOOR app.
+1) ASR models can interpret silence or very low, inaudible sounds as speech and return texts like "Thank you" instead of empty texts. This depends on the ASR models, not the IGOOR app.
