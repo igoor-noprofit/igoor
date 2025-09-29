@@ -42,12 +42,6 @@
       "embedding_type": "huggingface",
       "openai_api_key": ""
     },
-    "flow": {
-      "provider": "",
-      "api_key": "",
-      "model_name": "",
-      "temperature": 1
-    },
     "memory": {
       "provider": "",
       "api_key": "",

@@ -216,7 +216,9 @@ class Flow(Baseplugin):
         prompt = pm.create_prompt(datetime=formatted_datetime, conversation=conversation)       
         print(f"FINAL PROMPT : {prompt}")
         try:
-            llm = LLMManager(self.settings.get("provider"), self.settings.get("api_key"), self.settings.get("model_name"))
+            model_name = self.settings.get("preflow_model_name") or self.settings.get("model_name")
+            model_temperature = self.settings.get("preflow_temperature") or self.settings.get("temperature",0.5)
+            llm = LLMManager(self.settings.get("provider"), self.settings.get("api_key"), model_name, temperature=model_temperature)
             llm.set_json_schema(ConversationModel)
             preflow = llm.invoke(system_prompt,prompt)
             has_error, preflow = self.handle_llm_error(preflow)
