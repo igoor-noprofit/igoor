@@ -14,13 +14,18 @@
             <!-- Voice ID -->
             <div class="form-label">{{ t('The voice identifier to use for synthesis') }}</div>
             <div class="form-input">
-                <input type="text" v-model="formData.voice_id" :class="{ 'input-error': voiceIdError }"
-                    placeholder="{{ t('Required') }}" />
+                
             </div>
             <div class="form-note" :style="{ color: voiceIdError ? '#ff6666' : undefined }">
                 {{ voiceIdError ? t('Voice ID is required') : '' }}
             </div>
-
+            <!--select v-model="sex">
+                <option value="male">{{ t("Male") }}</option>
+                <option value="female">{{ t("Female") }}</option>
+            </select-->
+            <!-- voice_id hidden -->
+            <input type="text" v-model="formData.voice_id" :class="{ 'input-error': voiceIdError }"
+                    placeholder="{{ t('Required') }}" />
             <!-- model_id hidden -->
             <div class="form-label" style="display:none">{{ t('Model ID') }}</div>
             <div class="form-input" style="display:none">
@@ -132,6 +137,9 @@ export default {
                 api_key: '',
                 voice_id: '',
                 model_id: '',
+                sex:'',
+                type:'',
+                age:'',
                 use_ssml: false,
                 pitch: 0, // percent centered at 0, stored as integer percent
                 rate: 0,  // percent centered at 0
@@ -196,6 +204,36 @@ export default {
         }
     },
     methods: {
+        async handleIncomingMessage(event) {
+            // normalize/parse incoming message into `data`
+            let data = null;
+            try {
+                if (!event) return false;
+                if (typeof event === 'string') {
+                    data = JSON.parse(event);
+                } else if (event.data) {
+                    data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+                } else {
+                    data = event;
+                }
+            } catch (e) {
+                console.warn('Failed to parse incoming message', e);
+                return false;
+            }
+
+            if (data.status === "ready") {
+                console.warn("Speechify TTS plugin ready in PLUGIN");
+                this.requestSettings();
+                try {
+                    this.voice_list = await this.sendMsgToBackend({ action: 'get_voice_list' });
+                } catch (e) {
+                    console.warn('Failed to fetch voice list', e);
+                }
+                return true; // handled
+            }
+            // not handled here
+            return false;
+        },
         onPitchChange() {
             // clamp and store integer percent
             if (this.pitchValue < this.pitchRange.min) this.pitchValue = this.pitchRange.min;

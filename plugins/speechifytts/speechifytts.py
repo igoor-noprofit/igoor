@@ -112,10 +112,22 @@ class Speechifytts(Baseplugin):
                 top_locale = get_attr(v, "locale", None)
                 if top_locale:
                     locales.add(top_locale)
+
+                # Normalize models to an iterable (list) even if SDK returns None or a single object
                 models = get_attr(v, "models", []) or []
+                if not isinstance(models, (list, tuple, set)):
+                    models = [models]
+
                 for m in models:
+                    if not m:
+                        continue
                     # m can be dict or object
                     m_languages = m.get("languages") if isinstance(m, dict) else getattr(m, "languages", None)
+                    # ensure m_languages is iterable
+                    if not m_languages:
+                        continue
+                    if not isinstance(m_languages, (list, tuple, set)):
+                        m_languages = [m_languages]
                     for l in m_languages or []:
                         if isinstance(l, dict):
                             loc = l.get("locale")
@@ -123,28 +135,59 @@ class Speechifytts(Baseplugin):
                             loc = getattr(l, "locale", None)
                         if loc:
                             locales.add(loc)
+
                 # If a language filter is configured, exclude voices that don't advertise the language
                 if lang and len(locales) > 0 and lang not in locales:
                     continue
+
+                type = get_attr(v, "type", "")
+                # Normalize tags to a list safely (avoid iterating None)
+                raw_tags = get_attr(v, "tags", []) or []
+                if isinstance(raw_tags, (list, tuple, set)):
+                    tags = list(raw_tags)
+                elif isinstance(raw_tags, str):
+                    tags = [raw_tags]
+                else:
+                    tags = []
+
                 display_name = get_attr(v, "display_name", "")
                 vid = get_attr(v, "id", get_attr(v, "voice_id", None))
-                voice_list.append({"display_name": f"{display_name}", "id": vid, "locales": list(locales)})
+                voice_list.append({"display_name": f"{display_name}", "id": vid, "type": type, "tags": tags})
             
             print(f"Found {len(voice_list)} voices matching language '{lang}'")
-            # Persist voice_list to a file in the plugin folder
-            try:
-                folder = getattr(self, "plugin_folder", None) or os.path.dirname(__file__)
-                os.makedirs(folder, exist_ok=True)
-                out_path = os.path.join(folder, "voice_list.json")
-                with open(out_path, "w", encoding="utf-8") as wf:
-                    json.dump(voice_list, wf, ensure_ascii=False, indent=2)
-                print(f"Wrote voice list to {out_path}")
-            except Exception as e:
-                self.logger.error(f"Failed to write voice list to file: {e}")
+            self.save_voice_list(voice_list)
+            self.voice_list = voice_list    
             return voice_list
         except Exception as e:
             self.logger.error(f"Error occurred while fetching voices: {e}")
             return []
+        
+    def load_voice_list(self):
+        # Load voice_list from a file in the plugin folder
+        try:
+            folder = getattr(self, "plugin_folder", None) or os.path.dirname(__file__)
+            in_path = os.path.join(folder, "voice_list.json")
+            if not os.path.exists(in_path):
+                return []
+            with open(in_path, "r", encoding="utf-8") as rf:
+                voice_list = json.load(rf)
+            print(f"Loaded voice list from {in_path}")
+            return voice_list
+        except Exception as e:
+            self.logger.error(f"Failed to load voice list from file: {e}")
+            return []
+        
+    def save_voice_list(self, voice_list):
+        # Persist voice_list to a file in the plugin folder
+        try:
+            folder = getattr(self, "plugin_folder", None) or os.path.dirname(__file__)
+            os.makedirs(folder, exist_ok=True)
+            out_path = os.path.join(folder, "voice_list.json")
+            with open(out_path, "w", encoding="utf-8") as wf:
+                json.dump(voice_list, wf, ensure_ascii=False, indent=2)
+            print(f"Wrote voice list to {out_path}")
+        except Exception as e:
+            self.logger.error(f"Failed to write voice list to file: {e}")
 
     def run_restart_asr(self):
         asyncio.create_task(self.restart_asr())
@@ -219,9 +262,11 @@ class Speechifytts(Baseplugin):
                                         pass
                     except Exception:
                         pass
-
                     self.test_speak(msg, **payload)
                     return
+                elif data.get('action', '') == 'get_voice_list':
+                    print(f"RETURNING VOICE LIST {self.voice_list}")
+                    return self.voice_list
             # fallback to base behaviour
             super().process_incoming_message(message)
         except Exception as e:  
