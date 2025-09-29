@@ -22,5 +22,18 @@
     "Test voice": "Tester la voix",
     "A mandatory field is missing": "Un champ obligatoire est manquant",
     "Test voice played": "Lecture du test vocal effectuée",
-    "Failed to play test voice": "Échec de la lecture du test vocal"
+    "Failed to play test voice": "Échec de la lecture du test vocal",
+    "Male": "Homme",
+    "Female": "Femme",
+    "Any": "Tous",
+    "Gender": "Genre",
+    "Type": "Type",
+    "Select a voice": "Sélectionner une voix",
+    "Choose a voice for synthesis": "Choisir une voix de synthèse",
+    "Middle-aged": "D'âge moyen",
+    "Senior": "Senior",
+    "Young adult": "Jeune adulte",
+    "Teen": "Adolescent",
+    "Personal": "Personnelle",
+    "Shared": "Partagée"
 }

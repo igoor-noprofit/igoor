@@ -11,10 +11,43 @@
                 {{ apiKeyError ? t('API Key is required') : '' }}
             </div>
 
-            <!-- Voice ID -->
-            <div class="form-label">{{ t('The voice identifier to use for synthesis') }}</div>
+            <!-- Voice Selection -->
+            <div class="form-label">{{ t('Choose a voice for synthesis') }}</div>
+            <div class="form-input voice-filters">
+                <label>
+                    {{ t('Type') }}
+                    <select v-model="voiceFilters.type">
+                        <option value="any">{{ t('Any') }}</option>
+                        <option value="personal">{{ t('Personal') }}</option>
+                        <option value="shared">{{ t('Shared') }}</option>
+                    </select>
+                </label>
+                <label>
+                    {{ t('Age') }}
+                    <select v-model="voiceFilters.age">
+                        <option value="any">{{ t('Any') }}</option>
+                        <option value="middle-aged">{{ t('Middle-aged') }}</option>
+                        <option value="senior">{{ t('Senior') }}</option>
+                        <option value="teen">{{ t('Teen') }}</option>
+                        <option value="young-adult">{{ t('Young adult') }}</option>
+                    </select>
+                </label>
+                <label>
+                    {{ t('Gender') }}
+                    <select v-model="voiceFilters.gender">
+                        <option value="any">{{ t('Any') }}</option>
+                        <option value="male">{{ t('Male') }}</option>
+                        <option value="female">{{ t('Female') }}</option>
+                    </select>
+                </label>
+            </div>
             <div class="form-input">
-                
+                <select v-model="formData.voice_id" :class="{ 'input-error': voiceIdError }" @change="onVoiceIdChange" :disabled="!filteredVoices.length">
+                    <option disabled value="">{{ t('Select a voice') }}</option>
+                    <option v-for="voice in filteredVoices" :key="voice.id" :value="voice.id">
+                        {{ voice.display_name }}
+                    </option>
+                </select>
             </div>
             <div class="form-note" :style="{ color: voiceIdError ? '#ff6666' : undefined }">
                 {{ voiceIdError ? t('Voice ID is required') : '' }}
@@ -24,8 +57,7 @@
                 <option value="female">{{ t("Female") }}</option>
             </select-->
             <!-- voice_id hidden -->
-            <input type="text" v-model="formData.voice_id" :class="{ 'input-error': voiceIdError }"
-                    placeholder="{{ t('Required') }}" />
+            <input type="hidden" v-model="formData.voice_id" />
             <!-- model_id hidden -->
             <div class="form-label" style="display:none">{{ t('Model ID') }}</div>
             <div class="form-input" style="display:none">
@@ -160,7 +192,13 @@ export default {
             rateValue: 0,
             volumeValue: 0,
             isSaving: false,
-            saveStatus: null
+            saveStatus: null,
+            voiceFilters: {
+                type: 'any',
+                age: 'any',
+                gender: 'any'
+            },
+            voiceList: []
         };
     },
     computed: {
@@ -168,6 +206,20 @@ export default {
             if (!this.originalSettings) return false;
             const keys = ['api_key', 'voice_id', 'model_id', 'use_ssml', 'pitch', 'rate', 'volume'];
             return keys.some(k => JSON.stringify(this.formData[k]) !== JSON.stringify(this.originalSettings[k]));
+        },
+        filteredVoices() {
+            const voices = Array.isArray(this.voiceList) ? this.voiceList : [];
+            return voices
+                .filter(voice => {
+                    const typeMatches = this.voiceFilters.type === 'any' || voice.type === this.voiceFilters.type;
+                    const ageTag = this.extractTagValue(voice.tags, 'age');
+                    const genderTag = this.extractTagValue(voice.tags, 'gender');
+                    const ageMatches = this.voiceFilters.age === 'any' || ageTag === this.voiceFilters.age;
+                    const genderMatches = this.voiceFilters.gender === 'any' || genderTag === this.voiceFilters.gender;
+                    return typeMatches && ageMatches && genderMatches;
+                })
+                .slice()
+                .sort((a, b) => a.display_name.localeCompare(b.display_name, undefined, { sensitivity: 'base' }));
         }
     },
     watch: {
@@ -175,6 +227,7 @@ export default {
             handler(newVal) {
                 if (!newVal) return;
                 this.formData = { ...this.formData, ...newVal };
+                this.voiceList = Array.isArray(newVal.voice_list) ? newVal.voice_list.slice() : [];
                 // initialize local slider values
                 this.pitchValue = Number(newVal.pitch ?? this.formData.pitch ?? 0);
                 this.rateValue = Number(newVal.rate ?? this.formData.rate ?? 0);
@@ -201,9 +254,23 @@ export default {
             },
             immediate: true,
             deep: true
+        },
+        voiceFilters: {
+            handler() {
+                if (!this.filteredVoices.some(voice => voice.id === this.formData.voice_id)) {
+                    this.formData.voice_id = '';
+                }
+            },
+            deep: true
         }
     },
     methods: {
+        extractTagValue(tags, key) {
+            if (!Array.isArray(tags)) return '';
+            const prefix = `${key}:`;
+            const found = tags.find(tag => typeof tag === 'string' && tag.startsWith(prefix));
+            return found ? found.slice(prefix.length) : '';
+        },
         onPitchChange() {
             // clamp and store integer percent
             if (this.pitchValue < this.pitchRange.min) this.pitchValue = this.pitchRange.min;
@@ -240,6 +307,9 @@ export default {
             console.warn("TEST SPEAK DATA", testData);
             const result = this.sendMsgToBackend(JSON.stringify(testData), 'speechifytts');
             console.warn(result);
+        },
+        onVoiceIdChange() {
+            this.voiceIdError = !this.formData.voice_id || !this.formData.voice_id.trim();
         },
         async checkBeforeUpdating() {
             this.apiKeyError = !this.formData.api_key || !this.formData.api_key.trim();
@@ -367,5 +437,21 @@ button:hover {
 
 .numeric-input {
     width: 80px;
+}
+
+.voice-filters {
+    flex-wrap: wrap;
+    align-items: flex-start;
+}
+
+.voice-filters label {
+    display: flex;
+    flex-direction: column;
+    font-size: 0.9em;
+    gap: 4px;
+}
+
+.voice-filters select {
+    min-width: 140px;
 }
 </style>
