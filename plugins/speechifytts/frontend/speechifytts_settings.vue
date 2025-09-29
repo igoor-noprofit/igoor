@@ -213,9 +213,9 @@ export default {
                 .filter(voice => {
                     const typeMatches = this.voiceFilters.type === 'any' || voice.type === this.voiceFilters.type;
                     const ageTag = this.extractTagValue(voice.tags, 'age');
-                    const genderTag = this.extractTagValue(voice.tags, 'gender');
+                    const genderValue = this.normalizeGender(voice.gender, voice.tags);
                     const ageMatches = this.voiceFilters.age === 'any' || ageTag === this.voiceFilters.age;
-                    const genderMatches = this.voiceFilters.gender === 'any' || genderTag === this.voiceFilters.gender;
+                    const genderMatches = this.voiceFilters.gender === 'any' || genderValue === this.voiceFilters.gender;
                     return typeMatches && ageMatches && genderMatches;
                 })
                 .slice()
@@ -269,7 +269,13 @@ export default {
             if (!Array.isArray(tags)) return '';
             const prefix = `${key}:`;
             const found = tags.find(tag => typeof tag === 'string' && tag.startsWith(prefix));
-            return found ? found.slice(prefix.length) : '';
+            return found ? found.slice(prefix.length).toLowerCase() : '';
+        },
+        normalizeGender(gender, tags) {
+            if (typeof gender === 'string' && gender.trim()) {
+                return gender.trim().toLowerCase();
+            }
+            return this.extractTagValue(tags, 'gender');
         },
         onPitchChange() {
             // clamp and store integer percent
