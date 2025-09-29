@@ -204,36 +204,6 @@ export default {
         }
     },
     methods: {
-        async handleIncomingMessage(event) {
-            // normalize/parse incoming message into `data`
-            let data = null;
-            try {
-                if (!event) return false;
-                if (typeof event === 'string') {
-                    data = JSON.parse(event);
-                } else if (event.data) {
-                    data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
-                } else {
-                    data = event;
-                }
-            } catch (e) {
-                console.warn('Failed to parse incoming message', e);
-                return false;
-            }
-
-            if (data.status === "ready") {
-                console.warn("Speechify TTS plugin ready in PLUGIN");
-                this.requestSettings();
-                try {
-                    this.voice_list = await this.sendMsgToBackend({ action: 'get_voice_list' });
-                } catch (e) {
-                    console.warn('Failed to fetch voice list', e);
-                }
-                return true; // handled
-            }
-            // not handled here
-            return false;
-        },
         onPitchChange() {
             // clamp and store integer percent
             if (this.pitchValue < this.pitchRange.min) this.pitchValue = this.pitchRange.min;

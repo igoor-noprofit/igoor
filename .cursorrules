@@ -1,6 +1,4 @@
-IGOOR is a free/libre Python desktop conversational app to provide people with neurodegenerative diseases a smooth and natural means of communication.
-
-REQUIREMENTS: Currently Windows 10/11.
+IGOOR is a free/libre Python desktop conversational app for Windows 10/11, to provide people with neurodegenerative diseases a smooth and natural means of communication.
 
 BACKEND
 Based on Pluggy to handle plugins, Pywebview to display the main Vue app and its frontend.

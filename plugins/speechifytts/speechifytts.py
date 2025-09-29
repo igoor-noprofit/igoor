@@ -153,45 +153,17 @@ class Speechifytts(Baseplugin):
                 # Keep only age tags (e.g. "age:middle-aged")
                 age_tags = [t for t in tags_list if isinstance(t, str) and t.startswith("age:")]
                 tags = age_tags
-
+                gender = get_attr(v,"gender","")
                 display_name = get_attr(v, "display_name", "")
                 vid = get_attr(v, "id", get_attr(v, "voice_id", None))
-                voice_list.append({"display_name": f"{display_name}", "id": vid, "type": type, "tags": tags})
-            
+                voice_list.append({"display_name": f"{display_name}", "id": vid, "type": type, "gender": gender, "tags": tags})
             print(f"Found {len(voice_list)} voices matching language '{lang}'")
-            self.save_voice_list(voice_list)
-            self.voice_list = voice_list    
+            self.update_my_settings('voice_list',voice_list)
+            self.settings=self.get_my_settings()
             return voice_list
         except Exception as e:
             self.logger.error(f"Error occurred while fetching voices: {e}")
-            return []
-        
-    def load_voice_list(self):
-        # Load voice_list from a file in the plugin folder
-        try:
-            folder = getattr(self, "plugin_folder", None) or os.path.dirname(__file__)
-            in_path = os.path.join(folder, "voice_list.json")
-            if not os.path.exists(in_path):
-                return []
-            with open(in_path, "r", encoding="utf-8") as rf:
-                voice_list = json.load(rf)
-            print(f"Loaded voice list from {in_path}")
-            return voice_list
-        except Exception as e:
-            self.logger.error(f"Failed to load voice list from file: {e}")
-            return []
-        
-    def save_voice_list(self, voice_list):
-        # Persist voice_list to a file in the plugin folder
-        try:
-            folder = getattr(self, "plugin_folder", None) or os.path.dirname(__file__)
-            os.makedirs(folder, exist_ok=True)
-            out_path = os.path.join(folder, "voice_list.json")
-            with open(out_path, "w", encoding="utf-8") as wf:
-                json.dump(voice_list, wf, ensure_ascii=False, indent=2)
-            print(f"Wrote voice list to {out_path}")
-        except Exception as e:
-            self.logger.error(f"Failed to write voice list to file: {e}")
+            return []        
 
     def run_restart_asr(self):
         asyncio.create_task(self.restart_asr())
@@ -362,7 +334,6 @@ class Speechifytts(Baseplugin):
 
 
     async def speak_func(self, message):
-        print ("SETTINGS", self.settings)
         print("SPEAK FUNC:" + message)
         try:
             try:
