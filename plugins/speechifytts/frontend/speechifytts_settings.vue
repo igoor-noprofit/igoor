@@ -42,12 +42,16 @@
             <div class="form-input" style="grid-column: 2 / span 2; padding: 10px 0;">
                 <div v-if="formData.use_ssml" class="ssml-card">
                     <!-- Pitch Row -->
-                    <div class="ssml-card-header">
-                        <div></div>
-                        <div style="text-align:right">
+                    <div class="ssml-card-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                        
+                        <div style="text-align:left">
                             <button class="reset-button" type="button" @click="resetControllers">{{ t('Reset')
                             }}</button>
                         </div>
+                        <div style="text-align:right">
+                            <button class="" type="button" @click="testVoice">{{ t('Test voice') }}</button>
+                        </div>
+                        
                     </div>
 
                     <div class="ssml-row">
@@ -105,7 +109,7 @@
                     <span v-else style="color:#ff6666">{{ saveStatus.message }}</span>
                 </div>
                 <div style="text-align:left">
-                    <button class="" type="button" @click="testVoice">{{ t('Test voice') }}</button>
+                    
                 </div>
             </div>
             <div class="form-note"></div>
