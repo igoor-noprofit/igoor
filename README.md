@@ -29,14 +29,16 @@ Thank you for your understanding and cooperation in ensuring the successful deve
 
 **Microsoft Windows. Tested on Windows 10 and 11.**
 
-### WEBEDGEVIEW RUNTIME
+### Microsoft © Edge WebView2 Runtime
 
-Runtime must be installed to display the browser-like window.
-Download it here:
+This application currently uses Microsoft Edge WebView2 Runtime to display a browser-like window.
+
+You can download it here:
 
 https://developer.microsoft.com/en-us/microsoft-edge/webview2?form=MA13LH#download
 
 NOTE: IGOOR installers sistematically include the runtime.
+Microsoft Edge WebView2 Runtime is © Microsoft Corporation.
 
 ### INTERNET CONNECTION
 
