@@ -8,6 +8,10 @@ class Ttsdefault(Baseplugin):
     def __init__(self, plugin_name, pm):
         self.pm = pm
         super().__init__(plugin_name, pm)
+        self.settings = self.get_my_settings()
+        # Initialize SAPI
+        self.fallback_only = self.settings.get("fallback_only")
+        self.speaker_voice = self.settings.get("speaker_voice")
         try: 
             self.speaker = win32com.client.Dispatch("SAPI.SpVoice")
             self.available_voices = self.speaker.GetVoices()
@@ -15,6 +19,7 @@ class Ttsdefault(Baseplugin):
             for voice in self.available_voices:
                 self.logger.info(f"- {voice.GetDescription()}")
             self.is_loaded = True
+            self.update_my_settings("voice_list", self.available_voices)
         except Exception as e:
             self.logger.error(f"ERROR: No available voices for TTS DEFAULT")
             return False    
@@ -22,10 +27,6 @@ class Ttsdefault(Baseplugin):
     @hookimpl
     def startup(self):
         if self.is_loaded:
-            self.settings = self.get_my_settings()
-            # Initialize SAPI
-            self.fallback_only = self.settings.get("fallback_only")
-            self.speaker_voice = self.settings.get("speaker_voice")
             try:
                 self.speaker.Voice = self.speaker.GetVoices().Item(self.speaker_voice)
             except Exception as e:
