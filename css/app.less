@@ -326,7 +326,7 @@ footer {
     padding: 10px 20px;
     font-size: 1.2rem;
   }
-  input[type="range"]{
+  input[type="range"] {
     padding: 10px 0;
   }
   select {
@@ -351,21 +351,32 @@ footer {
   ul.tabs.plugins {
     margin-top: 20px;
     font-size: 1rem;
-    
-    
   }
 }
-.columns{
-  height: auto !important;
-  
+.bio-container {
+  display: flex;
+  .left,
+  .right {
+    width: 48%;
+    text-align: left;
+  }
+
+  .left div,
+  .right div {
+    margin-bottom: 10px;
+  }
 }
-.column{
+
+.columns {
+  height: auto !important;
+}
+.column {
   padding: 20px 30px !important;
-  &.center{
+  &.center {
     border-left: 1px solid #ddd !important;
     border-right: 1px solid #ddd !important;
   }
-  .answers .msg{
+  .answers .msg {
     margin-bottom: 2.2vh !important;
   }
 }

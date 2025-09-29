@@ -46,6 +46,7 @@ class Speechifytts(Baseplugin):
             try:
                 self.client = Speechify(token=self.api_key)
                 self.is_loaded = True
+                self.get_voices_list() # Pre-fetch voices list to validate API key and voice ID
                 return True
             except Exception as e:
                 self.logger.error(f"Error occurred while creating Speechify client : {e}")
@@ -77,6 +78,62 @@ class Speechifytts(Baseplugin):
         print ("SSML:", ssml)
         asyncio.create_task(self.call_speechify(input=ssml, voice_id=voice_id, language=self.lang_code, model="simba-multilingual"))
     
+    def get_voices_list(self):
+        try:
+            voices = self.client.tts.voices.list()
+            print(voices)
+            if not voices:
+                self.logger.error("No voices found from Speechify")
+                return []
+            # Support SDKs that return either a list or an object with a .voices attribute
+            if isinstance(voices, list):
+                voices_iter = voices
+            elif isinstance(voices, dict) and "voices" in voices:
+                voices_iter = voices["voices"]
+            elif hasattr(voices, "voices"):
+                voices_iter = getattr(voices, "voices") or []
+            else:
+                # Unexpected shape
+                self.logger.error("Unexpected voices response shape from Speechify")
+                return []
+
+            voice_list = []
+            # prefer already-normalized lang_code, fall back to legacy lang property
+            lang = getattr(self, "lang_code", None) or getattr(self, "lang", "").replace("_", "-")
+            for v in voices_iter:
+                # support both dict and object shapes
+                def get_attr(obj, name, default=None):
+                    if isinstance(obj, dict):
+                        return obj.get(name, default)
+                    return getattr(obj, name, default)
+
+                # collect all locale hints for this voice (top-level and model->languages)
+                locales = set()
+                top_locale = get_attr(v, "locale", None)
+                if top_locale:
+                    locales.add(top_locale)
+                models = get_attr(v, "models", []) or []
+                for m in models:
+                    # m can be dict or object
+                    m_languages = m.get("languages") if isinstance(m, dict) else getattr(m, "languages", None)
+                    for l in m_languages or []:
+                        if isinstance(l, dict):
+                            loc = l.get("locale")
+                        else:
+                            loc = getattr(l, "locale", None)
+                        if loc:
+                            locales.add(loc)
+                # If a language filter is configured, exclude voices that don't advertise the language
+                if lang and len(locales) > 0 and lang not in locales:
+                    continue
+                display_name = get_attr(v, "display_name", "")
+                vid = get_attr(v, "id", get_attr(v, "voice_id", None))
+                voice_list.append({"display_name": f"{display_name}", "id": vid, "locales": list(locales)})
+            print(f"Found {len(voice_list)} voices matching language '{lang}'")
+            return voice_list
+        except Exception as e:
+            self.logger.error(f"Error occurred while fetching voices: {e}")
+            return []
 
     def run_restart_asr(self):
         asyncio.create_task(self.restart_asr())

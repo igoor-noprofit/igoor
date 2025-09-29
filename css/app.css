@@ -315,6 +315,18 @@ main {
   margin-top: 20px;
   font-size: 1rem;
 }
+.bio-container {
+  display: flex;
+}
+.bio-container .left,
+.bio-container .right {
+  width: 48%;
+  text-align: left;
+}
+.bio-container .left div,
+.bio-container .right div {
+  margin-bottom: 10px;
+}
 .columns {
   height: auto !important;
 }
