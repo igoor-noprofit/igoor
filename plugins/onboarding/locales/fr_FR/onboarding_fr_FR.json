@@ -45,5 +45,6 @@
     "provider": "fournisseur",
     "api_key": "clé API",
     "model_name": "nom du modèle",
-    "Settings for": "Paramètres pour"
+    "Settings for": "Paramètres pour",
+    "Configure plugin": "Configurer l'extension"
 }
