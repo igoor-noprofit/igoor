@@ -113,8 +113,8 @@
                     <div v-if="currentTab === 'plugins'">
                         <!-- View for Plugin-Specific Settings -->
                         <div v-if="viewingPluginSettings && selectedPluginComponent">
-                            <button @click="closePluginSettingsView" class="back-to-plugins-button">&larr; {{ t("Back to Plugins") }}</button>
-                            <!--h3>Settings for {{ selectedPluginForSettings.title }}</h3-->
+                            <!--button @click="closePluginSettingsView" class="back-to-plugins-button">&larr; {{ t("Back to Plugins") }}</button-->
+                            <h3 class="pluginContainerTitle">{{ selectedPluginForSettings.title }}</h3>
                             <component :is="selectedPluginComponent" :initial-settings="currentPluginInitialSettings"
                                 :plugin-name="selectedPluginForSettings.name" :lang="lang" @save-settings="handlePluginSettingsSave"
                                 class="plugin-settings-component"></component>

@@ -81,7 +81,7 @@ class Speechifytts(Baseplugin):
     def get_voices_list(self):
         try:
             voices = self.client.tts.voices.list()
-            print(voices)
+            # print(voices)
             if not voices:
                 self.logger.error("No voices found from Speechify")
                 return []
@@ -129,7 +129,18 @@ class Speechifytts(Baseplugin):
                 display_name = get_attr(v, "display_name", "")
                 vid = get_attr(v, "id", get_attr(v, "voice_id", None))
                 voice_list.append({"display_name": f"{display_name}", "id": vid, "locales": list(locales)})
+            
             print(f"Found {len(voice_list)} voices matching language '{lang}'")
+            # Persist voice_list to a file in the plugin folder
+            try:
+                folder = getattr(self, "plugin_folder", None) or os.path.dirname(__file__)
+                os.makedirs(folder, exist_ok=True)
+                out_path = os.path.join(folder, "voice_list.json")
+                with open(out_path, "w", encoding="utf-8") as wf:
+                    json.dump(voice_list, wf, ensure_ascii=False, indent=2)
+                print(f"Wrote voice list to {out_path}")
+            except Exception as e:
+                self.logger.error(f"Failed to write voice list to file: {e}")
             return voice_list
         except Exception as e:
             self.logger.error(f"Error occurred while fetching voices: {e}")

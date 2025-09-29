@@ -43,7 +43,6 @@
                 <div v-if="formData.use_ssml" class="ssml-card">
                     <!-- Pitch Row -->
                     <div class="ssml-card-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                        
                         <div style="text-align:left">
                             <button class="reset-button" type="button" @click="resetControllers">{{ t('Reset')
                             }}</button>

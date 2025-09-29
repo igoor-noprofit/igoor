@@ -44,5 +44,6 @@
     "lang": "langue",
     "provider": "fournisseur",
     "api_key": "clé API",
-    "model_name": "nom du modèle"
+    "model_name": "nom du modèle",
+    "Settings for": "Paramètres pour"
 }

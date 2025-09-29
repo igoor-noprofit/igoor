@@ -134,6 +134,14 @@ main {
 .settings label {
   margin-right: 10px;
 }
+.pluginContainerTitle {
+  background: #fff;
+  margin: 0;
+  padding: 4px;
+  display: inline-block;
+  color: #216776;
+  font-weight: bold;
+}
 .card {
   border-radius: 10px;
 }
