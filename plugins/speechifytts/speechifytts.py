@@ -144,11 +144,15 @@ class Speechifytts(Baseplugin):
                 # Normalize tags to a list safely (avoid iterating None)
                 raw_tags = get_attr(v, "tags", []) or []
                 if isinstance(raw_tags, (list, tuple, set)):
-                    tags = list(raw_tags)
+                    tags_list = list(raw_tags)
                 elif isinstance(raw_tags, str):
-                    tags = [raw_tags]
+                    tags_list = [raw_tags]
                 else:
-                    tags = []
+                    tags_list = []
+
+                # Keep only age tags (e.g. "age:middle-aged")
+                age_tags = [t for t in tags_list if isinstance(t, str) and t.startswith("age:")]
+                tags = age_tags
 
                 display_name = get_attr(v, "display_name", "")
                 vid = get_attr(v, "id", get_attr(v, "voice_id", None))
