@@ -42,7 +42,8 @@
                 </label>
             </div>
             <div class="form-input">
-                <select v-model="formData.voice_id" :class="{ 'input-error': voiceIdError }" @change="onVoiceIdChange" :disabled="!filteredVoices.length">
+                <select v-model="formData.voice_id" :class="{ 'input-error': voiceIdError }" @change="onVoiceIdChange"
+                    :disabled="!filteredVoices.length">
                     <option disabled value="">{{ t('Select a voice') }}</option>
                     <option v-for="voice in filteredVoices" :key="voice.id" :value="voice.id">
                         {{ voice.display_name }}
@@ -69,9 +70,9 @@
             <div class="form-label">{{ t('Use SSML') }}</div>
             <div class="form-note">{{ t('When enabled, you can fine-tune pitch, rate and volume using the sliders.') }}
 
-            <div class="form-input">
-                <input type="checkbox" id="use_ssml" v-model="formData.use_ssml" />
-            </div>
+                <div class="form-input">
+                    <input type="checkbox" id="use_ssml" v-model="formData.use_ssml" />
+                </div>
             </div>
 
             <!-- Advanced controls card -->
@@ -79,11 +80,12 @@
             <div class="form-input" style="grid-column: 2 / span 2; padding: 10px 0;">
                 <div v-if="formData.use_ssml" class="ssml-card">
                     <!-- Pitch Row -->
-                    <div class="ssml-card-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                    <div class="ssml-card-header"
+                        style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
                         <div style="text-align:left">
                             <button class="reset-button" type="button" @click="resetControllers">{{ t('Reset')
                             }}</button>
-                        </div>                        
+                        </div>
                     </div>
 
                     <div class="ssml-row">
@@ -134,16 +136,19 @@
             <!-- Save Button -->
             <div class="form-label"></div>
             <div class="form-input">
-                 <div style="text-align:right">
-                            <button class="" type="button" @click="testVoice">{{ t('Test voice') }}</button>
-                        </div>
-                <button @click="checkBeforeUpdating" :disabled="!hasChanges || apiKeyError || voiceIdError || isSaving"
-                    :class="{ disabled: !hasChanges || apiKeyError || voiceIdError || isSaving }">{{ t('SAVE PLUGIN SETTINGS')}}</button>
-                <div v-if="saveStatus" style="margin-left:12px;">
-                    <span v-if="saveStatus.type === 'success'" style="color:#3ca23c">{{ saveStatus.message }}</span>
-                    <span v-else style="color:#ff6666">{{ saveStatus.message }}</span>
+                <div style="display: flex; justify-content: space-evenly; width: 100%" >
+                    <button class="" type="button" @click="testVoice">{{ t('Test voice') }}</button>
+                    <button @click="checkBeforeUpdating"
+                        :disabled="!hasChanges || apiKeyError || voiceIdError || isSaving"
+                        :class="{ disabled: !hasChanges || apiKeyError || voiceIdError || isSaving }">{{ t('SAVE PLUGIN SETTINGS')}}</button>
+                    <div v-if="saveStatus" style="margin-left:12px;">
+                        <span v-if="saveStatus.type === 'success'" style="color:#3ca23c">{{ saveStatus.message }}</span>
+                        <span v-else style="color:#ff6666">{{ saveStatus.message }}</span>
+                    </div>
                 </div>
-                     
+
+
+
             </div>
             <div class="form-note"></div>
         </div>
@@ -166,9 +171,9 @@ export default {
                 api_key: '',
                 voice_id: '',
                 model_id: '',
-                sex:'',
-                type:'',
-                age:'',
+                sex: '',
+                type: '',
+                age: '',
                 use_ssml: false,
                 pitch: 0, // percent centered at 0, stored as integer percent
                 rate: 0,  // percent centered at 0

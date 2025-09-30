@@ -21,7 +21,7 @@
         <!-- Save Button -->
         <div class="form-label"></div>
         <div class="form-input">
-            <button @click="updateSettings" :disabled="!hasChanges">{{ t('SAVE PLUGIN SETTINGS') }}</button>
+            <button @click="updateSettings" :disabled="!hasChanges">{{ t('Save plugin settings') }}</button>
         </div>
     </div>
 </template>
