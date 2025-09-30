@@ -83,11 +83,7 @@
                         <div style="text-align:left">
                             <button class="reset-button" type="button" @click="resetControllers">{{ t('Reset')
                             }}</button>
-                        </div>
-                        <div style="text-align:right">
-                            <button class="" type="button" @click="testVoice">{{ t('Test voice') }}</button>
-                        </div>
-                        
+                        </div>                        
                     </div>
 
                     <div class="ssml-row">
@@ -138,15 +134,16 @@
             <!-- Save Button -->
             <div class="form-label"></div>
             <div class="form-input">
+                 <div style="text-align:right">
+                            <button class="" type="button" @click="testVoice">{{ t('Test voice') }}</button>
+                        </div>
                 <button @click="checkBeforeUpdating" :disabled="!hasChanges || apiKeyError || voiceIdError || isSaving"
                     :class="{ disabled: !hasChanges || apiKeyError || voiceIdError || isSaving }">{{ t('SAVE PLUGIN SETTINGS')}}</button>
                 <div v-if="saveStatus" style="margin-left:12px;">
                     <span v-if="saveStatus.type === 'success'" style="color:#3ca23c">{{ saveStatus.message }}</span>
                     <span v-else style="color:#ff6666">{{ saveStatus.message }}</span>
                 </div>
-                <div style="text-align:left">
-                    
-                </div>
+                     
             </div>
             <div class="form-note"></div>
         </div>
@@ -346,7 +343,7 @@ export default {
 };
 </script>
 
-<style>
+<style scoped>
 .speechifytts-plugin-settings.form-grid {
     gap: 12px 18px;
     align-items: start;

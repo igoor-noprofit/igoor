@@ -206,7 +206,7 @@ export default {
 };
 </script>
 
-<style>
+<style scoped>
 .asrwhisper-plugin-settings.form-grid {
     display: grid;
     grid-template-columns: 200px 1fr 2fr;

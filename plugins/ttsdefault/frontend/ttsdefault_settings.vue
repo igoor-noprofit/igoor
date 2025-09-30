@@ -86,7 +86,7 @@ export default {
 };
 </script>
 
-<style>
+<style scoped>
 .ttsdefault-plugin-settings.form-grid {
     display: grid;
     grid-template-columns: 1fr 2fr;
