@@ -67,11 +67,13 @@
         </div>
         <div class="bio right">
             <!-- Use SSML Toggle -->
-            <div class="form-label">{{ t('Use SSML') }}</div>
-            <div class="form-note">{{ t('When enabled, you can fine-tune pitch, rate and volume using the sliders.') }}
+             <div class="form-grid" style="grid-template-columns: 1fr 2fr; align-items: center; gap: 12px 18px;">
+                <div class="form-label">{{ t('Use SSML') }}</div>
+                <div class="form-note">{{ t('When enabled, you can fine-tune pitch, rate and volume using the sliders.') }}
 
-                <div class="form-input">
-                    <input type="checkbox" id="use_ssml" v-model="formData.use_ssml" />
+                    <div class="form-input">
+                        <input type="checkbox" id="use_ssml" v-model="formData.use_ssml" />
+                    </div>
                 </div>
             </div>
 
@@ -146,9 +148,6 @@
                         <span v-else style="color:#ff6666">{{ saveStatus.message }}</span>
                     </div>
                 </div>
-
-
-
             </div>
             <div class="form-note"></div>
         </div>
