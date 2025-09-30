@@ -295,7 +295,7 @@ main {
   height: 40px;
   border: none;
   width: 100%;
-  max-width: 500px;
+  max-width: 80%;
   padding: 10px 20px;
   font-size: 1.2rem;
 }

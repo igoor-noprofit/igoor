@@ -524,11 +524,11 @@ export default {
 }
 
 .onboarding.plugin textarea.health {
-    height: 35vh !important;
+    height: 30vh !important;
 }
 
 .onboarding.plugin textarea.style {
-    height: 15vh !important;
+    height: 10vh !important;
 }
 
 .slider:before {
