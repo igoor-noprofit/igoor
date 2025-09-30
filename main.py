@@ -297,7 +297,7 @@ def start_webview():
         
         # Start webview
         logger.info("Starting webview...")
-        webview.start(debug=True)
+        webview.start(debug=debug_enabled)
         logger.info("✓ Webview started successfully")
         
     except Exception as e:

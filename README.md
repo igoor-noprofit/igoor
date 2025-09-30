@@ -11,7 +11,7 @@ Take a look at the [IGOOR website](https://igoor.org/en) for further infos about
 **This project is currently under private development. While the final version of the software WILL BE released as free/libre under the GPLv3 License, the current codebase is not yet public and is subject to strict confidentiality.**
 
 IGOOR is written by Carlo Giordano, based on a concept by Igor Novitzki.
-UX/UI by Zenoid.
+Original UX/UI by Zenoid.
 
 All collaborators and contributors are reminded that:
 
