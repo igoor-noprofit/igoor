@@ -105,13 +105,25 @@ class Baseplugin:
             self.logger.error(f"Error decoding prompts JSON: {e}")
             return {}
         
-    def mass_update_my_settings(self, json_data):
+    def mass_update_my_settings(self, settings):
         try:
+            if isinstance(settings, str):
+                json_data = settings
+            elif isinstance(settings, dict):
+                json_data = json.dumps(settings)
+            else:
+                self.logger.error("Settings must be a dict or a JSON string.")
+                return False
             # Check if the input is a valid JSON object
             parsed_data = json.loads(json_data)
             self.settings_manager.update_plugin_settings(self.plugin_name,parsed_data)
+            if (self.settings_manager.save_settings()):
+                self.settings_manager.load_settings()
+                asyncio.create_task(self.pm.trigger_hook('global_settings_updated'))
+                return True
         except json.JSONDecodeError:
             self.logger.error("Invalid JSON data provided for mass update.")
+            return False
 
     def update_my_settings(self, key: str, value: any):
         """

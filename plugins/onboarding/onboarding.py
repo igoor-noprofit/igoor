@@ -113,27 +113,22 @@ class Onboarding(Baseplugin):
                                 current_settings[section] = {}
                             current_settings[section].update(new_settings[section])
                     
-                    # Save the updated settings using update_plugin_settings
-                    self.pm.settings_manager.update_plugin_settings('onboarding', current_settings)
-                    print("Settings saved successfully")
-                    
-                    self.sm.load_settings()
-                    asyncio.create_task(self.pm.trigger_hook('global_settings_updated'))
-                    
-                    
-                    # Update local settings
-                    self.settings = current_settings
-                    self.onboarding_completed = True
-                    
-                    # Switch view
-                    asyncio.create_task(self.send_switch_view_to_app('daily'))
-                    
-                    # Send success response
-                    self.send_message_to_frontend({
-                        'type': 'success',
-                        'message': 'Settings saved successfully'
-                    })
-                    
+                    if (self.mass_update_my_settings(current_settings)):
+                        # Update local settings
+                        self.settings = current_settings
+                        self.onboarding_completed = True
+                        
+                        # Switch view
+                        asyncio.create_task(self.send_switch_view_to_app('daily'))
+                        
+                        # Send success response
+                        self.send_message_to_frontend({
+                            'type': 'success',
+                            'message': 'Settings saved successfully'
+                        })
+                    else:
+                        self.send_error_to_frontend("settings_error","Failed to update settings")
+                        
                 except Exception as save_error:
                     print(f"Error during save operation: {str(save_error)}")
                     import traceback

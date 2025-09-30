@@ -54,13 +54,24 @@ class Daily(Baseplugin):
         data["needs"]=settings
         if plugin_name == self.plugin_name:
             self.logger.info(f"CUSTOM save settings for {plugin_name}: {data}")
+            '''
             self.settings_manager.update_plugin_settings('daily',data)
-            self.send_message_to_frontend({
-                'dailyData': data
-            })
-            asyncio.create_task(self.send_switch_view_to_app(view="daily"))
+            '''
+            if (self.mass_update_my_settings(data)):
+                self.send_message_to_frontend({
+                    'dailyData': data
+                })
+                asyncio.create_task(self.send_switch_view_to_app(view="daily"))
+            else:
+                self.send_error_to_frontend("settings_error","Failed to update settings")
             return True        
-        
+    
+    @hookimpl
+    def global_settings_updated(self):
+        print("RELOADING DAILY SETTINGS")
+        self.load_settings()
+        self.startup()
+    
     @hookimpl
     def abandon_conversation(self):
         asyncio.create_task(self.send_switch_view_to_app(view="daily"))

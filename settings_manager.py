@@ -124,13 +124,18 @@ class SettingsManager:
         self.save_settings()
         
     def save_settings(self, settings=None):
-        """Save settings to the JSON file."""
-        if settings is not None:
-            self.settings = settings
-        os.makedirs(os.path.dirname(self.settings_file), exist_ok=True)
-        # self.logger.info(f"*********** Saving settings as: {self.settings}")
-        with open(self.settings_file, 'w', encoding='utf-8') as f:
-            json.dump(self.settings, f, indent=4)
+        try:
+            """Save settings to the JSON file."""
+            if settings is not None:
+                self.settings = settings
+            os.makedirs(os.path.dirname(self.settings_file), exist_ok=True)
+            # self.logger.info(f"*********** Saving settings as: {self.settings}")
+            with open(self.settings_file, 'w', encoding='utf-8') as f:
+                json.dump(self.settings, f, indent=4)
+                return True
+        except Exception as e:
+            self.logger.error(f"Error saving settings: {e}")
+            return False
         
     def as_json(self):
         """Return settings as a formatted JSON string."""
