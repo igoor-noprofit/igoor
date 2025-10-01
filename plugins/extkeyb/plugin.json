@@ -1,7 +1,7 @@
 {
     "category": "UI",
-    "title": "External keyboard",
-    "description": "Integration with IGOOR external on-screen keyboard",
+    "title": "Virtual keyboard",
+    "description": "Integration with TabTip.exe and (in the future) with IGOOR external on-screen keyboard",
     "layout": {
         "part": "header",
         "order": 2

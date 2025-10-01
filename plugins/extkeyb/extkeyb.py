@@ -3,7 +3,7 @@ from plugin_manager import hookimpl
 import json,socket,os,time
 import psutil
 import subprocess
-import win32gui, win32com
+import win32gui, win32con
 
 
 class Extkeyb(Baseplugin):
@@ -17,12 +17,11 @@ class Extkeyb(Baseplugin):
         # TABTIP on modern WINDOWS
         if (self.keyb_type == "tabtip"):
             self.app_exe = "TabTip.exe"
-            self.app_path = os.path.join("C:\\Program Files\\Common Files\\microsoft shared\\ink\\",self.app_exe)            
+            self.app_path = os.path.join("C:\\Program Files\\Common Files\\microsoft shared\\ink\\",self.app_exe)      
             if (not os.path.exists(self.app_path)):
                 self.logger.error(f"TabTip external keyboard not found at {self.app_path}")
                 # COULD USE OSK HERE INSTEAD for older Windows versions
                 # path C:\\Windows\\System32\\osk.exe
-                return False
             self.ready = True
         # IGOOR OWN EXTERNAL KEYBOARD
         elif (self.keyb_type == "igoor"):
@@ -34,40 +33,38 @@ class Extkeyb(Baseplugin):
                 self.ready = True
             else:
                 self.logger.error("IGOOR external keyboard not found")
-                return False
         else:
             self.logger.error(f"Unknown keyboard type {self.keyb_type}")
-            return False
         if (self.ready):
-            self.is_running = self.is_app_running(self.app_exe)
+            self.logger.info("Trying to initialize virtual keyboard")
+            self.is_running = self.is_app_running()
             if self.is_running:
                 if (self.keyb_type == "igoor"):
                     self.connect()
             else:
-                try:
-                    # Launch the executable at self.exe_path
-                    subprocess.Popen([self.app_path], shell=True)
-                    self.is_running = True  # Update the flag after launching
-                    # time.sleep(1) ?
-                    if (self.keyb_type == "igoor"):
-                        self.connect()
-                except Exception as e:
-                    self.logger.error(f"Failed to launch {self.exe_path}: {e}")
-                    self.is_running = False
-            
+                if (self.keyb_type == "tabtip"):
+                    if (self.start_process()):
+                        self.is_running = True
+
+   
+    
+    # TODO: RECHECK ENTIRE FUNCTION 
     def locate_igoor_app(self):
         install_path = os.path.join(self.appdata_path, self.app_name, "extkeyb-install-path.txt")
         self.logger.info(f"looking for {install_path}")
         if os.path.exists(install_path):
             with open(install_path, "r") as f:
-                self.app_path = os.path.join(f.read().strip(),"IGOOR_OSK.exe")
+                self.app_path = os.path.join(f.read().strip(),self.app_exe)
             return True
         self.logger.error(f"IGOOR external keyboard not found in {install_path}")
         return False
     
-    def is_app_running(self,app_name):
+    # CHECK IF SELF.APP_EXE IS RUNNING
+    def is_app_running(self):
+        print(f"Checking if {self.app_exe} is running")
         for process in psutil.process_iter(['name']):
-            if process.info['name'].lower() == app_name.lower():
+            if process.info['name'].lower() == self.app_exe.lower():
+                print(f"{self.app_exe} is running with PID {process.pid}")
                 return True
         return False
     
@@ -79,12 +76,6 @@ class Extkeyb(Baseplugin):
         else:
             self.logger.error(f"Failed to start {self.app_exe}")
             return False
-
-    def is_tabtip_visible():
-        hwnd = win32gui.FindWindow("IPTip_Main_Window", None)  # TabTip window class
-        if hwnd:
-            return win32gui.IsWindowVisible(hwnd)
-        return False
 
     @hookimpl
     def startup(self):
@@ -135,31 +126,46 @@ class Extkeyb(Baseplugin):
             self.show_virtual_keyboard()
         else:
             self.hide_virtual_keyboard()
-            
+        
     @hookimpl
     def show_virtual_keyboard(self):
-        if (not self.is_app_running):
-            if (self.keyb_type == "igoor"):
-                self.send_command('show')   
-            elif (self.keyb_type == "tabtip"):
-                if (not self.is_tabtip_visible()):
-                    self.show_virtual_keyboard()
-                else:
-                    print("TabTip already visible")
+        if (self.keyb_type == "igoor"):
+            self.send_command('show')   
+        elif (self.keyb_type == "tabtip"):
+            if (self.show_tabtip()):
+                return True
             else:
-                self.logger.warning(f"Cannot show unsupported keyboard type {self.keyb_type}")
+                if (not self.is_app_running()):
+                    if (self.start_process()):
+                        print("Started TabTip")
+                        if (self.show_tabtip()):
+                            return True
+                        else:
+                            self.logger.error("TabTip running but failed to show")
+                            return False
+                    else:
+                        self.logger.error("Failed to start TabTip process")
+                        return False
         else:
-            print("Virtual keyboard already running")
+            self.logger.warning(f"Cannot show unsupported keyboard type {self.keyb_type}")
+            return False
+
     
     @hookimpl
     def hide_virtual_keyboard(self):
-        if (self.is_app_running):
+        if (self.is_app_running()):
             if (self.keyb_type == "igoor"):
                 self.connect()
             elif (self.keyb_type == "tabtip"):
-                tip = win32com.client.Dispatch("TabletTip.InputPanel")
-                hwnd = win32gui.GetForegroundWindow()  # or the window you want to attach to
-                tip.Dismiss()  # hides the keyboard
+                if (self.hide_tabtip()):
+                    return True
+                if (not self.is_app_running()):
+                    self.logger.info("TabTip already closed")
+                    return True
+                else:
+                    # COULD TRY TASKKILL    
+                    self.logger.error("TabTip running but failed to hide")
+                    return False
             else:
                 self.logger.warning(f"Cannot hide unsupported keyboard type {self.keyb_type}")
             self.send_command('hide')
@@ -185,3 +191,43 @@ class Extkeyb(Baseplugin):
             self.socket.sendall(message.encode())
             return self.socket.recv(1024).decode()
 
+    # TABTIP SPECIFIC METHODS
+    def is_tabtip_visible(self):
+        try:
+            hwnd = win32gui.FindWindow("IPTip_Main_Window", None)  # TabTip window class
+            if hwnd:
+                return win32gui.IsWindowVisible(hwnd)
+            return False
+        except Exception as e:
+            self.logger.error(f"Exception trying to check tabtip visibility: {e}")
+            return False
+
+    def show_tabtip(self):
+        try:
+            print("Trying to show TabTip")
+            if (self.is_tabtip_visible()):
+                print("TabTip already visible")
+                return True
+            else:
+                print("TabTip not visible, trying to show")
+                hwnd = win32gui.FindWindow("IPTip_Main_Window", None)
+                if hwnd:
+                    print("Found TabTip window, showing it")
+                    win32gui.ShowWindow(hwnd, win32con.SW_SHOW)
+                else:
+                    print("TabTip window not found")
+                    return False
+                return True
+        except Exception as e:
+            self.logger.error(f"Exception trying to show tabtip: {e}")
+            return False
+        
+    def hide_tabtip(self):
+        try:
+            hwnd = win32gui.FindWindow("IPTip_Main_Window", None)
+            if hwnd:
+                win32gui.ShowWindow(hwnd, win32con.SW_HIDE)
+            return True
+        except Exception as e:
+            self.logger.error(f"Exception trying to hide tabtip: {e}")
+            return False

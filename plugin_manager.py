@@ -82,6 +82,16 @@ class MyAppSpec:
         """Hook to force the user to the onboarding plugin """
         pass
     
+    @pluggy.HookspecMarker(app_name)
+    async def igoor_is_maximized(self):
+        """Hook for when the user maximizes IGOOR's window """
+        pass
+    
+    @pluggy.HookspecMarker(app_name)
+    async def igoor_is_minimized(self):
+        """hook for when the user minimizes IGOOR's window """
+        pass
+    
     '''
         ************ TTS **************
     '''
