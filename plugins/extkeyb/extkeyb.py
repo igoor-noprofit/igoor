@@ -54,6 +54,7 @@ class Extkeyb(Baseplugin):
                 if (self.keyb_type == "tabtip" or self.keyb_type == "osk"):
                     if (self.start_process()):
                         self.is_running = True
+            '''
             
 
    
