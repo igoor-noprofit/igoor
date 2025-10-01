@@ -321,11 +321,8 @@ if __name__ == "__main__":
         final_html = load_frontend_components(lang=lang)
         if (IGOOR_OUTPUT_HTML.lower() == 'true'):
             print(final_html)
-            
-    # LAUNCH WINDOW APP
-    if IGOOR_CLI.lower() != 'true':
         splash_screen.destroy()
-        start_webview()
+        start_webview()         
     else:
         print("CLI ONLY VERSION")
 
