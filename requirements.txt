@@ -218,6 +218,5 @@ websockets==13.1
 winrt-runtime==3.2.1
 wrapt==1.17.2
 xmltodict==0.14.2
-xx-ent-wiki-sm==3.8.0
 yarl==1.16.0
 zstandard==0.23.0
