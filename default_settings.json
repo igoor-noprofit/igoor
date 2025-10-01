@@ -107,6 +107,7 @@
     "ttsdefault": true,
     "speechifytts": true,
     "rag": true,
-    "memory": true
+    "memory": true,
+    "extkeyb": false
   }
 }
