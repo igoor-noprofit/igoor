@@ -313,7 +313,7 @@ if __name__ == "__main__":
     splash_screen = show_splash_screen('img/igoor_logo.png')
     settings = load_settings()
     bio = settings.get_nested(["plugins", "onboarding", "bio"], default={})
-    logger.info(bio)
+    # logger.info(bio)
     prefs = settings.get_nested(["plugins", "onboarding", "prefs"], default={})
     lang = prefs.get("lang")
     
