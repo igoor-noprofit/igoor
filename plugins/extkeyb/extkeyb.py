@@ -5,6 +5,8 @@ import psutil
 import subprocess
 import win32gui, win32con
 from pywinauto import Application
+from pywinauto.application import ProcessNotFoundError
+from pywinauto.findwindows import ElementNotFoundError
 
 
 class Extkeyb(Baseplugin):
@@ -190,17 +192,51 @@ class Extkeyb(Baseplugin):
     
     def close_osk(self):
         try:
+            app = Application(backend="uia").connect(path=self.app_exe, timeout=2)
+            window = app.window(class_name="OSKMainClass")
+            window.close()
+            window.wait_not_visible(timeout=3)
+            self.logger.info("Closed OSK via UIAutomation")
+            return True
+        except (ProcessNotFoundError, ElementNotFoundError):
+            self.logger.info("OSK window not found via UIAutomation, trying fallbacks")
+        except Exception as e:
+            self.logger.warning(f"UIAutomation failed to close OSK: {e}")
+
+        try:
             hwnd = win32gui.FindWindow("OSKMainClass", None)
             if hwnd:
                 win32gui.PostMessage(hwnd, win32con.WM_CLOSE, 0, 0)
-                print("Sent WM_CLOSE to OSK")
+                self.logger.info("Sent WM_CLOSE to OSK")
                 return True
             else:
-                print("OSK window not found")
-                return False
+                self.logger.info("OSK window not found for WM_CLOSE fallback")
         except Exception as e:
-                print(f"Error closing OSK: {e}")
-                return False
+            self.logger.warning(f"Failed to send WM_CLOSE to OSK: {e}")
+
+        return self._terminate_osk_process()
+
+    def _terminate_osk_process(self):
+        for process in psutil.process_iter(["pid", "name"]):
+            if process.info["name"] and process.info["name"].lower() == self.app_exe.lower():
+                try:
+                    process.terminate()
+                    process.wait(timeout=3)
+                    self.logger.info(f"Terminated {self.app_exe} (PID {process.pid})")
+                    return True
+                except (psutil.TimeoutExpired, psutil.AccessDenied):
+                    try:
+                        process.kill()
+                        process.wait(timeout=3)
+                        self.logger.info(f"Force killed {self.app_exe} (PID {process.pid})")
+                        return True
+                    except Exception as kill_error:
+                        self.logger.error(f"Failed to force kill {self.app_exe} (PID {process.pid}): {kill_error}")
+                        return False
+                except psutil.NoSuchProcess:
+                    return True
+        self.logger.info(f"No running {self.app_exe} process found while closing")
+        return True
     
     def send_command(self, cmd):    
         if self.socket is None:
