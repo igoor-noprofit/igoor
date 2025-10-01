@@ -4,6 +4,7 @@ import json,socket,os,time
 import psutil
 import subprocess
 import win32gui, win32con
+from pywinauto import Application
 
 
 class Extkeyb(Baseplugin):
@@ -12,7 +13,8 @@ class Extkeyb(Baseplugin):
         super().__init__(plugin_name, pm)
         self.settings = self.get_my_settings()
         self.is_igoor_maximized = True
-        self.keyb_type = self.settings.get("keyb_type","tabtip")
+        self.keyb_type = self.settings.get("keyb_type","osk")
+        self.logger.info(f"Using external keyboard type {self.keyb_type}")
         self.ready = False
         # TABTIP on modern WINDOWS
         if (self.keyb_type == "tabtip"):
@@ -33,6 +35,10 @@ class Extkeyb(Baseplugin):
                 self.ready = True
             else:
                 self.logger.error("IGOOR external keyboard not found")
+        elif (self.keyb_type == "osk"):
+            self.app_exe = "osk.exe"
+            self.app_path = os.path.join("C:\\Windows\\System32\\",self.app_exe)
+            self.ready = True
         else:
             self.logger.error(f"Unknown keyboard type {self.keyb_type}")
         if (self.ready):
@@ -42,7 +48,7 @@ class Extkeyb(Baseplugin):
                 if (self.keyb_type == "igoor"):
                     self.connect()
             else:
-                if (self.keyb_type == "tabtip"):
+                if (self.keyb_type == "tabtip" or self.keyb_type == "osk"):
                     if (self.start_process()):
                         self.is_running = True
 
@@ -131,6 +137,8 @@ class Extkeyb(Baseplugin):
     def show_virtual_keyboard(self):
         if (self.keyb_type == "igoor"):
             self.send_command('show')   
+        elif (self.keyb_type == "osk"):
+            self.start_process()
         elif (self.keyb_type == "tabtip"):
             if (self.show_tabtip()):
                 return True
@@ -156,6 +164,14 @@ class Extkeyb(Baseplugin):
         if (self.is_app_running()):
             if (self.keyb_type == "igoor"):
                 self.connect()
+            elif (self.keyb_type == "osk"):
+                # COULD TRY TASKKILL
+                # try:
+                #    subprocess.run(["taskkill", "/IM", "osk.exe"], check=True)
+                # except subprocess.CalledProcessError as e:
+                #    print("Failed:", e)
+                # Connect to OSK
+                return self.close_osk() 
             elif (self.keyb_type == "tabtip"):
                 if (self.hide_tabtip()):
                     return True
@@ -171,6 +187,20 @@ class Extkeyb(Baseplugin):
             self.send_command('hide')
         else:
             print("No need to hide, virtual keyboard already hidden")
+    
+    def close_osk(self):
+        try:
+            hwnd = win32gui.FindWindow("OSKMainClass", None)
+            if hwnd:
+                win32gui.PostMessage(hwnd, win32con.WM_CLOSE, 0, 0)
+                print("Sent WM_CLOSE to OSK")
+                return True
+            else:
+                print("OSK window not found")
+                return False
+        except Exception as e:
+                print(f"Error closing OSK: {e}")
+                return False
     
     def send_command(self, cmd):    
         if self.socket is None:
