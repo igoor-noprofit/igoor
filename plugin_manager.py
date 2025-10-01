@@ -356,7 +356,6 @@ class PluginManager:
 
         for plugin_name in os.listdir(self.plugin_folder):
             plugin_path = os.path.join(self.plugin_folder, plugin_name)
-            self.logger.info(f"PLUGIN PATH: {plugin_path}" )
             metadata_file = os.path.join(plugin_path, 'plugin.json')
             if os.path.isdir(plugin_path) and os.path.exists(metadata_file):
                 try:
