@@ -174,6 +174,10 @@
                             <p>{{ t("© 2025 Developed by") }} <a href="https://igoor.org/?utm_source=igoor_app"
                                     target="_blank">IGOOR</a>, {{ t("in partnership with") }} <a href="https://www.arsla.org/?utm_source=igoor_app" target="_blank">ARSLA</a>
                             </p>
+                            <br>
+                            <p>{{ t('If you find this software useful, please consider donating to the not-for-profit organization IGOOR') }}</p>
+                            <br>
+                                🎁 <a :href="donationLink" target="_blank" @click.prevent="openExternalLink(donationLink)">{{ t("Make a donation") }}</a>
                         </div>
                     </div>
                 </div>
@@ -261,6 +265,9 @@ export default {
             }
             console.log("Filtered plugins by category:", filtered);
             return filtered;
+        },
+        donationLink() {
+            return this.t('https://igoor.org/en/donate/');
         }
     },
     watch: {
@@ -284,6 +291,16 @@ export default {
         },
         closeModal() {
             this.showModal = false
+        },
+        openExternalLink(url) {
+            if (!url) {
+                return;
+            }
+            if (window.pywebview?.api?.open_external_url) {
+                window.pywebview.api.open_external_url(url);
+            } else {
+                window.open(url, '_blank', 'noopener,noreferrer');
+            }
         },
         async saveSettings() { // This is for main settings (bio, prefs, ai)
             this.isSaving = true;

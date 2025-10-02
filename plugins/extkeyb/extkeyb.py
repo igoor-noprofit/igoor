@@ -79,6 +79,7 @@ class Extkeyb(Baseplugin):
                 return True
         return False
     
+    # for OSK it can be also sending keyboard event WIN + CTRL + O
     def start_process(self):
         p = subprocess.Popen([self.app_path], shell=True)
         if (p and p.pid):

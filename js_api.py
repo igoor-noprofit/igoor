@@ -1,4 +1,5 @@
 import asyncio
+import webbrowser
 import webview
 from context_manager import ContextManager
 context_manager = ContextManager()
@@ -72,6 +73,18 @@ class Api:
         except Exception as e:
             print(f"Error during maximize: {e}")
         
+    def open_external_url(self, url: str):
+        try:
+            if not isinstance(url, str):
+                raise ValueError("URL must be a string")
+            if not url.lower().startswith(("http://", "https://")):
+                raise ValueError("Unsupported URL scheme")
+            webbrowser.open(url, new=2)
+            return True
+        except Exception as e:
+            print(f"Error opening external URL '{url}': {e}")
+            return False
+    
     
     def change_view(self,lastview,currentview):
         asyncio.run(self.trigger_hook("change_view",lastview=lastview,currentview=currentview))

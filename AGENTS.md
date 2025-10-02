@@ -69,12 +69,10 @@ plugin_name/
 - WebView2 Runtime for display
 - FFmpeg for Speechify TTS (must be in PATH)
 - Groq API for AI inference
-- Vosk models: 2.3GB downloaded to user folder
 - Embedding models: 1.15GB from HuggingFace
 
 ## Development Notes
 
-**ASR Silence Bug**: Whisper/Voxtral may interpret silence as "Sous-titrage ST' 501" - filtered via `clean_whisper_silence()`
 
 **Build Process**: 
 - PyInstaller with custom webrtcvad hook
