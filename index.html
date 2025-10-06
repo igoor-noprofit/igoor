@@ -15,19 +15,20 @@
     <div id="app"></div>
     <script src="js/app.js" type="module"></script>
     <script>
+      /*
       function getWindowsScaleFactor() {
         return window.devicePixelRatio || 1;
       }
 
       function applyDPICounterScale() {
         const scale = getWindowsScaleFactor();
-        const resizeFactor = 1.0; // 🔧 tweak this: try 0.9, 1.1, 0.95, etc.
+        const resizeFactor = 1.8; // 🔧 tweak this: try 0.9, 1.1, 0.95, etc.
         console.log("Windows scale factor detected:", scale);
 
         // Only apply counter-scale if DPI zoom > 150%
         if (scale > 1.5) {
           const inverseScale = (1 / scale) * resizeFactor;
-          document.body.style.transformOrigin = "0 0";
+          document.get.style.transformOrigin = "0 0";
           document.body.style.transform = `scale(${inverseScale})`;
 
           // Adjust layout bounds so no scrollbars appear
@@ -43,6 +44,7 @@
 
       window.addEventListener("load", applyDPICounterScale);
       window.addEventListener("resize", applyDPICounterScale);
+      */
     </script>
   </body>
 </html>

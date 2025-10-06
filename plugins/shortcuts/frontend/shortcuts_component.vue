@@ -112,6 +112,13 @@ export default {
 .shrink svg.icon, .shrink img {
     display: none;
 }
+.shrink .btn-shortcut h3 {
+    font-size: 1.2em;
+    font-weight: bold;
+}
+.shrink .btn-shortcut:not(.btn-hilite) {
+    background: #28373b;
+}
 .btn-shortcut {
     flex: 1 1 0;
     min-width: 0;
