@@ -14,5 +14,34 @@
   <body>
     <div id="app"></div>
     <script src="js/app.js" type="module"></script>
+    <script>
+      function getWindowsScaleFactor() {
+        return window.devicePixelRatio || 1;
+      }
+
+      function applyDPICounterScale() {
+        const scale = getWindowsScaleFactor();
+        console.log("Windows scale factor detected:", scale);
+
+        // Only apply scaling if greater than 150%
+        if (scale > 1.5) {
+          const inverseScale = 1 / scale;
+          document.body.style.transformOrigin = "0 0";
+          document.body.style.transform = `scale(${inverseScale})`;
+
+          // Adjust body size to prevent scrollbars
+          document.body.style.width = `${100 * scale}vw`;
+          document.body.style.height = `${100 * scale}vh`;
+        } else {
+          // Reset any previous scaling if below threshold
+          document.body.style.transform = "";
+          document.body.style.width = "";
+          document.body.style.height = "";
+        }
+      }
+
+      window.addEventListener("load", applyDPICounterScale);
+      window.addEventListener("resize", applyDPICounterScale);
+    </script>
   </body>
 </html>

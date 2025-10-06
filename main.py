@@ -17,9 +17,24 @@ from utils import resource_path, setup_logger
 from idle_detector import IdleDetector
 import ctypes
 
-# Make the app DPI aware
-ctypes.windll.shcore.SetProcessDpiAwareness(0)  # 1 = SYSTEM_DPI_AWARE
-window = None
+# Set process to be per-monitor DPI aware
+ctypes.windll.shcore.SetProcessDpiAwareness(2)  # 2 = Per-Monitor DPI aware
+
+# Get primary monitor handle
+user32 = ctypes.windll.user32
+hmonitor = user32.MonitorFromWindow(user32.GetDesktopWindow(), 1)  # MONITOR_DEFAULTTOPRIMARY = 1
+
+# Prepare variables
+dpi_x = ctypes.c_uint()
+dpi_y = ctypes.c_uint()
+
+# Get DPI for the monitor
+ctypes.windll.shcore.GetDpiForMonitor(hmonitor, 0, ctypes.byref(dpi_x), ctypes.byref(dpi_y))  # MDT_EFFECTIVE_DPI = 0
+
+scale_factor = dpi_x.value / 96  # 96 DPI = 100%
+print("DPI X:", dpi_x.value)
+print("DPI Y:", dpi_y.value)
+print("Scale factor:", scale_factor)
 
 
 appdata_dir = os.path.join(os.getenv('APPDATA'), __appname__)
