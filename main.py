@@ -15,7 +15,10 @@ import tkinter as tk
 import asyncio
 from utils import resource_path, setup_logger
 from idle_detector import IdleDetector
+import ctypes
 
+# Make the app DPI aware
+ctypes.windll.shcore.SetProcessDpiAwareness(0)  # 1 = SYSTEM_DPI_AWARE
 window = None
 
 
