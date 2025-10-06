@@ -38,6 +38,18 @@ class Api:
         else:
             return plugin_manager.activate_plugin(plugin_name=pn)
 
+    def open_external_url(self, url: str):
+        try:
+            if not isinstance(url, str):
+                raise ValueError("URL must be a string")
+            if not url.lower().startswith(("http://", "https://")):
+                raise ValueError("Unsupported URL scheme")
+            webbrowser.open(url, new=2)
+            return True
+        except Exception as e:
+            print(f"Error opening external URL '{url}': {e}")
+            return False
+
     def win_minimize(self):
         window = webview.windows[0]
         window.minimize()
