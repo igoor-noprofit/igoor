@@ -84,6 +84,9 @@ class Api:
         except Exception as e:
             print(f"Error during maximize: {e}")
         
+    def onboarding_toggled(self, is_onboarding):
+        print(f"Onboarding toggled: {is_onboarding}")
+        asyncio.run(self.trigger_hook("onboarding_toggled", is_onboarding=is_onboarding))
     
     def change_view(self,lastview,currentview):
         asyncio.run(self.trigger_hook("change_view",lastview=lastview,currentview=currentview))
