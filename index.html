@@ -18,7 +18,7 @@
       function getWindowsScaleFactor() {
         return window.devicePixelRatio || 1;
       }
-      
+
       function applyDPICounterScale() {
         const scale = getWindowsScaleFactor();
         const resizeFactor = 1.8; // 🔧 tweak this: try 0.9, 1.1, 0.95, etc.
@@ -27,7 +27,7 @@
         // Only apply counter-scale if DPI zoom > 150%
         if (scale > 1.5) {
           const inverseScale = (1 / scale) * resizeFactor;
-          document.get.style.transformOrigin = "0 0";
+          document.body.style.transformOrigin = "0 0";
           document.body.style.transform = `scale(${inverseScale})`;
 
           // Adjust layout bounds so no scrollbars appear
