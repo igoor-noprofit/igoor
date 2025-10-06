@@ -288,6 +288,7 @@ export default {
     methods: {
         toggleModal() {
             this.showModal = !this.showModal;
+            window.pywebview.api.onboarding_toggled(this.showModal);
         },
         closeModal() {
             this.showModal = false

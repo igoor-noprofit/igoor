@@ -17,6 +17,16 @@ class Shortcuts(Baseplugin):
     def startup(self):
         print("STARTUP")
         
+    
+    @hookimpl
+    def onboarding_toggled(self,is_onboarding):
+        if is_onboarding:
+            action="shrink"
+        else:
+            action="unshrink"
+        self.send_action_to_frontend(action)
+
+        
     def process_incoming_message(self, message):
         try:
             print("Received msg: " + message)

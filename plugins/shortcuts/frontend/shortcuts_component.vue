@@ -1,5 +1,5 @@
 <template>
-    <div class="shortcuts shortcuts-plugin">
+    <div class="shortcuts shortcuts-plugin" v-show="appview != 'onboarding'" :class="{ 'shrink': shrink }">
         <button class="btn btn-shortcut" @click="$_minimise()">
             <img src="img/minimize.svg">
             <h3>{{ t('Minimize') }}</h3>
@@ -50,7 +50,8 @@ export default {
     data() {
         return {
             websocket: null,  // Store WebSocket instance
-            status: 'loading'
+            status: 'loading',
+            shrink: false
         };
     },
     computed: {
@@ -80,6 +81,17 @@ export default {
             const randomMsg = this.paroles[randomIndex];
             console.log("Sending random parole:", randomMsg);
             this.$_speak(this.t(randomMsg));
+        },
+        handleIncomingMessage(event) {
+            const data = JSON.parse(event.data);
+            if (data.action == "shrink") {
+                // alert("Shrink action received from backend");
+                this.shrink = true;
+            }
+            if (data.action == "unshrink") {
+                this.shrink = false;
+                // alert("Unshrink action received from backend");
+            }
         }
     }
 };
@@ -94,7 +106,12 @@ export default {
     padding: 4px;
     width: 100%;
 }
-
+.shortcuts.shrink{
+    max-height: 70px;
+}
+.shrink svg.icon, .shrink img {
+    display: none;
+}
 .btn-shortcut {
     flex: 1 1 0;
     min-width: 0;
