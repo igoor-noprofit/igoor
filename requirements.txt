@@ -58,8 +58,6 @@ fuzzywuzzy==0.18.0
 gensim==4.3.3
 geojson==2.5.0
 ghp-import==2.1.0
-graspologic-native==1.2.3
-graspologic==3.4.1
 greenlet==3.1.1
 groq==0.31.0
 h11==0.14.0
