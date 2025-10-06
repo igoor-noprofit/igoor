@@ -2,7 +2,8 @@
     <div class="shortcuts shortcuts-plugin" v-show="appview != 'onboarding'" :class="{ 'shrink': shrink }">
         <button class="btn btn-shortcut" @click="$_minimise()">
             <img src="img/minimize.svg">
-            <h3>{{ t('Minimize') }}</h3>
+            <h3 v-show="!shrink">{{ t('Minimize window') }}</h3>
+            <h3 v-show="shrink">{{ t('Minimize') }}</h3>
         </button>
         <button class="btn btn-shortcut" @click="$_speak(t('I\'m thirsty'))"><svg class="icon icon-l">
                 <use xlink:href="img/svgdefs.svg#icon-drink"></use>
@@ -85,12 +86,10 @@ export default {
         handleIncomingMessage(event) {
             const data = JSON.parse(event.data);
             if (data.action == "shrink") {
-                // alert("Shrink action received from backend");
                 this.shrink = true;
             }
             if (data.action == "unshrink") {
                 this.shrink = false;
-                // alert("Unshrink action received from backend");
             }
         }
     }
