@@ -73,6 +73,10 @@ class MyAppSpec:
         pass
     
     @pluggy.HookspecMarker(app_name)
+    async def onboarding_toggled(self,is_onboarding):
+        pass
+    
+    @pluggy.HookspecMarker(app_name)
     async def user_idle_on_pc(self):
         """Hook for when the user is completely idle on the PC """
         pass
