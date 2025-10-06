@@ -21,19 +21,20 @@
 
       function applyDPICounterScale() {
         const scale = getWindowsScaleFactor();
+        const resizeFactor = 1.0; // 🔧 tweak this: try 0.9, 1.1, 0.95, etc.
         console.log("Windows scale factor detected:", scale);
 
-        // Only apply scaling if greater than 150%
+        // Only apply counter-scale if DPI zoom > 150%
         if (scale > 1.5) {
-          const inverseScale = 1 / scale;
+          const inverseScale = (1 / scale) * resizeFactor;
           document.body.style.transformOrigin = "0 0";
           document.body.style.transform = `scale(${inverseScale})`;
 
-          // Adjust body size to prevent scrollbars
-          document.body.style.width = `${100 * scale}vw`;
-          document.body.style.height = `${100 * scale}vh`;
+          // Adjust layout bounds so no scrollbars appear
+          document.body.style.width = `${(100 * scale) / resizeFactor}vw`;
+          document.body.style.height = `${(100 * scale) / resizeFactor}vh`;
         } else {
-          // Reset any previous scaling if below threshold
+          // Reset everything if scaling is not needed
           document.body.style.transform = "";
           document.body.style.width = "";
           document.body.style.height = "";
