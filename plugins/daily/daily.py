@@ -4,71 +4,81 @@ from plugin_manager import hookimpl
 from concurrent.futures import ThreadPoolExecutor
 from prompt_manager import PromptManager
 from context_manager import context_manager
-from prompts import AssistantPrompts
 from settings_manager import SettingsManager
 from llm_manager import LLMManager
 import asyncio,json,time,os
 from pydantic import BaseModel
-from typing import List
+from typing import List, Dict
+from utils import normalize_filter_by_timeframe_result
 
-PROMPT_TEMPLATE = """
-La personne affectée par la maladie s'appelle {bio_name}. Considère son état actuel pour éviter des prédictions incompatibles avec ses capacités physiques:
-
-{health_state}
-
----
-Pour répondre tu peux utiliser le contexte statique extrait des documents sur la vie de {bio_name}:
-
-{static_context}
-
----
-Tu peux utiliser aussi les infos du contexte dynamique suivant :
-
-{dynamic_context}
-
----
-Voici le contexte du besoin:
-"catégorie":{category}","thème":"{theme}","tags": "{tags}"
-
-"""
 class Daily(Baseplugin):  
     def __init__(self, plugin_name,pm):
         self.pm = pm
         super().__init__(plugin_name,pm)
-        self.prompts=AssistantPrompts("locales/","fr_FR")
-        self.global_settings = SettingsManager();
-        self.settings = self.get_my_settings()
-        bio = self.global_settings.get_bio()
+        self.prompts=self.get_my_prompts()
+        # print(f"PROMPTS LOADED: {self.prompts}")
+        self.load_settings()
+        bio = self.settings_manager.get_bio()
         self.bio_name = bio.get("name")
         self.daily_data = None
         
+    def load_settings(self):
+        self.settings = self.get_my_settings()
+        
     def load_daily_data(self):
-        daily_file = os.path.join(self.plugin_folder, 'daily.json')
-        print(f"DAILY FILE PATH: {daily_file}")
-        try:
-            with open(daily_file, 'r', encoding='utf-8') as f:
-                self.daily_data = json.load(f)
-                print(self.daily_data)
-                return True
-        except FileNotFoundError:
-            print ("ERROR DAILY JSON NOT FOUND")
+        if (not self.settings):
             current_file_dir = os.path.dirname(__file__)
             default_daily_file = os.path.join(current_file_dir, 'daily.json')
-            print(f"USING DEFAULT DAILY FROM {default_daily_file}")
-            with open(default_daily_file, 'r', encoding='utf-8') as f:
-                self.daily_data = json.load(f)
-            with open(daily_file, 'w', encoding='utf-8') as f:
-                json.dump(self.daily_data, f, ensure_ascii=False, indent=4)
-                print(f"Daily.json copied from {current_file_dir} to {self.plugin_folder}")
+            self.logger.info("No settings found, using default daily data from daily.json")
+            try:
+                with open(default_daily_file, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    self.daily_data = data.get(self.lang, {})
+                    self.settings_manager.update_plugin_settings('daily',self.daily_data)
+                    return True
+            except FileNotFoundError:
+                print ("ERROR DAILY JSON NOT FOUND")
+            
+        else: 
+            self.daily_data = self.settings 
     
     @hookimpl
     def startup(self):
-        print("DAILY STARTUP")
         self.load_daily_data()
+        
+    @hookimpl
+    def custom_save_settings(self, plugin_name:str,settings):
+        print("CUSTOM SAVE SETTINGS CALLED with plugin_name:", plugin_name)
+        print("AND SETTINGS:", settings)
+        data={}
+        data["needs"]=settings
+        if plugin_name == self.plugin_name:
+            self.logger.info(f"CUSTOM save settings for {plugin_name}: {data}")
+            '''
+            self.settings_manager.update_plugin_settings('daily',data)
+            '''
+            if (self.mass_update_my_settings(data)):
+                self.send_message_to_frontend({
+                    'dailyData': data
+                })
+                asyncio.create_task(self.send_switch_view_to_app(view="daily"))
+            else:
+                self.send_error_to_frontend("settings_error","Failed to update settings")
+            return True        
+    
+    @hookimpl
+    def global_settings_updated(self):
+        print("RELOADING DAILY SETTINGS")
+        self.load_settings()
+        self.startup()
+    
+    @hookimpl
+    def abandon_conversation(self):
+        asyncio.create_task(self.send_switch_view_to_app(view="daily"))
+        self.send_message_to_frontend({'backhome': True})
     
     async def startup_async(self):
         """Async startup tasks"""
-        print("DAILY ASYNC STARTUP")
         await self.send_message_to_frontend({
             'dailyData': self.daily_data
         })
@@ -84,14 +94,18 @@ class Daily(Baseplugin):
                 self.send_message_to_frontend({
                     'dailyData': self.daily_data
                 })
+            # GENERATE  PHRASES AND IF APPLICABLE ABANDONS CONVERSATION
             elif message_data.get('action') == 'generatePhrases':
+                asyncio.create_task(self.pm.trigger_hook(hook_name="abandon_conversation",cause="daily"))
                 asyncio.create_task(self.generate_phrases(message_data))
                 pass
+            # SPEAKS THE CHOSEN PHRASE
             elif message_data.get('action') == "speak":
+                    asyncio.create_task(self.send_switch_view_to_app(view="flow"))
                     msg = message_data.get("msg", "")
                     # Trigger hook in plugin manager with msg
                     asyncio.create_task(self.pm.trigger_hook(hook_name="speak", message=msg))
-                    asyncio.create_task(self.pm.trigger_hook(hook_name="add_msg_to_conversation", msg=msg, author="master"))    
+                    asyncio.create_task(self.pm.trigger_hook(hook_name="add_msg_to_conversation", msg=msg, author="master",msg_input="daily"))    
         except json.JSONDecodeError:
             print(f"Invalid JSON message received: {message}")
         
@@ -106,7 +120,7 @@ class Daily(Baseplugin):
         if not isinstance(data, dict):
             print("Error: Data is not a dictionary")
             return
-        health_state=self.global_settings.get_health_state()
+        health_state=self.settings_manager.get_health_state()
         bio_name=self.bio_name
         start_time = time.time()
         dynamic_context = self.get_dynamic_context().copy()
@@ -115,20 +129,44 @@ class Daily(Baseplugin):
         # conversation = dynamic_context.get("conversation")
         category=data.get("category")
         theme=data.get("theme")
-        static_context = await(self.query_rag_async(category + " " + theme))
-        print(f"STATIC CONTEXT IS : {static_context}")
+        asyncio.create_task(self.pm.trigger_hook(hook_name="set_conversation_topic",topic=theme))
+        chunk_ids = await(self.pm.trigger_hook(hook_name="query_rag", query_text=category + " " + theme, store_types=[0,1,2], return_chunk_ids=True))
+        filtered_results = await self.pm.trigger_hook(
+            hook_name="filter_by_timeframe", 
+            preflow_dict={},
+            docstore_ids_by_type=chunk_ids
+        )
+        # self.logger.info(f"FILTERED RESULTS: {filtered_results}")
+        actual_filtered_results = normalize_filter_by_timeframe_result(filtered_results)
         # del dynamic_context["conversation"]
-        assistant_type = "daily"
-        system_prompt = self.prompts.get_system_prompt("fr_FR", assistant_type) 
+        system_prompt = self.prompts.get("daily", {}).get("system")
         print(f"SYSTEM PROMPT IS : {system_prompt}")   
-        pm = PromptManager(template=PROMPT_TEMPLATE)
+        pm = PromptManager(template=self.prompts.get("daily", {}).get("usr"))
         dynamic_context = dynamic_context
-        prompt = pm.create_prompt(bio_name=bio_name,health_state=health_state,static_context=static_context, dynamic_context=dynamic_context, category=category,theme=theme, tags="",log_folder=self.plugin_folder)       
+        prompt = pm.create_prompt(
+            bio_name=bio_name,
+            health_state=health_state,
+            static_context='\n'.join(actual_filtered_results.get(0, [])), # Use actual_filtered_results
+            long_term='\n'.join(actual_filtered_results.get(1, [])),  # Use actual_filtered_results
+            short_term='\n'.join(actual_filtered_results.get(2, [])), # Use actual_filtered_results
+            dynamic_context=dynamic_context, 
+            category=category,
+            theme=theme, 
+            tags="",
+            log_folder=self.plugin_folder)       
         print(f"FINAL PROMPT : {prompt}")
         try:
             llm = LLMManager(self.settings.get("provider"), self.settings.get("api_key"), self.settings.get("model_name"))
             llm.set_json_schema(Answers)
-            answers = llm.invoke(system_prompt,prompt)
+            answers = llm.invoke(system_prompt, prompt)
+            print(f"RAW LLM OUTPUT: {answers}")
+            if isinstance(answers, str):
+                try:
+                    answers = Answers.model_validate_json(answers)
+                except Exception as e:
+                    print(f"Failed to parse answers: {e}")
+                    self.send_error_to_frontend("llm_error", e)
+                    return
             has_error, answers = self.handle_llm_error(answers)
             if has_error:
                 return answers
@@ -147,14 +185,10 @@ class Daily(Baseplugin):
             
     def get_dynamic_context(self):
         return context_manager.get_context()
-
-    async def query_rag_async(self, msg: str):
-        result = await self.pm.trigger_hook(hook_name="query_rag", query_text=msg)
-        return result
         
     def update_status(self, status):
         """This method will be called when the status changes."""
         print(f"Flow plugin received new status: {status}")
 
 class Answers(BaseModel):
-    answers: List[str]
+    answers: Dict[str, List[str]]

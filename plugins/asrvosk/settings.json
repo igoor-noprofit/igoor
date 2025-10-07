@@ -1,7 +1,6 @@
 {
-    "lang": "fr_FR",
     "wakeword": "Igor",
-    "model_size": "small",
+    "model_size": "big",
     "continuous": false,
     "min_confidence": 0.7
 }

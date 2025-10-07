@@ -40,9 +40,13 @@ class Meteo(Baseplugin):
         
         # Use a separate thread to handle the sleep and async call
         def delayed_meteo():
-            time.sleep(60)  # Sleep for 60 seconds without blocking the main thread
-            asyncio.run(self.get_meteo())
-        
+            time.sleep(30)  # Sleep for 30 seconds without blocking the main thread
+            try:
+                asyncio.run(self.get_meteo())
+            except Exception as e:
+                # Protect the delayed starter from bubbling exceptions
+                print("METEO delayed initial fetch failed:", e)
+
         threading.Thread(target=delayed_meteo, daemon=True).start()
         # Plugin-specific initialization logic
 
@@ -51,8 +55,13 @@ class Meteo(Baseplugin):
         # Use a daemon thread to periodically call get_meteo
         def meteo_updater():
             while True:
-                asyncio.run(self.get_meteo())
-                time.sleep(600)  # 600 seconds = 10 minutes
+                try:
+                    asyncio.run(self.get_meteo())
+                    time.sleep(600)  # 600 seconds = 10 minutes
+                except Exception as e:
+                    # Log and keep the updater alive. On error, wait a bit and retry.
+                    print("METEO updater exception (will retry):", e)
+                    time.sleep(60)
         
         updater_thread = threading.Thread(target=meteo_updater,daemon=True)
         updater_thread.daemon = True  # This allows the program to exit even if the thread is running
@@ -76,7 +85,7 @@ class Meteo(Baseplugin):
 
         # Configure language
         config_dict = get_default_config()
-        config_dict['language'] = os.getenv("METEO_LANG")  # 'fr' for French language
+        config_dict['language'] = self.lang
 
         # Initialize the OWM object with your API key
         api_key = self.settings.get("api_key")  # Ensure your API key is set in the environment variable
@@ -109,26 +118,58 @@ class Meteo(Baseplugin):
         if mode == 'city':
             raise NotImplementedError("City mode is not yet implemented.")
         else:  # 'coord' or 'coordHome'
-            try:
-                observation = mgr.weather_at_coords(lat, lng)
-                weather = observation.weather
-                obj = {
-                    'status': weather.status,
-                    'detailed_status': weather.detailed_status,
-                    'temperature': weather.temperature('celsius'),
-                    'humidity': weather.humidity,
-                    'wind': weather.wind(),
-                    'rain': weather.rain,
-                    'snow': weather.snow,
-                    'clouds': weather.clouds
-                }
-                # print(obj)
-                context_manager.update_context("meteo", obj)
-                self.send_message_to_frontend(obj)
-                return True
-            except Exception as error:
-                print("Error fetching weather data:", error)
-                raise RuntimeError("Failed to fetch weather data.")
+            # Simple retry loop with exponential backoff using only existing imports
+            max_retries = 3
+            for attempt in range(1, max_retries + 1):
+                try:
+                    observation = mgr.weather_at_coords(lat, lng)
+                    weather = observation.weather
+                    temp = weather.temperature('celsius')
+                    synthesized = {
+                        'status': weather.detailed_status,
+                        'temperature': {
+                            'temp': round(temp.get('temp', 0), 1),
+                            'feels_like': round(temp.get('feels_like', 0), 1)
+                        },
+                        'humidity': weather.humidity,
+                        'wind': self.synthesize_wind(weather.wind()),
+                        'rain': weather.rain if weather.rain else {},
+                        'snow': weather.snow if weather.snow else {},
+                    }
+                    context_manager.update_context("meteo", synthesized)
+                    self.send_message_to_frontend(synthesized)
+                    return True
+                except Exception as error:
+                    msg = str(error).lower()
+                    # Consider it transient if it mentions timeout/handshake/read timed out
+                    is_timeout_like = 'timeout' in msg or 'handshake' in msg or 'read timed out' in msg
+                    print(f"METEO fetch attempt {attempt} failed:", error)
+                    if is_timeout_like and attempt < max_retries:
+                        # exponential backoff: 1, 2, 4 seconds
+                        wait = 2 ** (attempt - 1)
+                        print(f"METEO transient error detected, retrying in {wait}s...")
+                        time.sleep(wait)
+                        continue
+                    else:
+                        # On persistent timeout or any non-retryable error, update context and notify frontend
+                        error_type = 'timeout' if is_timeout_like else 'failed'
+                        context_manager.update_context("meteo", {'error': error_type})
+                        try:
+                            self.send_message_to_frontend({'error': error_type})
+                        except Exception:
+                            pass
+                        # Do not raise here — caller (the updater thread) should stay alive
+                        return False
+
+    def synthesize_wind(self, wind_dict):
+        speed = wind_dict.get('speed', 0)
+        if speed > 8:
+            strength = 'strong'
+        elif speed > 3:
+            strength = 'moderate'
+        else:
+            strength = 'light'
+        return {'strength': strength}
     
     def is_home(self, lat, lon, lat2, lon2):
         distanceFromHome = self.calculate_distance(lat, lon, lat2, lon2)
@@ -146,7 +187,7 @@ class Meteo(Baseplugin):
     
     def get_geoloc(self):
         ip_geo = self.get_ip_geolocation()
-        if ip_geo.get('status') == 'success':
+        if ip_geo is not None and ip_geo.get('status') == 'success':
             ip_geo['latHome'] = self.settings.get("lat_home")
             ip_geo['lngHome'] = self.settings.get("lng_home")
             return ip_geo

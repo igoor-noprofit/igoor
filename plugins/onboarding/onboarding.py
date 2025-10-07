@@ -7,14 +7,21 @@ import asyncio
 from dotenv import load_dotenv
 load_dotenv()
 from context_manager import context_manager
-
+from settings_manager import SettingsManager
 
 class Onboarding(Baseplugin):
     def __init__(self, plugin_name, pm):
         self.pm = pm
+        self.sm = SettingsManager()
         self.onboarding_completed = False
         super().__init__(plugin_name,pm)
-
+    
+    @hookimpl
+    async def force_onboarding(self):
+        print("ONBOARDING PLUGIN is forcing onboard")
+        self.onboarding_completed = False
+        self.send_message_to_frontend({"action": "show_modal"})
+    
     @hookimpl
     def startup(self):
         self.settings = self.get_my_settings()
@@ -79,6 +86,7 @@ class Onboarding(Baseplugin):
             })
     
     def handle_save_settings(self, new_settings):
+        self.logger.info("NEW SETTINGS: %s", json.dumps(new_settings, indent=2))
         """
         Handle saving of new settings.
         
@@ -105,35 +113,37 @@ class Onboarding(Baseplugin):
                                 current_settings[section] = {}
                             current_settings[section].update(new_settings[section])
                     
-                    # Save the updated settings using update_plugin_settings
-                    self.pm.settings_manager.update_plugin_settings('onboarding', current_settings)
-                    print("Settings saved successfully")
-                    
-                    # Update local settings
-                    self.settings = current_settings
-                    self.onboarding_completed = True
-                    
-                    # Switch view
-                    asyncio.create_task(self.send_switch_view_to_app('daily'))
-                    
-                    # Send success response
-                    self.send_message_to_frontend({
-                        'type': 'success',
-                        'message': 'Settings saved successfully'
-                    })
-                    
+                    if (self.mass_update_my_settings(current_settings)):
+                        # Update local settings
+                        self.settings = current_settings
+                        self.onboarding_completed = True
+                        
+                        # Switch view
+                        asyncio.create_task(self.send_switch_view_to_app('daily'))
+                        
+                        # Send success response
+                        self.send_message_to_frontend({
+                            'type': 'success',
+                            'message': 'Settings saved successfully'
+                        })
+                    else:
+                        self.send_error_to_frontend("settings_error","Failed to update settings")
+                        
                 except Exception as save_error:
                     print(f"Error during save operation: {str(save_error)}")
                     import traceback
                     print(f"Traceback: {traceback.format_exc()}")
                     raise save_error
             else:
-                error_msg = f'Missing required field: {missing_info["missing_field"]} in {missing_info["category"]}'
+                error_msg = f'{missing_info["missing_field"]} in {missing_info["category"]}'
                 print(f"Validation failed: {error_msg}")
                 self.send_message_to_frontend({
                     'type': 'error',
-                    'message': error_msg
+                    'error_type': 'A mandatory field is missing',
+                    'missing_field': missing_info["missing_field"],
+                    'category': missing_info["category"]
                 })
+                # self.send_switch_view_to_app('onboarding')
                 
         except Exception as e:
             print(f"Error saving settings: {str(e)}")
@@ -150,6 +160,69 @@ class Onboarding(Baseplugin):
         print("GUI READY!")
         view = 'daily' if self.onboarding_completed else 'onboarding'
         await self.send_switch_view_to_app(view)
-        self.send_message_to_frontend(self.settings)
+        await self.wait_for_socket_and_send(self.settings)
+    
         
+    def get_plugins_by_category(self):
+        self.logger.info("Fetching plugins by category in Settings")
+        plugins_by_category = plugin_manager.get_plugins_by_category()
+        
+        # Get current activation states from settings.json
+        settings = plugin_manager.settings_manager.get_settings()
+        plugins_activation = settings.get("plugins_activation", {})
+        self.logger.info(f"Current plugin activation states: {plugins_activation}")
+        
+        # Update the active status for each plugin
+        for category in plugins_by_category:
+            for plugin in plugins_by_category[category]:
+                plugin_name = plugin["name"]
+                # Get activation state from settings.json
+                is_active = plugins_activation.get(plugin_name, False)
+                self.logger.info(f"Plugin {plugin_name} activation state: {is_active}")
+                plugin["active"] = is_active
+                
+                # Mark core plugins as locked
+                plugin["is_core"] = (
+                    plugin.get("category", "").lower() == "core" or 
+                    plugin_name in ["conversation", "ttsdefault", "settings", "onboarding"]
+                )
+                
+                # Ensure other metadata is included
+                if "description" not in plugin:
+                    plugin["description"] = plugin_manager.all_plugins.get(plugin_name, {}).get("description", "")
+        
+        self.logger.info(f"Final plugins by category: {plugins_by_category}")
+        return plugins_by_category
+        
+    def toggle_plugin(self, plugin_name, is_active):
+        """Toggle plugin activation state"""
+        self.logger.info(f"Toggling plugin {plugin_name} to {is_active}")
+        
+        # Check if plugin is core
+        plugin_metadata = plugin_manager.all_plugins.get(plugin_name, {})
+        is_core = (
+            plugin_metadata.get("category", "").lower() == "core" or 
+            plugin_name in ["conversation", "ttsdefault", "settings", "onboarding"]
+        )
+        
+        if is_core:
+            self.logger.warning(f"Attempted to toggle core plugin {plugin_name}")
+            return False
+        
+        # Update settings.json
+        settings = plugin_manager.settings_manager.get_settings()
+        if "plugins_activation" not in settings:
+            settings["plugins_activation"] = {}
+        
+        settings["plugins_activation"][plugin_name] = is_active
+        plugin_manager.settings_manager.save_settings(settings)
+        
+        # Actually activate/deactivate the plugin
+        if is_active:
+            plugin_manager.activate_plugin(plugin_name)
+        else:
+            plugin_manager.deactivate_plugin(plugin_name)
+            
+        self.logger.info(f"Plugin {plugin_name} toggle complete")
+        return True
         

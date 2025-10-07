@@ -2,6 +2,11 @@ var data = {
   pywebviewready: false,
 };
 let app;
+
+window.addEventListener("pywebviewready", () => {
+  console.log("✅ pywebviewready fired");
+});
+
 /*
 if ('AmbientLightSensor' in window) {
   alert("Ambient Light Sensor detected");
@@ -44,7 +49,8 @@ async function initializeApp() {
         websocketUtil: null,
         minimized: false,
         headerExpanded: false,
-        pywebviewready: false  // Add this line
+        pywebviewready: false,
+        lang: "{{LANG}}",
       };
     },
     components: {
@@ -52,58 +58,50 @@ async function initializeApp() {
     },
     template: appTemplate,
     mounted: async function () {
-      // Wait for pywebview to be ready before proceeding
-      await new Promise(resolve => {
-        if (window.pywebview && window.pywebview.api) {
-          this.pywebviewready = true;
-          resolve();
-        } else {
-          window.addEventListener("pywebviewready", () => {
-            this.pywebviewready = true;
-            console.log("Pywebview is ready!");
-            resolve();
-          });
-        }
-      });
-      // Create a WebSocket connection
-      this.websocketUtil = new WebSocket("ws://localhost:9715/app");
-
-      // Set up WebSocket event listeners
-      this.websocketUtil.onopen = function () {
-        console.log("WebSocket connection opened");
-      };
-
-      this.websocketUtil.onmessage = (event) => {
-        console.log("APP received message on websocket:", event.data);
-        // Handle incoming WebSocket messages here
-        try {
-          const message = JSON.parse(event.data);
-          console.log("Parsed message:", message); // Log the parsed message
-          if (message.backend === "addmsg") {
-            this.changeView('flow')
-          }
-          if (message.switchview && message.switchview != ''){
-            this.changeView(message.switchview)
-          }
-          if (message.minimize){
-            this.minimize();
-          }
-        } catch (error) {
-          console.error("Error parsing WebSocket message:", error);
-        }
-      };
-
-      this.websocketUtil.onclose = function () {
-        console.log("WebSocket connection closed");
-      };
-
-      this.websocketUtil.onerror = function (error) {
-        console.error("WebSocket error:", error);
-      };
+      console.warn("APP MOUNTED");
     },
     methods: {
+      readypy() {
+        this.pywebviewready = true;
+        console.warn("Pywebview is ready!");
+        // Create a WebSocket connection
+        this.websocketUtil = new WebSocket("ws://localhost:9715/app");
+
+        // Set up WebSocket event listeners
+        this.websocketUtil.onopen = function () {
+          console.log("APP WebSocket connection opened");
+        };
+
+        this.websocketUtil.onmessage = (event) => {
+          console.log("APP received message on websocket:", event.data);
+          // Handle incoming WebSocket messages here
+          try {
+            const message = JSON.parse(event.data);
+            console.log("Parsed message:", message); // Log the parsed message
+            if (message.backend === "addmsg") {
+              this.changeView("flow");
+            }
+            if (message.switchview && message.switchview != "") {
+              this.changeView(message.switchview);
+            }
+            if (message.minimize) {
+              this.minimize();
+            }
+          } catch (error) {
+            console.error("Error parsing WebSocket message:", error);
+          }
+        };
+
+        this.websocketUtil.onclose = function () {
+          console.log("WebSocket connection closed");
+        };
+
+        this.websocketUtil.onerror = function (error) {
+          console.error("WebSocket error:", error);
+        };
+      },
       toggleHeaderExpansion(expanded) {
-        console.log('Toggling header expansion:', expanded);
+        console.log("Toggling header expansion:", expanded);
         this.headerExpanded = expanded;
         // Optionally trigger any other UI updates needed
       },
@@ -121,27 +119,34 @@ async function initializeApp() {
         }
         this.lastview = this.appview;
         this.appview = view;
-        await window.pywebview.api.change_view(this.lastview, view);
+        if (view == 'onboarding'){
+          console.warn("Forcing onboarding");
+          await window.pywebview.api.force_onboarding();
+        }
+        else{
+          await window.pywebview.api.change_view(this.lastview, view);
+        }
       },
-      maximize(){
-        console.log('MAXIMIZE WINDOW');
-        window.pywebview.api.maximize()
-        this.minimized=false;
-        console.log('MINIMIZED='+this.minimized);
+      maximize() {
+        console.log("MAXIMIZE WINDOW");
+        window.pywebview.api.maximize();
+        this.minimized = false;
+        console.log("MINIMIZED=" + this.minimized);
       },
-      minimize(){
-        console.log('MINIMIZE WINDOW');
-        window.pywebview.api.minimize()
-        this.minimized=true;
-        console.log('MINIMIZED='+this.minimized);
+      minimize() {
+        console.log("MINIMIZE WINDOW");
+        window.pywebview.api.minimize();
+        this.minimized = true;
+        console.log("MINIMIZED=" + this.minimized);
       },
       goBack() {
         this.appview = this.lastview;
-      }
-    }
+      },
+    },
   });
   console.log("created");
-  app.mount("#app");
+  app = app.mount("#app");   // now app is the mounted instance
+  window.app = app;   
   console.log(app);
 }
 document.addEventListener("DOMContentLoaded", function () {

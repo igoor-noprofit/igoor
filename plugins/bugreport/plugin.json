@@ -1,0 +1,12 @@
+{
+    "category": "monitoring",
+    "title": "Bug Reporter",
+    "description": "Take screenshots and saves them along with server log, JS console log and a user brief comment.",
+    "layout": {
+        "part": "after_logo",
+        "order": 90
+    },
+    "is_free" : true,
+    "requires_subscription": false,
+    "requires_internet": false
+}

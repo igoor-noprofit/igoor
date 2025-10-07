@@ -1,4 +1,5 @@
 {
     "fallback_only": false,
-    "speaker_voice": 0
+    "speaker_voice": 0,
+    "voice_list": []
 }

@@ -3,10 +3,18 @@
         :class="{ 'expanded': isExpanded }">
         <div class="scrollableConv" ref="scrollableConv">
             <div v-for="(message, index) in thread" :key="index">
-                <div class="card" :class="[message.author, { last: isLastMessage(index) }]"
-                    @click="handleMessageClick(message)">
+                <div class="card msg" :class="getMsgClass(message, index)" @click="handleMessageClick(message)">
                     <div class="card-body">
                         <p class="card-text">{{ message.msg }}</p>
+                    </div>
+                </div>
+            </div>
+            <div v-if="status=='transcribing_started'" class="card msg def msg-other transcribing-card">
+                <div class="card-body">
+                    <div class="typing-indicator">
+                        <span class="dot"></span>
+                        <span class="dot"></span>
+                        <span class="dot"></span>
                     </div>
                 </div>
             </div>
@@ -14,7 +22,7 @@
         <div v-if="showProgressBar" class="progress-bar-container">
             <div class="progress-bar" :style="{ width: progressBarWidth + '%' }"></div>
         </div>
-        <button class="btn btn-side btn-side-right" @click="$_enlargeConversation">
+        <button v-if="showExpandButton" class="btn btn-side btn-side-right" @click="$_enlargeConversation">
             <svg class="icon icon-l" :class="{ 'rotated': isExpanded }">
                 <use xlink:href="/img/svgdefs.svg#icon-chevron_down" />
             </svg>
@@ -34,8 +42,13 @@ module.exports = {
             showProgressBar: false,
             progressBarWidth: 0,
             countdownInterval: null,
-            isExpanded: false
+            isExpanded: false,
+            showExpandButton: false,
+            status: ''
         }
+    },
+    mounted() {
+        this.checkScrollableOverflow();
     },
     computed: {
         isLastMessage() {
@@ -43,15 +56,39 @@ module.exports = {
         }
     },
     methods: {
+        getMsgClass(message, index) {
+            const isLast = index === this.thread.length - 1;
+            // All messages except the last get msg-small (regardless of author)
+            const classes = [];
+            if (message.author === 'master') {
+                classes.push('master');
+            }
+            if (message.author === 'def') {
+                classes.push('def', 'msg-other');
+            }
+            if (!isLast) {
+                classes.push('msg-small');
+            }
+            if (isLast) {
+                classes.push('last');
+            }
+            return classes;
+        },
+        checkScrollableOverflow() {
+            this.$nextTick(() => {
+                const el = this.$refs.scrollableConv;
+                if (el) {
+                    this.showExpandButton = el.scrollHeight > el.clientHeight;
+                }
+            });
+        },
         $_enlargeConversation() {
             this.isExpanded = !this.isExpanded;
             // Emit event to parent app to handle header expansion
             this.$root.toggleHeaderExpansion(this.isExpanded);
 
             this.$nextTick(() => {
-                if (this.isExpanded) {
-                    this.scrollToBottom();
-                }
+                this.scrollToBottom();
             });
         },
         handleIncomingMessage(event) {
@@ -68,32 +105,42 @@ module.exports = {
                 this.showProgressBar = false;
             } else if (data.action == "showProgressBar") {
                 this.showProgressBar = true;
-                this.startProgressBar()
+                // Use the duration from the backend or fall back to 5000ms
+                const duration = data.duration || 5000;
+                this.startProgressBar(duration);
                 // Logic to show progress bar
-            } else {
+            } else if (data.status) {
+                console.warn("CONVERSATION Status update:", data.status);
+                this.status = data.status;
+                if (data.status === 'transcribing_started') {
+                   this.scrollToBottom();
+                }
+            }
+            else {
+                this.status='';
                 this.thread.push(data);
-                this.$nextTick(() => {
-                    this.scrollToBottom();
-                });
+                console.log("ADDING MESSAGE", data);
+                this.scrollToBottom();
+                this.checkScrollableOverflow();
             }
         },
-        scrollToBottom() {
-            console.log("scrolling");
-            this.$nextTick(() => { 
+        scrollToBottom(retries = 5) {
+            this.$nextTick(() => {
                 const scrollableDiv = this.$refs.scrollableConv;
                 if (scrollableDiv) {
                     scrollableDiv.scrollTop = scrollableDiv.scrollHeight;
                     console.log(scrollableDiv.scrollTop, scrollableDiv.scrollHeight);
-                }
-                else {
-                    console.warn("cannot scroll")
+                } else if (retries > 0) {
+                    setTimeout(() => this.scrollToBottom(retries - 1), 100);
+                } else {
+                    console.warn("cannot scroll");
                 }
             });
         },
-        startProgressBar() {
+        startProgressBar(duration = 5000) {
             this.showProgressBar = true;
             this.progressBarWidth = 0;
-            const totalDuration = 5000; // Duration for the progress bar in milliseconds
+            const totalDuration = duration; // Use the duration passed from backend
             const intervalDuration = 100; // Update interval in milliseconds
             const increment = 100 / (totalDuration / intervalDuration);
 
@@ -127,14 +174,16 @@ module.exports = {
             console.log("thread has changed");
             this.$nextTick(() => {
                 this.scrollToBottom();
+                this.checkScrollableOverflow();
             });
         },
         appview(newView) {
             if (newView === 'autocomplete') {
                 this.isExpanded = false;
                 this.$root.toggleHeaderExpansion(false);
-                this.scrollToBottom();
             }
+            this.scrollToBottom();
+            this.checkScrollableOverflow();
         }
     }
 };
@@ -147,8 +196,49 @@ module.exports = {
     transition: height 0.3s ease;
     position: relative;
 }
+
 .conversation-plugin.expanded {
-  height: 100%;
+    height: 100%;
+}
+
+.msg{
+    background-color: #2F535B !important;
+}
+
+
+.msg {
+    background-color: #2F535B !important;
+    align-self: flex-end; /* Right side by default */
+    max-width: 70%;
+    position: relative;
+}
+
+.msg.msg-other {
+    background-color: #1D6634 !important;
+    border-radius: 0.5rem 0.5rem 0.5rem 0rem;
+    align-self: flex-start; /* Left side for .msg-other */
+}
+
+.msg.msg-small {
+    font-size: 0.875rem;
+}
+
+.msg:after {
+    position: absolute;
+    content: "";
+    right: -1rem;
+    bottom: 0;
+    width: 0px;
+    height: 0px;
+    border-style: solid;
+    border-width: 1rem 0 0 1rem;
+    border-color: transparent transparent transparent #2F535B;
+}
+
+.msg.msg-other:after {
+    left: -1rem;
+    border-width: 0 0 1rem 1rem;
+    border-color: transparent transparent #1D6634 transparent;
 }
 
 #abandon {
@@ -159,13 +249,13 @@ module.exports = {
 
 .scrollableConv {
     overflow-y: scroll;
-    height: calc(100% - 40px);
+    height: 100%;
     overflow-x: hidden;
 }
 
 .container {
     background: #333;
-    border: 1px solid #0f0;
+    /* border: 1px solid #0f0; */
 }
 
 .card-body {
@@ -190,6 +280,8 @@ module.exports = {
 
 .master {
     cursor: pointer;
+    margin-right: 10px;
+    float: right;
 }
 
 .master:hover {
@@ -203,5 +295,44 @@ module.exports = {
 
 .icon.rotated {
     transform: rotate(180deg);
+}
+
+.transcribing-card {
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    min-height: 60px;
+    margin-bottom: 10px;
+}
+
+.typing-indicator {
+    display: flex;
+    align-items: center;
+    height: 32px;
+    justify-content: flex-start;
+}
+
+.typing-indicator .dot {
+    height: 12px;
+    width: 12px;
+    margin: 0 4px;
+    background-color: #fff;
+    border-radius: 50%;
+    display: inline-block;
+    opacity: 0.6;
+    animation: typing 1.2s infinite;
+}
+
+.typing-indicator .dot:nth-child(2) {
+    animation-delay: 0.2s;
+}
+.typing-indicator .dot:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+@keyframes typing {
+    0% { opacity: 0.6; transform: scale(1);}
+    20% { opacity: 1; transform: scale(1.2);}
+    100% { opacity: 0.6; transform: scale(1);}
 }
 </style>

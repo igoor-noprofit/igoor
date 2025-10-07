@@ -33,7 +33,7 @@ class Shortcuts(Baseplugin):
                 print (f"Speaking {msg}")
                 if msg:
                     asyncio.create_task(self.pm.trigger_hook(hook_name="speak", message=msg))
-                    # asyncio.create_task(self.pm.trigger_hook(hook_name="add_msg_to_conversation", msg=msg, author="master"))
+                    # asyncio.create_task(self.pm.trigger_hook(hook_name="add_msg_to_conversation", msg=msg, author="master",msg_input="shortcuts"))
                 else:
                     print("Speak action is present but msg is empty.")
         except json.JSONDecodeError:

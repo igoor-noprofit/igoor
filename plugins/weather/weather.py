@@ -29,7 +29,7 @@ class Weather(Baseplugin):
         self.geoloc = self.get_geoloc()
         print(f"GEOLOC", self.geoloc)
         
-        self.language = self.global_settings.get_lang().upper()
+        self.language = self.lang.upper()
         self.lat_home = self.settings.get("lat_home")
         self.lng_home = self.settings.get("lng_home")
 

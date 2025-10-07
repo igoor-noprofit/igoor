@@ -8,30 +8,52 @@ class Ttsdefault(Baseplugin):
     def __init__(self, plugin_name, pm):
         self.pm = pm
         super().__init__(plugin_name, pm)
-        try: 
+        self.settings = self.get_my_settings()
+        # Initialize SAPI
+        self.fallback_only = self.settings.get("fallback_only")
+        self.voice_id = self.settings.get("voice_id")
+        try:
             self.speaker = win32com.client.Dispatch("SAPI.SpVoice")
-            self.available_voices = self.speaker.GetVoices()
+            voices = self.speaker.GetVoices()
+            self.available_voices = []
             self.logger.info("AVAILABLE VOICES:")
-            for voice in self.available_voices:
-                self.logger.info(f"- {voice.GetDescription()}")
+            for index, voice in enumerate(voices):
+                description = voice.GetDescription()
+                self.logger.info(f"- {description}")
+                parts = description.split(' - ', 1)
+                lang = parts[1] if len(parts) > 1 else ''
+                self.available_voices.append({
+                    "voice_id": index,
+                    "voice_label": description,
+                    "lang": lang
+                })
+
+                print(self.available_voices)
+            
             self.is_loaded = True
+            self.update_my_settings("voice_list", self.available_voices)
         except Exception as e:
-            self.logger.error(f"ERROR: No available voices for TTS DEFAULT")
-            return False    
+            self.logger.error(f"ERROR: No available voices for TTS DEFAULT: {e}")
+            self.is_loaded = False    
                 
     @hookimpl
     def startup(self):
         if self.is_loaded:
-            self.settings = self.get_my_settings()
-            # Initialize SAPI
-            self.fallback_only = self.settings.get("fallback_only")
-            self.speaker_voice = self.settings.get("speaker_voice")
             try:
-                self.speaker.Voice = self.speaker.GetVoices().Item(self.speaker_voice)
+                self.speaker.Voice = self.speaker.GetVoices().Item(self.voice_id)
             except Exception as e:
-                print(f"Error occurred while setting voice to : {self.speaker_voice}")
+                print(f"Error occurred while setting voice to : {self.voice_id}")
                 self.speaker.Voice = self.speaker.GetVoices().Item(0)
                 return False   
+    
+    '''
+    @hookimpl
+    def test_speak(self, message, **kwargs):
+        self.get_my_settings()
+        voice_id = kwargs.get('voice_id', self.voice_id)
+        print(f"TEST SPEAK with pitch={pitch}, rate={rate}, volume={volume}")
+        self.speak(message)
+    '''
         
     @hookimpl
     def speak(self, message):
@@ -42,7 +64,7 @@ class Ttsdefault(Baseplugin):
 
     @hookimpl
     def speak_fallback(self, message):
-        self.logger.info("§§§§ FALLBACK SPEAKING *********************************************** :", message)
+        self.logger.info("§§§§ FALLBACK SPEAKING *********************************************** : {message}")
         # Schedule the speak_func to run in the background
         if (self.fallback_only):
             asyncio.create_task(self.run_speak_func(message))

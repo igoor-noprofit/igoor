@@ -1,19 +1,22 @@
 {
     "bio":{
         "name":"Igor",
-        "pronoun": "He/him",
-        "birth_date": "12/05/1973",
-        "health_state": "Ne peut pas parler"
+        "pronoun": "Il",
+        "birth_date": "1973",
+        "health_state": "Parle à travers une tablette et cette IA, appeée IGOOR",
+        "style": "",
+        "style_weight": "1 r\u00e9ponse sur 5 MAXIMUM"
     },
     "prefs":{
         "lang": "fr_FR",
         "darklight":"automatic",
-        "locale": "fr_FR.UTF-8"
+        "locale": "fr_FR.UTF-8",
+        "idle_threshold": 600
     },
     "ai":{
         "provider": "groq",
         "api_key": "",
-        "model_name": "llama-3.3-70b-versatile",
-        "temperature": "1"
+        "model_name": "meta-llama/llama-4-maverick-17b-128e-instruct",
+        "temperature": 0.2
     }
 }

@@ -1,10 +1,8 @@
 <template>
-    <a v-show="appview!=='autocomplete'" class="autocompletelauncher plugin" @click="$_showAutocomplete()">dire quelque chose...</a>
+    <a v-show="appview!=='autocomplete'" class="autocompletelauncher plugin" @click="$_showAutocomplete()">{{ t("say something...") }}</a>
 </template>
-
 <script>
 import BasePluginComponent from '/js/BasePluginComponent.js';
-
 module.exports = {
     name: "autocompletelauncher",
     mixins: [BasePluginComponent],
@@ -36,9 +34,6 @@ module.exports = {
     }
 };
 </script>
-
 <style scoped>
-a{
-    cursor: pointer;
-}
+a{cursor: pointer;}
 </style>

@@ -1,24 +1,41 @@
+from version import __appname__, __version__, __codename__
 import webview
 import threading
 import os
 import re
-from plugin_manager import PluginManager
 from dotenv import load_dotenv
 load_dotenv()
+from plugin_manager import PluginManager
 from context_manager import ContextManager
 from js_api import Api
 from settings_manager import SettingsManager
-from prompts import AssistantPrompts
 from websocket_server import websocket_server
 import signal,sys
 import tkinter as tk
 import asyncio
 from utils import resource_path, setup_logger
+from idle_detector import IdleDetector
 
-logger = setup_logger('main', os.path.join(os.getenv('APPDATA'), os.getenv('IGOOR_APPNAME')))
+window = None
+
+
+appdata_dir = os.path.join(os.getenv('APPDATA'), __appname__)
+if not os.path.exists(appdata_dir):
+    os.makedirs(appdata_dir)
+logger = setup_logger('main', appdata_dir)
 prompts=None
 context_manager = ContextManager()
 manager = PluginManager()
+
+def on_idle_change(is_idle):
+    if is_idle:
+        logger.info("User is now idle!")
+        asyncio.run(manager.trigger_hook("user_idle_on_pc"))
+    else:
+        logger.info("User is now active!")
+        # 10 MINUTES TOTAL INACTIVITY
+        
+
 
 def show_splash_screen(image_path):
     """Create a simple splash screen with a logo."""
@@ -47,7 +64,12 @@ def show_splash_screen(image_path):
     splash_image = tk.PhotoImage(file=resource_path(image_path))
     splash_label = tk.Label(splash_root, image=splash_image, bg='white')
     splash_label.grid(row=0, column=0, sticky='nsew')  # Use grid with sticky to center
-    
+
+    # Add version and codename below the logo
+    version_text = f"IGOOR {IGOOR_VERSION} — {IGOOR_VERSION_CODENAME}"
+    version_label = tk.Label(splash_root, text=version_text, bg='white', fg='#444', font=("Arial", 14, "bold"))
+    version_label.grid(row=1, column=0, pady=(10, 0))
+
     # Configure window background
     splash_root.configure(bg='white')
     
@@ -58,7 +80,7 @@ def show_splash_screen(image_path):
 
 def signal_handler(sig, frame):
     logger.info('Exiting application...')
-    os._exit(0)
+    on_closing()
     
 signal.signal(signal.SIGINT, signal_handler)
 
@@ -67,13 +89,14 @@ IGOOR_DEBUG = os.getenv('IGOOR_DEBUG', 'False')
 IGOOR_CLI = os.getenv('IGOOR_CLI', 'False') 
 IGOOR_ONTOP = os.getenv('IGOOR_ONTOP', 'False') 
 IGOOR_OUTPUT_HTML = os.getenv('IGOOR_OUTPUT_HTML', 'False') 
+IGOOR_VERSION_CODENAME = __codename__
+IGOOR_VERSION=__version__
 
 def load_settings():
-    settings = SettingsManager();
-    # print("Current settings:", settings)
+    settings = SettingsManager()
     return settings
 
-def load_frontend_components():
+def load_frontend_components(lang):
     '''
     Sort of webpack that constructs the final HTML frontend,
     based on the Vue components from the active plugins 
@@ -138,14 +161,14 @@ def load_frontend_components():
             )
 
     # Load and modify the VUE template
-    with open('js/app_template.vue', 'r') as f:
+    with open(resource_path('js/app_template.vue'), 'r') as f:
         html_content = f.read()
         
     # Define the placeholders and their corresponding replacements
     # Also passes the appview variable
     replacements = {
         f'<!-- {category.upper()}_COMPONENTS -->': ''.join(
-            f'<{comp["name"].lower()} {comp["event_bindings"]} :appview="appview"></{comp["name"].lower()}>'
+            f'<{comp["name"].lower()} {comp["event_bindings"]} :appview="appview" :lang="lang"></{comp["name"].lower()}>'
             for comp in components
         )
         for category, components in components_by_category.items()
@@ -155,18 +178,19 @@ def load_frontend_components():
     for placeholder, replacement in replacements.items():
         html_content = html_content.replace(placeholder, replacement)
 
-    # Insert the Vue loader script into HTML content
     final_html = html_content
 
     # Write the final vue to app.vue
-    with open('js/app.vue', 'w') as f:
+    with open(resource_path('js/app.vue'), 'w') as f:
         f.write(final_html)
         f.close()
     
     # Load and modify the JAVASCRIPT
-    with open('js/app_template.js', 'r') as f:
+    with open(resource_path('js/app_template.js'), 'r') as f:
         js_content = f.read()
-    
+
+    js_content = js_content.replace('{{LANG}}', f'{lang}')
+
     replacements = {
         '//** JS_COMPONENTS */': ', '.join(vue_component_definitions)
     }        
@@ -176,68 +200,129 @@ def load_frontend_components():
         js_content = js_content.replace(placeholder, replacement)
     
     # Load and modify the JAVASCRIPT
-    with open('js/app.js', 'w') as f:
-        js_content = f.write(js_content)  
+    with open(resource_path('js/app.js'), 'w') as f:
+        f.write(js_content)  
 
     return final_html
 
+def on_closing():
+    websocket_server.stop()  
+    print("WebSocket server has been closed.")
+
 def on_loaded():
-    logger.info("GUI window is now loaded and available!")
-    asyncio.run(manager.trigger_hook("gui_ready"))
+    global window
+    logger.info("=== on_loaded function triggered ===")
+    
+    # Check if window object is available
+    if window is None:
+        logger.error("Window object is None! Cannot proceed with evaluate_js")
+        return False
+        
+    # Test with warning
+    try:
+        window.evaluate_js("console.warn('Calling READYPY');")
+        window.evaluate_js("console.warn(app); app.readypy();")
+        logger.info("✓ Warning evaluate_js test successful")
+    except Exception as e:
+        logger.error(f"✗ Warning evaluate_js failed: {e}")            
+    
+    try:
+        asyncio.run(manager.trigger_hook("gui_ready"))
+        logger.info("✓ gui_ready hook triggered successfully")
+    except Exception as e:
+        logger.error(f"Failed to trigger gui_ready hook: {e}")
+    
+    try:
+        prefs = settings.get_prefs()
+        idle_threshold = prefs.get("idle_threshold", 10)
+        logger.info(f"idle_threshold = {idle_threshold}")
+        
+        detector = IdleDetector(callback=on_idle_change, idle_threshold=idle_threshold, check_interval=10) 
+        detector.start()
+        logger.info("✓ IdleDetector started successfully")
+    except Exception as e:
+        logger.error(f"Failed to start IdleDetector: {e}")
+    
     return True
-    print("TESTING RAG:::")
-    queries = [
-        "Tu te souviens de l'expo Drosephilia",
-        "Combien d'enfants tu as",
-        "Comment s'appelle ta femme",
-        "Quels sont tes réalisateurs préférés",
-        "Est-ce que t'aimes Tarantino",
-        "Comment s'appellent tes fils",
-        "Combien de fils tu as ?"
-    ]
-    for query in queries:
-        asyncio.run(manager.trigger_hook(hook_name="add_msg_to_conversation", msg=query, author="def"))
-        asyncio.run(manager.trigger_hook(hook_name="asr_msg", msg="Q: " + query))
-        asyncio.run(manager.trigger_hook(hook_name="abandon_conversation"))
-        asyncio.run(asyncio.sleep(5))  # Wait 5 seconds before each query
 
 def start_webview():
+    global window
+    
     try:
+        # Check if running as executable
+        is_executable = getattr(sys, 'frozen', False)
+        debug_enabled = (IGOOR_DEBUG.lower() == 'true')
+        
+        logger.info(f"Running as executable: {is_executable}")
+        logger.info(f"Debug mode: {debug_enabled}")
+        logger.info(f"Current working directory: {os.getcwd()}")
+        
+        # Check if index.html exists
+        index_path = resource_path('index.html')
+        logger.info(f"Looking for index.html at: {index_path}")
+        if os.path.exists(index_path):
+            logger.info("✓ index.html found")
+        else:
+            logger.error("✗ index.html NOT found")
+            
+        # Log webview configuration
         fullscreen = os.getenv('IGOOR_FULLSCREEN', 'False').lower() == 'true'
         on_top = os.getenv('IGOOR_ONTOP', 'False').lower() == 'true'
-        window = webview.create_window("IGOOR", "index.html", js_api=Api(), 
-                                        resizable=True, fullscreen=fullscreen,on_top=on_top)
+        
+        logger.info(f"Webview config - fullscreen: {fullscreen}, on_top: {on_top}")
+        
+        # Create window
+        logger.info("Creating webview window...")
+        window = webview.create_window(
+            "IGOOR", 
+            "index.html", 
+            js_api=Api(), 
+            resizable=True, 
+            fullscreen=fullscreen,
+            on_top=on_top,
+            min_size=(1280,960)
+        )
+        
+        if window is None:
+            logger.error("Failed to create window - window is None")
+            return
+        else:
+            logger.info("✓ Window created successfully")
+            
+        # Bind events
+        logger.info("Binding window events...")
         window.events.loaded += on_loaded
-        webview.start(debug=IGOOR_DEBUG.lower() == 'true')
+        window.events.closing += on_closing
+        logger.info("✓ Events bound successfully")
+        
+        # Start webview
+        logger.info("Starting webview...")
+        webview.start(debug=debug_enabled)
+        logger.info("✓ Webview started successfully")
+        
+    except Exception as e:
+        logger.error(f"Critical error in start_webview: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        
     except KeyboardInterrupt:
         logger.warning("KeyboardInterrupt detected. Shutting down...")
-        
-        # Safely close the websocket server
-        websocket_server.stop()  # Make sure you have a stop method to close connections and resources
-        
-        print("WebSocket server has been closed.")    
-        os._exit()
-
+        on_closing()
 
 if __name__ == "__main__":
     splash_screen = show_splash_screen('img/igoor_logo.png')
-    settings = load_settings();
-    
-    if IGOOR_CLI.lower() != 'true':
-        final_html = load_frontend_components()
-        if (IGOOR_OUTPUT_HTML.lower() == 'true'):
-            print(final_html)
-
-    # print(settings.get_all_settings())
+    settings = load_settings()
     bio = settings.get_nested(["plugins", "onboarding", "bio"], default={})
-    logger.info(bio)
+    # logger.info(bio)
     prefs = settings.get_nested(["plugins", "onboarding", "prefs"], default={})
     lang = prefs.get("lang")
-    print ("lang = " + lang)
-    prompts = AssistantPrompts("locales/",lang)
-    # LAUNCH WINDOW APP
+    
     if IGOOR_CLI.lower() != 'true':
+        final_html = load_frontend_components(lang=lang)
+        if (IGOOR_OUTPUT_HTML.lower() == 'true'):
+            print(final_html)
         splash_screen.destroy()
-        start_webview()
+        start_webview()         
     else:
         print("CLI ONLY VERSION")
+

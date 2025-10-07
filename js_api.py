@@ -1,11 +1,12 @@
 import asyncio
+import webbrowser
 import webview
-# from prompts import AssistantPrompts
 from context_manager import ContextManager
 context_manager = ContextManager()
 from plugin_manager import PluginManager
 plugin_manager = PluginManager()
 from settings_manager import SettingsManager
+sm = SettingsManager()
 import os,time
 
 class Api:
@@ -14,14 +15,23 @@ class Api:
         self.was_fullscreen = os.getenv('IGOOR_FULLSCREEN', 'False').lower() == 'true'
         self.initial_width = 1920  # Or your preferred default width
         self.initial_height = 1080  # Or your preferred default height
-        
+    
     def get_plugins_by_category(self):
         print("Fetching plugins by category")
         return plugin_manager.get_plugins_by_category()
     
+    def get_current_plugin_settings(self, plugin_name):
+        # print("Fetching current plugin settings for", plugin_name) # OLD SETTINGS ERROR HERE !!!
+        # print(sm.get_plugin_settings(plugin_name))
+        return sm.get_plugin_settings(plugin_name)
+    
     def get_plugin_settings(self,plugin_name):
-        print("Fetching plugin settings")
         return plugin_manager.plugin_has_settings(plugin_name,True)
+    
+    def update_plugin_settings(self,plugin_name,settings):
+        # print("Saving plugin settings")
+        # print(settings)
+        return sm.update_plugin_settings(plugin_name,settings)
     
     def toggle_plugin(self, pn, active):
         if not active:
@@ -31,7 +41,7 @@ class Api:
 
     def win_minimize(self):
         window = webview.windows[0]
-        window.minimize();
+        window.minimize()
 
     def minimize(self):
         print("MIN window")
@@ -63,12 +73,55 @@ class Api:
         except Exception as e:
             print(f"Error during maximize: {e}")
         
+    def open_external_url(self, url: str):
+        try:
+            if not isinstance(url, str):
+                raise ValueError("URL must be a string")
+            if not url.lower().startswith(("http://", "https://")):
+                raise ValueError("Unsupported URL scheme")
+            webbrowser.open(url, new=2)
+            return True
+        except Exception as e:
+            print(f"Error opening external URL '{url}': {e}")
+            return False
+    
     
     def change_view(self,lastview,currentview):
         asyncio.run(self.trigger_hook("change_view",lastview=lastview,currentview=currentview))
     
+    def force_onboarding(self):
+        asyncio.run(self.trigger_hook("force_onboarding"))
+    
     def get_context_all(self):
         print(context_manager.get_context())
+    
+    # New non-async wrapper for trigger_hook
+    def trigger_hook_sync(self, hook_name, *args, **kwargs):
+        """
+        Synchronous wrapper for trigger_hook that handles the async call properly.
+        This is the method that should be called from JavaScript.
+        """
+        print(f"JS API: trigger_hook_sync called for {hook_name}")
+        try:
+            # Create a new event loop for this thread if needed
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                # If there's no event loop in this thread, create one
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+            
+            # Run the async function and return its result
+            if args and isinstance(args[0], dict):
+                # If first arg is a dict, convert it to kwargs
+                kwargs.update(args[0])
+                args = args[1:]
+                
+            future = asyncio.ensure_future(self.trigger_hook(hook_name, *args, **kwargs))
+            return loop.run_until_complete(future)
+        except Exception as e:
+            print(f"Error in trigger_hook_sync: {e}")
+            return {"error": str(e)}
         
     async def trigger_hook(self, hook_name, *args, **kwargs):
         try:

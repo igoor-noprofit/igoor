@@ -1,0 +1,9 @@
+{
+    "api_key": "",
+    "voice_id": "",
+    "model_id": "simba-multilingual",
+    "use_ssml": true,
+    "rate": 100,
+    "pitch": 100,
+    "volume": 100
+}
