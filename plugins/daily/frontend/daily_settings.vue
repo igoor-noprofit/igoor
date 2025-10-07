@@ -294,7 +294,7 @@ module.exports = {
 
 .options {
   display: flex;
-  gap: 1rem;
+  
   padding: 0 8px;
 }
 .itemTitle{
@@ -302,14 +302,29 @@ module.exports = {
   font-size: 1rem;
 }
 
+
+.categories-row {
+  display: flex;
+  flex-direction: row;
+  box-sizing: border-box;
+  flex-wrap: nowrap;
+  border: 1px solid #f00;
+  gap: 0.7rem;
+}
+
+
 .category-col {
   background-color: #1e2223;
   border: 2px solid #2c3e50;
   border-radius: 8px;
-  padding: 0.4rem;
-  margin-right: 10px;
+  /* padding: 0.4rem; */
   justify-content: space-between;
-  font-weight: bold;
+  display: flex;
+  flex: 1 1 0;
+  border: 1px solid #ff0;
+  min-width: 0;
+  flex-direction: column;
+  justify-content: flex-start;
 }
 
 .category-header {
@@ -434,11 +449,6 @@ module.exports = {
 }
 .settings-actions .btn-secondary{
   background-color: #ccc;
-}
-
-.categories-row {
-  display: flex;
-  flex-direction: row;
 }
 
 .item-row[data-draggable="true"],.category-col[data-draggable="true"] .category-header{
