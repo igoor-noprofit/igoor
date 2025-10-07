@@ -5,7 +5,7 @@
             <img src="/img/icons/src/settings.svg" width="30">
         </div>
         <!-- Modal Window for Plugin Settings -->
-        <div v-if="showModal" class="modal-overlay" :class="isSaving ? isSaving: ''" :id="onboardingModal">
+        <div v-if="showModal" class="modal-overlay" :class="isSaving ? 'isSaving' : ''" :id="onboardingModal">
             <div class="modal-content settings container onboarding plugin">
                 <!-- Restart Alert -->
                 <div v-if="showRestartAlert" class="restart-alert">
@@ -806,7 +806,7 @@ a.extlink {
 }
 
 .isSaving{
-    cursor: wait;
+    cursor: wait !important;
     background: #f00;
 }
 </style>
