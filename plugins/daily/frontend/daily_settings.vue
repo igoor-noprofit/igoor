@@ -21,6 +21,7 @@
               <span v-if="!category.editing" @click="editCategoryName('main', catIdx)" class="category_name">{{ category.name }}</span>
               <input v-else v-model="category.editName" @blur="saveCategoryName('main', catIdx)"
                 @keyup.enter="saveCategoryName('main', catIdx)" />
+              <button class="switch-btn" @click="toggleCategoryPlacement('main', catIdx)">⇄</button>
               <button class="delete-btn" @click="deleteCategory('main', catIdx)">✕</button>
             </div>
             <draggable v-model="category.itemsArr" :group="'items'"
@@ -59,6 +60,7 @@
               <span v-if="!category.editing" @click="editCategoryName('secondary', catIdx)" class="category_name">{{ category.name }}</span>
               <input v-else v-model="category.editName" @blur="saveCategoryName('secondary', catIdx)"
                 @keyup.enter="saveCategoryName('secondary', catIdx)" />
+              <button class="switch-btn" @click="toggleCategoryPlacement('secondary', catIdx)">⇄</button>
               <button class="delete-btn" @click="deleteCategory('secondary', catIdx)">✕</button>
             </div>
             <draggable v-model="category.itemsArr" :group="'items'"
@@ -176,6 +178,21 @@ module.exports = {
     },
     switchToMainView() {
       this.currentView = 'main';
+    },
+    toggleCategoryPlacement(view, catIdx) {
+      const sourceArr = view === 'main' ? this.mainCategories : this.secondaryCategories;
+      const targetArr = view === 'main' ? this.secondaryCategories : this.mainCategories;
+      if (!sourceArr[catIdx]) return;
+      if (targetArr.length >= 6) {
+        alert(this.t('Maximum categories reached on the destination page.'));
+        return;
+      }
+      const [category] = sourceArr.splice(catIdx, 1);
+      if (category) {
+        category.editing = false;
+        category.editName = category.name;
+        targetArr.push(category);
+      }
     },
     editCategoryName(view, catIdx) {
       const arr = view === 'main' ? this.mainCategories : this.secondaryCategories;
@@ -300,6 +317,7 @@ module.exports = {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 0.5rem;
+  gap: 0.5rem;
 }
 
 .category_name{
@@ -317,6 +335,14 @@ module.exports = {
   background: none;
   border: none;
   color: #e74c3c;
+  font-size: 1.2em;
+  cursor: pointer;
+}
+
+.switch-btn {
+  background: none;
+  border: none;
+  color: #1abc9c;
   font-size: 1.2em;
   cursor: pointer;
 }

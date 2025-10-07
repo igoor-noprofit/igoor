@@ -4,5 +4,6 @@
     "+ Item": "+ Élément",
     "Do you really want to delete this delete this category?": "Supprimer cette catégorie ?",
     "Do you really want to delete this item?": "Supprimer cet élément ?",
-    "Cancel": "Annuler"
+    "Cancel": "Annuler",
+    "Maximum categories reached on the destination page.": "Nombre maximum de catégories atteint sur la page de destination."
 }
