@@ -32,10 +32,11 @@
                   <span class="itemTitle" v-if="!item.editing" @click="editItemName('main', catIdx, itemIdx)">{{ item.key }}</span>
                   <input v-else v-model="item.editName" @blur="saveItemName('main', catIdx, itemIdx)"
                     @keyup.enter="saveItemName('main', catIdx, itemIdx)" />
-                  <label class="switch">
-                    <input type="checkbox" v-model="item.fixed" />
-                    <span class="slider"></span>
+                  <label>
+                      <input type="checkbox" v-model="item.fixed" />
                   </label>
+                    
+                   
                   <!--span class="drag-handle" v-if="!item.fixed">☰</span-->
                   <button class="delete-btn" @click="deleteItem('main', catIdx, itemIdx)">✕</button>
                 </div>
@@ -48,7 +49,7 @@
       </draggable>
       <div v-if="mainCategories.length < 6" class="add-category-container">
         <input class="add-category-input" v-model="newMainCategory" @keyup.enter="addCategory('main')"
-          v-bind:placeholder="t('+ Cat')" />
+          v-bind:placeholder="t('+ Category')" />
       </div>
     </div>
     <div v-if="currentView === 'secondary'" class="options secondary">
@@ -71,9 +72,9 @@
                   <span class="itemTitle" v-if="!item.editing" @click="editItemName('secondary', catIdx, itemIdx)">{{ item.key }}</span>
                   <input v-else v-model="item.editName" @blur="saveItemName('secondary', catIdx, itemIdx)"
                     @keyup.enter="saveItemName('secondary', catIdx, itemIdx)" />
-                  <label class="switch">
+                  <label class="">
                     <input type="checkbox" v-model="item.fixed" />
-                    <span class="slider"></span>
+                    
                   </label>
                   <!--span class="drag-handle" v-if="!item.fixed">☰</span-->
                   <button class="delete-btn" @click="deleteItem('secondary', catIdx, itemIdx)">✕</button>
@@ -87,7 +88,7 @@
       </draggable>
       <div v-if="secondaryCategories.length < 6">
         <input class="add-category-input" v-model="newSecondaryCategory" @keyup.enter="addCategory('secondary')"
-          v-bind:placeholder="t('+ Cat.')" />
+          v-bind:placeholder="t('+ Category')" />
       </div>
     </div>
   </div>
@@ -296,7 +297,7 @@ module.exports = {
   display: flex;
   margin: 0;
   padding: 0;
-  border: 1px solid #0f0;
+  /* border: 1px solid #0f0; */
 }
 .itemTitle{
   width: 65%;
@@ -309,7 +310,7 @@ module.exports = {
   flex-direction: row;
   box-sizing: border-box;
   flex-wrap: nowrap;
-  border: 1px solid #f00;
+  /* border: 1px solid #f00; */
   gap: 0.7rem;
 }
 
@@ -337,7 +338,7 @@ module.exports = {
 }
 
 .add-category-container {
-  border: 1px dashed #00f;
+  /* border: 1px dashed #00f; */
   display: flex;
 
   justify-content: center;
@@ -347,9 +348,9 @@ module.exports = {
 .category_name{
   background: #28373b;
   padding: 6px 12px;
-  border-radius: 4px;
+  /* border-radius: 4px; */
   cursor:pointer;
-  width: 1.1vw;
+  font-size: 1.1vw;
 }
 
 .category-header span {
@@ -370,7 +371,7 @@ module.exports = {
   color: #1abc9c;
   font-size: 1.2em;
   cursor: pointer;
-  padding: 10px 10px;
+  padding: 7px 10px !important;
 }
 
 .item-row {
@@ -384,13 +385,16 @@ module.exports = {
   padding: 0.25rem 0.5rem;
   text-align: left;
 }
+.item-row input[type="checkbox"]{
+  transform: scale(3);
+}
 
 .add-item-input,
 .add-category-input {
   margin-top: 0.5rem;
   padding: 0.25rem;
   border-radius: 4px;
-  border: 1px solid #34495e;
+  /* border: 1px solid #34495e; */
   background: #1a2329;
   color: #fff;
 }
