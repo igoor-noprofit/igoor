@@ -46,9 +46,9 @@
           </div>
         </template>
       </draggable>
-      <div v-if="mainCategories.length < 6">
+      <div v-if="mainCategories.length < 6" class="add-category-container">
         <input class="add-category-input" v-model="newMainCategory" @keyup.enter="addCategory('main')"
-          v-bind:placeholder="t('+ Category')" />
+          v-bind:placeholder="t('+ Cat')" />
       </div>
     </div>
     <div v-if="currentView === 'secondary'" class="options secondary">
@@ -87,7 +87,7 @@
       </draggable>
       <div v-if="secondaryCategories.length < 6">
         <input class="add-category-input" v-model="newSecondaryCategory" @keyup.enter="addCategory('secondary')"
-          v-bind:placeholder="t('+ Category')" />
+          v-bind:placeholder="t('+ Cat.')" />
       </div>
     </div>
   </div>
@@ -294,8 +294,9 @@ module.exports = {
 
 .options {
   display: flex;
-  
-  padding: 0 8px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid #0f0;
 }
 .itemTitle{
   width: 65%;
@@ -334,6 +335,14 @@ module.exports = {
   margin-bottom: 0.5rem;
   gap: 0.5rem;
 }
+
+.add-category-container {
+  border: 1px dashed #00f;
+  display: flex;
+
+  justify-content: center;
+}
+
 
 .category_name{
   background: #28373b;
@@ -376,7 +385,6 @@ module.exports = {
 
 .add-item-input,
 .add-category-input {
-  width: 80% !important;
   margin-top: 0.5rem;
   padding: 0.25rem;
   border-radius: 4px;
