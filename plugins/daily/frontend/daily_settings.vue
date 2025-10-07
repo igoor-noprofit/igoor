@@ -414,6 +414,22 @@ module.exports = {
   display: none;
 }
 
+.item-row label,
+.item-row .delete-btn {
+  position: relative;
+}
+
+.item-row label::before,
+.item-row .delete-btn::before {
+  content: '';
+  position: absolute;
+  top: -12px;
+  bottom: -12px;
+  left: -12px;
+  right: -12px;
+  /* This pseudo-element extends the clickable area */
+}
+
 .slider {
   position: absolute;
   cursor: pointer;
