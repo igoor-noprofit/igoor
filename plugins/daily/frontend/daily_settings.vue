@@ -18,7 +18,7 @@
         <template #item="{ element: category, index: catIdx }">
           <div :key="category.name" class="options-col category-col bordered">
             <div class="category-header">
-              <span v-if="!category.editing" @click="editCategoryName('main', catIdx)">{{ category.name }}</span>
+              <span v-if="!category.editing" @click="editCategoryName('main', catIdx)" class="category_name">{{ category.name }}</span>
               <input v-else v-model="category.editName" @blur="saveCategoryName('main', catIdx)"
                 @keyup.enter="saveCategoryName('main', catIdx)" />
               <button class="delete-btn" @click="deleteCategory('main', catIdx)">✕</button>
@@ -56,7 +56,7 @@
         <template #item="{ element: category, index: catIdx }">
           <div :key="category.name" class="options-col category-col bordered">
             <div class="category-header">
-              <span v-if="!category.editing" @click="editCategoryName('secondary', catIdx)">{{ category.name }}</span>
+              <span v-if="!category.editing" @click="editCategoryName('secondary', catIdx)" class="category_name">{{ category.name }}</span>
               <input v-else v-model="category.editName" @blur="saveCategoryName('secondary', catIdx)"
                 @keyup.enter="saveCategoryName('secondary', catIdx)" />
               <button class="delete-btn" @click="deleteCategory('secondary', catIdx)">✕</button>
@@ -274,6 +274,7 @@ module.exports = {
   /* border:1px solid #0f0; */
 }
 
+
 .options {
   display: flex;
   gap: 1rem;
@@ -288,10 +289,10 @@ module.exports = {
   background-color: #1e2223;
   border: 2px solid #2c3e50;
   border-radius: 8px;
-  padding: 0.5rem;
-  min-width: 220px;
+  padding: 0.4rem;
   margin-right: 10px;
   justify-content: space-between;
+  font-weight: bold;
 }
 
 .category-header {
@@ -299,6 +300,13 @@ module.exports = {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 0.5rem;
+}
+
+.category_name{
+  background: #28373b;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor:pointer
 }
 
 .category-header span {
