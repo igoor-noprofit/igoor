@@ -348,7 +348,8 @@ module.exports = {
   background: #28373b;
   padding: 6px 12px;
   border-radius: 4px;
-  cursor:pointer
+  cursor:pointer;
+  width: 1.1vw;
 }
 
 .category-header span {
@@ -369,6 +370,7 @@ module.exports = {
   color: #1abc9c;
   font-size: 1.2em;
   cursor: pointer;
+  padding: 10px 10px;
 }
 
 .item-row {
