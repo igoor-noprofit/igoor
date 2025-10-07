@@ -29,12 +29,13 @@
               item-key="key">
               <template #item="{ element: item, index: itemIdx }">
                 <div :key="item.key" class="item-row" :class="{ 'fixed-item': item.fixed }">
-                  <span class="itemTitle" v-if="!item.editing" @click="editItemName('main', catIdx, itemIdx)">{{ item.key }}</span>
-                  <input v-else v-model="item.editName" @blur="saveItemName('main', catIdx, itemIdx)"
-                    @keyup.enter="saveItemName('main', catIdx, itemIdx)" />
                   <label>
                       <input type="checkbox" v-model="item.fixed" />
                   </label>
+                  <span class="itemTitle" v-if="!item.editing" @click="editItemName('main', catIdx, itemIdx)">{{ item.key }}</span>
+                  <input v-else v-model="item.editName" @blur="saveItemName('main', catIdx, itemIdx)"
+                    @keyup.enter="saveItemName('main', catIdx, itemIdx)" />
+                  
                     
                    
                   <!--span class="drag-handle" v-if="!item.fixed">☰</span-->
@@ -69,13 +70,13 @@
               item-key="key">
               <template #item="{ element: item, index: itemIdx }">
                 <div :key="item.key" class="item-row" :class="{ 'fixed-item': item.fixed }">
+                  <label>
+                    <input type="checkbox" v-model="item.fixed" />
+                  </label>
                   <span class="itemTitle" v-if="!item.editing" @click="editItemName('secondary', catIdx, itemIdx)">{{ item.key }}</span>
                   <input v-else v-model="item.editName" @blur="saveItemName('secondary', catIdx, itemIdx)"
                     @keyup.enter="saveItemName('secondary', catIdx, itemIdx)" />
-                  <label class="">
-                    <input type="checkbox" v-model="item.fixed" />
-                    
-                  </label>
+                  
                   <!--span class="drag-handle" v-if="!item.fixed">☰</span-->
                   <button class="delete-btn" @click="deleteItem('secondary', catIdx, itemIdx)">✕</button>
                 </div>
