@@ -114,6 +114,10 @@ module.exports = {
       this.secondaryCategories = this.processCategories(needs[1]);
       this.originalSettings = JSON.parse(JSON.stringify(needs));
     }
+    document.querySelectorAll('.item-row input, .item-row button').forEach(el => {
+      el.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: false });
+      el.addEventListener('mousedown', (e) => e.stopPropagation());
+    });
   },
   data() {
     return {
