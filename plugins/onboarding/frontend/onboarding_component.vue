@@ -177,7 +177,7 @@
                             <br>
                             <p>{{ t('If you find this software useful, please consider donating to the not-for-profit organization IGOOR') }}</p>
                             <br>
-                                🎁 <a :href="donationLink" target="_blank" @click.prevent="openExternalLink(donationLink)">{{ t("Make a donation") }}</a>
+                                🎁 <a :href="donationLink" target="_blank">{{ t("Make a donation") }}</a>
                         </div>
                     </div>
                 </div>
@@ -292,16 +292,6 @@ export default {
         },
         closeModal() {
             this.showModal = false
-        },
-        openExternalLink(url) {
-            if (!url) {
-                return;
-            }
-            if (window.pywebview?.api?.open_external_url) {
-                window.pywebview.api.open_external_url(url);
-            } else {
-                window.open(url, '_blank', 'noopener,noreferrer');
-            }
         },
         async saveSettings() { // This is for main settings (bio, prefs, ai)
             console.log("Saving main settings...");
