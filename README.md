@@ -11,7 +11,7 @@ Take a look at the [IGOOR website](https://igoor.org/en) for further infos about
 **This project is currently under private development. While the final version of the software WILL BE released as free/libre under the GPLv3 License, the current codebase is not yet public and is subject to strict confidentiality.**
 
 IGOOR is written by Carlo Giordano, based on a concept by Igor Novitzki.
-UX/UI by Zenoid.
+Original UX/UI by Zenoid.
 
 All collaborators and contributors are reminded that:
 
@@ -25,7 +25,51 @@ Thank you for your understanding and cooperation in ensuring the successful deve
 
 ## REQUIREMENTS
 
-**Microsoft Windows. Tested on Windows 11.**
+### OS 
+
+**Microsoft Windows. Tested on Windows 10 and 11.**
+
+### Microsoft © Edge WebView2 Runtime
+
+This application currently uses Microsoft Edge WebView2 Runtime to display a browser-like window.
+
+You can download it here:
+
+https://developer.microsoft.com/en-us/microsoft-edge/webview2?form=MA13LH#download
+
+NOTE: IGOOR installers sistematically include the runtime.
+Microsoft Edge WebView2 Runtime is © Microsoft Corporation.
+
+### INTERNET CONNECTION
+
+While we are working on a fully local, offline-first version, as of now the software only works with a working Internet connection.
+
+### AI INFERENCE PROVIDER
+
+The only AI inference provider currently meeting our requirements of speed, privacy, quality and support of opensource models is Groq.
+Signup for a FREE-tier access to Groq's API here:
+
+https://console.groq.com/login
+
+For production use, you will need a developer tier self-serve (Pay per Token) access, 
+or you'll rapidly incur in rate limits errors.
+
+### DISK SPACE
+
+In the user's data folder, big ASR models (like Vosk) take around 2.3Gb, plus 1.4 for the zip file.
+
+The embedding model from HuggingFace currently requires 1.15Gb on disk.
+
+The app should take less than 3Gb.
+
+### FFMPEG
+
+As of now, TTS plugin for Speechify requires ffmpeg, and that the path to ffmpeg\bin folder be included in the system PATH environment variable.
+
+NOTE: Complete IGOOR installers include ffmpeg and automatically set the env variable.
+
+
+### PYTHON
 
 See requirements.txt for a list of Python libraries needed.
 
@@ -33,7 +77,9 @@ See requirements.txt for a list of Python libraries needed.
 
 ### PYTHON VERSION
 
-Currently tested on **Python 3.10.6**
+Currently tested on **Python 3.10.6**. Download it from here: 
+
+[PYTHON]https://www.python.org/downloads/release/python-3106/
 
 ### UPGRADE PIP
 ```
@@ -103,6 +149,8 @@ In this case the final path is :
 
 IGOOR_FOLDER/plugins/asrvosk/models/language/model_size
 
+NOTE: Because of its high WER compared to Whisper and Voxtral, we recommend using Vosk only if audio privacy is paramount.
+
 ### Static Knowledge Base from patient documents (RAG, RetrievalAugmentedGeneration)
 
 Documents in IGOOR_FOLDER/plugins/rag/medias/ are scanned by the RAG plugin.
@@ -112,7 +160,7 @@ Allowed formats:
 .txt
 .md
 
-If the index folder (IGOOR_FOLDER/plugins/rag/faiss_index) does not exist, but the medias folder do exist and it's not empty, at startup the plugin will create the index by ingesting all the files in the medias folder.
+If the index folder (IGOOR_FOLDER/plugins/rag/faiss_index) does not exist, but the medias folder do exist and it's not empty, at startup the plugin will create or update the index by ingesting all the (new) documents in the medias folder.
 
 ### EMBEDDING MODELS FOR RAG
 
@@ -139,19 +187,57 @@ igoor.bat
 
 to open a on-top window, without debug console (CLI window will open and then disappear in the system bar).
 
-## CREATE AN INSTALLER
+## CREATE AN EXECUTABLE
 
-Currently the pyinstaller does NOT work.
+### REQUIREMENTS 
 
-The pyinstaller uses igoor.spec 
+First of all, upgrade pyinstaller: 
 
 ```
-pyinstaller igoor.spec --noconfirm
+pip install --upgrade pyinstaller
 ```
-To update requirements: 
+
+and hooks-contrib
+
 ```
-pip freeze > requirements.txt
+pip install --upgrade pyinstaller-hooks-contrib
 ```
+
+### WEBRTCVAD-WHEELS
+
+Modify the hook in the virtual environment folder:
+
+\venv\lib\site-packages\_pyinstaller_hooks_contrib\stdhooks\hook-webrtcvad.py
+
+Replace code with this code:
+```
+from PyInstaller.utils.hooks import copy_metadata
+
+datas = copy_metadata('webrtcvad-wheels')
+```
+
+### CREATE THE EXECUTABLE
+
+In powershell (VS Code terminal):
+
+```
+venv\scripts\Activate
+.\create_exe.bat
+```
+
+This takes around 8/10 minutes.
+Or you can do the fast version without cleaning all dirs:
+
+```
+venv\scripts\Activate
+.\create_exe_fast.bat
+```
+
+This takes around 5/7 minutes.
+
+In a CMD window, launch /dist/igoor/igoor.exe 
+(so you can see the logs if there's any error)
+
 
 ## IGOOR LOGS
 Daily logs are in:
@@ -160,10 +246,20 @@ Daily logs are in:
 IGOOR_FOLDER/logs/
 ```
 
-Daily plugin logs are in:
+Separate llm_invocations contain a JSON of all LLM calls, with prompt/answer and reasoning (where applicable)
 
-```
-IGOOR_FOLDER/logs/plugins/pluginname_date
-```
+## ADDING A LANGUAGE
 
+### REQUIREMENTS
+For each plugin, check if the language is supported. Start by Vosk and Whisper models.
+For each LLM, check if the language is supported too.
+For TTS, check if the external model supports the language (Eleven Labs, Speechify etc.)
 
+### PLUGINS
+
+### WHISPER
+Whisper and Voxtral models have a known bug that can convert silences or very low, inaudible sounds, to specific strings never uttered by the user (ex. "Sous-titrage ST' 501"). These are cleaned by the function "clean_whisper_silence" in plugins/asrwhisper.py (added in 0.1.3.5). 
+New languages may require new filters to be applied.
+
+## KNOWN ISSUES ##
+1) ASR models can interpret silence or very low, inaudible sounds as speech and return texts like "Thank you" instead of empty texts. This depends on the ASR models, not the IGOOR app.

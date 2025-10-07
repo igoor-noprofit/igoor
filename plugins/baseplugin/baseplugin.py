@@ -1,3 +1,4 @@
+from version import __appname__, __version__, __codename__
 from settings_manager import SettingsManager
 from status_manager import StatusManager
 from plugin_manager import hookimpl, PluginManager
@@ -6,6 +7,8 @@ import os,json,asyncio
 from utils import resource_path
 from llm_manager import LLMManager
 from utils import setup_logger
+from db_manager import DatabaseManager
+
 class Baseplugin:
     def __init__(self, plugin_name="baseplugin", pm=None):
         self.is_loaded = False
@@ -14,8 +17,8 @@ class Baseplugin:
         
         self.logger = setup_logger(
             f'plugins.{plugin_name}', 
-            os.path.join(os.getenv('APPDATA'), os.getenv('IGOOR_APPNAME')),
-            separate_plugin_log=True
+            os.path.join(os.getenv('APPDATA'), __appname__),
+            separate_plugin_log=False
         )
         
         if pm is None:
@@ -28,11 +31,19 @@ class Baseplugin:
         
         self.plugin_name = plugin_name
         self.settings_manager = SettingsManager()
+        self.lang = self.settings_manager.get_lang()
         self.status_manager = StatusManager()
         
+        # Load plugin metadata
+        self._plugin_metadata = self._load_plugin_metadata()
+        
+        # Initialize database if needed
+        self._db = None
+        if self._plugin_metadata.get('requires_db', False):
+            self._init_database()
         # self.pm = pm
         # Construct the plugin folder path
-        self.app_name = os.getenv('IGOOR_APPNAME')  # Get the application name from the environment variable
+        self.app_name = __appname__  # Get the application name from the environment variable
         self.appdata_path = os.getenv('APPDATA')  # Get the APPDATA path from the environment variable
         self.plugin_folder = os.path.join(self.appdata_path, self.app_name, 'plugins', plugin_name)
         # Create the directory if it doesn't exist
@@ -42,7 +53,12 @@ class Baseplugin:
         else:
             print("FOLDER EXISTING: " + self.plugin_folder)
         websocket_server.register_message_handler(self.plugin_name, self.process_incoming_message)
-
+        # 
+        this_dir = os.path.dirname(os.path.abspath(__file__))  # This will be the plugin folder
+        plugin_folder = os.path.abspath(os.path.join(this_dir, '..'))
+        self._app_plugin_folder = os.path.join(plugin_folder, self.plugin_name)
+        print(f"PLUGIN ROOT = {self._app_plugin_folder}")
+        
         
     @hookimpl
     def get_frontend_components(self):
@@ -58,16 +74,56 @@ class Baseplugin:
         """
         Retrieve settings specific to the plugin.
         """
-        self.logger.info(f"getting settings for {self.plugin_name}")
         return self.settings_manager.get_plugin_settings(self.plugin_name)
 
-    def mass_update_settings(self, json_data):
+    
+    def get_my_translations(self) -> dict:
+        translations_path = os.path.join(self._app_plugin_folder, 'locales', self.lang, self.plugin_name + "_" + self.lang + ".json")
+        return self.load_translation_file(translations_path)
+    
+    # Example: load prompts from a .py file
+    def get_my_prompts(self) -> dict:
         try:
+            import importlib.util
+            prompts_path = os.path.join(self._app_plugin_folder, 'locales', self.lang, 'prompts.py')
+            spec = importlib.util.spec_from_file_location("prompts", prompts_path)
+            prompts_module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(prompts_module)
+        except (FileNotFoundError, ImportError) as e:
+            self.logger.error(f"Error loading prompts from {prompts_path}: {e}")
+            return {}
+        return prompts_module.prompts
+    
+    def load_translation_file(self,translation_file_path):
+        if not os.path.exists(translation_file_path):
+            self.logger.warning(f"Translation file not found: {translation_file_path}")
+            return {}
+        try:
+            with open(translation_file_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except json.JSONDecodeError as e:
+            self.logger.error(f"Error decoding prompts JSON: {e}")
+            return {}
+        
+    def mass_update_my_settings(self, settings):
+        try:
+            if isinstance(settings, str):
+                json_data = settings
+            elif isinstance(settings, dict):
+                json_data = json.dumps(settings)
+            else:
+                self.logger.error("Settings must be a dict or a JSON string.")
+                return False
             # Check if the input is a valid JSON object
             parsed_data = json.loads(json_data)
-            self.settings_manager.save_settings(parsed_data)
+            self.settings_manager.update_plugin_settings(self.plugin_name,parsed_data)
+            if (self.settings_manager.save_settings()):
+                self.settings_manager.load_settings()
+                asyncio.create_task(self.pm.trigger_hook('global_settings_updated'))
+                return True
         except json.JSONDecodeError:
             self.logger.error("Invalid JSON data provided for mass update.")
+            return False
 
     def update_my_settings(self, key: str, value: any):
         """
@@ -78,6 +134,8 @@ class Baseplugin:
         current_settings[key] = value
         self.settings_manager.update_plugin_settings(self.plugin_name, current_settings)
         self.settings_manager.save_settings()
+        
+        
         
     def update_status(self, status):
         self.logger.info(f"Plugin {self.__class__.__name__} received status update: {status}")
@@ -114,11 +172,11 @@ class Baseplugin:
         subfolder_path = os.path.join(self.plugin_folder, subfolder_name)
         try:
             if not os.path.exists(subfolder_path):
-                self.logger.info(f"CREATING SUBFOLDER {subfolder_path}")
+                self.logger.debug(f"CREATING SUBFOLDER {subfolder_path}")
                 os.makedirs(subfolder_path)
                 return subfolder_path
             else:
-                self.logger.info(f"SUBFOLDER ALREADY EXISTS: {subfolder_path}")
+                self.logger.debug(f"SUBFOLDER ALREADY EXISTS: {subfolder_path}")
                 return subfolder_path
         except Exception as e:
             self.logger.error(f"Failed to create subfolder {subfolder_path}: {e}")
@@ -132,7 +190,6 @@ class Baseplugin:
         :param plugin_name: (Optional) The plugin name to send the message to. If not provided, uses self.plugin_name.
         """
         target_plugin_name = plugin_name or self.plugin_name
-        self.logger.info(f"Wait for socket CALLED to send message: {message} to: {target_plugin_name}")
         while not websocket_server.is_socket_open(target_plugin_name):
             await asyncio.sleep(1)  # Wait for 1 second before checking again
             self.logger.info(f"Waiting for socket to open, to send {message} to {target_plugin_name}")
@@ -215,39 +272,66 @@ class Baseplugin:
             
     def send_message_to_frontend(self, message, plugin_name=None):
         """
-        Sends a message to the designated plugin's frontend channel.
-
+        Sends a message to the designated plugin's frontend channel with retry mechanism.
+        
         :param message: The message to be sent.
         :param plugin_name: (Optional) The plugin name to send the message to. If not provided, uses self.plugin_name.
         """
+        import time
+        
         # Use the provided plugin_name or default to self.plugin_name
         target_plugin_name = plugin_name or self.plugin_name
-
-        if websocket_server.is_socket_open(target_plugin_name):
-            if not (target_plugin_name=='app'):
-                self.logger.info(f"{target_plugin_name} BACKEND => FRONTEND via ws")
+        
+        # Retry configuration
+        max_retries = 5
+        retry_delay = 1  # seconds
+        
+        # Ensure the message is a JSON string
+        if isinstance(message, dict):
+            message = json.dumps(message)
+            
+        # Attempt to send the message with retries
+        for attempt in range(max_retries + 1):
+            if websocket_server.is_socket_open(target_plugin_name):
+                try:
+                    return websocket_server.send_message(target_plugin_name, message)
+                except Exception as e:
+                    if attempt < max_retries:
+                        self.logger.warning(f"Failed to send message to {target_plugin_name} frontend (attempt {attempt + 1}/{max_retries + 1}): {e}")
+                        time.sleep(retry_delay)
+                    else:
+                        self.logger.error(f"Error while sending message to {target_plugin_name} frontend after {max_retries + 1} attempts: {e}")
+                        return False
             else:
-                self.logger.info(f"{target_plugin_name} BACKEND => APP via ws")
-            try:
-                # Ensure the message is a JSON string
-                if isinstance(message, dict):
-                    message = json.dumps(message)
-                return websocket_server.send_message(target_plugin_name, message)
-            except Exception as e:
-                self.logger.error(f"Error while sending message to {target_plugin_name} frontend: {e}")
-        else:
-            self.logger.warning(f"{target_plugin_name} frontend is not ready")
+                if attempt < max_retries:
+                    self.logger.warning(f"{target_plugin_name} frontend is not ready (attempt {attempt + 1}/{max_retries + 1})")
+                    time.sleep(retry_delay)
+                else:
+                    self.logger.error(f"{target_plugin_name} frontend is not ready after {max_retries + 1} attempts")
+                    return False
+        
+        return False
+    
+    def send_settings_to_frontend(self):
+        settings = self.get_my_settings()
+        self.send_message_to_frontend({
+            "type": "settings",
+            "settings": settings
+        })
             
     def process_incoming_message(self, message):
         try:
             message_dict = json.loads(message)
-            
             if message_dict.get('action') == 'get_settings':
-                settings = self.get_my_settings()
-                self.send_message_to_frontend({
-                    "type": "settings",
-                    "settings": settings
-                })
+                self.send_settings_to_frontend()
+                return
+            
+            if message_dict.get('action') == 'save_settings':
+                settings_payload = message_dict.get('settings')
+                if isinstance(settings_payload, dict):
+                    # Remove 'action' key from the settings_payload if it exists
+                    settings_payload.pop('action', None)
+                self.mass_update_settings(settings_payload)
                 return
                 
             print(f"Default processing message for {self.plugin_name}: {message}")
@@ -259,3 +343,76 @@ class Baseplugin:
         # Check if the message is {"socket":"ready"}
         # if message_dict == {"socket": "ready"}:
         #    self.socket_ready = True
+        
+    def _load_plugin_metadata(self):
+        """Load plugin.json metadata"""
+        try:
+            plugin_json_path = resource_path(os.path.join('plugins', self.plugin_name, 'plugin.json'))
+            with open(plugin_json_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError) as e:
+            self.logger.error(f"Error loading plugin metadata: {e}")
+            return {}
+    
+    def _init_database(self):
+        """Initialize database connection for this plugin"""
+        try:
+            if not self._plugin_metadata.get('requires_db', False):
+                return
+                
+            db_tables = self._plugin_metadata.get('db_tables', {})
+            if not db_tables:
+                self.logger.warning(f"Plugin {self.plugin_name} requires database but no tables defined")
+                return
+                
+            self.logger.info(f"Initializing database for plugin {self.plugin_name}")
+            db_manager = DatabaseManager()
+            db_manager.register_plugin(self.plugin_name, db_tables)
+            self._db = db_manager
+            self.logger.info(f"Database initialized for plugin {self.plugin_name}")
+        except Exception as e:
+            self.logger.error(f"Failed to initialize database: {e}")
+            self._db = None
+    
+    @property
+    def db(self):
+        """Access database connection if available"""
+        if self._db is None and self._plugin_metadata.get('requires_db', False):
+            self._init_database()
+        return self._db
+    
+    async def db_execute(self, query: str, params: tuple = ()):
+        """Execute a database query asynchronously"""
+        if self.db is None:
+            self.logger.error("Database not initialized")
+            return None
+            
+        return await self.db.execute(self.plugin_name, query, params)
+        
+    def db_execute_sync(self, query: str, params: tuple = ()):
+        """Execute a database query synchronously"""
+        if self.db is None:
+            self.logger.error("Database not initialized")
+            return None
+            
+        return self.db.execute_sync(self.plugin_name, query, params)
+
+    def debug_db_status(self):
+        """Debug method to check database status"""
+        if self._db is None:
+            self.logger.error("Database is not initialized!")
+            return False
+            
+        if not self._plugin_metadata.get('requires_db', False):
+            self.logger.error("Plugin metadata does not have requires_db=true!")
+            return False
+            
+        tables = self._plugin_metadata.get('db_tables', {})
+        if not tables:
+            self.logger.error("No tables defined in plugin metadata!")
+            return False
+            
+        self.logger.info(f"Database initialized: {self._db is not None}")
+        self.logger.info(f"Plugin requires DB: {self._plugin_metadata.get('requires_db', False)}")
+        self.logger.info(f"Tables defined: {list(tables.keys())}")
+        return True

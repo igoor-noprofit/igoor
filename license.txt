@@ -11,8 +11,9 @@ Data files and configurations
 are protected by copyright and other intellectual property laws.
 No part of this work may be reproduced, distributed, or transmitted in any form or by any means, including photocopying, recording, or other electronic or mechanical methods, without the prior written permission of the copyright holders, except as permitted by applicable law.
 
-Future Open Source Release:
-This work is intended to be released under the GNU General Public License version 3 (GPLv3) at a future date to be determined by the copyright holders. Until such time as this explicit release occurs, all rights remain reserved as stated above.
+FUTURE OPENSOURCE RELEASE:
+This work is intended to be released under the GNU General Public License version 3 (GPLv3) at a future date to be determined by the copyright holders. 
+Until such time as this explicit release occurs, all rights remain reserved as stated above.
 
 For permissions requests or additional information, please contact:
 

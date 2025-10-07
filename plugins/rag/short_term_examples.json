@@ -1,0 +1,1072 @@
+[
+  {
+    "theme": "Préparation du déjeuner",
+    "tags": ["alimentation", "midi"],
+    "facts": [
+      {
+        "fact": "Igor a aidé à préparer une salade pour le déjeuner.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Douleur au poignet",
+    "tags": ["douleur", "main"],
+    "facts": [
+      {
+        "fact": "Igor a ressenti une douleur lancinante au poignet en tournant une page.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Difficulté à fermer une fermeture éclair",
+    "tags": ["motricité fine", "vêtements"],
+    "facts": [
+      {
+        "fact": "Igor a lutté pour fermer la fermeture éclair de sa veste.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Sensation d'oppression thoracique",
+    "tags": ["respiration", "gène"],
+    "facts": [
+      {
+        "fact": "Igor a eu une sensation d'oppression à la poitrine après son bain.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Somnolence",
+    "tags": ["fatigue", "repos"],
+    "facts": [
+      {
+        "fact": "Igor a piqué un petit somme dans l'après-midi.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Difficulté à verser de l'eau",
+    "tags": ["motricité fine", "hydratation"],
+    "facts": [
+      {
+        "fact": "Igor a renversé un peu d'eau en essayant de remplir son verre.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Difficulté à articuler",
+    "tags": ["parole", "communication"],
+    "facts": [
+      {
+        "fact": "Les mots d'Igor étaient un peu pâteux ce soir.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Raideur musculaire",
+    "tags": ["douleur", "muscles"],
+    "facts": [
+      {
+        "fact": "Igor a senti ses muscles des jambes très raides ce matin.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "A pris ses médicaments",
+    "tags": ["santé", "traitement"],
+    "facts": [
+      {
+        "fact": "Igor a pris tous ses médicaments comme prévu.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Difficulté à utiliser des ciseaux",
+    "tags": ["motricité fine", "activités"],
+    "facts": [
+      {
+        "fact": "Igor a eu du mal à couper un morceau de papier avec des ciseaux.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Douleur à la hanche",
+    "tags": ["douleur", "hanche"],
+    "facts": [
+      {
+        "fact": "Igor a ressenti une douleur sourde à la hanche en se levant.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Respiration sifflante",
+    "tags": ["respiration", "bruit"],
+    "facts": [
+      {
+        "fact": "La respiration d'Igor était un peu sifflante après sa promenade.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Difficulté à ouvrir une porte",
+    "tags": ["motricité globale", "déplacement"],
+    "facts": [
+      {
+        "fact": "Igor a eu besoin de plus de force que d'habitude pour ouvrir la porte.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Écouté un podcast",
+    "tags": ["loisirs", "audio"],
+    "facts": [
+      {
+        "fact": "Igor s'est relaxé en écoutant un podcast intéressant.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Appel à son médecin",
+    "tags": ["santé", "communication"],
+    "facts": [
+      {
+        "fact": "Igor a appelé son médecin pour parler de sa fatigue.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Difficulté à couper des aliments",
+    "tags": ["alimentation", "motricité fine"],
+    "facts": [
+      {
+        "fact": "Igor a eu du mal à couper sa viande pendant le dîner.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Douleur au genou",
+    "tags": ["douleur", "jambe"],
+    "facts": [
+      {
+        "fact": "Igor a senti une douleur vive au genou en se baissant.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Besoin d'aide pour s'habiller",
+    "tags": ["autonomie", "assistance"],
+    "facts": [
+      {
+        "fact": "Igor a demandé de l'aide pour mettre son pull ce matin.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Fait une sieste",
+    "tags": ["repos", "fatigue"],
+    "facts": [
+      {
+        "fact": "Igor s'est endormi pendant une heure cet après-midi.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Reçu des nouvelles de sa famille",
+    "tags": ["social", "famille"],
+    "facts": [
+      {
+        "fact": "Igor a eu des nouvelles de ses petits-enfants.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Difficulté à ouvrir un bocal",
+    "tags": ["motricité fine", "alimentation"],
+    "facts": [
+      {
+        "fact": "Igor n'a pas réussi à ouvrir un bocal de cornichons.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Sensation de picotement dans les doigts",
+    "tags": ["sensation", "main"],
+    "facts": [
+      {
+        "fact": "Igor a ressenti des picotements dans ses doigts pendant la lecture.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Difficulté à se retourner dans le lit",
+    "tags": ["mobilité", "nuit"],
+    "facts": [
+      {
+        "fact": "Igor a eu du mal à changer de position pendant la nuit.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Regardé des photos",
+    "tags": ["loisirs", "souvenirs"],
+    "facts": [
+      {
+        "fact": "Igor a passé un moment à regarder de vieilles photos.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Discuté avec l'infirmière",
+    "tags": ["santé", "communication"],
+    "facts": [
+      {
+        "fact": "Igor a discuté de son état avec l'infirmière.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Dîner léger",
+    "tags": ["alimentation", "soir"],
+    "facts": [
+      {
+        "fact": "Igor a mangé une soupe légère pour le dîner.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Douleur à l'épaule gauche",
+    "tags": ["douleur", "épaule"],
+    "facts": [
+      {
+        "fact": "Igor a eu mal à l'épaule gauche en se coiffant.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Difficulté à nouer ses lacets",
+    "tags": ["motricité fine", "vêtements"],
+    "facts": [
+      {
+        "fact": "Igor n'a pas réussi à faire ses lacets ce matin.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Toux sèche",
+    "tags": ["respiration", "toux"],
+    "facts": [
+      {
+        "fact": "Igor a eu une quinte de toux sèche pendant la lecture.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Grande fatigue en fin de journée",
+    "tags": ["fatigue", "soir"],
+    "facts": [
+      {
+        "fact": "Igor se sentait épuisé en fin de journée.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Difficulté à prendre une petite pilule",
+    "tags": ["motricité fine", "santé"],
+    "facts": [
+      {
+        "fact": "Igor a eu du mal à saisir sa petite pilule.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Difficulté à trouver ses mots",
+    "tags": ["parole", "communication"],
+    "facts": [
+      {
+        "fact": "Igor a cherché ses mots pendant une conversation.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Sensation de jambes lourdes",
+    "tags": ["sensation", "jambes"],
+    "facts": [
+      {
+        "fact": "Igor a senti ses jambes lourdes après être resté assis longtemps.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "A bu un smoothie",
+    "tags": ["alimentation", "hydratation"],
+    "facts": [
+      {
+        "fact": "Igor a apprécié un smoothie aux fruits.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Difficulté à tourner une clé",
+    "tags": ["motricité fine", "maison"],
+    "facts": [
+      {
+        "fact": "Igor a eu du mal à tourner la clé dans la serrure.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Douleur au cou",
+    "tags": ["douleur", "cou"],
+    "facts": [
+      {
+        "fact": "Igor avait une raideur et une douleur au cou ce matin.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Essoufflement au repos",
+    "tags": ["respiration", "repos"],
+    "facts": [
+      {
+        "fact": "Igor se sentait essoufflé même en étant assis.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Difficulté à utiliser une souris d'ordinateur",
+    "tags": ["motricité fine", "loisirs"],
+    "facts": [
+      {
+        "fact": "Igor a eu du mal à cliquer avec précision sur l'ordinateur.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Écouté la radio",
+    "tags": ["loisirs", "audio"],
+    "facts": [
+      {
+        "fact": "Igor a écouté les nouvelles à la radio.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Reçu une carte postale",
+    "tags": ["social", "courrier"],
+    "facts": [
+      {
+        "fact": "Igor a été content de recevoir une carte postale d'un ami.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Difficulté à avaler sa salive",
+    "tags": ["alimentation", "déglutition"],
+    "facts": [
+      {
+        "fact": "Igor a eu une sensation désagréable en avalant sa salive.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Douleur dans les mains",
+    "tags": ["douleur", "main"],
+    "facts": [
+      {
+        "fact": "Les mains d'Igor lui faisaient mal après avoir tenu un livre.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Besoin d'aide pour se coucher",
+    "tags": ["autonomie", "assistance"],
+    "facts": [
+      {
+        "fact": "Igor a eu besoin d'aide pour se mettre au lit ce soir.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Rêvé de son enfance",
+    "tags": ["sommeil", "souvenirs"],
+    "facts": [
+      {
+        "fact": "Igor a fait un rêve vif de sa maison d'enfance.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Visite de son kinésithérapeute",
+    "tags": ["santé", "kiné"],
+    "facts": [
+      {
+        "fact": "Igor a eu sa séance de kinésithérapie habituelle.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Difficulté à ouvrir un sachet",
+    "tags": ["motricité fine", "alimentation"],
+    "facts": [
+      {
+        "fact": "Igor n'a pas réussi à ouvrir un sachet de sucre.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Sensation de chaleur excessive",
+    "tags": ["sensation", "chaleur"],
+    "facts": [
+      {
+        "fact": "Igor a eu très chaud malgré la température ambiante.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Difficulté à se tenir debout",
+    "tags": ["mobilité", "équilibre"],
+    "facts": [
+      {
+        "fact": "Igor a eu du mal à rester debout sans appui.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Joué à un jeu de société",
+    "tags": ["loisirs", "social"],
+    "facts": [
+      {
+        "fact": "Igor a participé à une partie de cartes.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Lu un article de journal",
+    "tags": ["informations", "lecture"],
+    "facts": [
+      {
+        "fact": "Igor a lu un article intéressant dans le journal.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Difficulté à utiliser une cuillère",
+    "tags": ["alimentation", "motricité fine"],
+    "facts": [
+      {
+        "fact": "Igor a renversé un peu de soupe en mangeant avec sa cuillère.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Douleur à la cheville",
+    "tags": ["douleur", "pied"],
+    "facts": [
+      {
+        "fact": "Igor a ressenti une torsion et une douleur à la cheville en marchant.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Besoin d'aide pour se raser",
+    "tags": ["hygiène", "assistance"],
+    "facts": [
+      {
+        "fact": "Igor a demandé de l'aide pour se raser ce matin.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Écouté des oiseaux chanter",
+    "tags": ["environnement", "nature"],
+    "facts": [
+      {
+        "fact": "Igor a apprécié le chant des oiseaux par la fenêtre.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Difficulté à attraper des objets",
+    "tags": ["motricité fine", "coordination"],
+    "facts": [
+      {
+        "fact": "Igor a eu du mal à saisir une serviette qui tombait.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Difficulté à comprendre une conversation rapide",
+    "tags": ["communication", "audition"],
+    "facts": [
+      {
+        "fact": "Igor a eu du mal à suivre une conversation animée à la télévision.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Sensation de froid intense",
+    "tags": ["sensation", "froid"],
+    "facts": [
+      {
+        "fact": "Igor frissonnait malgré plusieurs couvertures.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Difficulté à descendre les escaliers",
+    "tags": ["mobilité", "escaliers"],
+    "facts": [
+      {
+        "fact": "Igor a descendu les marches très lentement et avec précaution.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Parlé à un voisin",
+    "tags": ["social", "voisinage"],
+    "facts": [
+      {
+        "fact": "Igor a eu une brève conversation avec son voisin dans le jardin.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Pris une collation",
+    "tags": ["alimentation", "collation"],
+    "facts": [
+      {
+        "fact": "Igor a mangé un yaourt dans l'après-midi.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Douleur au coude",
+    "tags": ["douleur", "bras"],
+    "facts": [
+      {
+        "fact": "Igor a senti une douleur au coude en se penchant.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Difficulté à boutonner un gilet",
+    "tags": ["motricité fine", "vêtements"],
+    "facts": [
+      {
+        "fact": "Igor a lutté avec les petits boutons de son gilet.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Respiration superficielle",
+    "tags": ["respiration", "faible"],
+    "facts": [
+      {
+        "fact": "La respiration d'Igor semblait moins profonde aujourd'hui.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Fatigue après le repas",
+    "tags": ["fatigue", "post-prandial"],
+    "facts": [
+      {
+        "fact": "Igor s'est senti très fatigué juste après avoir mangé.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Difficulté à ouvrir un tube de crème",
+    "tags": ["motricité fine", "soins"],
+    "facts": [
+      {
+        "fact": "Igor a eu besoin d'aide pour ouvrir son tube de crème hydratante.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Difficulté à se souvenir d'un mot",
+    "tags": ["mémoire", "communication"],
+    "facts": [
+      {
+        "fact": "Igor a eu un trou de mémoire pendant une phrase.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Sensation de fourmillement dans les pieds",
+    "tags": ["sensation", "pieds"],
+    "facts": [
+      {
+        "fact": "Igor a ressenti des fourmillements dans ses pieds après être resté assis.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "A regardé un documentaire",
+    "tags": ["loisirs", "culture"],
+    "facts": [
+      {
+        "fact": "Igor a trouvé le documentaire sur la nature très intéressant.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Reçu des fleurs",
+    "tags": ["social", "cadeau"],
+    "facts": [
+      {
+        "fact": "Igor a été agréablement surpris de recevoir des fleurs.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Difficulté à mélanger des ingrédients",
+    "tags": ["alimentation", "motricité fine"],
+    "facts": [
+      {
+        "fact": "Igor a eu du mal à remuer la pâte à crêpes.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Douleur au bas du dos en position assise",
+    "tags": ["douleur", "dos"],
+    "facts": [
+      {
+        "fact": "La douleur au dos d'Igor s'est intensifiée après une heure assis.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Besoin d'aide pour aller aux toilettes",
+    "tags": ["autonomie", "assistance"],
+    "facts": [
+      {
+        "fact": "Igor a dû appeler pour avoir de l'aide pour se rendre aux toilettes.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Pensé à de vieux amis",
+    "tags": ["souvenirs", "social"],
+    "facts": [
+      {
+        "fact": "Igor a repensé à de bons moments passés avec ses amis.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Visite de son ergothérapeute",
+    "tags": ["santé", "ergothérapie"],
+    "facts": [
+      {
+        "fact": "Igor a travaillé sur des exercices pour améliorer sa préhension avec son ergothérapeute.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Difficulté à ouvrir une canette",
+    "tags": ["motricité fine", "alimentation"],
+    "facts": [
+      {
+        "fact": "Igor n'a pas réussi à ouvrir sa boisson gazeuse.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Sensibilité accrue au bruit",
+    "tags": ["sensation", "bruit"],
+    "facts": [
+      {
+        "fact": "Igor a trouvé le bruit de la télévision plus fort que d'habitude.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Difficulté à se lever d'une chaise basse",
+    "tags": ["mobilité", "fauteuil"],
+    "facts": [
+      {
+        "fact": "Igor a eu besoin de s'appuyer pour se relever de son fauteuil.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Feuilleté un magazine",
+    "tags": ["loisirs", "lecture"],
+    "facts": [
+      {
+        "fact": "Igor a regardé les images d'un magazine.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Envoyé un message à sa famille",
+    "tags": ["communication", "famille"],
+    "facts": [
+      {
+        "fact": "Igor a envoyé un court message à ses enfants.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "A mangé une compote",
+    "tags": ["alimentation", "dessert"],
+    "facts": [
+      {
+        "fact": "Igor a dégusté une compote de pommes.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Douleur à l'omoplate",
+    "tags": ["douleur", "dos"],
+    "facts": [
+      {
+        "fact": "Igor a ressenti une tension douloureuse au niveau de l'omoplate.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Difficulté à mettre ses chaussures",
+    "tags": ["motricité globale", "vêtements"],
+    "facts": [
+      {
+        "fact": "Igor a eu du mal à enfiler ses chaussures ce matin.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Toux grasse",
+    "tags": ["respiration", "toux"],
+    "facts": [
+      {
+        "fact": "Igor a craché en toussant ce matin.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Sensation de faiblesse générale",
+    "tags": ["fatigue", "muscles"],
+    "facts": [
+      {
+        "fact": "Igor s'est senti faible tout au long de la matinée.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Difficulté à manipuler une télécommande plus petite",
+    "tags": ["motricité fine", "loisirs"],
+    "facts": [
+      {
+        "fact": "Igor a préféré utiliser la plus grande télécommande car la petite était difficile à manier.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Difficulté à suivre le fil d'une conversation longue",
+    "tags": ["communication", "attention"],
+    "facts": [
+      {
+        "fact": "Igor a eu du mal à rester concentré pendant une longue conversation téléphonique.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Sensation de froid aux extrémités",
+    "tags": ["sensation", "froid"],
+    "facts": [
+      {
+        "fact": "Les doigts et les orteils d'Igor étaient froids.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Difficulté à se relever du sol",
+    "tags": ["mobilité", "chute"],
+    "facts": [
+      {
+        "fact": "Igor a eu besoin d'aide pour se relever après s'être baissé.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Écouté un livre audio",
+    "tags": ["loisirs", "audio"],
+    "facts": [
+      {
+        "fact": "Igor a continué l'écoute de son roman audio.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Répondu à des emails",
+    "tags": ["communication", "internet"],
+    "facts": [
+      {
+        "fact": "Igor a pris le temps de répondre à quelques emails.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "A bu une tisane",
+    "tags": ["alimentation", "hydratation"],
+    "facts": [
+      {
+        "fact": "Igor a savouré une tasse de tisane relaxante.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Douleur irradiant dans le bras",
+    "tags": ["douleur", "bras"],
+    "facts": [
+      {
+        "fact": "La douleur à l'épaule d'Igor irradiait jusque dans son bras.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Difficulté à manipuler des pièces de monnaie",
+    "tags": ["motricité fine", "argent"],
+    "facts": [
+      {
+        "fact": "Igor a eu du mal à prendre des pièces dans son porte-monnaie.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Respiration rapide",
+    "tags": ["respiration", "rapide"],
+    "facts": [
+      {
+        "fact": "La respiration d'Igor était un peu plus rapide que d'habitude.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Sieste plus longue que prévue",
+    "tags": ["repos", "sommeil"],
+    "facts": [
+      {
+        "fact": "Igor s'est endormi plus longtemps que ce qu'il avait prévu.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Difficulté à ouvrir un emballage",
+    "tags": ["motricité fine", "alimentation"],
+    "facts": [
+      {
+        "fact": "Igor a eu besoin d'aide pour ouvrir l'emballage de ses biscuits.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Difficulté à comprendre des instructions complexes",
+    "tags": ["compréhension", "communication"],
+    "facts": [
+      {
+        "fact": "Igor a demandé à ce qu'on lui répète des instructions plusieurs fois.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Sensation de picotement dans les lèvres",
+    "tags": ["sensation", "visage"],
+    "facts": [
+      {
+        "fact": "Igor a ressenti des picotements autour de sa bouche.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Difficulté à marcher sur une surface irrégulière",
+    "tags": ["mobilité", "équilibre"],
+    "facts": [
+      {
+        "fact": "Igor a marché lentement sur le chemin de graviers.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Regardé un match à la télévision",
+    "tags": ["loisirs", "sport"],
+    "facts": [
+      {
+        "fact": "Igor a suivi un match de football à la télévision.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Téléphoné à un ami",
+    "tags": ["communication", "social"],
+    "facts": [
+      {
+        "fact": "Igor a eu une longue conversation téléphonique avec un ami.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "A mangé des fruits frais",
+    "tags": ["alimentation", "santé"],
+    "facts": [
+      {
+        "fact": "Igor a apprécié une salade de fruits.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Douleur lancinante au bras",
+    "tags": ["douleur", "bras"],
+    "facts": [
+      {
+        "fact": "Igor a eu une douleur vive et intermittente dans le bras.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Difficulté à utiliser un stylo",
+    "tags": ["motricité fine", "écriture"],
+    "facts": [
+      {
+        "fact": "Igor a eu du mal à tenir le stylo correctement pour écrire.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Respiration sifflante pendant l'effort",
+    "tags": ["respiration", "effort"],
+    "facts": [
+      {
+        "fact": "La respiration d'Igor est devenue sifflante après quelques pas.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Sensation de grande lourdeur",
+    "tags": ["fatigue", "général"],
+    "facts": [
+      {
+        "fact": "Igor se sentait comme si ses membres étaient très lourds.",
+        "type": "short"
+      }
+    ]
+  },
+  {
+    "theme": "Difficulté à tourner un robinet",
+    "tags": ["motricité fine", "hygiène"],
+    "facts": [
+      {
+        "fact": "Igor a eu besoin de force pour tourner le robinet de l'évier.",
+        "type": "short"
+      }
+    ]
+  }
+]

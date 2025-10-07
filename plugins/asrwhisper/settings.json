@@ -1,0 +1,13 @@
+{
+  "wakeword": "Igor",
+  "allowed_model_providers": ["groq", "mistral"],
+  "model_provider": "mistral",
+  "model_name": "voxtral-mini-latest",
+  "continuous": false,
+  "api_key": "",
+  "voxtral_api_key": "",
+  "silence_frames": 1250,
+  "max_recording_time": 60,
+  "vad_level": -1,
+  "shortcut": "Ctrl+K"
+}

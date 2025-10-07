@@ -9,5 +9,6 @@
     },
     "is_free": true,
     "requires_subscription": false,
-    "requires_internet": false
+    "requires_internet": false,
+    "has_settings": true
 }

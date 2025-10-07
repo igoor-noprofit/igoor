@@ -1,23 +1,67 @@
 ├── .cursorrules
 ├── .env
 ├── .env-example
+├── .gitignore
+├── CLAUDE.md
 ├── README.md
 ├── TODO.md
-├── YourAppName.spec
 ├── context_manager.py
+├── create_exe.bat
 ├── css
 │   ├── app.css
 │   ├── app.less
 │   └── fonts
 │       ├── OFL.txt
+│       ├── PublicSans-VariableFont_wght.woff2
 │       └── static
+├── db_manager.py
+├── default_settings.json
+├── dictionary
+│   ├── french_dictionary_prefix.json
+│   └── french_dictionary_simple.json
 ├── folder_structure.txt
+├── idle_detector.py
+├── igoor.bat
 ├── igoor.spec
-├── igoor_sf.spec
+├── igoor.spec.txt
+├── igoor_watchdog.bat
 ├── img
+│   ├── delete-word.svg
+│   ├── icons
+│   │   └── src
+│   │       ├── arrow_left.svg
+│   │       ├── backspace.svg
+│   │       ├── bug.svg
+│   │       ├── chevron_down.svg
+│   │       ├── chevron_left.svg
+│   │       ├── chevron_right.svg
+│   │       ├── chevron_up.svg
+│   │       ├── close.svg
+│   │       ├── drink.svg
+│   │       ├── dropdown.svg
+│   │       ├── keyboard.svg
+│   │       ├── mic.svg
+│   │       ├── more.svg
+│   │       ├── no.svg
+│   │       ├── ok.svg
+│   │       ├── settings.svg
+│   │       ├── sos.svg
+│   │       ├── talk.svg
+│   │       ├── thankyou.svg
+│   │       ├── theme_dark.svg
+│   │       ├── theme_light.svg
+│   │       └── toilet.svg
+│   ├── igoor_eyes.png
 │   ├── igoor_logo.png
+│   ├── igoor_logo_pLG_icon.ico
+│   ├── igoor_minimized_icon.png
 │   ├── listening.gif
-│   └── mic.png
+│   ├── logo_fb.png
+│   ├── logo_ig_lxL_icon.ico
+│   ├── logo_small.svg
+│   ├── mic.png
+│   ├── minimize.svg
+│   └── svgdefs.svg
 ├── index.html
 ├── js
 │   ├── BasePluginComponent.js
@@ -26,19 +70,15 @@
 │   ├── app.vue
 │   ├── app_template.js
 │   ├── app_template.vue
+│   ├── vue-i18n.global.js
 │   ├── vue3sfcloader.min.js
 │   ├── vue@2.7.16.min.js
 │   ├── vue@3.5.13.js
 │   └── vueloader.min.js
 ├── js_api.py
+├── license.txt
 ├── llm_manager.py
-├── locales
-│   ├── en_EN
-│   │   └── prompts.json
-│   └── fr_FR
-│       └── prompts.json
 ├── main.py
-├── main.spec
 ├── plugin_manager.py
 ├── plugins
 │   ├── asrvosk
@@ -53,13 +93,36 @@
 │   │   │   ├── LICENSE.txt
 │   │   │   ├── off.wav
 │   │   │   └── on.wav
+│   │   ├── settings.json
 │   │   └── vosk_models.json
+│   ├── asrwhisper
+│   │   ├── __init__.py
+│   │   ├── asrwhisper.py
+│   │   ├── frontend
+│   │   │   ├── asrwhisper_component.vue
+│   │   │   └── asrwhisper_settings.vue
+│   │   ├── locales
+│   │   │   ├── en_EN
+│   │   │   │   └── asrwhisper_en_EN.json
+│   │   │   └── fr_FR
+│   │   │       └── asrwhisper_fr_FR.json
+│   │   ├── plugin.json
+│   │   ├── samples
+│   │   │   ├── LICENSE.txt
+│   │   │   ├── off.wav
+│   │   │   └── on.wav
+│   │   └── settings.json
 │   ├── autocomplete
-│   │   ├── TODO.md
 │   │   ├── __init__.py
 │   │   ├── autocomplete.py
 │   │   ├── frontend
 │   │   │   └── autocomplete_component.vue
+│   │   ├── locales
+│   │   │   ├── en_EN
+│   │   │   │   └── autocomplete_en_EN.json
+│   │   │   └── fr_FR
+│   │   │       ├── autocomplete_fr_FR.json
+│   │   │       └── prompts.json
 │   │   ├── plugin.json
 │   │   └── settings.json
 │   ├── autocompletelauncher
@@ -67,14 +130,27 @@
 │   │   ├── autocompletelauncher.py
 │   │   ├── frontend
 │   │   │   └── autocompletelauncher_component.vue
-│   │   └── plugin.json
+│   │   ├── locales
+│   │   │   └── fr_FR
+│   │   │       └── autocompletelauncher_fr_FR.json
+│   │   ├── plugin.json
+│   │   └── settings.json
 │   ├── baseplugin
 │   │   ├── __init__.py
 │   │   ├── baseplugin.py
-│   │   ├── default_settings.json
 │   │   ├── frontend
 │   │   │   └── baseplugin_component.vue
 │   │   └── plugin.json
+│   ├── bugreport
+│   │   ├── __init__.py
+│   │   ├── bugreport.py
+│   │   ├── frontend
+│   │   │   └── bugreport_component.vue
+│   │   ├── locales
+│   │   │   └── fr_FR
+│   │   │       └── bugreport_fr_FR.json
+│   │   ├── plugin.json
+│   │   └── settings.json
 │   ├── clock
 │   │   ├── __init__.py
 │   │   ├── clock.py
@@ -87,27 +163,43 @@
 │   │   ├── conversation.py
 │   │   ├── frontend
 │   │   │   └── conversation_component.vue
-│   │   └── plugin.json
+│   │   ├── plugin.json
+│   │   └── settings.json
 │   ├── daily
 │   │   ├── TODO.md
 │   │   ├── __init__.py
+│   │   ├── daily.json
 │   │   ├── daily.py
 │   │   ├── frontend
-│   │   │   └── daily_component.vue
-│   │   └── plugin.json
+│   │   │   ├── daily_component.vue
+│   │   │   └── daily_settings.vue
+│   │   ├── locales
+│   │   │   ├── en_EN
+│   │   │   └── fr_FR
+│   │   │       ├── daily_fr_FR.json
+│   │   │       └── prompts.json
+│   │   ├── plugin.json
+│   │   └── settings.json
 │   ├── elevenlabs
 │   │   ├── TODO.MD
 │   │   ├── __init__.py
 │   │   ├── elevenlabs.py
 │   │   ├── frontend
 │   │   │   └── elevenlabs_component.vue
-│   │   └── plugin.json
+│   │   ├── plugin.json
+│   │   └── settings.json
+│   ├── extkeyb
+│   ├── extmic
 │   ├── flow
 │   │   ├── TODO.md
 │   │   ├── __init__.py
 │   │   ├── flow.py
 │   │   ├── frontend
 │   │   │   └── flow_component.vue
+│   │   ├── locales
+│   │   │   └── fr_FR
+│   │   │       ├── flow_fr_FR.json
+│   │   │       └── prompts.json
 │   │   ├── plugin.json
 │   │   └── settings.json
 │   ├── memory
@@ -115,6 +207,10 @@
 │   │   ├── __init__.py
 │   │   ├── frontend
 │   │   │   └── memory_component.vue
+│   │   ├── locales
+│   │   │   └── fr_FR
+│   │   │       ├── memory_fr_FR.json
+│   │   │       └── prompts.json
 │   │   ├── memory.py
 │   │   ├── plugin.json
 │   │   └── settings.json
@@ -125,23 +221,20 @@
 │   │   │   ├── meteo_component.vue
 │   │   │   └── meteo_settings.vue
 │   │   ├── meteo.py
-│   │   └── plugin.json
-│   ├── notifications
-│   │   └── frontend
-│   │       └── notifications_component.vue
+│   │   ├── plugin.json
+│   │   └── settings.json
 │   ├── onboarding
 │   │   ├── TODO.md
 │   │   ├── __init__.py
 │   │   ├── frontend
 │   │   │   └── onboarding_component.vue
+│   │   ├── locales
+│   │   │   ├── en_EN
+│   │   │   └── fr_FR
+│   │   │       └── onboarding_fr_FR.json
 │   │   ├── onboarding.py
 │   │   ├── plugin.json
 │   │   └── settings.json
-│   ├── porcupine
-│   │   └── wakeword
-│   │       └── porcupine
-│   │           ├── Cher-Igor_fr_windows_v3_0_0.ppn
-│   │           └── porcupine_params_fr.pv
 │   ├── rag
 │   │   ├── TODO.md
 │   │   ├── __init__.py
@@ -150,7 +243,8 @@
 │   │   │   └── rag_component.vue
 │   │   ├── plugin.json
 │   │   ├── rag.py
-│   │   └── settings.json
+│   │   ├── settings.json
+│   │   └── short_term_examples.json
 │   ├── ramcpu
 │   │   ├── TODO.md
 │   │   ├── __init__.py
@@ -160,13 +254,23 @@
 │   │   ├── plugin.json
 │   │   ├── ramcpu.py
 │   │   └── settings.json
-│   ├── settings
-│   │   ├── README.md
+│   ├── shortcuts
+│   │   ├── frontend
+│   │   │   └── shortcuts_component.vue
+│   │   ├── locales
+│   │   │   └── fr_FR
+│   │   │       └── shortcuts_fr_FR.json
+│   │   ├── plugin.json
+│   │   ├── settings.json
+│   │   └── shortcuts.py
+│   ├── speechifytts
+│   │   ├── TODO.md
 │   │   ├── __init__.py
 │   │   ├── frontend
-│   │   │   └── settings_component.vue
+│   │   │   └── speechifytts_component.vue
 │   │   ├── plugin.json
-│   │   └── settings.py
+│   │   ├── settings.json
+│   │   └── speechifytts.py
 │   ├── ttsdefault
 │   │   ├── __init__.py
 │   │   ├── frontend
@@ -183,13 +287,20 @@
 │       ├── settings.json
 │       └── weather.py
 ├── prompt_manager.py
-├── prompts.py
-├── pyinstaller.txt
 ├── requirements.txt
 ├── settings_manager.py
 ├── status_manager.py
+├── tests
+│   ├── create_french_dict.py
+│   ├── create_french_dict_json.py
+│   ├── ffmpeg_check.py
+│   ├── predict_word.py
+│   ├── predict_word_json.py
+│   ├── reduce_model.py
+│   └── word_predictor_json.py
 ├── tools
 │   ├── folder_structure.py
 │   └── installer.py
 ├── utils.py
+├── version.py
 └── websocket_server.py

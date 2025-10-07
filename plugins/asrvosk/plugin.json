@@ -1,7 +1,7 @@
 {
     "category": "ASR",
     "title": "Vosk",
-    "description": "Automatic speech recognition, with continuous listening or on-click listening",
+    "description": "Automatic, LOCAL speech recognition,with continuous listening or on-click listening",
     "layout": {
         "part": "header",
         "order": 0

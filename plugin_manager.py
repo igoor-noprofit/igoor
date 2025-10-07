@@ -1,6 +1,8 @@
+from version import __appname__, __version__, __codename__
 import importlib.util
 import os, sys, asyncio
 import json
+import traceback
 import pluggy
 from settings_manager import SettingsManager
 from dotenv import load_dotenv
@@ -10,15 +12,10 @@ from status_manager import StatusManager
 from utils import resource_path, setup_logger
 
 IGOOR_DEBUG = os.getenv('IGOOR_DEBUG', 'False') 
-app_name = os.getenv("IGOOR_APPNAME")
+app_name = __appname__
 hookspec = pluggy.HookspecMarker(app_name)
 hookimpl = pluggy.HookimplMarker(app_name)
-logger = setup_logger('pm', os.path.join(os.getenv('APPDATA'), os.getenv('IGOOR_APPNAME')))
-
-if hasattr(sys, '_MEIPASS'):
-    print(f"_MEIPASS directory: {sys._MEIPASS}")
-else:
-    print("Running in Python mode.")
+logger = setup_logger('pm', os.path.join(os.getenv('APPDATA'), app_name))
 
 class MyAppSpec:
     '''
@@ -44,9 +41,28 @@ class MyAppSpec:
         """Hook for plugins to perform startup activities"""
         pass
     
+    @pluggy.HookspecMarker(app_name)
+    def run_tests(self):
+        """Hook for plugins to perform startup activities"""
+        pass
+    
+    @pluggy.HookspecMarker(app_name)
+    def custom_save_settings(self,plugin_name:str,settings):
+        """Hook for plugins to perform custom save settings"""
+        pass
+    
+    @pluggy.HookspecMarker(app_name)
+    def settings_updated(self, plugin_name: str, new_settings: dict):
+        """Hook called when a plugin's settings are updated"""
+        pass
+    
+    @pluggy.HookspecMarker(app_name)
+    def global_settings_updated(self):
+        """Hook called when entire settings are updated"""
+        pass
     
     '''
-        GUI
+        GUI AND APP
     '''
     @pluggy.HookspecMarker(app_name)
     async def gui_ready(self):
@@ -54,6 +70,26 @@ class MyAppSpec:
     
     @pluggy.HookspecMarker(app_name)
     async def change_view(self,lastview,currentview):
+        pass
+    
+    @pluggy.HookspecMarker(app_name)
+    async def user_idle_on_pc(self):
+        """Hook for when the user is completely idle on the PC """
+        pass
+    
+    @pluggy.HookspecMarker(app_name)
+    async def force_onboarding(self):
+        """Hook to force the user to the onboarding plugin """
+        pass
+    
+    @pluggy.HookspecMarker(app_name)
+    async def igoor_is_maximized(self):
+        """Hook for when the user maximizes IGOOR's window """
+        pass
+    
+    @pluggy.HookspecMarker(app_name)
+    async def igoor_is_minimized(self):
+        """hook for when the user minimizes IGOOR's window """
         pass
     
     '''
@@ -66,6 +102,7 @@ class MyAppSpec:
     
     @pluggy.HookspecMarker(app_name)
     def speak_fallback(self,message: str):
+        """ Fallback function if main TTS fails """
         pass
     
     @pluggy.HookspecMarker(app_name)
@@ -104,17 +141,22 @@ class MyAppSpec:
     '''
     
     @pluggy.HookspecMarker(app_name)
+    def set_conversation_topic(self,topic:str):
+        """Hook for triggering actions related to new conversation"""
+        pass
+    
+    @pluggy.HookspecMarker(app_name)
     def new_conversation(self):
         """Hook for triggering actions related to new conversation"""
         pass
     
     @pluggy.HookspecMarker(app_name)
-    def add_msg_to_conversation(self, msg, author):
+    def add_msg_to_conversation(self, msg, author, msg_input):
         """Hook for processing wake word detected text"""
         pass
     
     @pluggy.HookspecMarker(app_name)
-    def abandon_conversation(self, **kwargs):
+    def abandon_conversation(self, cause):
         """Hook for abandoning current conversation"""
         pass
     
@@ -122,30 +164,78 @@ class MyAppSpec:
     def after_conversation_end(self, last_conversation):
         """Hook to analyze or do other stuff with last conversation"""
         pass
+
     
     @pluggy.HookspecMarker(app_name)
     def reset_conversation_timeout(self):
         """Hook to reset conversation timeout when user does something"""
         pass
     
+    @pluggy.HookspecMarker(app_name)
+    async def get_conversation_msgs_containing(self, query_text: str):
+        """Hook to search previous conversation messages containing query for autocomplete etc."""
+        pass
+    
+    @pluggy.HookspecMarker(app_name)
+    async def transcribing_started(self):
+        """Hook to communicate with plugins that transcription has started"""
+        pass
+    
+    @pluggy.HookspecMarker(app_name)
+    async def transcribing_ended(self):
+        """Hook to communicate with plugins that transcription has ended"""
+        pass
+    
     '''
         ************ AI FLOW AND RAG **************
     '''
+    @pluggy.HookspecMarker(app_name)
+    def rag_loaded(self):
+        """Hook for plugins to perform actions when RAG is loaded"""
+        pass
+    
     @pluggy.HookspecMarker(app_name)
     def send_prompt(self, prompt: str) -> None:
         """Hook for plugins to perform actions when sending prompt"""
         pass
     
     @pluggy.HookspecMarker(app_name)
-    async def query_rag(self, query_text):
+    async def query_rag(self, query_text: str, store_types: list, return_chunk_ids:bool):
         # Gather all results from the async hook implementations
-        return await self.plugin_manager.hook.query_rag(query_text=query_text)
+        pass
+        
+    @pluggy.HookspecMarker(app_name)
+    async def store_memory(self, fact: str,type: int,conversation_id:int,theme:str,tags:list, reason:str, created_at: None):        
+        pass
     
     @pluggy.HookspecMarker(app_name)
-    async def store_memory(self, memory:str):
-        # Gather all results from the async hook implementations
-        return await self.plugin_manager.hook.store_memory(memory=memory)
-        
+    async def filter_by_timeframe(self, preflow_dict: dict, docstore_ids_by_type: dict):        
+        pass
+    
+    @pluggy.HookspecMarker(app_name)
+    async def clean_short_term_memory(self, clean_after_days:int):        
+        pass
+    
+    '''
+        ************ AUTOCOMPLETE **************
+    '''
+    @pluggy.HookspecMarker(app_name)
+    def store_autocomplete_prediction(self, input_text: str, completion: str):
+        """Hook for storing successful autocomplete predictions"""
+        pass
+    
+    @pluggy.HookspecMarker(app_name)
+    def show_virtual_keyboard(self):
+        """Hook for displaying virtual keyboard"""
+        pass
+    
+    @pluggy.HookspecMarker(app_name)
+    def hide_virtual_keyboard(self):
+        """Hook for hiding virtual keyboard"""
+        pass    
+    
+
+    
 class PluginManager:
     _instance = None
     def __new__(cls, *args, **kwargs):
@@ -158,7 +248,7 @@ class PluginManager:
         if hasattr(self, '_initialized') and self._initialized:
             return
         self._initialized = True
-        self.plugin_folder="plugins"
+        self.plugin_folder=resource_path('plugins')
         self.status_manager = StatusManager()
         self.plugins = []
         self.plugin_manager = pluggy.PluginManager(app_name)
@@ -169,19 +259,18 @@ class PluginManager:
 
         # self.set_active_plugins SHOULD COME HERE
         # Load plugins dynamically from the plugins/ directory based on activation state
-    
-    async def trigger_hook(self, hook_name, *args, **kwargs):
+
+    async def trigger_hook(self, hook_name, **kwargs):
         self.logger.info(f"Hook triggered: {hook_name}")
         """Generic method to trigger any hook by name."""
         hook = getattr(self.plugin_manager.hook, hook_name, None)
         if hook:
             try:
-                # If args contains a dictionary, merge it into kwargs
-                if args and isinstance(args[0], dict):
-                    kwargs.update(args[0])  # Move the dictionary to kwargs
-
+                # Log the kwargs that will be passed to the hook
                 self.logger.info(f"Executing hook {hook_name} with kwargs: {kwargs}")
-                results = hook(**kwargs)  # Call the hook
+                
+                # Call the hook with unpacked kwargs
+                results = hook(**kwargs)
 
                 # Ensure results is an awaitable
                 if asyncio.iscoroutine(results) or isinstance(results, asyncio.Future):
@@ -192,8 +281,7 @@ class PluginManager:
                 else:
                     raise TypeError("The hook result is not awaitable")
 
-                for result in results:
-                    self.logger.debug(result)
+                # Return all results
                 return results
             except Exception as e:
                 self.logger.error(f"Error executing hook '{hook_name}': {e}")
@@ -203,7 +291,7 @@ class PluginManager:
         else:
             self.logger.warning(f"Hook '{hook_name}' not found.")
             return None
-        
+    
     def is_active(self, plugin_name):
         """Check if a plugin is active based on settings.json"""
         settings = self.settings_manager.get_settings()
@@ -231,11 +319,11 @@ class PluginManager:
         active_list = active_list or []
         exclude_list = exclude_list or []
 
-        for plugin_name in os.listdir(resource_path(self.plugin_folder)):
+        for plugin_name in os.listdir(self.plugin_folder):
             if plugin_name != "baseplugin":
-                plugin_path = resource_path(os.path.join(self.plugin_folder, plugin_name))
+                plugin_path = os.path.join(self.plugin_folder, plugin_name)
                 is_active = self.is_active(plugin_name)
-                self.logger.info (f"Plugin path: {plugin_path}")
+                self.logger.info (f": {plugin_path}")
                 # Check if the plugin should be activated or excluded based on the lists
                 if plugin_name in active_list:
                     self.logger.info(f"Plugin '{plugin_name}' is in the active_list, overriding is_active to True.")
@@ -246,8 +334,8 @@ class PluginManager:
 
                 if os.path.isdir(plugin_path) and is_active:
                     self.logger.info(f"Plugin to be activated: {plugin_name}")
-                    if plugin_name.lower() not in map(str.lower, self.activated_plugins):
-                        self.logger.info(f"Plugin {plugin_name.lower()} not already activated")
+                    # if plugin_name.lower() not in map(str.lower, self.activated_plugins):
+                        # self.logger.info(f"Plugin {plugin_name.lower()} not already activated")
                     try:
                         plugin_module = importlib.import_module(f"plugins.{plugin_name}.{plugin_name}")
                         plugin_class = getattr(plugin_module, f"{plugin_name.capitalize()}")
@@ -259,6 +347,7 @@ class PluginManager:
                         self.copy_default_plugin_settings_if_needed(plugin_name)
                     except Exception as e:
                         self.logger.error(f"Error loading plugin '{plugin_name}': {e}")
+                        self.logger.error(f"Traceback: {traceback.format_exc()}")
                         if IGOOR_DEBUG:
                             self.logger.critical("EXIT BECAUSE OF ERROR LOADING PLUGIN")
                             os._exit(1)
@@ -275,10 +364,9 @@ class PluginManager:
         """Gathers activation status and other metadata for all plugins."""
         plugins_metadata = {}
 
-        for plugin_name in os.listdir(resource_path(self.plugin_folder)):
-            plugin_path = resource_path(os.path.join(self.plugin_folder, plugin_name))
-            self.logger.info(f"PLUGIN PATH: {plugin_path}" )
-            metadata_file = resource_path(os.path.join(plugin_path, 'plugin.json'))
+        for plugin_name in os.listdir(self.plugin_folder):
+            plugin_path = os.path.join(self.plugin_folder, plugin_name)
+            metadata_file = os.path.join(plugin_path, 'plugin.json')
             if os.path.isdir(plugin_path) and os.path.exists(metadata_file):
                 try:
                     with open(metadata_file, 'r') as f:
@@ -286,6 +374,7 @@ class PluginManager:
                         plugins_metadata[plugin_name] = metadata
                 except (OSError, json.JSONDecodeError) as e:
                     self.logger.error(f"Error loading metadata for plugin '{plugin_name}': {e}")
+                    self.logger.error(f"Traceback: {traceback.format_exc()}")
             else:
                 self.logger.warning(f"Plugin '{plugin_name}' does not have a valid plugin.json file.")
 
@@ -317,7 +406,8 @@ class PluginManager:
                 "requires_subscription": metadata.get("requires_subscription", False),
                 "is_free": metadata.get("is_free", True),
                 "category": category,
-                "active": plugins_activation.get(plugin_name, False)  # Get activation state from settings.json
+                "active": plugins_activation.get(plugin_name, False),  # Get activation state from settings.json
+                "has_settings": metadata.get("has_settings", False)
             }
             
             plugins_by_category[category].append(plugin_info)
@@ -327,10 +417,10 @@ class PluginManager:
     def get_plugins_metadata(self):
         """Gathers metadata for all plugins from their respective plugin.json files."""
         plugins_metadata = {}
-        
+        print(f"Plugin folder: {self.plugin_folder}")
         for plugin_name in os.listdir(self.plugin_folder):
-            plugin_path = resource_path(os.path.join(self.plugin_folder, plugin_name))
-            metadata_file = resource_path(os.path.join(plugin_path, 'plugin.json'))
+            plugin_path = os.path.join(self.plugin_folder, plugin_name)
+            metadata_file = os.path.join(plugin_path, 'plugin.json')
             if os.path.isdir(plugin_path) and os.path.exists(metadata_file):
                 try:
                     with open(metadata_file, 'r') as f:
@@ -376,8 +466,9 @@ class PluginManager:
                 try:
                     plugin_settings = json.load(f)
                     self.settings_manager.update_plugin_settings(plugin_name, plugin_settings)
-                except json.JSONDecodeError:
-                    self.logger.error(f"Invalid JSON in {settings_file_path}.")
+                except json.JSONDecodeError as e:
+                    self.logger.error(f"Invalid JSON in {settings_file_path}: {e}")
+                    self.logger.error(f"Traceback: {traceback.format_exc()}")
         else:
             self.logger.warning(f"Settings file not found for plugin: {plugin_name}")
     

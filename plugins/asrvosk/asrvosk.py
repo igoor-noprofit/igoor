@@ -2,7 +2,6 @@ from settings_manager import SettingsManager
 from plugins.baseplugin.baseplugin import Baseplugin
 from plugin_manager import hookimpl, PluginManager
 import threading
-import time
 import pyaudio
 import json
 import time
@@ -115,12 +114,12 @@ class Asrvosk(Baseplugin):
     def load_model(self):
         global model, rec
         start_time = time.time()
-        model_path = os.path.join(self.plugin_folder, "models", self.settings.get("lang"), self.settings.get("model_size"))
+        model_path = os.path.join(self.plugin_folder, "models", self.lang, self.settings.get("model_size"))
         
         self.logger.info(f"Attempting to load model from: {model_path}")
         
         # Check if model directory exists
-        if not os.path.exists(model_path):
+        if not os.path.exists(model_path) or not os.listdir(model_path):
             self.logger.warning(f"Model not found at {model_path}, attempting to download...")
             try:
                 # Load vosk_models.json
@@ -132,7 +131,7 @@ class Asrvosk(Baseplugin):
                     models_db = json.load(f)
                 
                 # Get download URL based on language and size
-                lang = self.settings.get("lang")
+                lang = self.lang
                 size = self.settings.get("model_size")
                 self.logger.info(f"Looking for model with lang={lang}, size={size}")
                 
@@ -186,7 +185,7 @@ class Asrvosk(Baseplugin):
     
     async def handle_wake_word(self,following_text):
         print(f"Wake word detected! Text: '{following_text}'")
-        await self.pm.trigger_hook(hook_name="add_msg_to_conversation", msg=following_text, author="def")
+        await self.pm.trigger_hook(hook_name="add_msg_to_conversation", msg=following_text, author="def",msg_input="asrvosk")
         await self.pm.trigger_hook(hook_name="asr_msg", msg="Q: " + following_text)
 
     async def start(self):
@@ -232,11 +231,12 @@ class Asrvosk(Baseplugin):
                         result = rec.Result()
                         text = json.loads(result)["text"]
                         if text:
+                            self.recording = False
+                            await self.send_status("listening")
                             print(f"Recognized text: {text}")
                             await self.handle_wake_word(text)
                             # After processing text, stop recording
-                            self.recording = False
-                            await self.send_status("listening")
+                            
                 else:
                     await asyncio.sleep(0.1)
 

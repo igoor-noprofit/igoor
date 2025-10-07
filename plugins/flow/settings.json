@@ -2,5 +2,7 @@
     "provider": "",
     "api_key": "",
     "model_name": "",
-    "temperature": ""
+    "temperature": 1,
+    "preflow_model_name": "openai/gpt-oss-20b",
+    "preflow_temperature": 0.5
 }

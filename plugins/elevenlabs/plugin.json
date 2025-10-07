@@ -1,12 +1,12 @@
 {
     "category": "TTS",
     "title": "ElevenLabs",
-    "description": "TTS using cloud service Elevenlabs for cloned or custom voice",
+    "description": "TTS using cloud service Elevenlabs for fast or professionally cloned voice",
     "layout": {
         "part": "topbar",
         "order": 0
     },
-    "is_free": true,
+    "is_free": false,
     "requires_subscription": true,
     "requires_internet": true
 }

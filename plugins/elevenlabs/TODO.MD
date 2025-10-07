@@ -1,6 +1,9 @@
 BUG:
 - Fallback does not work because of an unhandled exception in elevenlabslib:
 
+SEE ISSUE:
+https://github.com/lugia19/elevenlabslib/issues/34
+
   File "C:\AIKU\experiments\igoor\venv\lib\site-packages\elevenlabslib\helpers.py", line 730, in _ap  File "C:\AIKU\experiments\igoor\venv\lib\site-packages\elevenlabslib\helpers.py", line 730, in _api_tts_with_concurrency
     response_json = e.response.json()
 AttributeError: 'NoneType' object has no attribute 'json'

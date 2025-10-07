@@ -1,5 +1,5 @@
 {
     "timeout": 5,
-    "battery_threshold": 100,
+    "battery_threshold": 25,
     "warning_timeout": 300
 }

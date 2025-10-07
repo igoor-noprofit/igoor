@@ -2,37 +2,43 @@
     <div class="shortcuts shortcuts-plugin">
         <button class="btn btn-shortcut" @click="$_minimise()">
             <img src="img/minimize.svg">
-            <h3>Réduire la fenetre</h3>
+            <h3>{{ t('Minimize') }}</h3>
         </button>
-        <button class="btn btn-shortcut" @click="$_speak('J\'ai soif')"><svg class="icon icon-l">
+        <button class="btn btn-shortcut" @click="$_speak(t('I\'m thirsty'))"><svg class="icon icon-l">
                 <use xlink:href="img/svgdefs.svg#icon-drink"></use>
             </svg>
-            <h3>Boire</h3>
+            <h3>{{ t('Drink') }}</h3>
         </button>
-        <button class="btn btn-shortcut" @click="$_speak('J\'ai besoin d\'aller au toilette')"><svg class="icon icon-l">
+        <button class="btn btn-shortcut" @click="$_speak(t('I need to go to the toilet'))"><svg class="icon icon-l">
                 <use xlink:href="img/svgdefs.svg#icon-toilet"></use>
             </svg>
-            <h3>Toilette</h3>
+            <h3>{{ t('Toilet') }}</h3>
         </button>
-        <button class="btn btn-shortcut" @click="$_speak('Oui')"><svg class="icon icon-l">
+        <button class="btn btn-shortcut" @click="$_parole()"><svg class="icon icon-l">
+                <use xlink:href="img/svgdefs.svg#icon-talk"></use>
+            </svg>
+            <h3>{{ t('Just a sec') }}</h3>
+        </button>
+        <button class="btn btn-shortcut" @click="$_speak(t('Yes'))"><svg class="icon icon-l">
                 <use xlink:href="img/svgdefs.svg#icon-ok"></use>
             </svg>
-            <h3>Oui</h3>
+            <h3>{{ t('Yes') }}</h3>
         </button>
-        <button class="btn btn-shortcut" @click="$_speak('Non')"><svg class="icon icon-l">
+        <button class="btn btn-shortcut" @click="$_speak(t('No'))"><svg class="icon icon-l">
                 <use xlink:href="img/svgdefs.svg#icon-no"></use>
             </svg>
-            <h3>Non</h3>
+            <h3>{{ t('No') }}</h3>
         </button>
-        <button class="btn btn-shortcut" @click="$_speak('Merci')"><svg class="icon icon-l">
+        <button class="btn btn-shortcut" @click="$_speak(t('Thanks'))"><svg class="icon icon-l">
                 <use xlink:href="img/svgdefs.svg#icon-thankyou"></use>
             </svg>
-            <h3>Merci</h3>
+            <h3>{{ t('Thanks') }}</h3>
         </button>
-        <button class="btn btn-shortcut btn-hilite" @click="$_speak('Aidez-moi c\'est urgent!')"><svg class="icon icon-l">
+        <button class="btn btn-shortcut btn-hilite" @click="$_speak(t('Please help me, it\'s urgent!'))"><svg
+                class="icon icon-l">
                 <use xlink:href="img/svgdefs.svg#icon-sos"></use>
             </svg>
-            <h3>Aide!</h3>
+            <h3>{{ t('Help!') }}</h3>
         </button>
     </div>
 </template>
@@ -47,11 +53,16 @@ export default {
             status: 'loading'
         };
     },
-    created() {
-        
-    },
-    beforeUnmount() {
-        
+    computed: {
+        paroles() {
+            return [
+                this.t("I'm on my way, just finishing writing"),
+                this.t("Just a moment, I'll finish"),
+                this.t("One second and it's done"),
+                this.t("Just give me two seconds"),
+                this.t("I'm just finishing")
+            ];
+        }
     },
     methods: {
         $_speak(msg) {
@@ -60,8 +71,15 @@ export default {
             console.log(json);
             this.sendMsgToBackend(json);
         },
-        $_minimise(){
+        $_minimise() {
             window.pywebview.api.win_minimize()
+        },
+        $_parole() {
+            console.log(this.paroles);
+            const randomIndex = Math.floor(Math.random() * this.paroles.length);
+            const randomMsg = this.paroles[randomIndex];
+            console.log("Sending random parole:", randomMsg);
+            this.$_speak(this.t(randomMsg));
         }
     }
 };
@@ -98,7 +116,8 @@ export default {
 
 
 .btn-shortcut h3 {
-    margin: 4px 0 0 0;  /* Slightly increased top margin */
+    margin: 4px 0 0 0;
+    /* Slightly increased top margin */
     font-size: 0.8em;
     white-space: nowrap;
 }

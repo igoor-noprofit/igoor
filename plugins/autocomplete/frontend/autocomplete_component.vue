@@ -9,24 +9,31 @@
         <div class="autocomplete_input">
             <!-- Show loading or error state -->
             <div v-if="isLoading" class="status-message loading">
-                Chargement du dictionnaire...
+                {{ t("Loading dictionary...") }}
             </div>
             <div v-else-if="error" class="status-message error">
                 {{ error }}
             </div>
 
             <!-- Input and suggestions -->
-            <div v-else>
+            <div v-else class="input-container">
+                <!--button class="btn paste-btn" @click="$_pasteFromClipboard"
+                    :disabled="isLoading || error" title="Coller">
+                    <svg class="icon icon-l">
+                        <use xlink:href="img/svgdefs.svg#icon-paste"></use>
+                    </svg>
+                </button-->
                 <input type="text" v-model="userInput" autocomplete="off" spellcheck="true" name="autocomplete"
                     placeholder="" ref="autocompleteInput" :disabled="isLoading || error" @focus="$_showKeyboard">
             </div>
         </div>
 
-        <button @click="$_speakInput()" class="btn btn-side btn-side-right speak" :disabled="isLoading || error || !userInput.trim()">
+        <button @click="$_speakInput()" class="btn btn-side btn-side-right speak"
+            :disabled="isLoading || error || !userInput.trim()">
             <svg class="icon icon-l">
                 <use xlink:href="img/svgdefs.svg#icon-talk"></use>
             </svg>
-            <h3>dire la phrase</h3>
+            <h3>{{ t("say the phrase") }}</h3>
         </button>
     </div>
     <!------------------------------ VIRTUAL KEYBOARD ------------------------>
@@ -95,13 +102,26 @@ module.exports = {
             error: null,
             retryCount: 0,
             maxRetries: 3,
-            showKeyboard: false
+            showKeyboard: false,
+            allowVirtualKeyboard: false
         }
     },
     async mounted() {
         await this.loadDictionary();
     },
     methods: {
+        /* async $_pasteFromClipboard() {
+            try {
+                const text = await navigator.clipboard.readText();
+                if (text) {
+                    this.userInput += (this.userInput && !this.userInput.endsWith(' ')) ? ' ' : '';
+                    this.userInput += text;
+                    this.$refs.autocompleteInput.focus();
+                }
+            } catch (e) {
+                this.error = "Impossible de coller depuis le presse-papiers.";
+            }
+        },*/
         $_showKeyboard() {
             this.showKeyboard = false;  // Changed from isInputFocused
         },
@@ -260,6 +280,7 @@ module.exports = {
 </script>
 
 <style scoped>
+
 .status-message {
     text-align: center;
     padding: 1rem;
@@ -292,7 +313,7 @@ module.exports = {
 }
 
 .autocomplete.plugin {
-    width: 100%;
+    width: 100%; 
 }
 
 .answers .msg {
@@ -315,5 +336,13 @@ module.exports = {
 
 button {
     cursor: pointer;
+}
+.input-container{
+    height: 50%;
+}
+.input-container input{
+    height: 100% !important;
+    min-height: 50px;
+    border: 1px solid #999 !important;
 }
 </style>

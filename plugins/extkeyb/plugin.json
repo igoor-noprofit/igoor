@@ -1,0 +1,15 @@
+{
+    "category": "UI",
+    "title": "Virtual keyboard",
+    "description": "Integration with TabTip.exe and (in the future) with IGOOR external on-screen keyboard",
+    "layout": {
+        "part": "header",
+        "order": 2
+    },
+    "is_free": true,
+    "requires_subscription": false,
+    "requires_internet": true,
+    "depends_on": [
+        "autocomplete"
+    ]
+}

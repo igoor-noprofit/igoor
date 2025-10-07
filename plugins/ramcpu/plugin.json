@@ -3,8 +3,8 @@
     "title": "Ram and CPU usage",
     "description": "Debugging utility to monitor CPU, RAM usage etc.",
     "layout": {
-        "part": "topbar",
-        "order": 90
+        "part": "after_logo",
+        "order": 80
     },
     "is_free": true,
     "requires_subscription": false,

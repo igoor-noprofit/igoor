@@ -1,0 +1,5 @@
+{
+    "If checked, this voice will only be used for fallback from your main TTS plugin voice":" Si coché, cette voix ne sera utilisée que en cas de malfonctionnement de votre voix TTS principale",
+    "Select the voice to be used for speech synthesis":" Sélectionnez la voix à utiliser pour la synthèse vocale",
+    "Save plugin settings":" Enregistrer les paramètres du plugin"
+}

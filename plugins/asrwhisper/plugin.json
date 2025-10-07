@@ -1,0 +1,13 @@
+{
+    "category": "ASR",
+    "title": "Whisper",
+    "description": "Automatic, REMOTE speech recognition, with on-click listening",
+    "layout": {
+        "part": "header",
+        "order": 0
+    },
+    "is_free": false,
+    "requires_subscription": true,
+    "requires_internet": true,
+    "has_settings": true
+}
