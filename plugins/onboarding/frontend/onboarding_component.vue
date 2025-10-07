@@ -147,7 +147,7 @@
                                                     class="slider round"></span></label>
                                             <!-- Settings Icon for non-core plugins -->
                                             <img v-if="!plugin.is_core && plugin.has_settings && plugin.active"
-                                                src="/img/icons/src/settings.svg" width="26"
+                                                src="/img/icons/src/settings.svg"
                                                 class="plugin-settings-icon" alt="Settings" title="{{ t('Configure plugin') }}"
                                                 @click="showPluginSettingsView(plugin)">
                                         </div>
@@ -777,6 +777,8 @@ button:disabled {
     /* If your icons are dark and background is dark, or vice-versa */
     opacity: 0.7;
     padding: 6px;
+    width: 36px;
+    margin-top: 10px;
 }
 
 .plugin-settings-icon:hover {
