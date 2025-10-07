@@ -5,7 +5,7 @@
             <img src="/img/icons/src/settings.svg" width="30">
         </div>
         <!-- Modal Window for Plugin Settings -->
-        <div v-if="showModal" class="modal-overlay" id="onboardingModal">
+        <div v-if="showModal" class="modal-overlay" :class="isSaving ? isSaving: ''" :id="onboardingModal">
             <div class="modal-content settings container onboarding plugin">
                 <!-- Restart Alert -->
                 <div v-if="showRestartAlert" class="restart-alert">
@@ -182,7 +182,7 @@
                     </div>
                 </div>
                 <div class="save-section" v-if="currentTab !== 'plugins' || !viewingPluginSettings">
-                    <button @click="saveSettings" :disabled="isSaving">
+                    <button @click="saveSettings" :disabled="isSaving" :class="isSaving ? 'isSaving' : ''">
                         {{ isSaving ? t('Saving...') : t('Save main settings') }}
                     </button>
                     <span v-if="saveStatus" :class="['save-status', saveStatus.type]">
@@ -304,6 +304,7 @@ export default {
             }
         },
         async saveSettings() { // This is for main settings (bio, prefs, ai)
+            console.log("Saving main settings...");
             this.isSaving = true;
             this.saveStatus = null;
 
@@ -319,17 +320,11 @@ export default {
                 });
             } catch (error) {
                 console.error('Error saving main settings:', error);
+                this.isSaving = false;
                 this.saveStatus = {
                     type: 'error',
                     message: this.t('Failed to save main settings. Please try again.')
                 };
-            } finally {
-                this.isSaving = false;
-                if (this.saveStatus?.type === 'success') {
-                    /* setTimeout(() => {
-                        this.saveStatus = null;
-                    }, 3000); */
-                }
             }
         },
         handleIncomingMessage(event) {
@@ -818,5 +813,10 @@ button:disabled {
 
 a.extlink {
     color: #fff;
+}
+
+.isSaving{
+    cursor: wait;
+    background: #f00;
 }
 </style>
