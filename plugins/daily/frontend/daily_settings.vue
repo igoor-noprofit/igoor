@@ -502,14 +502,12 @@ module.exports = {
 
 
 .category-col {
-  background-color: #1e2223;
-  border: 2px solid #2c3e50;
+  background-color: #28373b;
   border-radius: 8px;
   /* padding: 0.4rem; */
   justify-content: space-between;
   display: flex;
   flex: 1 1 0;
-  border: 1px solid #ff0;
   min-width: 0;
   flex-direction: column;
   justify-content: flex-start;
@@ -636,14 +634,17 @@ button.switch-btn {
 
 .add-item-input,
 .add-category-input {
-  margin-top: 0.5rem;
+ 
   padding: 0.25rem;
   border-radius: 4px;
   /* border: 1px solid #34495e; */
   background: #1a2329;
   color: #fff;
+  margin-left: 10px;
+  margin-right: 10px;
 }
 input.add-item-input{
+   margin-top: 0.5rem;
   width: auto;
   max-width: none;
 }
