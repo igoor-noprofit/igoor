@@ -68,11 +68,12 @@
         <template #item="{ element: category, index: catIdx }">
           <div :key="category.name" class="options-col category-col bordered">
             <div class="category-header">
+                            <button class="switch-btn" @click="toggleCategoryPlacement('secondary', catIdx)">⇄</button>
+
               <span v-if="!category.editing" @click="editCategoryName('secondary', catIdx)" class="category_name">{{
                 category.name }}</span>
               <input v-else v-model="category.editName" @blur="saveCategoryName('secondary', catIdx)"
                 @keyup.enter="saveCategoryName('secondary', catIdx)" />
-              <button class="switch-btn" @click="toggleCategoryPlacement('secondary', catIdx)">⇄</button>
               <button class="delete-btn" @click="deleteCategory('secondary', catIdx)">✕</button>
             </div>
             <draggable class="items-list" :class="{ 'items-list--empty': !category.itemsArr.length }" v-model="category.itemsArr" :group="'items'"
@@ -338,6 +339,9 @@ module.exports = {
   font-size: 1rem;
   background: #333;
   cursor: grab;
+  height: 60px;
+  display: flex;
+  align-items: center;
 }
 
 .items-list {
@@ -392,6 +396,7 @@ module.exports = {
   justify-content: space-between;
   margin-bottom: 0.5rem;
   gap: 0.5rem;
+
 }
 
 .add-category-container {
@@ -414,22 +419,24 @@ module.exports = {
   text-transform: uppercase;
 }
 
-.delete-btn {
-  padding: 6px 8px 8px 8px;
+button.delete-btn {
   background: #a66355 !important;
   border: none;
-  color: #e74c3c;
   font-size: 1.2em;
   cursor: pointer;
+  height: 60px !important;
+  width: 60px;
 }
 
-.switch-btn {
-  background: none;
+button.switch-btn {
+  background: #eee;
   border: none;
   color: #1abc9c;
   font-size: 1.2em;
   cursor: pointer;
   padding: 7px 10px !important;
+  height: 60px;
+  width: 60px;
 }
 
 .item-row {
@@ -442,12 +449,12 @@ module.exports = {
   justify-content: space-between;
   /* padding: 0.25rem 0.5rem; */
   text-align: left;
-  height: 5vh;
+  height: 60px;
 }
 
 .checkbox-wrapper {
-  width: 32px;
-  height: 32px;
+  width: 60px;
+  height: 60px;
   display: flex;
   align-items: center;
   justify-content: center;
