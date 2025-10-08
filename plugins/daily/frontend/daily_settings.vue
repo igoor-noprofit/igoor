@@ -684,7 +684,7 @@ input.add-item-input{
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: #ccc;
+  background-color: #55595c;
   border-radius: 20px;
   transition: .4s;
   width: 35px;
@@ -824,8 +824,8 @@ button.delete-btn {
   color: #102026;
 }
 
-.dialog-btn--secondary {
-  background: #2f3a3f;
+button.dialog-btn--secondary {
+  background: #55595c;
   color: #f1f4f6;
 }
 

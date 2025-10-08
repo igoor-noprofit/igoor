@@ -31,6 +31,7 @@ IGOOR is an open-source and free conversational application, controllable also b
 - NEVER edit `app.js` or `app.vue` directly - use `app_template.js/vue`
 - Component methods prefixed with `$_` to avoid global conflicts
 - Dynamic component loading via httpVueLoader
+- When choosing colors,always start from predefined colors in /css/app.less
 
 ## Plugin Development
 
