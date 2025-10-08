@@ -29,13 +29,19 @@
             </div>
             <draggable class="items-list" :class="{ 'items-list--empty': !category.itemsArr.length }" v-model="category.itemsArr" :group="'items'"
               :move="canDragItem"
-              :options="{ animation: 150, handle: '.itemTitle', filter: '.fixed-item, .item-row input, .checkbox-wrapper, .delete-btn', preventOnFilter: true, draggable: '.item-row:not(.fixed-item)' }"
+              :options="{ animation: 150, handle: '.itemTitle', filter: '.fixed-item, .favorite-btn, .delete-btn', preventOnFilter: true, draggable: '.item-row:not(.fixed-item)' }"
               item-key="key">
               <template #item="{ element: item, index: itemIdx }">
                 <div :key="item.key" class="item-row" :class="{ 'fixed-item': item.fixed }">
 
-                  <div class="checkbox-wrapper">
-                    <input type="checkbox" v-model="item.fixed" @mousedown.stop @touchstart.stop @pointerdown.stop />
+                  <div class="favorite-wrapper">
+                    <button type="button" class="favorite-btn" :class="{ 'favorite-btn--active': item.fixed }"
+                      :aria-pressed="item.fixed ? 'true' : 'false'"
+                      @mousedown.stop @touchstart.stop @pointerdown.stop
+                      @click="toggleItemFixed('main', catIdx, itemIdx)">
+                      <span v-if="item.fixed">★</span>
+                      <span v-else>☆</span>
+                    </button>
                   </div>
                   <!--button class="switch-btn">✣</button-->
                   <span class="itemTitle" v-if="!item.editing" @click="editItemName('main', catIdx, itemIdx)">{{
@@ -80,13 +86,19 @@
             </div>
             <draggable class="items-list" :class="{ 'items-list--empty': !category.itemsArr.length }" v-model="category.itemsArr" :group="'items'"
               :move="canDragItem"
-              :options="{ animation: 150, handle: '.itemTitle', filter: '.fixed-item, .item-row input, .checkbox-wrapper, .delete-btn', preventOnFilter: true, draggable: '.item-row:not(.fixed-item)' }"
+              :options="{ animation: 150, handle: '.itemTitle', filter: '.fixed-item, .favorite-btn, .delete-btn', preventOnFilter: true, draggable: '.item-row:not(.fixed-item)' }"
               item-key="key">
               <template #item="{ element: item, index: itemIdx }">
                 <div :key="item.key" class="item-row" :class="{ 'fixed-item': item.fixed }">
 
-                  <div class="checkbox-wrapper">
-                    <input type="checkbox" v-model="item.fixed" @mousedown.stop @touchstart.stop @pointerdown.stop />
+                  <div class="favorite-wrapper">
+                    <button type="button" class="favorite-btn" :class="{ 'favorite-btn--active': item.fixed }"
+                      :aria-pressed="item.fixed ? 'true' : 'false'"
+                      @mousedown.stop @touchstart.stop @pointerdown.stop
+                      @click="toggleItemFixed('secondary', catIdx, itemIdx)">
+                      <span v-if="item.fixed">★</span>
+                      <span v-else>☆</span>
+                    </button>
                   </div>
 
                   <span class="itemTitle" v-if="!item.editing" @click="editItemName('secondary', catIdx, itemIdx)">{{
@@ -272,6 +284,13 @@ module.exports = {
         arr[catIdx].newItem = '';
       }
     },
+    toggleItemFixed(view, catIdx, itemIdx) {
+      const arr = view === 'main' ? this.mainCategories : this.secondaryCategories;
+      const item = arr?.[catIdx]?.itemsArr?.[itemIdx];
+      if (item) {
+        item.fixed = !item.fixed;
+      }
+    },
     canDragItem(evt) {
       const original = evt && evt.originalEvent;
       if (!original) return true;
@@ -282,7 +301,7 @@ module.exports = {
       if (target.closest('.fixed-item')) return false;
       if (target.closest('.delete-btn')) return false;
       if (target.closest('input')) return false;
-      if (target.closest('.checkbox-wrapper')) return false;
+      if (target.closest('.favorite-btn')) return false;
       return true;
     },
     canDragCategory(evt) {
@@ -466,19 +485,41 @@ button.switch-btn {
   height: 60px;
 }
 
-.checkbox-wrapper {
+.favorite-wrapper {
   width: 60px;
   height: 60px;
   display: flex;
   align-items: center;
   justify-content: center;
   margin: 0 1rem 0 0;
-  overflow: hidden;
 }
 
-.checkbox-wrapper input[type="checkbox"] {
-  transform: scale(1.6);
-  transform-origin: center;
+.favorite-btn {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 8px;
+  background: #394a50;
+  font-size: 1.8rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.favorite-btn span {
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.favorite-btn--active {
+  background: #f1c40f;
+  transform: scale(1.05);
+}
+
+.favorite-btn--active span {
+  color: #fff;
 }
 
 .add-item-input,
