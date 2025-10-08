@@ -28,13 +28,13 @@
             </div>
             <draggable class="items-list" :class="{ 'items-list--empty': !category.itemsArr.length }" v-model="category.itemsArr" :group="'items'"
               :move="canDragItem"
-              :options="{ animation: 150, handle: '.itemTitle', filter: '.fixed-item, .item-row input, .delete-btn', preventOnFilter: true, draggable: '.item-row:not(.fixed-item)' }"
+              :options="{ animation: 150, handle: '.itemTitle', filter: '.fixed-item, .item-row input, .checkbox-wrapper, .delete-btn', preventOnFilter: true, draggable: '.item-row:not(.fixed-item)' }"
               item-key="key">
               <template #item="{ element: item, index: itemIdx }">
                 <div :key="item.key" class="item-row" :class="{ 'fixed-item': item.fixed }">
 
                   <div class="checkbox-wrapper">
-                    <input type="checkbox" v-model="item.fixed" @mousedown.stop @touchstart.stop />
+                    <input type="checkbox" v-model="item.fixed" @mousedown.stop @touchstart.stop @pointerdown.stop />
                   </div>
                   <!--button class="switch-btn">✣</button-->
                   <span class="itemTitle" v-if="!item.editing" @click="editItemName('main', catIdx, itemIdx)">{{
@@ -45,7 +45,7 @@
 
 
                   <!--span class="drag-handle" v-if="!item.fixed">☰</span-->
-                  <button class="delete-btn" @mousedown.stop @touchstart.stop @click="deleteItem('main', catIdx, itemIdx)">✕</button>
+                  <button class="delete-btn" @mousedown.stop @touchstart.stop @pointerdown.stop @click="deleteItem('main', catIdx, itemIdx)">✕</button>
                 </div>
               </template>
               <template #footer>
@@ -78,13 +78,13 @@
             </div>
             <draggable class="items-list" :class="{ 'items-list--empty': !category.itemsArr.length }" v-model="category.itemsArr" :group="'items'"
               :move="canDragItem"
-              :options="{ animation: 150, handle: '.itemTitle', filter: '.fixed-item, .item-row input, .delete-btn', preventOnFilter: true, draggable: '.item-row:not(.fixed-item)' }"
+              :options="{ animation: 150, handle: '.itemTitle', filter: '.fixed-item, .item-row input, .checkbox-wrapper, .delete-btn', preventOnFilter: true, draggable: '.item-row:not(.fixed-item)' }"
               item-key="key">
               <template #item="{ element: item, index: itemIdx }">
                 <div :key="item.key" class="item-row" :class="{ 'fixed-item': item.fixed }">
 
                   <div class="checkbox-wrapper">
-                    <input type="checkbox" v-model="item.fixed" @mousedown.stop @touchstart.stop />
+                    <input type="checkbox" v-model="item.fixed" @mousedown.stop @touchstart.stop @pointerdown.stop />
                   </div>
 
                   <span class="itemTitle" v-if="!item.editing" @click="editItemName('secondary', catIdx, itemIdx)">{{
@@ -93,7 +93,7 @@
                     @keyup.enter="saveItemName('secondary', catIdx, itemIdx)" />
 
                   <!--span class="drag-handle" v-if="!item.fixed">☰</span-->
-                  <button class="delete-btn" @mousedown.stop @touchstart.stop @click="deleteItem('secondary', catIdx, itemIdx)">✕</button>
+                  <button class="delete-btn" @mousedown.stop @touchstart.stop @pointerdown.stop @click="deleteItem('secondary', catIdx, itemIdx)">✕</button>
                 </div>
               </template>
               <template #footer>
@@ -274,12 +274,13 @@ module.exports = {
       const original = evt && evt.originalEvent;
       if (!original) return true;
       const type = original.type;
-      if (type !== 'mousedown' && type !== 'touchstart') return true;
+      if (!['mousedown', 'touchstart', 'pointerdown'].includes(type)) return true;
       const target = original.target;
       if (!target) return true;
       if (target.closest('.fixed-item')) return false;
       if (target.closest('.delete-btn')) return false;
       if (target.closest('input')) return false;
+      if (target.closest('.checkbox-wrapper')) return false;
       return true;
     },
     saveSettings() {
