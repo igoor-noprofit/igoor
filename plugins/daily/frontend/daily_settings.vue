@@ -412,7 +412,7 @@ module.exports = {
   flex-grow: 1;
   font-size: 1rem;
   cursor: grab;
-  height: 60px;
+  height: 50px;
   display: flex;
   align-items: center;
 }
@@ -508,8 +508,8 @@ button.delete-btn {
   border: none;
   font-size: 1.2em;
   cursor: pointer;
-  height: 60px !important;
-  width: 60px;
+  height: 50px !important;
+  width: 50px;
 }
 
 button.switch-btn {
@@ -519,8 +519,8 @@ button.switch-btn {
   font-size: 1.2em;
   cursor: pointer;
   padding: 7px 10px !important;
-  height: 60px;
-  width: 60px;
+  height: 50px;
+  width: 50px;
 }
 
 .item-row {
@@ -533,7 +533,7 @@ button.switch-btn {
   justify-content: space-between;
   /* padding: 0.25rem 0.5rem; */
   text-align: left;
-  height: 60px;
+  height: 50px;
 }
 
 .item-row input {
@@ -547,8 +547,8 @@ button.switch-btn {
 }
 
 .favorite-wrapper {
-  width: 60px;
-  height: 60px;
+  width: 50px;
+  height: 50px;
   display: flex;
   align-items: center;
   justify-content: center;
