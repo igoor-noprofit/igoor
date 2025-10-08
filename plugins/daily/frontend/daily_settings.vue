@@ -443,7 +443,7 @@ module.exports = {
   display: flex;
   flex-direction: row;
   box-sizing: border-box;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   /* border: 1px solid #f00; */
   gap: 0.7rem;
 }
