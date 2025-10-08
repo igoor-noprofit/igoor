@@ -530,7 +530,6 @@ button.switch-btn {
   margin: 0.5rem 0 0 0;
   background: #2f535b;
   border-radius: 4px;
-  justify-content: space-between;
   /* padding: 0.25rem 0.5rem; */
   text-align: left;
   height: 50px;
@@ -591,6 +590,10 @@ button.switch-btn {
   /* border: 1px solid #34495e; */
   background: #1a2329;
   color: #fff;
+}
+input.add-item-input{
+  width: auto;
+  max-width: none;
 }
 
 .switch {
