@@ -20,9 +20,10 @@
           <div :key="category.name" class="options-col category-col bordered">
             <div class="category-header">
               <button class="switch-btn" @mousedown.stop @touchstart.stop @pointerdown.stop @click="toggleCategoryPlacement('main', catIdx)">⇄</button>
-              <span v-if="!category.editing" @click="editCategoryName('main', catIdx)" class="category_name">{{
+              <span v-if="!category.editing" @click="editCategoryName('main', catIdx, $event)" class="category_name">{{
                 category.name }}</span>
-              <input v-else v-model="category.editName" @blur="saveCategoryName('main', catIdx)"
+              <input v-else v-model="category.editName" :ref="categoryEditorRef('main', catIdx)" ref-in-for
+                @blur="saveCategoryName('main', catIdx)"
                 @keyup.enter="saveCategoryName('main', catIdx)" />
 
               <button class="delete-btn" @mousedown.stop @touchstart.stop @pointerdown.stop @click="deleteCategory('main', catIdx)">✕</button>
@@ -79,9 +80,10 @@
             <div class="category-header">
               <button class="switch-btn" @mousedown.stop @touchstart.stop @pointerdown.stop @click="toggleCategoryPlacement('secondary', catIdx)">⇄</button>
 
-              <span v-if="!category.editing" @click="editCategoryName('secondary', catIdx)" class="category_name">{{
+              <span v-if="!category.editing" @click="editCategoryName('secondary', catIdx, $event)" class="category_name">{{
                 category.name }}</span>
-              <input v-else v-model="category.editName" @blur="saveCategoryName('secondary', catIdx)"
+              <input v-else v-model="category.editName" :ref="categoryEditorRef('secondary', catIdx)" ref-in-for
+                @blur="saveCategoryName('secondary', catIdx)"
                 @keyup.enter="saveCategoryName('secondary', catIdx)" />
               <button class="delete-btn" @mousedown.stop @touchstart.stop @pointerdown.stop @click="deleteCategory('secondary', catIdx)">✕</button>
             </div>
@@ -234,10 +236,25 @@ module.exports = {
         targetArr.push(category);
       }
     },
-    editCategoryName(view, catIdx) {
+    editCategoryName(view, catIdx, evt) {
+      if (evt) {
+        evt.stopPropagation();
+      }
       const arr = view === 'main' ? this.mainCategories : this.secondaryCategories;
       arr[catIdx].editing = true;
       arr[catIdx].editName = arr[catIdx].name;
+      this.$nextTick(() => {
+        setTimeout(() => {
+          const refKey = this.categoryEditorRef(view, catIdx);
+          const inputRef = this.$refs[refKey];
+          const input = Array.isArray(inputRef) ? inputRef[0] : inputRef;
+          if (input) {
+            input.focus({ preventScroll: true });
+            const length = input.value.length;
+            input.setSelectionRange(length, length);
+          }
+        }, 0);
+      });
     },
     saveCategoryName(view, catIdx) {
       const arr = view === 'main' ? this.mainCategories : this.secondaryCategories;
@@ -282,6 +299,9 @@ module.exports = {
     },
     itemEditorRef(view, catIdx, itemIdx) {
       return `item-editor-${view}-${catIdx}-${itemIdx}`;
+    },
+    categoryEditorRef(view, catIdx) {
+      return `category-editor-${view}-${catIdx}`;
     },
     saveItemName(view, catIdx, itemIdx) {
       const arr = view === 'main' ? this.mainCategories : this.secondaryCategories;
@@ -450,6 +470,17 @@ module.exports = {
   margin-bottom: 0.5rem;
   gap: 0.5rem;
 
+}
+
+.category-header input {
+  flex: 1;
+  height: 46px;
+  border-radius: 4px;
+  border: 1px solid #4a5c60;
+  background: #1f2c31;
+  color: #fff;
+  padding: 0 0.75rem;
+  text-transform: uppercase;
 }
 
 .add-category-container {
