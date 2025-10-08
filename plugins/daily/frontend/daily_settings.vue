@@ -44,9 +44,10 @@
                     </button>
                   </div>
                   <!--button class="switch-btn">✣</button-->
-                  <span class="itemTitle" v-if="!item.editing" @click="editItemName('main', catIdx, itemIdx)">{{
+                  <span class="itemTitle" v-if="!item.editing" @click="editItemName('main', catIdx, itemIdx, $event)">{{
                     item.key }}</span>
-                  <input v-else v-model="item.editName" @blur="saveItemName('main', catIdx, itemIdx)"
+                  <input v-else v-model="item.editName" :ref="itemEditorRef('main', catIdx, itemIdx)" ref-in-for
+                    @blur="saveItemName('main', catIdx, itemIdx)"
                     @keyup.enter="saveItemName('main', catIdx, itemIdx)" />
 
 
@@ -101,9 +102,10 @@
                     </button>
                   </div>
 
-                  <span class="itemTitle" v-if="!item.editing" @click="editItemName('secondary', catIdx, itemIdx)">{{
+                  <span class="itemTitle" v-if="!item.editing" @click="editItemName('secondary', catIdx, itemIdx, $event)">{{
                     item.key }}</span>
-                  <input v-else v-model="item.editName" @blur="saveItemName('secondary', catIdx, itemIdx)"
+                  <input v-else v-model="item.editName" :ref="itemEditorRef('secondary', catIdx, itemIdx)" ref-in-for
+                    @blur="saveItemName('secondary', catIdx, itemIdx)"
                     @keyup.enter="saveItemName('secondary', catIdx, itemIdx)" />
 
                   <!--span class="drag-handle" v-if="!item.fixed">☰</span-->
@@ -258,10 +260,28 @@ module.exports = {
         else this.newSecondaryCategory = '';
       }
     },
-    editItemName(view, catIdx, itemIdx) {
+    editItemName(view, catIdx, itemIdx, evt) {
+      if (evt) {
+        evt.stopPropagation();
+      }
       const arr = view === 'main' ? this.mainCategories : this.secondaryCategories;
       arr[catIdx].itemsArr[itemIdx].editing = true;
       arr[catIdx].itemsArr[itemIdx].editName = arr[catIdx].itemsArr[itemIdx].key;
+      this.$nextTick(() => {
+        setTimeout(() => {
+          const refKey = this.itemEditorRef(view, catIdx, itemIdx);
+          const inputRef = this.$refs[refKey];
+          const input = Array.isArray(inputRef) ? inputRef[0] : inputRef;
+          if (input) {
+            input.focus({ preventScroll: true });
+            const length = input.value.length;
+            input.setSelectionRange(length, length);
+          }
+        }, 0);
+      });
+    },
+    itemEditorRef(view, catIdx, itemIdx) {
+      return `item-editor-${view}-${catIdx}-${itemIdx}`;
     },
     saveItemName(view, catIdx, itemIdx) {
       const arr = view === 'main' ? this.mainCategories : this.secondaryCategories;
@@ -483,6 +503,16 @@ button.switch-btn {
   /* padding: 0.25rem 0.5rem; */
   text-align: left;
   height: 60px;
+}
+
+.item-row input {
+  flex: 1;
+  height: 40px;
+  border-radius: 4px;
+  border: 1px solid #4a5c60;
+  background: #1f2c31;
+  color: #fff;
+  padding: 0 0.75rem;
 }
 
 .favorite-wrapper {
