@@ -27,7 +27,7 @@
               <button class="delete-btn" @click="deleteCategory('main', catIdx)">✕</button>
             </div>
             <draggable v-model="category.itemsArr" :group="'items'"
-              :options="{ animation: 150, handle: '.drag-handle', filter: '.fixed-item', preventOnFilter: true, draggable: '.item-row:not(.fixed-item)' }"
+              :options="{ animation: 150, handle: '.itemTitle', filter: '.fixed-item', preventOnFilter: true, draggable: '.item-row:not(.fixed-item)' }"
               item-key="key">
               <template #item="{ element: item, index: itemIdx }">
                 <div :key="item.key" class="item-row" :class="{ 'fixed-item': item.fixed }">
@@ -70,7 +70,7 @@
               <button class="delete-btn" @click="deleteCategory('secondary', catIdx)">✕</button>
             </div>
             <draggable v-model="category.itemsArr" :group="'items'"
-              :options="{ animation: 150, handle: '.drag-handle', filter: '.fixed-item', preventOnFilter: true, draggable: '.item-row:not(.fixed-item)' }"
+              :options="{ animation: 150, handle: '.itemTitle', filter: '.fixed-item', preventOnFilter: true, draggable: '.item-row:not(.fixed-item)' }"
               item-key="key">
               <template #item="{ element: item, index: itemIdx }">
                 <div :key="item.key" class="item-row" :class="{ 'fixed-item': item.fixed }">
@@ -313,6 +313,7 @@ module.exports = {
   flex-grow: 1;
   font-size: 1rem;
   background: #333;
+  cursor: grab;
 }
 
 
@@ -375,8 +376,6 @@ module.exports = {
   color: #e74c3c;
   font-size: 1.2em;
   cursor: pointer;
-  position: relative;
-  z-index: 20;
 }
 
 .switch-btn {
