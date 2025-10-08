@@ -128,6 +128,19 @@
           v-bind:placeholder="t('+ Category')" />
       </div>
     </div>
+    <transition name="dialog-fade">
+      <div v-if="dialogVisible" class="dialog-backdrop" role="dialog" aria-modal="true"
+        @click.self="handleDialogBackdrop">
+        <div class="dialog-panel">
+          <div class="dialog-message">{{ dialogMessage }}</div>
+          <div class="dialog-actions">
+            <button v-if="dialogMode === 'confirm'" class="dialog-btn dialog-btn--secondary"
+              @click="handleDialogAction(false)">{{ t('Cancel') }}</button>
+            <button class="dialog-btn dialog-btn--primary" @click="handleDialogAction(true)">{{ dialogMode === 'confirm' ? t('Confirm') : t('OK') }}</button>
+          </div>
+        </div>
+      </div>
+    </transition>
   </div>
 </template>
 
@@ -163,7 +176,11 @@ module.exports = {
       secondaryCategories: [],
       newMainCategory: '',
       newSecondaryCategory: '',
-      originalSettings: null
+      originalSettings: null,
+      dialogVisible: false,
+      dialogMessage: '',
+      dialogMode: 'alert',
+      dialogResolve: null
     };
   },
   computed: {
@@ -221,12 +238,12 @@ module.exports = {
     switchToMainView() {
       this.currentView = 'main';
     },
-    toggleCategoryPlacement(view, catIdx) {
+    async toggleCategoryPlacement(view, catIdx) {
       const sourceArr = view === 'main' ? this.mainCategories : this.secondaryCategories;
       const targetArr = view === 'main' ? this.secondaryCategories : this.mainCategories;
       if (!sourceArr[catIdx]) return;
       if (targetArr.length >= 6) {
-        alert(this.t('Maximum categories reached on the destination page.'));
+        await this.showDialog({ message: this.t('Maximum categories reached on the destination page.'), mode: 'alert' });
         return;
       }
       const [category] = sourceArr.splice(catIdx, 1);
@@ -264,9 +281,13 @@ module.exports = {
         arr[catIdx].editing = false;
       }
     },
-    deleteCategory(view, catIdx) {
+    async deleteCategory(view, catIdx) {
       const arr = view === 'main' ? this.mainCategories : this.secondaryCategories;
-      if (confirm(this.t('Do you really want to delete this delete this category?'))) arr.splice(catIdx, 1);
+      const confirmed = await this.showDialog({
+        message: this.t('Do you really want to delete this delete this category?'),
+        mode: 'confirm'
+      });
+      if (confirmed) arr.splice(catIdx, 1);
     },
     addCategory(view) {
       const arr = view === 'main' ? this.mainCategories : this.secondaryCategories;
@@ -312,9 +333,13 @@ module.exports = {
         item.editing = false;
       }
     },
-    deleteItem(view, catIdx, itemIdx) {
+    async deleteItem(view, catIdx, itemIdx) {
       const arr = view === 'main' ? this.mainCategories : this.secondaryCategories;
-      if (confirm(this.t('Do you really want to delete this delete this item?'))) arr[catIdx].itemsArr.splice(itemIdx, 1);
+      const confirmed = await this.showDialog({
+        message: this.t('Do you really want to delete this delete this item?'),
+        mode: 'confirm'
+      });
+      if (confirmed) arr[catIdx].itemsArr.splice(itemIdx, 1);
     },
     addItem(view, catIdx) {
       const arr = view === 'main' ? this.mainCategories : this.secondaryCategories;
@@ -329,6 +354,33 @@ module.exports = {
       const item = arr?.[catIdx]?.itemsArr?.[itemIdx];
       if (item) {
         item.fixed = !item.fixed;
+      }
+    },
+    showDialog({ message, mode = 'alert' }) {
+      return new Promise(resolve => {
+        this.dialogMessage = message;
+        this.dialogMode = mode;
+        this.dialogVisible = true;
+        this.dialogResolve = resolve;
+      });
+    },
+    handleDialogAction(confirmed) {
+      if (!this.dialogResolve) {
+        this.dialogVisible = false;
+        return;
+      }
+      const resolve = this.dialogResolve;
+      this.dialogResolve = null;
+      this.dialogVisible = false;
+      const result = this.dialogMode === 'confirm' ? !!confirmed : true;
+      resolve(result);
+      this.dialogMessage = '';
+    },
+    handleDialogBackdrop() {
+      if (this.dialogMode === 'confirm') {
+        this.handleDialogAction(false);
+      } else {
+        this.handleDialogAction(true);
       }
     },
     canDragItem(evt) {
@@ -466,7 +518,6 @@ module.exports = {
 .category-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   margin-bottom: 0.5rem;
   gap: 0.5rem;
 
@@ -497,6 +548,7 @@ module.exports = {
   /* border-radius: 4px; */
   cursor: pointer;
   font-size: 1.1vw;
+  flex-grow: 1;
 }
 
 .category-header span {
@@ -716,5 +768,74 @@ button.delete-btn {
 
 .btn-secondary {
   background-color: #ccc;
+}
+
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 4000;
+}
+
+.dialog-panel {
+  background: #1f2c31;
+  border: 1px solid #3c4b52;
+  border-radius: 12px;
+  padding: 1.5rem;
+  width: min(90vw, 360px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.dialog-message {
+  font-size: 1rem;
+  line-height: 1.5;
+  color: #f1f4f6;
+  text-align: center;
+}
+
+.dialog-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+}
+
+.dialog-btn {
+  min-width: 110px;
+  padding: 0.55rem 1rem;
+  border-radius: 6px;
+  border: none;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.dialog-btn:hover {
+  transform: translateY(-1px);
+}
+
+.dialog-btn--primary {
+  background: #1abc9c;
+  color: #102026;
+}
+
+.dialog-btn--secondary {
+  background: #2f3a3f;
+  color: #f1f4f6;
+}
+
+.dialog-fade-enter-active,
+.dialog-fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.dialog-fade-enter-from,
+.dialog-fade-leave-to {
+  opacity: 0;
 }
 </style>
