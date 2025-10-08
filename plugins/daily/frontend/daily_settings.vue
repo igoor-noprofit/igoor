@@ -1,7 +1,7 @@
 <template>
   <div class="daily-settings container daily-plugin main">
     <div class="settings-actions">
-      <button class="btn btn-secondary" @click="resetSettings" :disabled="!hasUnsavedChanges">{{t('Cancel')}}</button>
+      <button class="btn btn-secondary" @click="resetSettings" :disabled="!hasUnsavedChanges">{{ t('Cancel') }}</button>
       <button v-if="currentView === 'main'" class="btn btn-side btn-side-right" @click="switchToSecondaryView"><svg
           class="icon icon-l">
           <use xlink:href="/img/svgdefs.svg#icon-chevron_right" />
@@ -10,7 +10,7 @@
           class="icon icon-l">
           <use xlink:href="/img/svgdefs.svg#icon-chevron_left" />
         </svg></button>
-      <button class="btn btn-primary" @click="saveSettings" :disabled="!hasUnsavedChanges">{{t('Save')}}</button>
+      <button class="btn btn-primary" @click="saveSettings" :disabled="!hasUnsavedChanges">{{ t('Save') }}</button>
     </div>
     <div v-if="currentView === 'main'" class="options">
       <draggable v-model="mainCategories" group="categories" class="categories-row"
@@ -19,10 +19,11 @@
           <div :key="category.name" class="options-col category-col bordered">
             <div class="category-header">
               <button class="switch-btn" @click="toggleCategoryPlacement('main', catIdx)">⇄</button>
-              <span v-if="!category.editing" @click="editCategoryName('main', catIdx)" class="category_name">{{ category.name }}</span>
+              <span v-if="!category.editing" @click="editCategoryName('main', catIdx)" class="category_name">{{
+                category.name }}</span>
               <input v-else v-model="category.editName" @blur="saveCategoryName('main', catIdx)"
                 @keyup.enter="saveCategoryName('main', catIdx)" />
-              
+
               <button class="delete-btn" @click="deleteCategory('main', catIdx)">✕</button>
             </div>
             <draggable v-model="category.itemsArr" :group="'items'"
@@ -30,15 +31,16 @@
               item-key="key">
               <template #item="{ element: item, index: itemIdx }">
                 <div :key="item.key" class="item-row" :class="{ 'fixed-item': item.fixed }">
-                  <label>
-                      <input type="checkbox" v-model="item.fixed" />
-                  </label>
-                  <span class="itemTitle" v-if="!item.editing" @click="editItemName('main', catIdx, itemIdx)">{{ item.key }}</span>
+
+                  <input type="checkbox" v-model="item.fixed" />
+                  <!--button class="switch-btn">✣</button-->
+                  <span class="itemTitle" v-if="!item.editing" @click="editItemName('main', catIdx, itemIdx)">{{
+                    item.key }}</span>
                   <input v-else v-model="item.editName" @blur="saveItemName('main', catIdx, itemIdx)"
                     @keyup.enter="saveItemName('main', catIdx, itemIdx)" />
-                  
-                    
-                   
+
+
+
                   <!--span class="drag-handle" v-if="!item.fixed">☰</span-->
                   <button class="delete-btn" @click="deleteItem('main', catIdx, itemIdx)">✕</button>
                 </div>
@@ -60,7 +62,8 @@
         <template #item="{ element: category, index: catIdx }">
           <div :key="category.name" class="options-col category-col bordered">
             <div class="category-header">
-              <span v-if="!category.editing" @click="editCategoryName('secondary', catIdx)" class="category_name">{{ category.name }}</span>
+              <span v-if="!category.editing" @click="editCategoryName('secondary', catIdx)" class="category_name">{{
+                category.name }}</span>
               <input v-else v-model="category.editName" @blur="saveCategoryName('secondary', catIdx)"
                 @keyup.enter="saveCategoryName('secondary', catIdx)" />
               <button class="switch-btn" @click="toggleCategoryPlacement('secondary', catIdx)">⇄</button>
@@ -71,13 +74,14 @@
               item-key="key">
               <template #item="{ element: item, index: itemIdx }">
                 <div :key="item.key" class="item-row" :class="{ 'fixed-item': item.fixed }">
-                  <label>
-                    <input type="checkbox" v-model="item.fixed" />
-                  </label>
-                  <span class="itemTitle" v-if="!item.editing" @click="editItemName('secondary', catIdx, itemIdx)">{{ item.key }}</span>
+
+                  <input type="checkbox" v-model="item.fixed" />
+
+                  <span class="itemTitle" v-if="!item.editing" @click="editItemName('secondary', catIdx, itemIdx)">{{
+                    item.key }}</span>
                   <input v-else v-model="item.editName" @blur="saveItemName('secondary', catIdx, itemIdx)"
                     @keyup.enter="saveItemName('secondary', catIdx, itemIdx)" />
-                  
+
                   <!--span class="drag-handle" v-if="!item.fixed">☰</span-->
                   <button class="delete-btn" @click="deleteItem('secondary', catIdx, itemIdx)">✕</button>
                 </div>
@@ -108,7 +112,7 @@ module.exports = {
     initialSettings: Object
   },
   mounted() {
-    console.warn("SETTINGS LANG ="+ this.lang);
+    console.warn("SETTINGS LANG =" + this.lang);
     // Always extract needs from initialSettings, whether it's an object or array
     let needs = this.initialSettings && this.initialSettings.needs ? this.initialSettings.needs : this.initialSettings;
     if (needs && Array.isArray(needs) && needs.length > 1) {
@@ -273,8 +277,8 @@ module.exports = {
         plugin_name = plugin_name.substring(0, plugin_name.length - "Settings".length);
       }
       window.pywebview.api.trigger_hook_sync("custom_save_settings", {
-          plugin_name: plugin_name,
-          settings: payload
+        plugin_name: plugin_name,
+        settings: payload
       });
       console.log('Settings saved:', payload);
     },
@@ -292,7 +296,6 @@ module.exports = {
 </script>
 
 <style scoped>
-
 .daily-settings {
   width: 100vw;
   /* border:1px solid #0f0; */
@@ -305,9 +308,11 @@ module.exports = {
   padding: 0;
   /* border: 1px solid #0f0; */
 }
-.itemTitle{
-  width: 65%;
+
+.itemTitle {
+  flex-grow: 1;
   font-size: 1rem;
+  background: #333;
 }
 
 
@@ -351,11 +356,11 @@ module.exports = {
 }
 
 
-.category_name{
+.category_name {
   background: #28373b;
   padding: 6px 12px;
   /* border-radius: 4px; */
-  cursor:pointer;
+  cursor: pointer;
   font-size: 1.1vw;
 }
 
@@ -387,18 +392,22 @@ module.exports = {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  margin-bottom: 0.25rem;
+  margin-bottom: 1rem;
   background: #2f535b;
   border-radius: 4px;
   justify-content: space-between;
   /* padding: 0.25rem 0.5rem; */
   text-align: left;
+  height: 5vh;
 }
-.item-row input[type="checkbox"]{
+
+.item-row input[type="checkbox"] {
   transform: scale(3);
+  width: auto;
   transform-origin: left;
-  position: relative;
-  z-index: 20
+
+  display: flex;
+  margin: 0 30px 0 0;
 }
 
 .add-item-input,
@@ -427,6 +436,7 @@ module.exports = {
   position: relative;
 }
 
+/*
 .item-row label::before,
 .item-row .delete-btn::before {
   content: '';
@@ -435,8 +445,9 @@ module.exports = {
   bottom: -12px;
   left: -12px;
   right: -12px;
-  /* This pseudo-element extends the clickable area */
+
 }
+  /* This pseudo-element extends the clickable area */
 
 .slider {
   position: absolute;
@@ -484,16 +495,19 @@ module.exports = {
   gap: 1rem;
   justify-content: space-around;
 }
+
 .settings-actions button {
   display: flex;
   align-items: center;
   justify-content: center;
 }
-.settings-actions .btn-secondary{
+
+.settings-actions .btn-secondary {
   background-color: #ccc;
 }
 
-.item-row[data-draggable="true"],.category-col[data-draggable="true"] .category-header{
+.item-row[data-draggable="true"],
+.category-col[data-draggable="true"] .category-header {
   cursor: grab;
 }
 
@@ -507,7 +521,7 @@ module.exports = {
   */
 }
 
-.onboarding.plugin .item-row label{
+.onboarding.plugin .item-row label {
   /* margin: 10px 0 6px 0 */
   margin: 0;
 }
@@ -524,7 +538,7 @@ button.delete-btn {
   position: relative;
 }
 
-.btn-secondary{
+.btn-secondary {
   background-color: #ccc;
 }
 </style>
