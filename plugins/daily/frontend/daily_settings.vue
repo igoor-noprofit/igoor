@@ -14,17 +14,18 @@
     </div>
     <div v-if="currentView === 'main'" class="options">
       <draggable v-model="mainCategories" group="categories" class="categories-row"
-        :options="{ animation: 150, direction: 'horizontal' }" item-key="name">
+        :move="canDragCategory"
+        :options="{ animation: 150, direction: 'horizontal', handle: '.category_name', filter: '.category-header button', preventOnFilter: true }" item-key="name">
         <template #item="{ element: category, index: catIdx }">
           <div :key="category.name" class="options-col category-col bordered">
             <div class="category-header">
-              <button class="switch-btn" @click="toggleCategoryPlacement('main', catIdx)">⇄</button>
+              <button class="switch-btn" @mousedown.stop @touchstart.stop @pointerdown.stop @click="toggleCategoryPlacement('main', catIdx)">⇄</button>
               <span v-if="!category.editing" @click="editCategoryName('main', catIdx)" class="category_name">{{
                 category.name }}</span>
               <input v-else v-model="category.editName" @blur="saveCategoryName('main', catIdx)"
                 @keyup.enter="saveCategoryName('main', catIdx)" />
 
-              <button class="delete-btn" @click="deleteCategory('main', catIdx)">✕</button>
+              <button class="delete-btn" @mousedown.stop @touchstart.stop @pointerdown.stop @click="deleteCategory('main', catIdx)">✕</button>
             </div>
             <draggable class="items-list" :class="{ 'items-list--empty': !category.itemsArr.length }" v-model="category.itemsArr" :group="'items'"
               :move="canDragItem"
@@ -64,17 +65,18 @@
     </div>
     <div v-if="currentView === 'secondary'" class="options secondary">
       <draggable v-model="secondaryCategories" group="categories" class="categories-row"
-        :options="{ animation: 150, direction: 'horizontal' }" item-key="name">
+        :move="canDragCategory"
+        :options="{ animation: 150, direction: 'horizontal', handle: '.category_name', filter: '.category-header button', preventOnFilter: true }" item-key="name">
         <template #item="{ element: category, index: catIdx }">
           <div :key="category.name" class="options-col category-col bordered">
             <div class="category-header">
-                            <button class="switch-btn" @click="toggleCategoryPlacement('secondary', catIdx)">⇄</button>
+              <button class="switch-btn" @mousedown.stop @touchstart.stop @pointerdown.stop @click="toggleCategoryPlacement('secondary', catIdx)">⇄</button>
 
               <span v-if="!category.editing" @click="editCategoryName('secondary', catIdx)" class="category_name">{{
                 category.name }}</span>
               <input v-else v-model="category.editName" @blur="saveCategoryName('secondary', catIdx)"
                 @keyup.enter="saveCategoryName('secondary', catIdx)" />
-              <button class="delete-btn" @click="deleteCategory('secondary', catIdx)">✕</button>
+              <button class="delete-btn" @mousedown.stop @touchstart.stop @pointerdown.stop @click="deleteCategory('secondary', catIdx)">✕</button>
             </div>
             <draggable class="items-list" :class="{ 'items-list--empty': !category.itemsArr.length }" v-model="category.itemsArr" :group="'items'"
               :move="canDragItem"
@@ -283,6 +285,18 @@ module.exports = {
       if (target.closest('.checkbox-wrapper')) return false;
       return true;
     },
+    canDragCategory(evt) {
+      const original = evt && evt.originalEvent;
+      if (!original) return true;
+      const type = original.type;
+      if (!['mousedown', 'touchstart', 'pointerdown'].includes(type)) return true;
+      const target = original.target;
+      if (!target) return true;
+      if (target.closest('.switch-btn')) return false;
+      if (target.closest('.delete-btn')) return false;
+      if (!target.closest('.category_name')) return false;
+      return true;
+    },
     saveSettings() {
       // Convert categories/items back to backend format
       const toObj = cats => {
@@ -338,7 +352,6 @@ module.exports = {
 .itemTitle {
   flex-grow: 1;
   font-size: 1rem;
-  background: #333;
   cursor: grab;
   height: 60px;
   display: flex;
@@ -444,7 +457,7 @@ button.switch-btn {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  margin-bottom: 1rem;
+  margin: 0.5rem 0 0 0;
   background: #2f535b;
   border-radius: 4px;
   justify-content: space-between;
