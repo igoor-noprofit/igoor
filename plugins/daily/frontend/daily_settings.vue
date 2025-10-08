@@ -26,13 +26,16 @@
 
               <button class="delete-btn" @click="deleteCategory('main', catIdx)">✕</button>
             </div>
-            <draggable v-model="category.itemsArr" :group="'items'"
-              :options="{ animation: 150, handle: '.itemTitle', filter: '.fixed-item', preventOnFilter: true, draggable: '.item-row:not(.fixed-item)' }"
+            <draggable class="items-list" :class="{ 'items-list--empty': !category.itemsArr.length }" v-model="category.itemsArr" :group="'items'"
+              :move="canDragItem"
+              :options="{ animation: 150, handle: '.itemTitle', filter: '.fixed-item, .item-row input, .delete-btn', preventOnFilter: true, draggable: '.item-row:not(.fixed-item)' }"
               item-key="key">
               <template #item="{ element: item, index: itemIdx }">
                 <div :key="item.key" class="item-row" :class="{ 'fixed-item': item.fixed }">
 
-                  <input type="checkbox" v-model="item.fixed" />
+                  <div class="checkbox-wrapper">
+                    <input type="checkbox" v-model="item.fixed" @mousedown.stop @touchstart.stop />
+                  </div>
                   <!--button class="switch-btn">✣</button-->
                   <span class="itemTitle" v-if="!item.editing" @click="editItemName('main', catIdx, itemIdx)">{{
                     item.key }}</span>
@@ -42,8 +45,11 @@
 
 
                   <!--span class="drag-handle" v-if="!item.fixed">☰</span-->
-                  <button class="delete-btn" @click="deleteItem('main', catIdx, itemIdx)">✕</button>
+                  <button class="delete-btn" @mousedown.stop @touchstart.stop @click="deleteItem('main', catIdx, itemIdx)">✕</button>
                 </div>
+              </template>
+              <template #footer>
+                <div v-if="!category.itemsArr.length" class="items-list__hint">{{ t('Drag item here') }}</div>
               </template>
             </draggable>
             <input class="add-item-input" v-model="category.newItem" @keyup.enter="addItem('main', catIdx)"
@@ -69,13 +75,16 @@
               <button class="switch-btn" @click="toggleCategoryPlacement('secondary', catIdx)">⇄</button>
               <button class="delete-btn" @click="deleteCategory('secondary', catIdx)">✕</button>
             </div>
-            <draggable v-model="category.itemsArr" :group="'items'"
-              :options="{ animation: 150, handle: '.itemTitle', filter: '.fixed-item', preventOnFilter: true, draggable: '.item-row:not(.fixed-item)' }"
+            <draggable class="items-list" :class="{ 'items-list--empty': !category.itemsArr.length }" v-model="category.itemsArr" :group="'items'"
+              :move="canDragItem"
+              :options="{ animation: 150, handle: '.itemTitle', filter: '.fixed-item, .item-row input, .delete-btn', preventOnFilter: true, draggable: '.item-row:not(.fixed-item)' }"
               item-key="key">
               <template #item="{ element: item, index: itemIdx }">
                 <div :key="item.key" class="item-row" :class="{ 'fixed-item': item.fixed }">
 
-                  <input type="checkbox" v-model="item.fixed" />
+                  <div class="checkbox-wrapper">
+                    <input type="checkbox" v-model="item.fixed" @mousedown.stop @touchstart.stop />
+                  </div>
 
                   <span class="itemTitle" v-if="!item.editing" @click="editItemName('secondary', catIdx, itemIdx)">{{
                     item.key }}</span>
@@ -83,8 +92,11 @@
                     @keyup.enter="saveItemName('secondary', catIdx, itemIdx)" />
 
                   <!--span class="drag-handle" v-if="!item.fixed">☰</span-->
-                  <button class="delete-btn" @click="deleteItem('secondary', catIdx, itemIdx)">✕</button>
+                  <button class="delete-btn" @mousedown.stop @touchstart.stop @click="deleteItem('secondary', catIdx, itemIdx)">✕</button>
                 </div>
+              </template>
+              <template #footer>
+                <div v-if="!category.itemsArr.length" class="items-list__hint">{{ t('Drag item here') }}</div>
               </template>
             </draggable>
             <input class="add-item-input" v-model="category.newItem" @keyup.enter="addItem('secondary', catIdx)"
@@ -257,6 +269,18 @@ module.exports = {
         arr[catIdx].newItem = '';
       }
     },
+    canDragItem(evt) {
+      const original = evt && evt.originalEvent;
+      if (!original) return true;
+      const type = original.type;
+      if (type !== 'mousedown' && type !== 'touchstart') return true;
+      const target = original.target;
+      if (!target) return true;
+      if (target.closest('.fixed-item')) return false;
+      if (target.closest('.delete-btn')) return false;
+      if (target.closest('input')) return false;
+      return true;
+    },
     saveSettings() {
       // Convert categories/items back to backend format
       const toObj = cats => {
@@ -314,6 +338,27 @@ module.exports = {
   font-size: 1rem;
   background: #333;
   cursor: grab;
+}
+
+.items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-height: 3rem;
+}
+
+.items-list--empty {
+  border: 1px dashed rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+  padding: 0.75rem;
+  align-items: center;
+  justify-content: center;
+}
+
+.items-list__hint {
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.5);
+  text-transform: uppercase;
 }
 
 
@@ -400,13 +445,19 @@ module.exports = {
   height: 5vh;
 }
 
-.item-row input[type="checkbox"] {
-  transform: scale(3);
-  width: auto;
-  transform-origin: left;
-
+.checkbox-wrapper {
+  width: 32px;
+  height: 32px;
   display: flex;
-  margin: 0 30px 0 0;
+  align-items: center;
+  justify-content: center;
+  margin: 0 1rem 0 0;
+  overflow: hidden;
+}
+
+.checkbox-wrapper input[type="checkbox"] {
+  transform: scale(1.6);
+  transform-origin: center;
 }
 
 .add-item-input,
