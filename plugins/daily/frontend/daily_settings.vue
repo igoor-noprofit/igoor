@@ -761,6 +761,10 @@ button.delete-btn {
   align-items: center;
 }
 
+button.btn-side{
+  height: 50px;
+}
+
 .btn-side-right,
 .btn-side-left {
   position: relative;
