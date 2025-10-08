@@ -18,10 +18,11 @@
         <template #item="{ element: category, index: catIdx }">
           <div :key="category.name" class="options-col category-col bordered">
             <div class="category-header">
+              <button class="switch-btn" @click="toggleCategoryPlacement('main', catIdx)">⇄</button>
               <span v-if="!category.editing" @click="editCategoryName('main', catIdx)" class="category_name">{{ category.name }}</span>
               <input v-else v-model="category.editName" @blur="saveCategoryName('main', catIdx)"
                 @keyup.enter="saveCategoryName('main', catIdx)" />
-              <button class="switch-btn" @click="toggleCategoryPlacement('main', catIdx)">⇄</button>
+              
               <button class="delete-btn" @click="deleteCategory('main', catIdx)">✕</button>
             </div>
             <draggable v-model="category.itemsArr" :group="'items'"
@@ -363,11 +364,14 @@ module.exports = {
 }
 
 .delete-btn {
-  background: none;
+  padding: 6px 8px 8px 8px;
+  background: #a66355 !important;
   border: none;
   color: #e74c3c;
   font-size: 1.2em;
   cursor: pointer;
+  position: relative;
+  z-index: 20;
 }
 
 .switch-btn {
@@ -387,11 +391,14 @@ module.exports = {
   background: #2f535b;
   border-radius: 4px;
   justify-content: space-between;
-  padding: 0.25rem 0.5rem;
+  /* padding: 0.25rem 0.5rem; */
   text-align: left;
 }
 .item-row input[type="checkbox"]{
   transform: scale(3);
+  transform-origin: left;
+  position: relative;
+  z-index: 20
 }
 
 .add-item-input,
@@ -494,12 +501,15 @@ module.exports = {
   pointer-events: auto;
   opacity: 1;
   font-size: 1.2rem;
+  /*
   padding-top: 14px;
   padding-bottom: 14px;
+  */
 }
 
 .onboarding.plugin .item-row label{
-  margin: 10px 0 6px 0
+  /* margin: 10px 0 6px 0 */
+  margin: 0;
 }
 
 button.delete-btn {
