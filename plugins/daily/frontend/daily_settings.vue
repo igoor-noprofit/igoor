@@ -22,8 +22,10 @@
               <button v-if="!category.editing" class="switch-btn" @mousedown.stop @touchstart.stop @pointerdown.stop
                 @click="toggleCategoryPlacement('main', catIdx)">
                 <span class="arrow">➡</span></button>
-              <span v-if="!category.editing" @click="editCategoryName('main', catIdx, $event)" class="category_name">{{
-                category.name }}</span>
+              <span v-if="!category.editing" @click="editCategoryName('main', catIdx, $event)"
+                @touchstart="handleTouchDragStart" @touchend="handleTouchDragEnd" @touchcancel="handleTouchDragEnd"
+                class="category_name">{{
+                  category.name }}</span>
               <input v-else v-model="category.editName" :ref="categoryEditorRef('main', catIdx)" ref-in-for
                 @blur="saveCategoryName('main', catIdx)" @keyup.enter="saveCategoryName('main', catIdx)" />
 
@@ -45,8 +47,9 @@
                       <span v-else>☆</span>
                     </button>
                   </div>
-                  <span class="itemTitle" v-if="!item.editing" @click="editItemName('main', catIdx, itemIdx, $event)">{{
-                    item.key }}</span>
+                  <span class="itemTitle" v-if="!item.editing" @click="editItemName('main', catIdx, itemIdx, $event)"
+                    @touchstart="handleTouchDragStart" @touchend="handleTouchDragEnd" @touchcancel="handleTouchDragEnd">{{
+                      item.key }}</span>
                   <input v-else v-model="item.editName" :ref="itemEditorRef('main', catIdx, itemIdx)" ref-in-for
                     @blur="saveItemName('main', catIdx, itemIdx)"
                     @keyup.enter="saveItemName('main', catIdx, itemIdx)" />
@@ -83,6 +86,7 @@
                 @click="toggleCategoryPlacement('secondary', catIdx)"><span class="arrow">⬅</span></button>
 
               <span v-if="!category.editing" @click="editCategoryName('secondary', catIdx, $event)"
+                @touchstart="handleTouchDragStart" @touchend="handleTouchDragEnd" @touchcancel="handleTouchDragEnd"
                 class="category_name">{{
                   category.name }}</span>
               <input v-else v-model="category.editName" :ref="categoryEditorRef('secondary', catIdx)" ref-in-for
@@ -107,7 +111,8 @@
                   </div>
 
                   <span class="itemTitle" v-if="!item.editing"
-                    @click="editItemName('secondary', catIdx, itemIdx, $event)">{{
+                    @click="editItemName('secondary', catIdx, itemIdx, $event)" @touchstart="handleTouchDragStart"
+                    @touchend="handleTouchDragEnd" @touchcancel="handleTouchDragEnd">{{
                       item.key }}</span>
                   <input v-else v-model="item.editName" :ref="itemEditorRef('secondary', catIdx, itemIdx)" ref-in-for
                     @blur="saveItemName('secondary', catIdx, itemIdx)"
@@ -186,7 +191,9 @@ module.exports = {
       dialogVisible: false,
       dialogMessage: '',
       dialogMode: 'alert',
-      dialogResolve: null
+      dialogResolve: null,
+      touchDragLock: false,
+      touchDragTimer: null
     };
   },
   computed: {
@@ -219,6 +226,12 @@ module.exports = {
       },
       immediate: true,
       deep: true
+    }
+  },
+  beforeDestroy() {
+    if (this.touchDragTimer) {
+      clearTimeout(this.touchDragTimer);
+      this.touchDragTimer = null;
     }
   },
   methods: {
@@ -362,6 +375,23 @@ module.exports = {
         item.fixed = !item.fixed;
       }
     },
+    handleTouchDragStart() {
+      if (this.touchDragTimer) {
+        clearTimeout(this.touchDragTimer);
+      }
+      this.touchDragLock = true;
+      this.touchDragTimer = setTimeout(() => {
+        this.touchDragLock = false;
+        this.touchDragTimer = null;
+      }, 250);
+    },
+    handleTouchDragEnd() {
+      if (this.touchDragTimer) {
+        clearTimeout(this.touchDragTimer);
+        this.touchDragTimer = null;
+      }
+      this.touchDragLock = false;
+    },
     showDialog({ message, mode = 'alert' }) {
       return new Promise(resolve => {
         this.dialogMessage = message;
@@ -393,7 +423,9 @@ module.exports = {
       const original = evt && evt.originalEvent;
       if (!original) return true;
       const type = original.type;
-      if (!['mousedown', 'touchstart', 'pointerdown'].includes(type)) return true;
+      if (!['mousedown', 'touchstart', 'pointerdown', 'touchmove', 'pointermove'].includes(type)) return true;
+      const isTouch = type.startsWith('touch') || original.pointerType === 'touch';
+      if (isTouch && this.touchDragLock) return false;
       const target = original.target;
       if (!target) return true;
       if (target.closest('.fixed-item')) return false;
@@ -406,7 +438,9 @@ module.exports = {
       const original = evt && evt.originalEvent;
       if (!original) return true;
       const type = original.type;
-      if (!['mousedown', 'touchstart', 'pointerdown'].includes(type)) return true;
+      if (!['mousedown', 'touchstart', 'pointerdown', 'touchmove', 'pointermove'].includes(type)) return true;
+      const isTouch = type.startsWith('touch') || original.pointerType === 'touch';
+      if (isTouch && this.touchDragLock) return false;
       const target = original.target;
       if (!target) return true;
       if (target.closest('.switch-btn')) return false;
