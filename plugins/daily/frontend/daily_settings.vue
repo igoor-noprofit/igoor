@@ -540,7 +540,7 @@ module.exports = {
 .add-category-container {
   /* border: 1px dashed #00f; */
   display: flex;
-
+  width: auto !important;
   justify-content: center;
 }
 
@@ -605,6 +605,9 @@ button.switch-btn {
   background: #1f2c31;
   color: #fff;
   padding: 0 0.75rem;
+  width: auto;
+  z-index:20;
+  position: relative;
 }
 
 .favorite-wrapper {
