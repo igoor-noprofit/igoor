@@ -694,7 +694,7 @@ module.exports = {
 }
 
 .category-col--expanded .items-list {
-  gap: 1rem;
+  gap: 0.5rem;
 }
 
 .category-header {
