@@ -646,7 +646,7 @@ button:disabled {
 /* Modal content styles */
 .modal-content {
     background: #fff;
-    padding: 20px;
+    padding: 0 20px;
     border-radius: 8px;
     position: relative;
     color: #000;
