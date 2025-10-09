@@ -56,8 +56,8 @@
                       <span v-else>☆</span>
                     </button>
                   </div>
-                  <button v-if="isEditingCategory('main', catIdx) && !item.editing" type="button"
-                    class="item-handle"
+                  <button v-if="isEditingCategory('main', catIdx)" type="button"
+                    :class="['item-handle', { 'item-handle--disabled': item.editing }]"
                     :aria-label="t('Reorder item')">☰</button>
                   <span v-if="!item.editing" @click="editItemName('main', catIdx, itemIdx, $event)"
                     :class="itemTitleClasses('main', catIdx)">{{
@@ -121,8 +121,8 @@
                     </button>
                   </div>
 
-                  <button v-if="isEditingCategory('secondary', catIdx) && !item.editing" type="button"
-                    class="item-handle"
+                  <button v-if="isEditingCategory('secondary', catIdx)" type="button"
+                    :class="['item-handle', { 'item-handle--disabled': item.editing }]"
                     :aria-label="t('Reorder item')">☰</button>
                   <span class="itemTitle" v-if="!item.editing"
                     @click="editItemName('secondary', catIdx, itemIdx, $event)"
@@ -678,6 +678,10 @@ module.exports = {
   margin: 0 auto;
 }
 
+.category-col--expanded .items-list{
+  gap: 1rem;
+}
+
 .category-header {
   display: flex;
   align-items: center;
@@ -869,6 +873,12 @@ button.favorite-btn--active {
   cursor: grabbing;
 }
 
+.item-handle--disabled {
+  pointer-events: none;
+  opacity: 0.55;
+  cursor: default;
+}
+
 .item-handle:focus-visible {
   outline: 2px solid #1abc9c;
   outline-offset: 2px;
@@ -1026,6 +1036,7 @@ button.settings-delete-category-btn {
 
 .breadcrumb-current {
   font-weight: 600;
+  text-transform: uppercase;
 }
 
 .item-row[data-draggable="true"],
