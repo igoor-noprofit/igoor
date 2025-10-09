@@ -56,7 +56,7 @@
                   </div>
                   <button v-if="isEditingCategory('main', catIdx)" type="button"
                     :class="['item-handle', { 'item-handle--disabled': item.editing }]"
-                    :aria-label="t('Reorder item')">☰</button>
+                    :aria-label="t('Reorder item')">⬍</button>
                   <span v-if="!item.editing" @pointerdown="handleItemTitlePointerDown('main', catIdx, itemIdx, $event)"
                     @click="editItemName('main', catIdx, itemIdx, $event)" :class="itemTitleClasses('main', catIdx)">{{
                       item.key }}</span>
