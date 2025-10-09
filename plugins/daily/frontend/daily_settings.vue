@@ -5,7 +5,17 @@
       <div v-if="editingCategory" class="settings-breadcrumb">
         <button type="button" class="breadcrumb-link" @click="exitCategoryEdit">{{ t('Categories') }}</button>
         <span class="breadcrumb-separator">›</span>
-        <span class="breadcrumb-current">{{ currentEditingCategoryName }}</span>
+        <span v-if="editingCategory && editingCategoryEditing" class="breadcrumb-current">
+          <input ref="breadcrumbCategoryInput"
+            v-model="editingCategoryNameInput"
+            @blur="saveEditingCategoryBreadcrumb"
+            @keyup.enter="saveEditingCategoryBreadcrumb"
+            @keyup.esc="cancelEditingCategoryBreadcrumb"
+            class="breadcrumb-current-input" />
+        </span>
+        <span v-else class="breadcrumb-current" @click="startEditingCategoryBreadcrumb">{{
+            currentEditingCategoryName
+          }}</span>
         <button v-if="editingCategory" type="button" class="delete-btn settings-delete-category-btn" @mousedown.stop
           @touchstart.stop @pointerdown.stop @click="deleteCurrentEditingCategory"
           aria-label="Delete category">{{ t('Delete category') }}</button>
@@ -199,7 +209,9 @@ module.exports = {
       dialogMessage: '',
       dialogMode: 'alert',
       dialogResolve: null,
-      editingCategory: null
+      editingCategory: null,
+      editingCategoryEditing: false,
+      editingCategoryNameInput: ''
     };
   },
   computed: {
@@ -280,11 +292,15 @@ module.exports = {
     startCategoryEdit(view, catIdx) {
       this.clearEditingStates();
       this.editingCategory = { view, index: catIdx };
+      this.editingCategoryEditing = false;
+      this.editingCategoryNameInput = '';
     },
     exitCategoryEdit() {
       if (!this.editingCategory) return;
       this.editingCategory = null;
       this.clearEditingStates();
+      this.editingCategoryEditing = false;
+      this.editingCategoryNameInput = '';
     },
     clearEditingStates() {
       const reset = cats => {
@@ -349,6 +365,8 @@ module.exports = {
       const list = this.editingCategory.view === 'main' ? this.mainCategories : this.secondaryCategories;
       if (!list[this.editingCategory.index]) {
         this.editingCategory = null;
+        this.editingCategoryEditing = false;
+        this.editingCategoryNameInput = '';
       }
     },
     currentEditingCategory() {
@@ -376,6 +394,8 @@ module.exports = {
         targetArr.push(category);
         if (this.isEditingCategory(view, catIdx)) {
           this.editingCategory = null;
+          this.editingCategoryEditing = false;
+          this.editingCategoryNameInput = '';
         }
         this.normalizeEditingCategory();
       }
@@ -421,6 +441,8 @@ module.exports = {
         if (wasEditing) {
           this.editingCategory = null;
           this.clearEditingStates();
+          this.editingCategoryEditing = false;
+          this.editingCategoryNameInput = '';
         } else {
           this.normalizeEditingCategory();
         }
@@ -493,6 +515,51 @@ module.exports = {
       if (item) {
         item.fixed = !item.fixed;
       }
+    },
+    startEditingCategoryBreadcrumb() {
+      if (!this.editingCategory || this.editingCategoryEditing) return;
+      const category = this.currentEditingCategory();
+      if (!category) return;
+      this.editingCategoryNameInput = category.name;
+      this.editingCategoryEditing = true;
+      this.$nextTick(() => {
+        const input = this.$refs.breadcrumbCategoryInput;
+        if (input && typeof input.focus === 'function') {
+          input.focus({ preventScroll: true });
+          const length = input.value.length;
+          if (typeof input.setSelectionRange === 'function') {
+            input.setSelectionRange(length, length);
+          }
+        }
+      });
+    },
+    cancelEditingCategoryBreadcrumb() {
+      this.editingCategoryEditing = false;
+      this.editingCategoryNameInput = '';
+    },
+    saveEditingCategoryBreadcrumb() {
+      if (!this.editingCategory) {
+        this.cancelEditingCategoryBreadcrumb();
+        return;
+      }
+      const category = this.currentEditingCategory();
+      if (!category) {
+        this.cancelEditingCategoryBreadcrumb();
+        return;
+      }
+      const newName = (this.editingCategoryNameInput || '').trim();
+      const list = this.editingCategory.view === 'main' ? this.mainCategories : this.secondaryCategories;
+      const index = this.editingCategory.index;
+      if (!newName || list.some((cat, i) => i !== index && cat.name === newName)) {
+        this.cancelEditingCategoryBreadcrumb();
+        return;
+      }
+      if (newName !== category.name) {
+        category.name = newName;
+        category.editName = newName;
+      }
+      this.editingCategoryEditing = false;
+      this.editingCategoryNameInput = '';
     },
     handleItemTitlePointerDown(view, catIdx, itemIdx, evt) {
       if (!evt) return;
@@ -1077,6 +1144,17 @@ button.settings-delete-category-btn {
 .breadcrumb-current {
   font-weight: 600;
   text-transform: uppercase;
+}
+
+.breadcrumb-current-input {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 4px;
+  color: #f1f4f6;
+  padding: 0.1rem 0.35rem;
+  text-transform: uppercase;
+  font-weight: 600;
+  min-width: 160px;
 }
 
 .item-row[data-draggable="true"],
