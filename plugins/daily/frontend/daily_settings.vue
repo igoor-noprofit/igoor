@@ -24,7 +24,7 @@
     </div>
     <div v-if="currentView === 'main'" class="options">
       <draggable v-model="mainCategories" group="categories" class="categories-row" :move="canDragCategory"
-        :options="{ animation: 150, direction: 'horizontal', handle: '.category_name', filter: '.category-header button', preventOnFilter: true }"
+        :options="categoryDragOptions"
         item-key="name">
         <template #item="{ element: category, index: catIdx }">
           <div :key="category.name" :class="categoryClasses('main', catIdx)">
@@ -34,8 +34,8 @@
                 @click="toggleCategoryPlacement('main', catIdx)">
                 <span class="arrow">➡</span></button>
               <span v-if="!category.editing" @click="editCategoryName('main', catIdx, $event)"
-                :class="categoryTitleClasses('main', catIdx)">{{
-                  category.name }}</span>
+                :class="categoryTitleClasses('main', catIdx)"><span class="category_name-label">{{
+                    category.name }}</span></span>
               <input v-else v-model="category.editName" :ref="categoryEditorRef('main', catIdx)" ref-in-for
                 @blur="saveCategoryName('main', catIdx)" @keyup.enter="saveCategoryName('main', catIdx)" />
             </div>
@@ -59,7 +59,9 @@
                   <button v-if="isEditingCategory('main', catIdx)" type="button"
                     :class="['item-handle', { 'item-handle--disabled': item.editing }]"
                     :aria-label="t('Reorder item')">☰</button>
-                  <span v-if="!item.editing" @click="editItemName('main', catIdx, itemIdx, $event)"
+                  <span v-if="!item.editing"
+                    @pointerdown="handleItemTitlePointerDown('main', catIdx, itemIdx, $event)"
+                    @click="editItemName('main', catIdx, itemIdx, $event)"
                     :class="itemTitleClasses('main', catIdx)">{{
                       item.key }}</span>
                   <input v-else v-model="item.editName" :ref="itemEditorRef('main', catIdx, itemIdx)" ref-in-for
@@ -88,7 +90,7 @@
     </div>
     <div v-if="currentView === 'secondary'" class="options secondary">
       <draggable v-model="secondaryCategories" group="categories" class="categories-row" :move="canDragCategory"
-        :options="{ animation: 150, direction: 'horizontal', handle: '.category_name', filter: '.category-header button', preventOnFilter: true }"
+        :options="categoryDragOptions"
         item-key="name">
         <template #item="{ element: category, index: catIdx }">
           <div :key="category.name" :class="categoryClasses('secondary', catIdx)">
@@ -98,8 +100,8 @@
                 @click="toggleCategoryPlacement('secondary', catIdx)"><span class="arrow">⬅</span></button>
 
               <span v-if="!category.editing" @click="editCategoryName('secondary', catIdx, $event)"
-                :class="categoryTitleClasses('secondary', catIdx)">{{
-                  category.name }}</span>
+                :class="categoryTitleClasses('secondary', catIdx)"><span class="category_name-label">{{
+                    category.name }}</span></span>
               <input v-else v-model="category.editName" :ref="categoryEditorRef('secondary', catIdx)" ref-in-for
                 @blur="saveCategoryName('secondary', catIdx)" @keyup.enter="saveCategoryName('secondary', catIdx)" />
             </div>
@@ -125,6 +127,7 @@
                     :class="['item-handle', { 'item-handle--disabled': item.editing }]"
                     :aria-label="t('Reorder item')">☰</button>
                   <span class="itemTitle" v-if="!item.editing"
+                    @pointerdown="handleItemTitlePointerDown('secondary', catIdx, itemIdx, $event)"
                     @click="editItemName('secondary', catIdx, itemIdx, $event)"
                     :class="itemTitleClasses('secondary', catIdx)">{{
                       item.key }}</span>
@@ -230,6 +233,15 @@ module.exports = {
     currentEditingCategoryName() {
       const category = this.currentEditingCategory();
       return category ? category.name : '';
+    },
+    categoryDragOptions() {
+      return {
+        animation: 150,
+        direction: 'horizontal',
+        handle: '.category_name-label',
+        filter: '.category-header button, .category-edit-btn',
+        preventOnFilter: true
+      };
     }
   },
   watch: {
@@ -334,7 +346,7 @@ module.exports = {
       return {
         animation: 150,
         handle: editing ? '.item-handle' : '.itemTitle',
-        filter: '.fixed-item, .favorite-btn, .delete-btn',
+        filter: editing ? '.itemTitle, .fixed-item, .favorite-btn, .delete-btn' : '.fixed-item, .favorite-btn, .delete-btn',
         preventOnFilter: true,
         draggable: '.item-row:not(.fixed-item)'
       };
@@ -489,6 +501,15 @@ module.exports = {
         item.fixed = !item.fixed;
       }
     },
+    handleItemTitlePointerDown(view, catIdx, itemIdx, evt) {
+      if (!evt) return;
+      if (!this.isEditingCategory(view, catIdx)) return;
+      const arr = view === 'main' ? this.mainCategories : this.secondaryCategories;
+      const item = arr?.[catIdx]?.itemsArr?.[itemIdx];
+      if (!item || item.editing) return;
+      evt.stopPropagation();
+      evt.preventDefault();
+    },
     showDialog({ message, mode = 'alert' }) {
       return new Promise(resolve => {
         this.dialogMessage = message;
@@ -540,7 +561,7 @@ module.exports = {
       if (!target) return true;
       if (target.closest('.switch-btn')) return false;
       if (target.closest('.delete-btn')) return false;
-      if (!target.closest('.category_name')) return false;
+      if (!target.closest('.category_name-label')) return false;
       return true;
     },
     saveSettings() {
@@ -734,7 +755,7 @@ module.exports = {
 }
 
 .category_name--static {
-  cursor: pointer;
+  cursor: default;
   user-select: none;
 }
 
@@ -752,6 +773,17 @@ module.exports = {
   border-radius: 6px;
   font-size: 0.95rem;
   flex-grow: 1;
+}
+
+.category_name-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  cursor: grab;
+}
+
+.category_name--editable .category_name-label {
+  cursor: text;
 }
 
 .category-header span {
@@ -900,7 +932,6 @@ button.favorite-btn--active {
   margin-left: 10px;
   margin-right: 10px;
 }
-
 input.add-item-input {
   margin-top: 0.5rem;
   width: auto;
@@ -1043,6 +1074,8 @@ button.settings-delete-category-btn {
 .category-col[data-draggable="true"] .category-header {
   cursor: grab;
 }
+
+
 
 .fixed-item {
   pointer-events: auto;
