@@ -1064,7 +1064,7 @@ button.settings-delete-category-btn {
   padding: 0;
 }
 .item-row.fixed-item:not(.item-row--editing) {
-  
+  background: #216776;
 }
 .breadcrumb-separator {
   opacity: 0.7;
