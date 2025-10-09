@@ -36,12 +36,14 @@
                 @blur="saveCategoryName('main', catIdx)" @keyup.enter="saveCategoryName('main', catIdx)" />
             </div>
             <button type="button" class="category-edit-btn" v-if="!isEditingCategory('main', catIdx)"
-              @click="startCategoryEdit('main', catIdx)">{{ t('Edit') }}</button>
+              @mousedown.stop @touchstart.stop @pointerdown.stop @click="startCategoryEdit('main', catIdx)">{{
+                t('Edit') }}</button>
             <input v-if="isEditingCategory('main', catIdx)" class="add-item-input" v-model="category.newItem"
               @keyup.enter="addItem('main', catIdx)" v-bind:placeholder="t('+ Item')" />
             <draggable class="items-list" :class="{ 'items-list--empty': !category.itemsArr.length }"
               v-model="category.itemsArr" :group="'items'" :move="canDragItem"
-              :options="itemDragOptions('main', catIdx)" item-key="key">
+              :options="itemDragOptions('main', catIdx)"
+              item-key="key">
               <template #item="{ element: item, index: itemIdx }">
                 <div :key="item.key" :class="itemRowClasses('main', catIdx, item)">
                   <div class="favorite-wrapper" v-if="isEditingCategory('main', catIdx)">
@@ -94,12 +96,14 @@
                 @blur="saveCategoryName('secondary', catIdx)" @keyup.enter="saveCategoryName('secondary', catIdx)" />
             </div>
             <button type="button" class="category-edit-btn" v-if="!isEditingCategory('secondary', catIdx)"
-              @click="startCategoryEdit('secondary', catIdx)">{{ t('Edit') }}</button>
+              @mousedown.stop @touchstart.stop @pointerdown.stop @click="startCategoryEdit('secondary', catIdx)">{{
+                t('Edit') }}</button>
             <input v-if="isEditingCategory('secondary', catIdx)" class="add-item-input" v-model="category.newItem"
               @keyup.enter="addItem('secondary', catIdx)" v-bind:placeholder="t('+ Item')" />
             <draggable class="items-list" :class="{ 'items-list--empty': !category.itemsArr.length }"
               v-model="category.itemsArr" :group="'items'" :move="canDragItem"
-              :options="itemDragOptions('secondary', catIdx)" item-key="key">
+              :options="itemDragOptions('secondary', catIdx)"
+              item-key="key">
               <template #item="{ element: item, index: itemIdx }">
                 <div :key="item.key" :class="itemRowClasses('secondary', catIdx, item)">
 
@@ -265,6 +269,7 @@ module.exports = {
         animation: 150,
         direction: 'horizontal',
         handle: '.category_name-label',
+        draggable: '.category-col',
         preventOnFilter: true
       };
       if (this.editingCategory && this.editingCategory.view === view) {
@@ -773,6 +778,10 @@ module.exports = {
 
 .category_name--editable .category_name-label {
   cursor: text;
+}
+
+.category_name--static .category_name-label:active {
+  cursor: grabbing;
 }
 
 .category-header span {
