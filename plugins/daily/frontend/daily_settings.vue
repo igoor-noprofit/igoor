@@ -66,7 +66,8 @@
                     @blur="saveItemName('main', catIdx, itemIdx)"
                     @keyup.enter="saveItemName('main', catIdx, itemIdx)" />
 
-                  <button class="delete-btn" @mousedown.stop @touchstart.stop @pointerdown.stop
+                  <button v-if="isEditingCategory('main', catIdx)" class="delete-btn"
+                    @mousedown.stop @touchstart.stop @pointerdown.stop
                     @click="deleteItem('main', catIdx, itemIdx)">✕</button>
                 </div>
               </template>
@@ -131,7 +132,8 @@
                     @blur="saveItemName('secondary', catIdx, itemIdx)"
                     @keyup.enter="saveItemName('secondary', catIdx, itemIdx)" />
 
-                  <button class="delete-btn" @mousedown.stop @touchstart.stop @pointerdown.stop
+                  <button v-if="isEditingCategory('secondary', catIdx)" class="delete-btn"
+                    @mousedown.stop @touchstart.stop @pointerdown.stop
                     @click="deleteItem('secondary', catIdx, itemIdx)">✕</button>
                 </div>
               </template>
