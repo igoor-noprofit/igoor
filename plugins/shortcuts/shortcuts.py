@@ -12,6 +12,7 @@ class Shortcuts(Baseplugin):
         self.pm = pm
         super().__init__(plugin_name,pm)
         self.is_loaded = True
+        self.is_onboarding_on = False
         
     @hookimpl
     def startup(self):
@@ -22,8 +23,10 @@ class Shortcuts(Baseplugin):
     def onboarding_toggled(self,is_onboarding):
         if is_onboarding:
             action="shrink"
+            self.is_onboarding_on = True
         else:
             action="unshrink"
+            self.is_onboarding_on = False
         self.send_action_to_frontend(action)
 
         
