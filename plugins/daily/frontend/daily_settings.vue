@@ -19,7 +19,7 @@
         <template #item="{ element: category, index: catIdx }">
           <div :key="category.name" class="options-col category-col bordered">
             <div class="category-header">
-              <button class="switch-btn" @mousedown.stop @touchstart.stop @pointerdown.stop
+              <button v-if="!category.editing" class="switch-btn" @mousedown.stop @touchstart.stop @pointerdown.stop
                 @click="toggleCategoryPlacement('main', catIdx)">
                 <span class="arrow">➡</span></button>
               <span v-if="!category.editing" @click="editCategoryName('main', catIdx, $event)" class="category_name">{{
@@ -27,7 +27,7 @@
               <input v-else v-model="category.editName" :ref="categoryEditorRef('main', catIdx)" ref-in-for
                 @blur="saveCategoryName('main', catIdx)" @keyup.enter="saveCategoryName('main', catIdx)" />
 
-              <button class="delete-btn" @mousedown.stop @touchstart.stop @pointerdown.stop
+              <button v-if="!category.editing" class="delete-btn" @mousedown.stop @touchstart.stop @pointerdown.stop
                 @click="deleteCategory('main', catIdx)">✕</button>
             </div>
             <draggable class="items-list" :class="{ 'items-list--empty': !category.itemsArr.length }"
@@ -79,7 +79,7 @@
         <template #item="{ element: category, index: catIdx }">
           <div :key="category.name" class="options-col category-col bordered">
             <div class="category-header">
-              <button class="switch-btn" @mousedown.stop @touchstart.stop @pointerdown.stop
+              <button v-if="!category.editing" class="switch-btn" @mousedown.stop @touchstart.stop @pointerdown.stop
                 @click="toggleCategoryPlacement('secondary', catIdx)"><span class="arrow">⬅</span></button>
 
               <span v-if="!category.editing" @click="editCategoryName('secondary', catIdx, $event)"
@@ -87,7 +87,7 @@
                   category.name }}</span>
               <input v-else v-model="category.editName" :ref="categoryEditorRef('secondary', catIdx)" ref-in-for
                 @blur="saveCategoryName('secondary', catIdx)" @keyup.enter="saveCategoryName('secondary', catIdx)" />
-              <button class="delete-btn" @mousedown.stop @touchstart.stop @pointerdown.stop
+              <button v-if="!category.editing" class="delete-btn" @mousedown.stop @touchstart.stop @pointerdown.stop
                 @click="deleteCategory('secondary', catIdx)">✕</button>
             </div>
             <draggable class="items-list" :class="{ 'items-list--empty': !category.itemsArr.length }"
