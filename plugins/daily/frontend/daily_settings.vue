@@ -2,8 +2,14 @@
   <div class="daily-settings container daily-plugin main">
     <div class="settings-actions">
       <button class="btn btn-secondary" @click="resetSettings" :disabled="!hasUnsavedChanges">{{ t('Cancel') }}</button>
-      <button v-if="editingCategory" type="button" class="btn btn-secondary"
-        @click="exitCategoryEdit">{{ t('Back') }}</button>
+      <div v-if="editingCategory" class="settings-breadcrumb">
+        <button type="button" class="breadcrumb-link" @click="exitCategoryEdit">{{ t('Categories') }}</button>
+        <span class="breadcrumb-separator">›</span>
+        <span class="breadcrumb-current">{{ currentEditingCategoryName }}</span>
+        <button v-if="editingCategory" type="button" class="delete-btn settings-delete-category-btn"
+        @mousedown.stop @touchstart.stop @pointerdown.stop
+        @click="deleteCurrentEditingCategory" aria-label="Delete category">{{t('Delete category')}}</button>
+      </div>
       <button v-if="!editingCategory && currentView === 'main'" class="btn btn-side btn-side-right"
         @click="switchToSecondaryView"><svg
           class="icon icon-l">
@@ -22,7 +28,7 @@
         item-key="name">
         <template #item="{ element: category, index: catIdx }">
           <div :key="category.name" :class="categoryClasses('main', catIdx)">
-            <div class="category-header" :class="{ 'category-header--expanded': isEditingCategory('main', catIdx) }">
+            <div v-if="!isEditingCategory('main', catIdx)" class="category-header">
               <button v-if="!category.editing" class="switch-btn"
                 @mousedown.stop @touchstart.stop @pointerdown.stop
                 @click="toggleCategoryPlacement('main', catIdx)">
@@ -32,10 +38,6 @@
                   category.name }}</span>
               <input v-else v-model="category.editName" :ref="categoryEditorRef('main', catIdx)" ref-in-for
                 @blur="saveCategoryName('main', catIdx)" @keyup.enter="saveCategoryName('main', catIdx)" />
-
-              <button v-if="!category.editing" class="delete-btn"
-                @mousedown.stop @touchstart.stop @pointerdown.stop
-                @click="deleteCategory('main', catIdx)">✕</button>
             </div>
             <button type="button" class="category-edit-btn" v-if="!isEditingCategory('main', catIdx)"
               @click="startCategoryEdit('main', catIdx)">{{ t('Edit') }}</button>
@@ -89,7 +91,7 @@
         item-key="name">
         <template #item="{ element: category, index: catIdx }">
           <div :key="category.name" :class="categoryClasses('secondary', catIdx)">
-            <div class="category-header" :class="{ 'category-header--expanded': isEditingCategory('secondary', catIdx) }">
+            <div v-if="!isEditingCategory('secondary', catIdx)" class="category-header">
               <button v-if="!category.editing" class="switch-btn"
                 @mousedown.stop @touchstart.stop @pointerdown.stop
                 @click="toggleCategoryPlacement('secondary', catIdx)"><span class="arrow">⬅</span></button>
@@ -99,9 +101,6 @@
                   category.name }}</span>
               <input v-else v-model="category.editName" :ref="categoryEditorRef('secondary', catIdx)" ref-in-for
                 @blur="saveCategoryName('secondary', catIdx)" @keyup.enter="saveCategoryName('secondary', catIdx)" />
-              <button v-if="!category.editing" class="delete-btn"
-                @mousedown.stop @touchstart.stop @pointerdown.stop
-                @click="deleteCategory('secondary', catIdx)">✕</button>
             </div>
             <button type="button" class="category-edit-btn" v-if="!isEditingCategory('secondary', catIdx)"
               @click="startCategoryEdit('secondary', catIdx)">{{ t('Edit') }}</button>
@@ -225,6 +224,10 @@ module.exports = {
       };
       const current = [toObj(this.mainCategories), toObj(this.secondaryCategories)];
       return JSON.stringify(current) !== JSON.stringify(this.originalSettings);
+    },
+    currentEditingCategoryName() {
+      const category = this.currentEditingCategory();
+      return category ? category.name : '';
     }
   },
   watch: {
@@ -340,6 +343,16 @@ module.exports = {
       if (!list[this.editingCategory.index]) {
         this.editingCategory = null;
       }
+    },
+    currentEditingCategory() {
+      if (!this.editingCategory) return null;
+      const list = this.editingCategory.view === 'main' ? this.mainCategories : this.secondaryCategories;
+      return list[this.editingCategory.index] || null;
+    },
+    async deleteCurrentEditingCategory() {
+      if (!this.editingCategory) return;
+      const { view, index } = this.editingCategory;
+      await this.deleteCategory(view, index);
     },
     async toggleCategoryPlacement(view, catIdx) {
       const sourceArr = view === 'main' ? this.mainCategories : this.secondaryCategories;
@@ -508,6 +521,7 @@ module.exports = {
       if (!['mousedown', 'touchstart', 'pointerdown'].includes(type)) return true;
       const target = original.target;
       if (!target) return true;
+      if (this.editingCategory && !target.closest('.item-handle')) return false;
       if (target.closest('.fixed-item')) return false;
       if (target.closest('.delete-btn')) return false;
       if (target.closest('input')) return false;
@@ -608,8 +622,7 @@ module.exports = {
 .items-list {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
-  min-height: 3rem;
+  gap: 0.5rem;
   height: 100%;
 }
 
@@ -647,7 +660,7 @@ module.exports = {
   min-width: 0;
   flex-direction: column;
   justify-content: flex-start;
-  gap: 0.75rem;
+  gap: 0.5rem;
   box-shadow: 0 8px 18px rgba(0, 0, 0, 0.35);
 }
 
@@ -697,6 +710,7 @@ module.exports = {
   font-weight: 600;
   cursor: pointer;
   transition: transform 0.15s ease, opacity 0.15s ease;
+  width: 100%;
 }
 
 .category-edit-btn:hover {
@@ -859,7 +873,7 @@ button.favorite-btn--active {
 }
 
 .item-row--editing {
-  gap: 0.5rem;
+  gap: 2rem;
   background: #305a63;
 }
 
@@ -965,6 +979,51 @@ input.add-item-input {
 
 .settings-actions .btn-secondary {
   background-color: #ccc;
+}
+
+button.settings-delete-category-btn {
+  background: #a66355;
+  border: none;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  cursor: pointer;
+  width: auto;
+  margin-left: 100px;
+}
+
+.settings-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.95rem;
+  color: #f1f4f6;
+  flex: 1;
+  justify-content: center;
+}
+
+.breadcrumb-link {
+  background: none;
+  border: none;
+  color: #1abc9c;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+
+.breadcrumb-link:focus-visible {
+  outline: 2px solid #1abc9c;
+  outline-offset: 2px;
+}
+
+.breadcrumb-separator {
+  opacity: 0.7;
+}
+
+.breadcrumb-current {
+  font-weight: 600;
 }
 
 .item-row[data-draggable="true"],
