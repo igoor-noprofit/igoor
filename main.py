@@ -15,6 +15,7 @@ import tkinter as tk
 import asyncio
 from utils import resource_path, setup_logger
 from idle_detector import IdleDetector
+'''
 import ctypes
 
 # Set process to be per-monitor DPI aware
@@ -35,7 +36,7 @@ scale_factor = dpi_x.value / 96  # 96 DPI = 100%
 print("DPI X:", dpi_x.value)
 print("DPI Y:", dpi_y.value)
 print("Scale factor:", scale_factor)
-
+'''
 
 appdata_dir = os.path.join(os.getenv('APPDATA'), __appname__)
 if not os.path.exists(appdata_dir):
