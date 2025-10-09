@@ -11,7 +11,7 @@
                 <div v-if="showRestartAlert" class="restart-alert">
                     {{ t("Please restart the app for changes to take effect.") }}
                 </div>
-                <div>
+                <div class="tabsandpluginscontainer">
                     <ul class="tabs">
                         <li :class="{ active: currentTab === 'bio' }"
                             @click="currentTab = 'bio'; viewingPluginSettings = false;">{{ t("Bio") }}</li>
@@ -468,12 +468,13 @@ export default {
 }
 </script>
 <style>
+
 .pluginsContainer{
-    border:1px solid #0ff;
+    /* border:1px solid #0ff; */
     width: 100vw;
 }
 .pct_container{
-    border: 1px solid #f00;
+    /* border: 1px solid #f00; */
 }
 .about-tab {
     background: #000;

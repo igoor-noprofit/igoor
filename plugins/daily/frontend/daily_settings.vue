@@ -686,10 +686,7 @@ module.exports = {
 }
 
 .category-col--expanded {
-  flex: 0 0 80%;
-  max-width: 80%;
-  width: 80%;
-  min-width: 80%;
+  flex: 0 0 50%;
   margin: 0 auto;
 }
 
@@ -702,7 +699,7 @@ module.exports = {
   align-items: center;
   margin-bottom: 0.5rem;
   gap: 0.5rem;
-
+  cursor:grab;
 }
 
 .category-header--expanded {
@@ -1010,7 +1007,8 @@ input.add-item-input {
   margin: 10px 0 20px 0;
   display: flex;
   gap: 1rem;
-  justify-content: space-around;
+  justify-content: space-between;
+  padding: 0 10px;
 }
 
 .settings-actions button {
