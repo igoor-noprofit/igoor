@@ -448,7 +448,6 @@ module.exports = {
 
 <style scoped>
 .daily-settings {
-  width: 100vw;
   /* border:1px solid #0f0; */
 }
 

@@ -110,9 +110,9 @@
                             </div>
                         </div>
                     </div>
-                    <div v-if="currentTab === 'plugins'">
+                    <div v-if="currentTab === 'plugins'" class="pluginsContainer">
                         <!-- View for Plugin-Specific Settings -->
-                        <div v-if="viewingPluginSettings && selectedPluginComponent">
+                        <div v-if="viewingPluginSettings && selectedPluginComponent" class="pct_container">
                             
                             <h3 class="pluginContainerTitle"><a style="cursor: pointer" @click="closePluginSettingsView">{{ t("Plugins") }}</a> > {{ selectedPluginForSettings.title }}</h3>
                             <component :is="selectedPluginComponent" :initial-settings="currentPluginInitialSettings"
@@ -468,6 +468,12 @@ export default {
 }
 </script>
 <style>
+.pluginsContainer{
+    border:1px solid #0ff;
+}
+.pct_container{
+    border: 1px solid #f00;
+}
 .about-tab {
     background: #000;
     font-size: 1.2rem;
