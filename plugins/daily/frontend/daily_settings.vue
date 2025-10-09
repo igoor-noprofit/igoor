@@ -617,6 +617,7 @@ button.switch-btn {
   line-height: 1;
   cursor: pointer;
   transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+  filter: grayscale(0.85);
 }
 
 .favorite-btn span {
@@ -626,6 +627,7 @@ button.switch-btn {
 .favorite-btn--active {
   background: #f1c40f;
   transform: scale(1.05);
+  filter: grayscale(0);
 }
 
 .favorite-btn--active span {
