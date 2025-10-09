@@ -13,23 +13,25 @@
       <button class="btn btn-primary" @click="saveSettings" :disabled="!hasUnsavedChanges">{{ t('Save') }}</button>
     </div>
     <div v-if="currentView === 'main'" class="options">
-      <draggable v-model="mainCategories" group="categories" class="categories-row"
-        :move="canDragCategory"
-        :options="{ animation: 150, direction: 'horizontal', handle: '.category_name', filter: '.category-header button', preventOnFilter: true }" item-key="name">
+      <draggable v-model="mainCategories" group="categories" class="categories-row" :move="canDragCategory"
+        :options="{ animation: 150, direction: 'horizontal', handle: '.category_name', filter: '.category-header button', preventOnFilter: true }"
+        item-key="name">
         <template #item="{ element: category, index: catIdx }">
           <div :key="category.name" class="options-col category-col bordered">
             <div class="category-header">
-              <button class="switch-btn" @mousedown.stop @touchstart.stop @pointerdown.stop @click="toggleCategoryPlacement('main', catIdx)">⇄</button>
+              <button class="switch-btn" @mousedown.stop @touchstart.stop @pointerdown.stop
+                @click="toggleCategoryPlacement('main', catIdx)">
+                <span class="arrow">➡</span></button>
               <span v-if="!category.editing" @click="editCategoryName('main', catIdx, $event)" class="category_name">{{
                 category.name }}</span>
               <input v-else v-model="category.editName" :ref="categoryEditorRef('main', catIdx)" ref-in-for
-                @blur="saveCategoryName('main', catIdx)"
-                @keyup.enter="saveCategoryName('main', catIdx)" />
+                @blur="saveCategoryName('main', catIdx)" @keyup.enter="saveCategoryName('main', catIdx)" />
 
-              <button class="delete-btn" @mousedown.stop @touchstart.stop @pointerdown.stop @click="deleteCategory('main', catIdx)">✕</button>
+              <button class="delete-btn" @mousedown.stop @touchstart.stop @pointerdown.stop
+                @click="deleteCategory('main', catIdx)">✕</button>
             </div>
-            <draggable class="items-list" :class="{ 'items-list--empty': !category.itemsArr.length }" v-model="category.itemsArr" :group="'items'"
-              :move="canDragItem"
+            <draggable class="items-list" :class="{ 'items-list--empty': !category.itemsArr.length }"
+              v-model="category.itemsArr" :group="'items'" :move="canDragItem"
               :options="{ animation: 150, handle: '.itemTitle', filter: '.fixed-item, .favorite-btn, .delete-btn', preventOnFilter: true, draggable: '.item-row:not(.fixed-item)' }"
               item-key="key">
               <template #item="{ element: item, index: itemIdx }">
@@ -37,14 +39,12 @@
 
                   <div class="favorite-wrapper">
                     <button type="button" class="favorite-btn" :class="{ 'favorite-btn--active': item.fixed }"
-                      :aria-pressed="item.fixed ? 'true' : 'false'"
-                      @mousedown.stop @touchstart.stop @pointerdown.stop
+                      :aria-pressed="item.fixed ? 'true' : 'false'" @mousedown.stop @touchstart.stop @pointerdown.stop
                       @click="toggleItemFixed('main', catIdx, itemIdx)">
                       <span v-if="item.fixed">★</span>
                       <span v-else>☆</span>
                     </button>
                   </div>
-                  <!--button class="switch-btn">✣</button-->
                   <span class="itemTitle" v-if="!item.editing" @click="editItemName('main', catIdx, itemIdx, $event)">{{
                     item.key }}</span>
                   <input v-else v-model="item.editName" :ref="itemEditorRef('main', catIdx, itemIdx)" ref-in-for
@@ -54,7 +54,8 @@
 
 
                   <!--span class="drag-handle" v-if="!item.fixed">☰</span-->
-                  <button class="delete-btn" @mousedown.stop @touchstart.stop @pointerdown.stop @click="deleteItem('main', catIdx, itemIdx)">✕</button>
+                  <button class="delete-btn" @mousedown.stop @touchstart.stop @pointerdown.stop
+                    @click="deleteItem('main', catIdx, itemIdx)">✕</button>
                 </div>
               </template>
               <template #footer>
@@ -72,23 +73,25 @@
       </div>
     </div>
     <div v-if="currentView === 'secondary'" class="options secondary">
-      <draggable v-model="secondaryCategories" group="categories" class="categories-row"
-        :move="canDragCategory"
-        :options="{ animation: 150, direction: 'horizontal', handle: '.category_name', filter: '.category-header button', preventOnFilter: true }" item-key="name">
+      <draggable v-model="secondaryCategories" group="categories" class="categories-row" :move="canDragCategory"
+        :options="{ animation: 150, direction: 'horizontal', handle: '.category_name', filter: '.category-header button', preventOnFilter: true }"
+        item-key="name">
         <template #item="{ element: category, index: catIdx }">
           <div :key="category.name" class="options-col category-col bordered">
             <div class="category-header">
-              <button class="switch-btn" @mousedown.stop @touchstart.stop @pointerdown.stop @click="toggleCategoryPlacement('secondary', catIdx)">⇄</button>
+              <button class="switch-btn" @mousedown.stop @touchstart.stop @pointerdown.stop
+                @click="toggleCategoryPlacement('secondary', catIdx)"><span class="arrow">⬅</span></button>
 
-              <span v-if="!category.editing" @click="editCategoryName('secondary', catIdx, $event)" class="category_name">{{
-                category.name }}</span>
+              <span v-if="!category.editing" @click="editCategoryName('secondary', catIdx, $event)"
+                class="category_name">{{
+                  category.name }}</span>
               <input v-else v-model="category.editName" :ref="categoryEditorRef('secondary', catIdx)" ref-in-for
-                @blur="saveCategoryName('secondary', catIdx)"
-                @keyup.enter="saveCategoryName('secondary', catIdx)" />
-              <button class="delete-btn" @mousedown.stop @touchstart.stop @pointerdown.stop @click="deleteCategory('secondary', catIdx)">✕</button>
+                @blur="saveCategoryName('secondary', catIdx)" @keyup.enter="saveCategoryName('secondary', catIdx)" />
+              <button class="delete-btn" @mousedown.stop @touchstart.stop @pointerdown.stop
+                @click="deleteCategory('secondary', catIdx)">✕</button>
             </div>
-            <draggable class="items-list" :class="{ 'items-list--empty': !category.itemsArr.length }" v-model="category.itemsArr" :group="'items'"
-              :move="canDragItem"
+            <draggable class="items-list" :class="{ 'items-list--empty': !category.itemsArr.length }"
+              v-model="category.itemsArr" :group="'items'" :move="canDragItem"
               :options="{ animation: 150, handle: '.itemTitle', filter: '.fixed-item, .favorite-btn, .delete-btn', preventOnFilter: true, draggable: '.item-row:not(.fixed-item)' }"
               item-key="key">
               <template #item="{ element: item, index: itemIdx }">
@@ -96,22 +99,23 @@
 
                   <div class="favorite-wrapper">
                     <button type="button" class="favorite-btn" :class="{ 'favorite-btn--active': item.fixed }"
-                      :aria-pressed="item.fixed ? 'true' : 'false'"
-                      @mousedown.stop @touchstart.stop @pointerdown.stop
+                      :aria-pressed="item.fixed ? 'true' : 'false'" @mousedown.stop @touchstart.stop @pointerdown.stop
                       @click="toggleItemFixed('secondary', catIdx, itemIdx)">
                       <span v-if="item.fixed">★</span>
                       <span v-else>☆</span>
                     </button>
                   </div>
 
-                  <span class="itemTitle" v-if="!item.editing" @click="editItemName('secondary', catIdx, itemIdx, $event)">{{
-                    item.key }}</span>
+                  <span class="itemTitle" v-if="!item.editing"
+                    @click="editItemName('secondary', catIdx, itemIdx, $event)">{{
+                      item.key }}</span>
                   <input v-else v-model="item.editName" :ref="itemEditorRef('secondary', catIdx, itemIdx)" ref-in-for
                     @blur="saveItemName('secondary', catIdx, itemIdx)"
                     @keyup.enter="saveItemName('secondary', catIdx, itemIdx)" />
 
                   <!--span class="drag-handle" v-if="!item.fixed">☰</span-->
-                  <button class="delete-btn" @mousedown.stop @touchstart.stop @pointerdown.stop @click="deleteItem('secondary', catIdx, itemIdx)">✕</button>
+                  <button class="delete-btn" @mousedown.stop @touchstart.stop @pointerdown.stop
+                    @click="deleteItem('secondary', catIdx, itemIdx)">✕</button>
                 </div>
               </template>
               <template #footer>
@@ -136,7 +140,9 @@
           <div class="dialog-actions">
             <button v-if="dialogMode === 'confirm'" class="dialog-btn dialog-btn--secondary"
               @click="handleDialogAction(false)">{{ t('Cancel') }}</button>
-            <button class="dialog-btn dialog-btn--primary" @click="handleDialogAction(true)">{{ dialogMode === 'confirm' ? t('Confirm') : t('OK') }}</button>
+            <button class="dialog-btn dialog-btn--primary" @click="handleDialogAction(true)">{{ dialogMode === 'confirm'
+              ?
+              t('Confirm') : t('OK') }}</button>
           </div>
         </div>
       </div>
@@ -561,21 +567,29 @@ button.delete-btn {
 }
 
 button.switch-btn {
-  background: #eee;
+  background: #407d1c;
   border: none;
-  color: #1abc9c;
-  font-size: 1.2em;
+  color: #eee;
   cursor: pointer;
-  padding: 7px 10px !important;
+  padding: 0 !important;
   height: 50px;
   width: 50px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 0 !important;
+}
+
+.arrow {
+  font-size: 39px;
+  transform: translateY(-3px)
 }
 
 .item-row {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  margin: 0.5rem 0 0 0;
+  gap: 0.3rem;
+  margin: 0.3rem 0 0 0;
   background: #2f535b;
   border-radius: 4px;
   /* padding: 0.25rem 0.5rem; */
@@ -622,7 +636,7 @@ button.switch-btn {
   color: rgba(255, 255, 255, 0.35);
 }
 
-.favorite-btn--active {
+button.favorite-btn--active {
   background: #f1c40f;
   transform: scale(1.05);
   filter: grayscale(0);
@@ -634,7 +648,7 @@ button.switch-btn {
 
 .add-item-input,
 .add-category-input {
- 
+
   padding: 0.25rem;
   border-radius: 4px;
   /* border: 1px solid #34495e; */
@@ -643,8 +657,9 @@ button.switch-btn {
   margin-left: 10px;
   margin-right: 10px;
 }
-input.add-item-input{
-   margin-top: 0.5rem;
+
+input.add-item-input {
+  margin-top: 0.5rem;
   width: auto;
   max-width: none;
 }
@@ -761,7 +776,7 @@ button.delete-btn {
   align-items: center;
 }
 
-button.btn-side{
+button.btn-side {
   height: 50px;
 }
 
