@@ -1060,7 +1060,12 @@ button.settings-delete-category-btn {
   outline: 2px solid #1abc9c;
   outline-offset: 2px;
 }
-
+.item-row:not(.item-row--editing) {
+  padding: 0;
+}
+.item-row.fixed-item:not(.item-row--editing) {
+  
+}
 .breadcrumb-separator {
   opacity: 0.7;
 }
