@@ -456,16 +456,16 @@ module.exports = {
   display: flex;
   margin: 0;
   padding: 0;
-  /* border: 1px solid #0f0; */
 }
 
 .itemTitle {
   flex-grow: 1;
-  font-size: 1rem;
+  font-size: 0.9rem;
   cursor: grab;
   height: 50px;
   display: flex;
   align-items: center;
+  border: 1px solid #0f0;
 }
 
 .items-list {
@@ -599,7 +599,7 @@ button.switch-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0 1rem 0 0;
+  margin: 0;
 }
 
 .favorite-btn {
@@ -756,7 +756,6 @@ input.add-item-input{
 }
 
 button.delete-btn {
-  padding: 8px;
   justify-content: center;
   display: flex;
   align-items: center;

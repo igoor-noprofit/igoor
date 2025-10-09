@@ -470,6 +470,7 @@ export default {
 <style>
 .pluginsContainer{
     border:1px solid #0ff;
+    width: 100vw;
 }
 .pct_container{
     border: 1px solid #f00;
