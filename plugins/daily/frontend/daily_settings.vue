@@ -541,10 +541,9 @@ module.exports = {
 
 .category_name {
   background: #28373b;
-  padding: 6px 12px;
   /* border-radius: 4px; */
   cursor: pointer;
-  font-size: 1.1vw;
+  font-size: 1vw;
   flex-grow: 1;
 }
 
