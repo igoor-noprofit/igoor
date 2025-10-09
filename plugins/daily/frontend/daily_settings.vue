@@ -37,7 +37,7 @@
               <template #item="{ element: item, index: itemIdx }">
                 <div :key="item.key" class="item-row" :class="{ 'fixed-item': item.fixed }">
 
-                  <div class="favorite-wrapper">
+                  <div class="favorite-wrapper" v-if="!item.editing">
                     <button type="button" class="favorite-btn" :class="{ 'favorite-btn--active': item.fixed }"
                       :aria-pressed="item.fixed ? 'true' : 'false'" @mousedown.stop @touchstart.stop @pointerdown.stop
                       @click="toggleItemFixed('main', catIdx, itemIdx)">
@@ -54,7 +54,7 @@
 
 
                   <!--span class="drag-handle" v-if="!item.fixed">☰</span-->
-                  <button class="delete-btn" @mousedown.stop @touchstart.stop @pointerdown.stop
+                  <button v-if="!item.editing" class="delete-btn" @mousedown.stop @touchstart.stop @pointerdown.stop
                     @click="deleteItem('main', catIdx, itemIdx)">✕</button>
                 </div>
               </template>
@@ -97,7 +97,7 @@
               <template #item="{ element: item, index: itemIdx }">
                 <div :key="item.key" class="item-row" :class="{ 'fixed-item': item.fixed }">
 
-                  <div class="favorite-wrapper">
+                  <div class="favorite-wrapper" v-if="!item.editing">
                     <button type="button" class="favorite-btn" :class="{ 'favorite-btn--active': item.fixed }"
                       :aria-pressed="item.fixed ? 'true' : 'false'" @mousedown.stop @touchstart.stop @pointerdown.stop
                       @click="toggleItemFixed('secondary', catIdx, itemIdx)">
@@ -114,7 +114,7 @@
                     @keyup.enter="saveItemName('secondary', catIdx, itemIdx)" />
 
                   <!--span class="drag-handle" v-if="!item.fixed">☰</span-->
-                  <button class="delete-btn" @mousedown.stop @touchstart.stop @pointerdown.stop
+                  <button v-if="!item.editing" class="delete-btn" @mousedown.stop @touchstart.stop @pointerdown.stop
                     @click="deleteItem('secondary', catIdx, itemIdx)">✕</button>
                 </div>
               </template>
@@ -605,9 +605,9 @@ button.switch-btn {
   background: #1f2c31;
   color: #fff;
   padding: 0 0.75rem;
-  width: auto;
   z-index:20;
   position: relative;
+  width: 100% !important;
 }
 
 .favorite-wrapper {
