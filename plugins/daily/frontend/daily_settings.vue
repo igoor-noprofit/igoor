@@ -754,7 +754,7 @@ module.exports = {
 
 .category-col--expanded {
   flex: 0 0 50%;
-  margin: 15px auto;
+  margin: 5px auto 25px auto;
 }
 
 .category-col--expanded .items-list {
