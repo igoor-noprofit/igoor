@@ -955,7 +955,7 @@ button.favorite-btn--active {
   background: rgba(255, 255, 255, 0.08);
   color: rgba(255, 255, 255, 0.75);
   font-size: 1.2rem;
-  cursor: grab;
+  cursor: grab !important;
   transition: background 0.2s ease, color 0.2s ease;
 }
 
