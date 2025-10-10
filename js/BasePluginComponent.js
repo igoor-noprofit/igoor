@@ -12,6 +12,11 @@ module.exports = {
       type: String,
       required: true,
     },
+    onboardingOpen: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
   },
   data() {
     return {
@@ -53,9 +58,12 @@ module.exports = {
       return this.translations[key] || key;
     },
     requestSettings() {
+      const pluginName = this.$options.name
+          .replace(/Settings$/, "")
+          .toLowerCase();
       this.sendMsgToBackend({
         action: "get_settings",
-      });
+      },pluginName);
     },
     updateSettings() {
       console.log("Saving plugin settings:", this.formData);

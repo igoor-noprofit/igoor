@@ -116,8 +116,8 @@
                             
                             <h3 class="pluginContainerTitle"><a style="cursor: pointer" @click="closePluginSettingsView">{{ t("Plugins") }}</a> > {{ selectedPluginForSettings.title }}</h3>
                             <component :is="selectedPluginComponent" :initial-settings="currentPluginInitialSettings"
-                                :plugin-name="selectedPluginForSettings.name" :lang="lang" @save-settings="handlePluginSettingsSave"
-                                class="plugin-settings-component"></component>
+                                :plugin-name="selectedPluginForSettings.name" :lang="lang" :onboarding-open="showModal"
+                                @save-settings="handlePluginSettingsSave" class="plugin-settings-component"></component>
                             <!-- The save button is now expected to be WITHIN the loaded component -->
                         </div>
 

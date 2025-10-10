@@ -30,7 +30,7 @@ class Speechifytts(Baseplugin):
     def startup(self):
         self.supported_lang = ['en', 'fr-FR', 'de-DE', 'es-ES', 'pt-BR', 'pt-PT']
         self.settings = self.get_my_settings()
-        print ("SPEECHIFY settings", self.settings)
+        ''' print ("SPEECHIFY settings", self.settings) '''
         try:
             self.api_key = self.settings.get("api_key")
             self.voice_id = self.settings.get("voice_id")  

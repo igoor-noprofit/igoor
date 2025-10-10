@@ -50,6 +50,8 @@ class Daily(Baseplugin):
     def onboarding_toggled(self,is_onboarding):
         if (is_onboarding):
             self.send_settings_to_frontend()
+            settings = self.get_my_settings()
+            self.send_message_to_frontend(settings,"dailySettings")
         
     @hookimpl
     def custom_save_settings(self, plugin_name:str,settings):

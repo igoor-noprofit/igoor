@@ -6,19 +6,16 @@
         <button type="button" class="breadcrumb-link" @click="exitCategoryEdit">{{ t('Categories') }}</button>
         <span class="breadcrumb-separator">›</span>
         <span v-if="editingCategory && editingCategoryEditing" class="breadcrumb-current">
-          <input ref="breadcrumbCategoryInput"
-            v-model="editingCategoryNameInput"
-            @blur="saveEditingCategoryBreadcrumb"
-            @keyup.enter="saveEditingCategoryBreadcrumb"
-            @keyup.esc="cancelEditingCategoryBreadcrumb"
+          <input ref="breadcrumbCategoryInput" v-model="editingCategoryNameInput" @blur="saveEditingCategoryBreadcrumb"
+            @keyup.enter="saveEditingCategoryBreadcrumb" @keyup.esc="cancelEditingCategoryBreadcrumb"
             class="breadcrumb-current-input" />
         </span>
         <span v-else class="breadcrumb-current" @click="startEditingCategoryBreadcrumb">{{
-            currentEditingCategoryName
-          }}</span>
+          currentEditingCategoryName
+        }}</span>
         <button v-if="editingCategory" type="button" class="delete-btn settings-delete-category-btn" @mousedown.stop
-          @touchstart.stop @pointerdown.stop @click="deleteCurrentEditingCategory"
-          aria-label="Delete category">{{ t('Delete category') }}</button>
+          @touchstart.stop @pointerdown.stop @click="deleteCurrentEditingCategory" aria-label="Delete category">{{
+            t('Delete category') }}</button>
       </div>
       <button v-if="!editingCategory && currentView === 'main'" class="btn btn-side btn-side-right"
         @click="switchToSecondaryView"><svg class="icon icon-l">
@@ -45,15 +42,14 @@
               <input v-else v-model="category.editName" :ref="categoryEditorRef('main', catIdx)" ref-in-for
                 @blur="saveCategoryName('main', catIdx)" @keyup.enter="saveCategoryName('main', catIdx)" />
             </div>
-            <button type="button" class="category-edit-btn" v-if="!isEditingCategory('main', catIdx)"
-              @mousedown.stop @touchstart.stop @pointerdown.stop @click="startCategoryEdit('main', catIdx)">{{
+            <button type="button" class="category-edit-btn" v-if="!isEditingCategory('main', catIdx)" @mousedown.stop
+              @touchstart.stop @pointerdown.stop @click="startCategoryEdit('main', catIdx)">{{
                 t('Edit') }}</button>
             <input v-if="isEditingCategory('main', catIdx)" class="add-item-input" v-model="category.newItem"
               @keyup.enter="addItem('main', catIdx)" v-bind:placeholder="t('+ Item')" />
             <draggable class="items-list" :class="{ 'items-list--empty': !category.itemsArr.length }"
               v-model="category.itemsArr" :group="'items'" :move="canDragItem"
-              :options="itemDragOptions('main', catIdx)"
-              item-key="key">
+              :options="itemDragOptions('main', catIdx)" item-key="key">
               <template #item="{ element: item, index: itemIdx }">
                 <div :key="item.key" :class="itemRowClasses('main', catIdx, item)">
                   <div class="favorite-wrapper" v-if="isEditingCategory('main', catIdx)">
@@ -112,8 +108,7 @@
               @keyup.enter="addItem('secondary', catIdx)" v-bind:placeholder="t('+ Item')" />
             <draggable class="items-list" :class="{ 'items-list--empty': !category.itemsArr.length }"
               v-model="category.itemsArr" :group="'items'" :move="canDragItem"
-              :options="itemDragOptions('secondary', catIdx)"
-              item-key="key">
+              :options="itemDragOptions('secondary', catIdx)" item-key="key">
               <template #item="{ element: item, index: itemIdx }">
                 <div :key="item.key" :class="itemRowClasses('secondary', catIdx, item)">
 
@@ -249,6 +244,18 @@ module.exports = {
       },
       immediate: true,
       deep: true
+    },
+    onboardingOpen: {
+      handler(newVal, oldVal) {
+        console.log('[daily_settings] onboardingOpen watcher fired', { newVal, oldVal });
+        if (newVal) {
+          console.log('[daily_settings] onboardingOpen true -> requesting settings');
+          this.requestSettings();
+        } else {
+          console.log('[daily_settings] onboardingOpen false -> skipping refresh');
+        }
+      },
+      immediate: true
     }
   },
   methods: {
@@ -561,6 +568,27 @@ module.exports = {
       this.editingCategoryEditing = false;
       this.editingCategoryNameInput = '';
     },
+    handleIncomingMessage(event) {
+      /* const handled = BasePluginComponent.methods.handleIncomingMessage.call(this, event);
+      if (handled) return true; */
+      console.log(this.$options.name + ' handling message');
+      try {
+        console.log(event.data);
+        const data = JSON.parse(event.data);
+        console.log(data);
+        if (data.needs) {
+          this.mainCategories = this.processCategories(data.needs[0]);
+          this.secondaryCategories = this.processCategories(data.needs[1]);
+        }
+        else{
+          console.warn('invalid settings');
+        }
+      }
+      catch (e) {
+        console.error(e);
+      }
+      return true;
+    },
     handleItemTitlePointerDown(view, catIdx, itemIdx, evt) {
       if (!evt) return;
       if (!this.isEditingCategory(view, catIdx)) return;
@@ -766,7 +794,7 @@ module.exports = {
   align-items: center;
   margin-bottom: 0.5rem;
   gap: 0.5rem;
-  cursor:grab;
+  cursor: grab;
 }
 
 .category-header--expanded {
