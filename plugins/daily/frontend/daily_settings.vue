@@ -1144,6 +1144,7 @@ button.settings-delete-category-btn {
 .breadcrumb-current {
   font-weight: 600;
   text-transform: uppercase;
+  cursor: text;
 }
 
 .breadcrumb-current-input {
