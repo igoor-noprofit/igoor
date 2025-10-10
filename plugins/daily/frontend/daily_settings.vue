@@ -754,7 +754,7 @@ module.exports = {
 
 .category-col--expanded {
   flex: 0 0 50%;
-  margin: 0 auto;
+  margin: 15px auto;
 }
 
 .category-col--expanded .items-list {
@@ -1091,7 +1091,7 @@ input.add-item-input {
 button.settings-delete-category-btn {
   background: #a66355;
   border: none;
-  height: 50px;
+  height: 40px !important;
   display: flex;
   align-items: center;
   justify-content: center;
