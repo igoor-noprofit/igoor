@@ -179,7 +179,8 @@ module.exports = {
     initialSettings: Object
   },
   mounted() {
-    console.warn("SETTINGS LANG =" + this.lang);
+    /*
+    console.warn("MOUNTED: SETTINGS LANG =" + this.lang);
     // Always extract needs from initialSettings, whether it's an object or array
     let needs = this.initialSettings && this.initialSettings.needs ? this.initialSettings.needs : this.initialSettings;
     if (needs && Array.isArray(needs) && needs.length > 1) {
@@ -187,10 +188,8 @@ module.exports = {
       this.secondaryCategories = this.processCategories(needs[1]);
       this.originalSettings = JSON.parse(JSON.stringify(needs));
     }
-    document.querySelectorAll('.item-row input, .item-row button:not(.item-handle)').forEach(el => {
-      el.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: false });
-      el.addEventListener('mousedown', (e) => e.stopPropagation());
-    });
+      */
+
   },
   data() {
     return {
@@ -206,7 +205,8 @@ module.exports = {
       dialogResolve: null,
       editingCategory: null,
       editingCategoryEditing: false,
-      editingCategoryNameInput: ''
+      editingCategoryNameInput: '',
+      isResetting: false
     };
   },
   computed: {
@@ -233,14 +233,28 @@ module.exports = {
   },
   watch: {
     initialSettings: {
-      handler(newVal) {
-        let needs = newVal && newVal.needs ? newVal.needs : newVal;
-        if (needs && Array.isArray(needs) && needs.length > 1) {
-          this.mainCategories = this.processCategories(needs[0]);
-          this.secondaryCategories = this.processCategories(needs[1]);
-          this.originalSettings = JSON.parse(JSON.stringify(needs));
-          this.exitCategoryEdit();
+      handler(oldVal, newVal) {
+        console.warn('INITIAL SETTINGS WATCHER FIRED');
+        if (oldVal != newVal) {
+          if (this.isResetting) return; // <-- Add this guard
+
+          let needs = newVal && newVal.needs ? newVal.needs : newVal;
+          if (needs && Array.isArray(needs) && needs.length > 1) {
+            console.warn('INITIAL SETTINGS PROCESSING');
+            this.mainCategories = this.processCategories(needs[0]);
+            this.secondaryCategories = this.processCategories(needs[1]);
+            this.originalSettings = JSON.parse(JSON.stringify(needs));
+            this.exitCategoryEdit();
+          }
+          document.querySelectorAll('.item-row input, .item-row button:not(.item-handle)').forEach(el => {
+            el.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: false });
+            el.addEventListener('mousedown', (e) => e.stopPropagation());
+          });
         }
+        else {
+          console.warn("NO NEED TO INITIAL SETTINGS");
+        }
+
       },
       immediate: true,
       deep: true
@@ -569,18 +583,33 @@ module.exports = {
       this.editingCategoryNameInput = '';
     },
     handleIncomingMessage(event) {
-      /* const handled = BasePluginComponent.methods.handleIncomingMessage.call(this, event);
-      if (handled) return true; */
       console.log(this.$options.name + ' handling message');
       try {
         console.log(event.data);
         const data = JSON.parse(event.data);
-        console.log(data);
         if (data.needs) {
-          this.mainCategories = this.processCategories(data.needs[0]);
-          this.secondaryCategories = this.processCategories(data.needs[1]);
+          let needs = data.needs;
+          console.log(needs);
+          this.isResetting = true; // <-- Set flag 
+          console.warn('NEEDS FROM BACKEND');
+          this.mainCategories = this.processCategories(needs[0]);
+          this.secondaryCategories = this.processCategories(needs[1]);
+          console.warn('MAIN CATEGORIES:');
+          console.warn(this.mainCategories);
+          try {
+            this.$forceUpdate();
+            this.originalSettings = JSON.parse(JSON.stringify(needs));
+            console.log('ORIGINAL SETTINGS MODIFIED');
+          }
+          catch (e) {
+            console.error(e);
+          }
+
+          this.$nextTick(() => {
+            this.isResetting = false; // <-- Clear flag after update
+          });
         }
-        else{
+        else {
           console.warn('invalid settings');
         }
       }
@@ -680,6 +709,7 @@ module.exports = {
     },
     resetSettings() {
       if (this.originalSettings) {
+        console.warn('RESETTING CATEGORIES');
         this.mainCategories = this.processCategories(this.originalSettings[0]);
         this.secondaryCategories = this.processCategories(this.originalSettings[1]);
         this.exitCategoryEdit();
