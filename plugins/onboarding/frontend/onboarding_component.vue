@@ -148,7 +148,7 @@
                                             <!-- Settings Icon for non-core plugins -->
                                             <img v-if="!plugin.is_core && plugin.has_settings && plugin.active"
                                                 src="/img/icons/src/settings.svg"
-                                                class="plugin-settings-icon" alt="Settings" title="{{ t('Configure plugin') }}"
+                                                class="plugin-settings-icon" alt="Settings" :title="t('Configure plugin')"
                                                 @click="showPluginSettingsView(plugin)">
                                         </div>
                                     </div>
