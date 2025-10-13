@@ -44,7 +44,7 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=['torch.utils.tensorboard'],
+    excludes=['torch.utils.tensorboard','cefpython3'],
     noarchive=False,
     optimize=0,
 )
