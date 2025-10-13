@@ -181,12 +181,10 @@ module.exports = {
   },
   mounted() {
     const el = this.$refs.dailys
-
     // Create an IntersectionObserver
     this.observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
-          console.warn('Element is visible on screen!')
           this.requestSettingsViaApi();
         } else {
           console.log('Element is not visible')
@@ -195,9 +193,7 @@ module.exports = {
       {
         threshold: 0.1 // trigger when 10% of the element is visible
       }
-    )
-    console.warn('MOUNTED NOW');
-    
+    )    
     // Start observing the element
     this.observer.observe(el)
     /*
@@ -309,7 +305,10 @@ module.exports = {
   },
   methods: {
     async requestSettingsViaApi(){
-      let needs = await window.pywebview.api.get_plugin_settings('daily');
+      console.warn("REQUEST SETTINGS VIA API");
+      let settings = await window.pywebview.api.get_plugin_settings('daily');
+      console.log(settings);
+      const needs = settings && settings.needs ? settings.needs : settings;
       this.applyNeeds(needs, 'api');
     },
     processCategories(data) {
