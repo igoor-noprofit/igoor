@@ -309,7 +309,7 @@ module.exports = {
   },
   methods: {
     async requestSettingsViaApi(){
-      let needs = await window.pywebview.api.get_plugin_settings('daily')
+      let needs = await window.pywebview.api.get_plugin_settings('daily');
       this.applyNeeds(needs, 'api');
     },
     processCategories(data) {
