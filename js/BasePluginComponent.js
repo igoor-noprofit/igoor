@@ -63,7 +63,7 @@ module.exports = {
           .toLowerCase();
       this.sendMsgToBackend({
         action: "get_settings",
-      },this.$options.name);
+      },pluginName);
     },
     updateSettings() {
       console.log("Saving plugin settings:", this.formData);
