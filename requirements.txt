@@ -23,7 +23,6 @@ beartype==0.18.5
 blis==1.2.0
 bottle==0.13.2
 catalogue==2.0.10
-cefpython3==66.1
 certifi==2024.8.30
 cffi==1.17.1
 charset-normalizer==3.4.0
