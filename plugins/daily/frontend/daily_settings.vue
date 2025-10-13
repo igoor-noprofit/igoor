@@ -1,5 +1,5 @@
 <template>
-  <div class="daily-settings container daily-plugin main">
+  <div class="daily-settings container daily-plugin main" ref="dailys">
     <div class="settings-actions">
       <button class="btn btn-secondary" @click="resetSettings" :disabled="!hasUnsavedChanges">{{ t('Cancel') }}</button>
       <div v-if="editingCategory" class="settings-breadcrumb">
@@ -171,6 +171,7 @@
 
 import BasePluginComponent from '/js/BasePluginComponent.js';
 
+
 module.exports = {
   name: "dailySettings",
   mixins: [BasePluginComponent],
@@ -179,6 +180,26 @@ module.exports = {
     initialSettings: Object
   },
   mounted() {
+    const el = this.$refs.dailys
+
+    // Create an IntersectionObserver
+    this.observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          console.warn('Element is visible on screen!')
+          this.requestSettingsViaApi();
+        } else {
+          console.log('Element is not visible')
+        }
+      },
+      {
+        threshold: 0.1 // trigger when 10% of the element is visible
+      }
+    )
+    console.warn('MOUNTED NOW');
+    
+    // Start observing the element
+    this.observer.observe(el)
     /*
     console.warn("MOUNTED: SETTINGS LANG =" + this.lang);
     // Always extract needs from initialSettings, whether it's an object or array
@@ -189,7 +210,12 @@ module.exports = {
       this.originalSettings = JSON.parse(JSON.stringify(needs));
     }
       */
-
+  },
+  beforeUnmount() {
+    // Clean up the observer
+    if (this.observer) {
+      this.observer.disconnect()
+    }
   },
   data() {
     return {
@@ -206,7 +232,10 @@ module.exports = {
       editingCategory: null,
       editingCategoryEditing: false,
       editingCategoryNameInput: '',
-      isResetting: false
+      latestNeedsSerialized: null,
+      latestNeedsSource: null,
+      hasReceivedMessage: false,
+      observer: null
     };
   },
   computed: {
@@ -232,39 +261,45 @@ module.exports = {
     }
   },
   watch: {
+    /*
+    appview(newView) {
+        if (newView === 'onboarding') {
+            alert('ONBOARDING');
+        }
+        
+    },
+    /*
     initialSettings: {
-      handler(oldVal, newVal) {
+      handler(newVal, oldVal) {
         console.warn('INITIAL SETTINGS WATCHER FIRED');
-        if (oldVal != newVal) {
-          if (this.isResetting) return; // <-- Add this guard
-
-          let needs = newVal && newVal.needs ? newVal.needs : newVal;
-          if (needs && Array.isArray(needs) && needs.length > 1) {
-            console.warn('INITIAL SETTINGS PROCESSING');
-            this.mainCategories = this.processCategories(needs[0]);
-            this.secondaryCategories = this.processCategories(needs[1]);
-            this.originalSettings = JSON.parse(JSON.stringify(needs));
-            this.exitCategoryEdit();
+        if (newVal !== oldVal) {
+          const needs = newVal && newVal.needs ? newVal.needs : newVal;
+          if (!needs) {
+            console.warn('NO NEEDS PROVIDED FROM INITIAL SETTINGS');
+            return;
           }
-          document.querySelectorAll('.item-row input, .item-row button:not(.item-handle)').forEach(el => {
-            el.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: false });
-            el.addEventListener('mousedown', (e) => e.stopPropagation());
-          });
+          const serialized = JSON.stringify(needs);
+          if (!this.hasReceivedMessage) {
+            this.applyNeeds(needs, 'initial');
+          } else if (serialized === this.latestNeedsSerialized) {
+            console.warn('INITIAL SETTINGS MATCH CURRENT STATE; SKIPPING APPLY');
+          } else {
+            console.warn('INITIAL SETTINGS PAYLOAD DIFFER FROM LATEST MESSAGE; IGNORING TO PRESERVE NEWER DATA');
+          }
+        } else {
+          console.warn('NO NEED TO INITIAL SETTINGS');
         }
-        else {
-          console.warn("NO NEED TO INITIAL SETTINGS");
-        }
-
       },
       immediate: true,
       deep: true
     },
+    */
     onboardingOpen: {
       handler(newVal, oldVal) {
-        console.log('[daily_settings] onboardingOpen watcher fired', { newVal, oldVal });
+        console.warn('[daily_settings] onboardingOpen watcher fired', { newVal, oldVal });
         if (newVal) {
           console.log('[daily_settings] onboardingOpen true -> requesting settings');
-          this.requestSettings();
+          this.requestSettingsViaApi();
         } else {
           console.log('[daily_settings] onboardingOpen false -> skipping refresh');
         }
@@ -273,6 +308,10 @@ module.exports = {
     }
   },
   methods: {
+    async requestSettingsViaApi(){
+      let needs = await window.pywebview.api.get_plugin_settings('daily')
+      this.applyNeeds(needs, 'api');
+    },
     processCategories(data) {
       console.warn('Processing categories:', data);
       return Object.entries(data).map(([name, items]) => ({
@@ -336,6 +375,56 @@ module.exports = {
       };
       reset(this.mainCategories);
       reset(this.secondaryCategories);
+    },
+    applyNeeds(needs, source = 'unknown') {
+      if (!needs || !Array.isArray(needs) || needs.length < 2) {
+        console.warn('invalid settings');
+        return;
+      }
+      const serialized = JSON.stringify(needs);
+      if (source === 'message') {
+        this.hasReceivedMessage = true;
+      }
+      if (this.hasReceivedMessage && source === 'initial' && this.latestNeedsSource === 'message' && this.latestNeedsSerialized && serialized !== this.latestNeedsSerialized) {
+        console.warn('Skipping outdated initial settings payload');
+        return;
+      }
+      if (serialized === this.latestNeedsSerialized) {
+        if (source === 'message') {
+          console.warn('NEEDS IDENTICAL BUT MESSAGE SOURCE -> REAPPLYING');
+        } else {
+          console.warn('NEEDS IDENTICAL TO CURRENT STATE; SKIPPING APPLY');
+          return;
+        }
+      }
+      console.warn(`APPLYING NEEDS FROM ${source}`);
+      console.warn(needs);
+      this.editingCategory = null;
+      this.editingCategoryEditing = false;
+      this.editingCategoryNameInput = '';
+      const mainProcessed = this.processCategories(needs[0]);
+      const secondaryProcessed = this.processCategories(needs[1]);
+      this.mainCategories = mainProcessed;
+      this.secondaryCategories = secondaryProcessed;
+      try {
+        this.$forceUpdate();
+        this.originalSettings = JSON.parse(serialized);
+        this.latestNeedsSerialized = serialized;
+        this.latestNeedsSource = source;
+        console.log('ORIGINAL SETTINGS MODIFIED');
+      }
+      catch (e) {
+        console.error(e);
+      }
+      this.$nextTick(() => {
+        this.attachItemInteractionGuards();
+      });
+    },
+    attachItemInteractionGuards() {
+      document.querySelectorAll('.item-row input, .item-row button:not(.item-handle)').forEach(el => {
+        el.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: false });
+        el.addEventListener('mousedown', (e) => e.stopPropagation());
+      });
     },
     isEditingCategory(view, catIdx) {
       return this.editingCategory && this.editingCategory.view === view && this.editingCategory.index === catIdx;
@@ -585,29 +674,12 @@ module.exports = {
     handleIncomingMessage(event) {
       console.log(this.$options.name + ' handling message');
       try {
-        console.log(event.data);
         const data = JSON.parse(event.data);
-        if (data.needs) {
-          let needs = data.needs;
+        if (data.settings.needs) {
+          let needs = data.settings.needs;
           console.log(needs);
-          this.isResetting = true; // <-- Set flag 
           console.warn('NEEDS FROM BACKEND');
-          this.mainCategories = this.processCategories(needs[0]);
-          this.secondaryCategories = this.processCategories(needs[1]);
-          console.warn('MAIN CATEGORIES:');
-          console.warn(this.mainCategories);
-          try {
-            this.$forceUpdate();
-            this.originalSettings = JSON.parse(JSON.stringify(needs));
-            console.log('ORIGINAL SETTINGS MODIFIED');
-          }
-          catch (e) {
-            console.error(e);
-          }
-
-          this.$nextTick(() => {
-            this.isResetting = false; // <-- Clear flag after update
-          });
+          this.applyNeeds(needs, 'message');
         }
         else {
           console.warn('invalid settings');

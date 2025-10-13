@@ -24,8 +24,8 @@ class Api:
         # print(sm.get_plugin_settings(plugin_name))
         return sm.get_plugin_settings(plugin_name)
     
-    def get_plugin_settings(self,plugin_name):
-        return plugin_manager.plugin_has_settings(plugin_name,True)
+    async def get_plugin_settings(self,plugin_name):
+        return await (asyncio.create_task(plugin_manager.plugin_has_settings(plugin_name,True)))
     
     def update_plugin_settings(self,plugin_name,settings):
         # print("Saving plugin settings")
