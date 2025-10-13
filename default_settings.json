@@ -13,57 +13,7 @@
       "lat_home": "",
       "lng_home": ""
     },
-    "asrvosk": {
-      "lang": "fr_FR",
-      "wakeword": "Igor",
-      "model_size": "big",
-      "continuous": false,
-      "min_confidence": 0.7
-    },
-    "asrwhisper": {
-      "wakeword": "Igor",
-      "allowed_model_providers": ["groq", "mistral"],
-      "model_provider": "groq",
-      "model_name": "whisper-large-v3",
-      "continuous": false,
-      "api_key": "",
-      "voxtral_api_key": "",
-      "silence_frames": 1250,
-      "max_recording_time": 60,
-      "vad_level": -1,
-      "shortcut": "Ctrl+K"
-    },
-    "rag": {
-      "chunk_size": 500,
-      "chunk_overlap": 200,
-      "chunk_retrieved": 50,
-      "chunk_num": 10,
-      "embedding_model": "dangvantuan/french-document-embedding",
-      "embedding_type": "huggingface",
-      "openai_api_key": ""
-    },
-    "memory": {
-      "provider": "",
-      "api_key": "",
-      "model_name": "",
-      "temperature": 0.1
-    },
-    "autocomplete": {
-      "provider": "",
-      "api_key": "",
-      "model_name": "",
-      "temperature": 1
-    },
-    "conversation": {
-      "timeout": "180000",
-      "warning_time": "30000"
-    },
     "clock": {},
-    "ramcpu": {
-      "timeout": 5,
-      "battery_threshold": 100,
-      "warning_timeout": 20
-    },
     "onboarding": {
       "bio": {
         "name": "",
@@ -85,10 +35,6 @@
         "model_name": "openai/gpt-oss-120b",
         "temperature": 0.5
       }
-    },
-    "ttsdefault": {
-      "fallback_only": true,
-      "speaker_voice": 0
     }
   },
   "plugins_activation": {
@@ -102,7 +48,6 @@
     "daily": true,
     "flow": true,
     "onboarding": true,
-    "settings": true,
     "shortcuts": true,
     "ttsdefault": true,
     "speechifytts": true,
