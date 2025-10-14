@@ -66,6 +66,21 @@
             </div>
         </div>
         <div class="bio right">
+            <!-- Save Button -->
+            <div class="form-label"></div>
+            <div class="form-input">
+                <div style="display: flex; justify-content: space-evenly; width: 100%" >
+                    <button class="" type="button" @click="testVoice">{{ t('Test voice') }}</button>
+                    <button @click="checkBeforeUpdating"
+                        :disabled="!hasChanges || apiKeyError || voiceIdError || isSaving"
+                        :class="{ disabled: !hasChanges || apiKeyError || voiceIdError || isSaving }">{{ t('SAVE PLUGIN SETTINGS')}}</button>
+                    <div v-if="saveStatus" style="margin-left:12px;">
+                        <span v-if="saveStatus.type === 'success'" style="color:#3ca23c">{{ saveStatus.message }}</span>
+                        <span v-else style="color:#ff6666">{{ saveStatus.message }}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="form-note"></div>
             <!-- Use SSML Toggle -->
              <div class="form-grid" style="grid-template-columns: 1fr 2fr; align-items: center; gap: 12px 18px;">
                 <div class="form-label">{{ t('Use SSML') }}</div>
@@ -135,21 +150,7 @@
             </div>
             <div class="form-note"></div>
 
-            <!-- Save Button -->
-            <div class="form-label"></div>
-            <div class="form-input">
-                <div style="display: flex; justify-content: space-evenly; width: 100%" >
-                    <button class="" type="button" @click="testVoice">{{ t('Test voice') }}</button>
-                    <button @click="checkBeforeUpdating"
-                        :disabled="!hasChanges || apiKeyError || voiceIdError || isSaving"
-                        :class="{ disabled: !hasChanges || apiKeyError || voiceIdError || isSaving }">{{ t('SAVE PLUGIN SETTINGS')}}</button>
-                    <div v-if="saveStatus" style="margin-left:12px;">
-                        <span v-if="saveStatus.type === 'success'" style="color:#3ca23c">{{ saveStatus.message }}</span>
-                        <span v-else style="color:#ff6666">{{ saveStatus.message }}</span>
-                    </div>
-                </div>
-            </div>
-            <div class="form-note"></div>
+            
         </div>
 
     </div>
