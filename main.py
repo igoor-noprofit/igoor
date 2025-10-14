@@ -31,8 +31,6 @@ def on_idle_change(is_idle):
     else:
         logger.info("User is now active!")
         # 10 MINUTES TOTAL INACTIVITY
-        
-
 
 def show_splash_screen(image_path):
     """Create a simple splash screen with a logo."""
