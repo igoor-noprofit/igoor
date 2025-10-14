@@ -28,6 +28,7 @@ class Speechifytts(Baseplugin):
                 
     @hookimpl
     def startup(self):
+        # https://docs.sws.speechify.com/docs/features/language-support#beta-languages
         self.supported_lang = ['en', 'fr-FR', 'de-DE', 'es-ES', 'pt-BR', 'pt-PT']
         self.settings = self.get_my_settings()
         ''' print ("SPEECHIFY settings", self.settings) '''
