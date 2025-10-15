@@ -326,6 +326,7 @@ export default {
                         type: 'error',
                         message: this.t(data.error_type) + " : " + this.t(data.missing_field) + " (" + this.t(data.category) + ")"
                     };
+                    this.isSaving = false;
                 }
                 if (data.type && data.type == "success"){
                     this.isSaving = false;
