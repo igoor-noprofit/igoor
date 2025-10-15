@@ -7,6 +7,7 @@ from speechify import Speechify
 import sounddevice as sd
 import numpy as np
 from pydub import AudioSegment
+from pydub.exceptions import CouldntDecodeError
 from pydub.playback import play
 import io
 import base64
@@ -307,11 +308,24 @@ class Speechifytts(Baseplugin):
             audio_bytes = base64.b64decode(response.audio_data)
             print(f"Received {len(audio_bytes)} bytes of audio data. Decoding...")
 
-            # with open("debug_speechify_output.wav", "wb") as f:
-            #    f.write(audio_bytes)
+            '''
+            debug_path = os.path.join(self.plugin_folder, "debug_speechify_output.wav")
+            with open(debug_path, "wb") as f:
+                f.write(audio_bytes)
+            '''
             # 2. Decode the audio bytes using pydub
             audio_file_like = io.BytesIO(audio_bytes)
-            audio_segment = AudioSegment.from_file(audio_file_like)
+            try:
+                if len(audio_bytes) >= 12 and audio_bytes[:4] == b"RIFF" and audio_bytes[8:12] == b"WAVE":
+                    print("Decoding Speechify audio as WAV without ffmpeg")
+                    audio_segment = AudioSegment.from_wav(audio_file_like)
+                else:
+                    raise CouldntDecodeError("Non-WAV header detected", audio_file_like)
+            except CouldntDecodeError:
+                audio_file_like.seek(0)
+                print("Falling back to AudioSegment.from_file (ffmpeg may be required)")
+                audio_segment = AudioSegment.from_file(audio_file_like)
+    
 
             # Convert to 16-bit PCM mono/stereo if needed
             audio_segment = audio_segment.set_frame_rate(22050).set_sample_width(2).set_channels(1)
