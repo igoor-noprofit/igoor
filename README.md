@@ -62,7 +62,7 @@ The embedding model from HuggingFace currently requires 1.15Gb on disk.
 
 The app should take less than 3Gb.
 
-### FFMPEG
+### FFMPEG (TO BE VERIFIED)
 
 As of now, TTS plugin for Speechify requires ffmpeg, and that the path to ffmpeg\bin folder be included in the system PATH environment variable.
 
@@ -150,6 +150,8 @@ In this case the final path is :
 IGOOR_FOLDER/plugins/asrvosk/models/language/model_size
 
 NOTE: Because of its high WER compared to Whisper and Voxtral, we recommend using Vosk only if audio privacy is paramount.
+
+VOSK will be probably deprecated in favor of a local fasterwhisper model.
 
 ### Static Knowledge Base from patient documents (RAG, RetrievalAugmentedGeneration)
 
