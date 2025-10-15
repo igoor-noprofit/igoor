@@ -43,7 +43,7 @@
             </div>
             <div class="form-input">
                 <select v-model="formData.voice_id" :class="{ 'input-error': voiceIdError }" @change="onVoiceIdChange"
-                    :disabled="!filteredVoices.length">
+                    :disabled="!filteredVoices.length" class="voice-selector">
                     <option disabled value="">{{ t('Select a voice') }}</option>
                     <option v-for="voice in filteredVoices" :key="voice.id" :value="voice.id">
                         {{ voice.display_name }}
@@ -61,7 +61,7 @@
             <input type="hidden" v-model="formData.voice_id" />
             <!-- model_id hidden -->
             <div class="form-label" style="display:none">{{ t('Model ID') }}</div>
-            <div class="form-input" style="display:none">
+            <div class="form-input" style="display:none">voiceSelector
                 <input type="text" v-model="formData.model_id" />
             </div>
         </div>
@@ -362,6 +362,10 @@ export default {
     gap: 8px;
 }
 
+.voice-selector{
+    width: 37vw;
+}
+
 .form-note {
     font-size: 0.97em;
     color: #aaa;
@@ -460,6 +464,6 @@ button:hover {
 }
 
 .voice-filters select {
-    min-width: 140px;
+    width:12vw !important;
 }
 </style>
