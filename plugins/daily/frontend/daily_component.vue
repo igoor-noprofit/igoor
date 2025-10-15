@@ -169,6 +169,14 @@ module.exports = {
 </script>
 
 <style scoped>
+.btn-primary{
+    font-size: 1.1rem;
+    padding: 1.5vh 1vh;
+}
+.btn-secondary{
+    font-size: 1rem;
+    padding: 1.2vh 1vh;
+}
 .answers.secondary {
     display: flex;
     justify-content: center;
