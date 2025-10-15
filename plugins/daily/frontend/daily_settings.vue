@@ -808,7 +808,7 @@ module.exports = {
 .itemTitle {
   flex-grow: 1;
   font-size: 0.95rem;
-  height: 50px;
+  height: 4.5vh;
   display: flex;
   align-items: center;
   padding: 0 0.75rem;
@@ -986,8 +986,8 @@ button.delete-btn {
   border: none;
   font-size: 1.2em;
   cursor: pointer;
-  height: 50px !important;
-  width: 50px;
+  height: 4.5vh !important;
+  width: 4.5vh !important;
 }
 
 button.switch-btn {
@@ -1018,7 +1018,7 @@ button.switch-btn {
   border-radius: 4px;
   padding: 0 0.5rem;
   text-align: left;
-  height: 50px;
+  height: 4.5vh;
 }
 
 .item-row input {
@@ -1043,9 +1043,9 @@ button.switch-btn {
   margin: 0 0.5rem 0 0;
 }
 
-.favorite-btn {
-  width: 48px;
-  height: 48px;
+button.favorite-btn {
+  width: 4.5vh;
+  height: 4.5vh;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1073,15 +1073,15 @@ button.favorite-btn--active {
   color: #fff;
 }
 
-.item-handle {
-  width: 36px;
-  height: 36px;
+button.item-handle {
+  width: 4.5vh;
+  height: 4.5vh;
   display: flex;
   align-items: center;
   justify-content: center;
   border: none;
   border-radius: 6px;
-  background: rgba(255, 255, 255, 0.08);
+  background-color: #407d1c;
   color: rgba(255, 255, 255, 0.75);
   font-size: 1.2rem;
   cursor: grab !important;
@@ -1226,7 +1226,7 @@ button.settings-delete-category-btn {
   justify-content: center;
   font-size: 0.7rem;
   cursor: pointer;
-  width: auto;
+  width: auto !important;
   margin-left: 100px;
 }
 
