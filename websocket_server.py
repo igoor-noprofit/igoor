@@ -1,5 +1,4 @@
 import asyncio
-import json
 import threading
 from typing import Callable, Dict, Optional, Set
 
@@ -75,9 +74,6 @@ class WebSocketHub:
         return False
 
     def send_message(self, plugin_name: str, message: str) -> bool:
-        if isinstance(message, dict):
-            message = json.dumps(message)
-
         with self._lock:
             connections = list(self.active_connections.get(plugin_name, set()))
 

@@ -65,7 +65,7 @@ async function initializeApp() {
         this.pywebviewready = true;
         console.warn("Pywebview is ready!");
         // Create a WebSocket connection
-        this.websocketUtil = new WebSocket("ws://localhost:9715/app");
+        this.websocketUtil = new WebSocket("ws://127.0.0.1:9714/ws/app");
 
         // Set up WebSocket event listeners
         this.websocketUtil.onopen = function () {

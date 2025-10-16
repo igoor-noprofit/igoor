@@ -1,6 +1,7 @@
 from version import __appname__, __version__, __codename__
 import webview
 import os
+import time
 from dotenv import load_dotenv
 load_dotenv()
 from plugin_manager import PluginManager
@@ -28,6 +29,8 @@ appdata_dir = get_appdata_dir(create=True)
 logger = setup_logger('main', appdata_dir)
 context_manager = ContextManager()
 manager = PluginManager()
+fastapi_server: Optional[uvicorn.Server] = None
+fastapi_thread: Optional[threading.Thread] = None
 
 
 def _write_dynamic_frontend_asset(file_name: str, content: str) -> str:
@@ -45,6 +48,40 @@ def _write_dynamic_frontend_asset(file_name: str, content: str) -> str:
         logger.debug(f"Skipping packaged write for {file_name}: {exc}")
 
     return appdata_path
+
+
+def start_fastapi_server() -> None:
+    global fastapi_server, fastapi_thread
+    if fastapi_server and fastapi_thread and fastapi_thread.is_alive():
+        return
+
+    config = uvicorn.Config(
+        fastapi_app,
+        host="127.0.0.1",
+        port=9714,
+        log_level="info",
+    )
+    fastapi_server = uvicorn.Server(config)
+
+    fastapi_thread = threading.Thread(target=fastapi_server.run, daemon=True)
+    fastapi_thread.start()
+
+    # Wait briefly for the server to signal readiness
+    if hasattr(fastapi_server, "started"):
+        while fastapi_thread.is_alive() and fastapi_server.started is False:
+            time.sleep(0.05)
+
+
+def stop_fastapi_server() -> None:
+    global fastapi_server, fastapi_thread
+    if fastapi_server:
+        fastapi_server.should_exit = True
+
+    if fastapi_thread and fastapi_thread.is_alive():
+        fastapi_thread.join(timeout=5)
+
+    fastapi_server = None
+    fastapi_thread = None
 
 def on_idle_change(is_idle):
     if is_idle:
@@ -220,6 +257,7 @@ def load_frontend_components(lang):
     return final_html
 
 def on_closing():
+    stop_fastapi_server()
     websocket_server.stop()  
     print("WebSocket server has been closed.")
 
@@ -332,6 +370,7 @@ if __name__ == "__main__":
     lang = prefs.get("lang")
     
     if IGOOR_CLI.lower() != 'true':
+        start_fastapi_server()
         final_html = load_frontend_components(lang=lang)
         if (IGOOR_OUTPUT_HTML.lower() == 'true'):
             print(final_html)
