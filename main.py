@@ -13,14 +13,22 @@ from websocket_server import websocket_server
 import signal,sys
 import tkinter as tk
 import asyncio
-from utils import resource_path, setup_logger
+from utils import resource_path, setup_logger, get_platform
 from idle_detector import IdleDetector
 
-appdata_dir = os.path.join(os.getenv('APPDATA'), __appname__)
+current_platform = get_platform()
+if current_platform == 'Windows':
+    base_appdata = os.getenv('APPDATA')
+    if base_appdata is None:
+        raise EnvironmentError('APPDATA environment variable is not set on Windows.')
+    appdata_dir = os.path.join(base_appdata, __appname__)
+elif current_platform == 'Darwin':
+    appdata_dir = os.path.join(os.path.expanduser('~'), 'Library', 'Application Support', __appname__)
+else:
+    appdata_dir = os.path.join(os.path.expanduser('~'), f'.{__appname__}')
 if not os.path.exists(appdata_dir):
     os.makedirs(appdata_dir)
 logger = setup_logger('main', appdata_dir)
-prompts=None
 context_manager = ContextManager()
 manager = PluginManager()
 
