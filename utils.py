@@ -4,6 +4,7 @@ from pathlib import Path
 from datetime import datetime
 import os
 import json
+import platform
 from logging.handlers import TimedRotatingFileHandler
 
 def resource_path(relative_path):
@@ -161,3 +162,8 @@ def normalize_filter_by_timeframe_result(filtered_results):
         return filtered_results
     else:
         return {}
+
+
+def get_platform():
+    """Return the current platform name using platform.system()."""
+    return platform.system()
