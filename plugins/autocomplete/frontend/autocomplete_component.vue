@@ -114,7 +114,9 @@ module.exports = {
         }
     },
     async mounted() {
-        await this.loadDictionary();
+        if (this.allowVirtualKeyboard){
+            await this.loadDictionary();
+        }  
     },
     methods: {
         /* async $_pasteFromClipboard() {
