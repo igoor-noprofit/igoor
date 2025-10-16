@@ -4,8 +4,9 @@ import os
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, FastAPI, HTTPException, WebSocket, WebSocketDisconnect, status
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from pydantic import BaseModel
 from starlette.staticfiles import StaticFiles
 
 from utils import (
@@ -16,6 +17,17 @@ from utils import (
     setup_logger,
 )
 from websocket_server import websocket_server
+from plugin_manager import PluginManager
+from settings_manager import SettingsManager
+
+
+class UpdateSettingsPayload(BaseModel):
+    settings: dict
+
+
+class ChangeViewPayload(BaseModel):
+    lastview: Optional[str] = None
+    view: str
 
 
 def _ensure_web_directories() -> None:
@@ -40,6 +52,38 @@ def create_app() -> FastAPI:
     logger = setup_logger("fastapi", str(appdata_dir))
 
     app = FastAPI(title="IGOOR API", docs_url=None, redoc_url=None)
+
+    api_router = APIRouter(prefix="/api", tags=["api"])
+
+    plugin_manager = PluginManager()
+    settings_manager = SettingsManager()
+
+    @api_router.get("/plugins/by-category")
+    async def api_get_plugins_by_category():
+        return plugin_manager.get_plugins_by_category()
+
+    @api_router.get("/plugins/{plugin_name}/settings")
+    async def api_get_plugin_settings(plugin_name: str):
+        return settings_manager.get_plugin_settings(plugin_name)
+
+    @api_router.post("/plugins/{plugin_name}/settings", status_code=status.HTTP_204_NO_CONTENT)
+    async def api_update_plugin_settings(plugin_name: str, payload: UpdateSettingsPayload):
+        settings_manager.update_plugin_settings(plugin_name, payload.settings)
+        return JSONResponse(status_code=status.HTTP_204_NO_CONTENT, content=None)
+
+    @api_router.post("/app/change-view", status_code=status.HTTP_204_NO_CONTENT)
+    async def api_change_view(payload: ChangeViewPayload):
+        try:
+            await plugin_manager.trigger_hook(
+                "change_view",
+                lastview=payload.lastview,
+                currentview=payload.view,
+            )
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=str(exc))
+        return JSONResponse(status_code=status.HTTP_204_NO_CONTENT, content=None)
+
+    app.include_router(api_router)
 
     # Static mounts for packaged assets
     app.mount("/css", StaticFiles(directory=resource_path("css")), name="css")

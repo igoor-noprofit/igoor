@@ -64,24 +64,24 @@ async function initializeApp() {
       readypy() {
         this.pywebviewready = true;
         console.warn("Pywebview is ready!");
-        // Create a WebSocket connection
-        this.websocketUtil = new WebSocket("ws://127.0.0.1:9714/ws/app");
+        this.connectAppWebSocket();
+      },
+      connectAppWebSocket() {
+        const socketUrl = "ws://127.0.0.1:9714/ws/app";
+        this.websocketUtil = new WebSocket(socketUrl);
 
-        // Set up WebSocket event listeners
-        this.websocketUtil.onopen = function () {
+        this.websocketUtil.onopen = () => {
           console.log("APP WebSocket connection opened");
         };
 
         this.websocketUtil.onmessage = (event) => {
           console.log("APP received message on websocket:", event.data);
-          // Handle incoming WebSocket messages here
           try {
             const message = JSON.parse(event.data);
-            console.log("Parsed message:", message); // Log the parsed message
             if (message.backend === "addmsg") {
               this.changeView("flow");
             }
-            if (message.switchview && message.switchview != "") {
+            if (message.switchview && message.switchview !== "") {
               this.changeView(message.switchview);
             }
             if (message.minimize) {
@@ -92,11 +92,12 @@ async function initializeApp() {
           }
         };
 
-        this.websocketUtil.onclose = function () {
+        this.websocketUtil.onclose = () => {
           console.log("WebSocket connection closed");
+          setTimeout(() => this.connectAppWebSocket(), 1000);
         };
 
-        this.websocketUtil.onerror = function (error) {
+        this.websocketUtil.onerror = (error) => {
           console.error("WebSocket error:", error);
         };
       },
@@ -119,12 +120,28 @@ async function initializeApp() {
         }
         this.lastview = this.appview;
         this.appview = view;
-        if (view == 'onboarding'){
-          console.warn("Forcing onboarding");
-          await window.pywebview.api.force_onboarding();
+
+        const localApi = window.pywebview?.api;
+        if (!localApi) {
+          try {
+            await fetch("/api/app/change-view", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ lastview: this.lastview, view }),
+            });
+          } catch (error) {
+            console.error("Failed to notify backend of view change:", error);
+          }
+          return;
         }
-        else{
-          await window.pywebview.api.change_view(this.lastview, view);
+
+        if (view === "onboarding") {
+          console.warn("Forcing onboarding");
+          await localApi.force_onboarding();
+        } else {
+          await localApi.change_view(this.lastview, view);
         }
       },
       maximize() {
