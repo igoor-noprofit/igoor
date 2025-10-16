@@ -28,6 +28,13 @@
             </div>
         </div>
 
+        <button @click="$_deleteText()" class="btn btn-side btn-side-right"
+            :disabled="isLoading || error || !userInput.trim()">
+            <svg class="icon icon-l">
+                <use xlink:href="img/svgdefs.svg#icon-backspace"></use>
+            </svg>
+            <h3>{{ t("Delete") }}</h3>
+        </button>
         <button @click="$_speakInput()" class="btn btn-side btn-side-right speak"
             :disabled="isLoading || error || !userInput.trim()">
             <svg class="icon icon-l">
@@ -127,6 +134,9 @@ module.exports = {
         },
         $_hideKeyboard() {
             this.showKeyboard = false;  // Changed from isInputFocused
+        },
+        $_deleteText(){
+            this.$_reset();
         },
         $_backToDaily() {
             console.log("back to daily");

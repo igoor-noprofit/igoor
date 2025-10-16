@@ -312,23 +312,17 @@ class Baseplugin:
         
         return False
     
-   
+    
     def send_action_to_frontend(self, action, plugin_name=None):
         target_plugin_name = plugin_name or self.plugin_name
-        self.send_message_to_frontend({"action": action}, target_plugin_name)
-
-
-    def send_settings_to_settings_frontend(self, settings=None):
-        new_settings = settings or self.get_my_settings()
-        self.send_settings_to_frontend(self.plugin_name+'Settings', new_settings)
+        self.send_message_to_frontend(action, target_plugin_name)
     
-    def send_settings_to_frontend(self, plugin_name=None, settings=None):
-        target_plugin_name = plugin_name or self.plugin_name
-        new_settings = settings or self.get_my_settings()
+    def send_settings_to_frontend(self):
+        settings = self.get_my_settings()
         self.send_message_to_frontend({
             "type": "settings",
-            "settings": new_settings
-        }, target_plugin_name)
+            "settings": settings
+        })
             
     def process_incoming_message(self, message):
         try:
