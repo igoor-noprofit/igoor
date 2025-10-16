@@ -200,7 +200,8 @@ export default {
                 age: 'any',
                 gender: 'any'
             },
-            voiceList: []
+            voiceList: [],
+            apiKeyInitialized: false
         };
     },
     computed: {
@@ -253,6 +254,7 @@ export default {
                 }
                 // store original settings snapshot for change detection
                 this.originalSettings = JSON.parse(JSON.stringify(this.formData));
+                this.apiKeyInitialized = true;
             },
             immediate: true,
             deep: true
@@ -264,6 +266,25 @@ export default {
                 }
             },
             deep: true
+        },
+        'formData.api_key': {
+            handler(newVal, oldVal) {
+                if (!this.apiKeyInitialized) return;
+                const trimmedNew = (newVal || '').trim();
+                const trimmedOld = (oldVal || '').trim();
+                if (trimmedNew === trimmedOld) return;
+
+                if (!trimmedNew) {
+                    this.voiceList = [];
+                    this.formData.voice_id = '';
+                    return;
+                }
+
+                this.sendMsgToBackend({
+                    action: 'get_voice_list',
+                    api_key: trimmedNew
+                }, 'speechifytts');
+            }
         }
     },
     methods: {
@@ -343,6 +364,30 @@ export default {
                 this.isSaving = false;
                 setTimeout(() => { this.saveStatus = null; }, 3000);
             }
+        },
+        handleIncomingMessage(event) {
+            const handled = BasePluginComponent.methods.handleIncomingMessage.call(this, event);
+            if (handled) {
+                return true;
+            }
+
+            let payload;
+            try {
+                payload = JSON.parse(event.data);
+            } catch (err) {
+                return false;
+            }
+
+            if (payload && payload.type === 'voice_list') {
+                const voices = Array.isArray(payload.voice_list) ? payload.voice_list : [];
+                this.voiceList = voices.slice();
+                if (!this.voiceList.some(v => v.id === this.formData.voice_id)) {
+                    this.formData.voice_id = '';
+                }
+                return true;
+            }
+
+            return false;
         }
     }
 };

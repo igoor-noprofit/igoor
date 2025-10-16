@@ -26,6 +26,18 @@ class Speechifytts(Baseplugin):
     def __init__(self, plugin_name, pm):
         self.pm = pm
         super().__init__(plugin_name,pm)
+        self._ensure_lang_code()
+
+    def _ensure_lang_code(self):
+        lang = getattr(self, 'lang', None)
+        if not lang:
+            lang = 'en_EN'
+        if lang == 'en_EN':
+            code = 'en'
+        else:
+            code = lang.replace('_', '-')
+        self.lang_code = code
+        return code
                 
     @hookimpl
     def startup(self):
@@ -42,7 +54,7 @@ class Speechifytts(Baseplugin):
             if (not self.voice_id):
                 self.logger.error("Speechify Voice ID not set in settings,cannot generate speech")
                 return False
-            self.lang_code = self.lang.replace("_", "-")
+            self._ensure_lang_code()
             if self.lang_code not in self.supported_lang:
                 self.logger.warning(f"Configured language '{self.lang_code}' is not officially supported by Speechify plugin. Check documentation for compatibility.")
             try:
@@ -80,9 +92,35 @@ class Speechifytts(Baseplugin):
         print ("SSML:", ssml)
         asyncio.create_task(self.call_speechify(input=ssml, voice_id=voice_id, language=self.lang_code, model="simba-multilingual"))
     
-    def get_voices_list(self):
+    def get_voices_list(self, api_key_override=None):
         try:
-            voices = self.client.tts.voices.list()
+            client = getattr(self, 'client', None)
+
+            if api_key_override:
+                override_key = api_key_override.strip()
+                if not override_key:
+                    self.logger.error("Received empty API key override for voice list retrieval")
+                    return []
+                try:
+                    client = Speechify(token=override_key)
+                    self.client = client
+                    self.api_key = override_key
+                except Exception as client_error:
+                    self.logger.error(f"Failed to initialize Speechify client with override key: {client_error}")
+                    return []
+            elif client is None:
+                api_key = getattr(self, 'api_key', None)
+                if not api_key:
+                    self.logger.error("Speechify API token not set; cannot load voices")
+                    return []
+                try:
+                    client = Speechify(token=api_key)
+                    self.client = client
+                except Exception as client_error:
+                    self.logger.error(f"Failed to initialize Speechify client: {client_error}")
+                    return []
+
+            voices = client.tts.voices.list()
             # print(voices)
             if not voices:
                 self.logger.error("No voices found from Speechify")
@@ -101,7 +139,8 @@ class Speechifytts(Baseplugin):
 
             voice_list = []
             # prefer already-normalized lang_code, fall back to legacy lang property
-            lang = getattr(self, "lang_code", None) or getattr(self, "lang", "").replace("_", "-")
+            lang = self._ensure_lang_code()
+            print (f"LANG CODE IS {lang}")
             for v in voices_iter:
                 # support both dict and object shapes
                 def get_attr(obj, name, default=None):
@@ -160,6 +199,7 @@ class Speechifytts(Baseplugin):
                 vid = get_attr(v, "id", get_attr(v, "voice_id", None))
                 voice_list.append({"display_name": f"{display_name}", "id": vid, "type": type, "gender": gender, "tags": tags})
             print(f"Found {len(voice_list)} voices matching language '{lang}'")
+            self.voice_list = voice_list
             self.update_my_settings('voice_list',voice_list)
             self.settings=self.get_my_settings()
             return voice_list
@@ -243,8 +283,16 @@ class Speechifytts(Baseplugin):
                     self.test_speak(msg, **payload)
                     return
                 elif data.get('action', '') == 'get_voice_list':
-                    print(f"RETURNING VOICE LIST {self.voice_list}")
-                    return self.voice_list
+                    override_key = data.get('api_key')
+                    voice_list = self.get_voices_list(api_key_override=override_key)
+                    response = {
+                        "type": "voice_list",
+                        "voice_list": voice_list
+                    }
+                    if not voice_list:
+                        response["error"] = "voice_list_empty"
+                    self.send_message_to_frontend(response, plugin_name='speechifyttsSettings')
+                    return voice_list
             # fallback to base behaviour
             super().process_incoming_message(message)
         except Exception as e:  
