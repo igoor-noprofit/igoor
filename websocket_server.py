@@ -1,173 +1,134 @@
-'''
-Websocket server is used to communicate from plugin backend to to its Vue frontend (or to the Vue app) 
-'''
 import asyncio
+import json
 import threading
-from websockets import serve, WebSocketServerProtocol
-# Removed: import os
-# Removed: from utils import setup_logger
+from typing import Callable, Dict, Optional, Set
 
-# Removed: __appname__ = "igoor"
+from starlette.websockets import WebSocket, WebSocketState
 
-class WebSocketServer:
-    _instance = None
+
+class WebSocketHub:
+    _instance: Optional["WebSocketHub"] = None
 
     def __new__(cls, *args, **kwargs):
         if cls._instance is None:
-            cls._instance = super(WebSocketServer, cls).__new__(cls)
+            cls._instance = super().__new__(cls)
         return cls._instance
-    
-    def is_socket_open(self, plugin_name: str) -> bool:
-        #print (self.active_connections)
-        """
-        Check if a specific WebSocket connection is open for a given plugin.
-        """
-        if plugin_name in self.active_connections:
-            return any(websocket.open for websocket in self.active_connections[plugin_name])
-        else:
-            print(f"Not in active connections: {plugin_name}") # Reverted to print
-        return False
-    
-    def __init__(self):
-        if hasattr(self, 'initialized') and self.initialized:
+
+    def __init__(self) -> None:
+        if getattr(self, "_initialized", False):
             return
-        
-        print("Initializing WebSocketServer...") # Reverted to print
 
-        self.active_connections = {}
-        self.message_handlers = {}
-        self.loop = asyncio.new_event_loop()
-        self.initialized = True
-        self.server_thread = threading.Thread(target=self.run_server_thread, daemon=True)
-        print("WebSocketServer initialized.") # Reverted to print
+        self.active_connections: Dict[str, Set[WebSocket]] = {}
+        self.message_handlers: Dict[str, Callable[[str], None]] = {}
+        self.loop: Optional[asyncio.AbstractEventLoop] = None
+        self._lock = threading.RLock()
+        self._initialized = True
 
-    async def websocket_handler(self, websocket: WebSocketServerProtocol, path: str):
-        # Log handshake details to help debug EXE vs python-run differences
+    def set_loop(self, loop: asyncio.AbstractEventLoop) -> None:
+        self.loop = loop
+
+    async def connect(self, plugin_name: str, websocket: WebSocket) -> None:
+        if self.loop is None:
+            self.loop = asyncio.get_running_loop()
+
+        await websocket.accept()
+        with self._lock:
+            self.active_connections.setdefault(plugin_name, set()).add(websocket)
+        print(f"WebSocket connected for plugin: {plugin_name}")
+
+    async def disconnect(self, plugin_name: str, websocket: WebSocket) -> None:
+        with self._lock:
+            connections = self.active_connections.get(plugin_name)
+            if connections and websocket in connections:
+                connections.remove(websocket)
+                if not connections:
+                    self.active_connections.pop(plugin_name, None)
+        print(f"WebSocket disconnected for plugin: {plugin_name}")
+
+    def register_message_handler(self, plugin_name: str, handler: Callable[[str], None]) -> None:
+        with self._lock:
+            self.message_handlers[plugin_name] = handler
+        print(f"Registered message handler for plugin: {plugin_name}")
+
+    async def handle_message(self, plugin_name: str, message: str) -> None:
+        handler: Optional[Callable[[str], None]]
+        with self._lock:
+            handler = self.message_handlers.get(plugin_name)
+
+        if handler is None:
+            print(f"WARNING: No message handler registered for plugin: {plugin_name}")
+            return
+
         try:
-            origin = websocket.request_headers.get("Origin")
-        except Exception:
-            origin = None
+            handler(message)
+        except Exception as exc:
+            print(f"ERROR: Error processing message for {plugin_name}: {exc}")
 
-        print(f"New raw connection: path={path!r}, remote={websocket.remote_address}, origin={origin!r}")
-        # normalize path: remove leading/trailing slashes and strip query string
-        plugin_name = path.split("?", 1)[0].strip("/")
-        if not plugin_name:
-            # Some clients may connect to "/" or "", treat as "app" by default
-            plugin_name = "app"
-            print("Normalized empty path to plugin 'app'")
+    def is_socket_open(self, plugin_name: str) -> bool:
+        with self._lock:
+            sockets = self.active_connections.get(plugin_name, set()).copy()
 
-        print(f"WebSocket assigned to plugin: {plugin_name}")
+        for websocket in sockets:
+            if websocket.client_state == WebSocketState.CONNECTED:
+                return True
+        print(f"No open websocket found for plugin: {plugin_name}")
+        return False
 
-        if plugin_name not in self.active_connections:
-            self.active_connections[plugin_name] = set()
-        self.active_connections[plugin_name].add(websocket)
+    def send_message(self, plugin_name: str, message: str) -> bool:
+        if isinstance(message, dict):
+            message = json.dumps(message)
 
-        try:
-            async for message in websocket:
-                print(f"DEBUG: Received message from {plugin_name} ({websocket.remote_address}): {message[:200]}")
-                if plugin_name in self.message_handlers:
-                    try:
-                        self.message_handlers[plugin_name](message)
-                    except Exception as e:
-                        print(f"ERROR: Error processing message for {plugin_name} from {websocket.remote_address}: {e}")
-                else:
-                    print(f"WARNING: No message handler registered for plugin: {plugin_name}")
-        except Exception as e:
-            print(f"ERROR: WebSocket error for {plugin_name} ({websocket.remote_address}): {e}")
-        finally:
-            print(f"WebSocket connection closed for plugin: {plugin_name} from {websocket.remote_address}")
-            if plugin_name in self.active_connections and websocket in self.active_connections[plugin_name]:
-                self.active_connections[plugin_name].remove(websocket)
-                if not self.active_connections[plugin_name]:
-                    del self.active_connections[plugin_name]
-                    print(f"All connections for plugin {plugin_name} closed. Removing from active connections.")
-                
-    def register_message_handler(self, plugin_name, handler):
-        """
-        Register a message handler for a specific plugin.
-        """
-        print(f"Registering message handler for plugin: {plugin_name}") # Reverted to print
-        self.message_handlers[plugin_name] = handler
+        with self._lock:
+            connections = list(self.active_connections.get(plugin_name, set()))
 
-    async def start_server(self):
-        # Initialize the WebSocket server
-        print("Starting WebSocket server on localhost:9715") # Reverted to print
-        try:
-            self.server = await serve(self.websocket_handler, "localhost", 9715)
-            print("WebSocket server started successfully.") # Reverted to print
-            await self.server.wait_closed()
-        except Exception as e:
-            print(f"ERROR: Failed to start WebSocket server: {e}") # Reverted to print
-            # import traceback
-            # traceback.print_exc()
-            raise
-
-    def run_server_thread(self):
-        print("WebSocket server thread started.") # Reverted to print
-        asyncio.set_event_loop(self.loop)
-        try:
-            self.loop.run_until_complete(self.start_server())
-        except Exception as e:
-            print(f"ERROR: Exception in server thread: {e}") # Reverted to print
-            # import traceback
-            # traceback.print_exc()
-        finally:
-            print("WebSocket server thread finished.") # Reverted to print
-
-
-    def start(self):
-        if not self.server_thread.is_alive():
-            print("Attempting to start WebSocket server thread.") # Reverted to print
-            self.server_thread.start()
-        else:
-            print("WebSocket server thread is already alive.") # Reverted to print
-    
-    def stop(self):
-        print("Stopping WebSocket server...") # Reverted to print
-        # Stop the server and close all connections
-        if hasattr(self, 'server') and self.server:
-            self.loop.call_soon_threadsafe(self.server.close)
-            self.loop.call_soon_threadsafe(self.loop.stop)
-        
-        active_connections_copy = dict(self.active_connections) 
-        for plugin_name, connections in active_connections_copy.items():
-            print(f"Closing connections for plugin: {plugin_name}") # Reverted to print
-            for websocket in list(connections): 
-                if websocket.open:
-                    asyncio.run_coroutine_threadsafe(websocket.close(), self.loop)
-        
-        if self.server_thread.is_alive():
-            print("Waiting for server thread to join...") # Reverted to print
-            self.server_thread.join(timeout=5.0) 
-            if self.server_thread.is_alive():
-                print("WARNING: Server thread did not join in time.") # Reverted to print
-            else:
-                print("Server thread joined.") # Reverted to print
-        print("WebSocket server stopped.") # Reverted to print
-
-    def send_message(self, plugin_name: str, message: str):
-        print(f"DEBUG: Sending message to plugin {plugin_name}: {message[:200]}") # Reverted to print
-        # Sends a message to all connections registered under a specific plugin name
-        if plugin_name in self.active_connections:
-            connections = list(self.active_connections[plugin_name]) 
-            if not connections:
-                print(f"WARNING: No active websockets for plugin {plugin_name} though plugin key exists.") # Reverted to print
-                return False
-            for websocket in connections:
-                if websocket.open:
-                    try:
-                        asyncio.run_coroutine_threadsafe(websocket.send(message), self.loop)
-                    except Exception as e:
-                        print(f"ERROR: Error sending message to {plugin_name} ({websocket.remote_address}): {e}") # Reverted to print
-                        # import traceback
-                        # traceback.print_exc()
-                else:
-                    print(f"WARNING: Websocket for {plugin_name} ({websocket.remote_address}) is not open. Cannot send message.") # Reverted to print
-            return True
-        else:
-            print(f"WARNING: Plugin {plugin_name} is not actively connected. Cannot send message.") # Reverted to print
+        if not connections:
+            print(f"WARNING: Plugin {plugin_name} is not actively connected. Cannot send message.")
             return False
 
-# Instantiate and start the server
-websocket_server = WebSocketServer()
-websocket_server.start() # Ensured this is active for direct script execution
+        if self.loop is None:
+            raise RuntimeError("WebSocket event loop is not initialized")
+
+        stale: list[WebSocket] = []
+        for websocket in connections:
+            if websocket.client_state == WebSocketState.CONNECTED:
+                try:
+                    asyncio.run_coroutine_threadsafe(websocket.send_text(message), self.loop)
+                except Exception as exc:
+                    print(f"ERROR: Error sending message to {plugin_name}: {exc}")
+                    stale.append(websocket)
+            else:
+                stale.append(websocket)
+
+        if stale:
+            with self._lock:
+                current = self.active_connections.get(plugin_name)
+                if current:
+                    for ws in stale:
+                        current.discard(ws)
+                    if not current:
+                        self.active_connections.pop(plugin_name, None)
+
+        return True
+
+    async def _close_all(self) -> None:
+        with self._lock:
+            snapshot = {
+                name: list(connections)
+                for name, connections in self.active_connections.items()
+            }
+            self.active_connections.clear()
+
+        for name, connections in snapshot.items():
+            for websocket in connections:
+                if websocket.application_state != WebSocketState.DISCONNECTED:
+                    try:
+                        await websocket.close()
+                    except Exception as exc:
+                        print(f"WARNING: Failed closing websocket for {name}: {exc}")
+
+    def stop(self) -> None:
+        if self.loop and self.loop.is_running():
+            asyncio.run_coroutine_threadsafe(self._close_all(), self.loop)
+
+
+websocket_server = WebSocketHub()

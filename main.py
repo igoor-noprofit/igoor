@@ -28,8 +28,6 @@ appdata_dir = get_appdata_dir(create=True)
 logger = setup_logger('main', appdata_dir)
 context_manager = ContextManager()
 manager = PluginManager()
-fastapi_server = None
-fastapi_thread = None
 
 
 def _write_dynamic_frontend_asset(file_name: str, content: str) -> str:

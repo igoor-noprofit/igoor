@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from starlette.staticfiles import StaticFiles
 
@@ -14,6 +14,7 @@ from utils import (
     resource_path,
     setup_logger,
 )
+from websocket_server import websocket_server
 
 
 def _ensure_web_directories() -> None:
@@ -43,6 +44,20 @@ def create_app() -> FastAPI:
     app.mount("/css", StaticFiles(directory=resource_path("css")), name="css")
     app.mount("/img", StaticFiles(directory=resource_path("img")), name="img")
     app.mount("/plugins", StaticFiles(directory=resource_path("plugins")), name="plugins")
+    @app.websocket("/ws/{plugin_name}")
+    async def websocket_endpoint(websocket: WebSocket, plugin_name: str):
+        name = plugin_name.strip("/") or "app"
+        await websocket_server.connect(name, websocket)
+        try:
+            while True:
+                message = await websocket.receive_text()
+                await websocket_server.handle_message(name, message)
+        except WebSocketDisconnect:
+            await websocket_server.disconnect(name, websocket)
+        except Exception as exc:
+            await websocket_server.disconnect(name, websocket)
+            raise exc
+
 
     @app.get("/js/{asset_path:path}")
     async def get_js_resource(asset_path: str):
