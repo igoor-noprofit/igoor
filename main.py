@@ -8,27 +8,45 @@ from context_manager import ContextManager
 from js_api import Api
 from settings_manager import SettingsManager
 from websocket_server import websocket_server
-import signal,sys
+import signal
+import sys
 import tkinter as tk
 import asyncio
-from utils import resource_path, setup_logger, get_platform
+import threading
+from typing import Optional
+from utils import (
+    resource_path,
+    setup_logger,
+    get_appdata_dir,
+    get_appdata_web_js_dir,
+)
+from fastapi_app import app as fastapi_app
+import uvicorn
 from idle_detector import IdleDetector
 
-current_platform = get_platform()
-if current_platform == 'Windows':
-    base_appdata = os.getenv('APPDATA')
-    if base_appdata is None:
-        raise EnvironmentError('APPDATA environment variable is not set on Windows.')
-    appdata_dir = os.path.join(base_appdata, __appname__)
-elif current_platform == 'Darwin':
-    appdata_dir = os.path.join(os.path.expanduser('~'), 'Library', 'Application Support', __appname__)
-else:
-    appdata_dir = os.path.join(os.path.expanduser('~'), f'.{__appname__}')
-if not os.path.exists(appdata_dir):
-    os.makedirs(appdata_dir)
+appdata_dir = get_appdata_dir(create=True)
 logger = setup_logger('main', appdata_dir)
 context_manager = ContextManager()
 manager = PluginManager()
+fastapi_server = None
+fastapi_thread = None
+
+
+def _write_dynamic_frontend_asset(file_name: str, content: str) -> str:
+    js_web_dir = get_appdata_web_js_dir(create=True)
+    appdata_path = os.path.join(js_web_dir, file_name)
+
+    with open(appdata_path, 'w', encoding='utf-8') as f:
+        f.write(content)
+
+    packaged_path = resource_path(os.path.join('js', file_name))
+    try:
+        with open(packaged_path, 'w', encoding='utf-8') as f:
+            f.write(content)
+    except OSError as exc:
+        logger.debug(f"Skipping packaged write for {file_name}: {exc}")
+
+    return appdata_path
 
 def on_idle_change(is_idle):
     if is_idle:
@@ -181,10 +199,7 @@ def load_frontend_components(lang):
 
     final_html = html_content
 
-    # Write the final vue to app.vue
-    with open(resource_path('js/app.vue'), 'w') as f:
-        f.write(final_html)
-        f.close()
+    app_vue_path = _write_dynamic_frontend_asset('app.vue', final_html)
     
     # Load and modify the JAVASCRIPT
     with open(resource_path('js/app_template.js'), 'r') as f:
@@ -200,9 +215,9 @@ def load_frontend_components(lang):
     for placeholder, replacement in replacements.items():
         js_content = js_content.replace(placeholder, replacement)
     
-    # Load and modify the JAVASCRIPT
-    with open(resource_path('js/app.js'), 'w') as f:
-        f.write(js_content)  
+    app_js_path = _write_dynamic_frontend_asset('app.js', js_content)
+
+    logger.info(f"Updated frontend files: {app_vue_path}, {app_js_path}")
 
     return final_html
 
@@ -225,7 +240,7 @@ def on_loaded():
         window.evaluate_js("console.warn(app); app.readypy();")
         logger.info("✓ Warning evaluate_js test successful")
     except Exception as e:
-        logger.error(f"✗ Warning evaluate_js failed: {e}")            
+        logger.error(f"✗ Warning evaluate_js failed: {e}")
     
     try:
         asyncio.run(manager.trigger_hook("gui_ready"))

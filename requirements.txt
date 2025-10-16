@@ -217,3 +217,5 @@ wrapt==1.17.2
 xmltodict==0.14.2
 yarl==1.16.0
 zstandard==0.23.0
+fastapi==0.115.5
+uvicorn[standard]==0.32.0

@@ -4,7 +4,7 @@ var data = {
 let app;
 
 window.addEventListener("pywebviewready", () => {
-  console.log("✅ pywebviewready fired");
+  console.log("âœ… pywebviewready fired");
 });
 
 /*
