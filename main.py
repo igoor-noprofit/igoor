@@ -1,8 +1,6 @@
 from version import __appname__, __version__, __codename__
 import webview
-import threading
 import os
-import re
 from dotenv import load_dotenv
 load_dotenv()
 from plugin_manager import PluginManager
