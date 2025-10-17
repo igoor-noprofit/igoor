@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Optional
+from typing import Dict, Optional
 
 from fastapi import APIRouter, FastAPI, HTTPException, WebSocket, WebSocketDisconnect, status
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
@@ -29,6 +29,9 @@ class ChangeViewPayload(BaseModel):
     lastview: Optional[str] = None
     view: str
 
+
+class TogglePluginPayload(BaseModel):
+    active: bool
 
 def _ensure_web_directories() -> None:
     """Ensure writable web directories exist in APPDATA."""
@@ -64,12 +67,37 @@ def create_app() -> FastAPI:
 
     @api_router.get("/plugins/{plugin_name}/settings")
     async def api_get_plugin_settings(plugin_name: str):
-        return settings_manager.get_plugin_settings(plugin_name)
+        return plugin_manager.plugin_has_settings(plugin_name, return_settings=True) or {}
 
-    @api_router.post("/plugins/{plugin_name}/settings", status_code=status.HTTP_204_NO_CONTENT)
-    async def api_update_plugin_settings(plugin_name: str, payload: UpdateSettingsPayload):
+    @api_router.post(
+        "/plugins/{plugin_name}/settings",
+        status_code=status.HTTP_204_NO_CONTENT,
+    )
+    async def api_update_plugin_settings(
+        plugin_name: str, payload: UpdateSettingsPayload
+    ):
         settings_manager.update_plugin_settings(plugin_name, payload.settings)
         return JSONResponse(status_code=status.HTTP_204_NO_CONTENT, content=None)
+
+    @api_router.post("/plugins/{plugin_name}/toggle")
+    async def api_toggle_plugin(plugin_name: str, payload: TogglePluginPayload):
+        try:
+            if payload.active:
+                plugin_manager.activate_plugin(plugin_name)
+            else:
+                plugin_manager.deactivate_plugin(plugin_name)
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+        return {"status": "ok"}
+
+    @api_router.post("/hooks/{hook_name}")
+    async def api_trigger_hook(hook_name: str, payload: Dict[str, object]):
+        kwargs = payload or {}
+        try:
+            result = await plugin_manager.trigger_hook(hook_name, **kwargs)
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+        return {"result": result}
 
     @api_router.post("/app/change-view", status_code=status.HTTP_204_NO_CONTENT)
     async def api_change_view(payload: ChangeViewPayload):

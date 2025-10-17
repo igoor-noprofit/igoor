@@ -270,13 +270,12 @@ def on_loaded():
         logger.error("Window object is None! Cannot proceed with evaluate_js")
         return False
         
-    # Test with warning
+    # Attempt to bootstrap front-end readiness
     try:
-        window.evaluate_js("console.warn('Calling READYPY');")
-        window.evaluate_js("console.warn(app); app.readypy();")
-        logger.info("✓ Warning evaluate_js test successful")
+        window.evaluate_js("window.app?.readypy?.();")
+        logger.info("✓ readypy invocation dispatched")
     except Exception as e:
-        logger.error(f"✗ Warning evaluate_js failed: {e}")
+        logger.error(f"Failed to invoke readypy: {e}")
     
     try:
         asyncio.run(manager.trigger_hook("gui_ready"))

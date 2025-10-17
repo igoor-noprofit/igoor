@@ -5,15 +5,17 @@
 
 <script>
 const BasePluginComponent = require('/js/BasePluginComponent.js');
+const { ensureBackendApi } = require('/js/ensureBackendApi.js');
 module.exports = {
     name: "speechify",
     mixins: [BasePluginComponent],
     methods: {
         async $_speak(msg) {
-            const self = this;
             try {
                 console.log("triggering speak hook with message " + msg);
-                const result = pywebview.api.trigger_hook("speak", { message: msg });
+                const api = await ensureBackendApi();
+                const result = await api.triggerHook("speak", { message: msg });
+                return result;
             } catch (error) {
                 console.error('Error triggering speak hook: ', error);
             }

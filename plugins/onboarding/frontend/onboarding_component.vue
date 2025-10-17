@@ -236,16 +236,19 @@ export default {
     async mounted() {
         // Wait for pywebview to be ready before proceeding
         await new Promise(resolve => {
-            if (window.pywebview && window.pywebview.api) {
+            if (window.backendApi || (window.pywebview && window.pywebview.api)) {
                 this.pywebviewready = true;
                 resolve();
-            } else {
-                window.addEventListener("pywebviewready", () => {
-                    this.pywebviewready = true;
-                    console.log("Pywebview is ready in settings component!");
-                    resolve();
-                });
+                return;
             }
+            const handleReady = () => {
+                this.pywebviewready = true;
+                resolve();
+                window.removeEventListener("backendApiReady", handleReady);
+                window.removeEventListener("pywebviewready", handleReady);
+            };
+            window.addEventListener("pywebviewready", handleReady, { once: true });
+            window.addEventListener("backendApiReady", handleReady, { once: true });
         });
         // Now safe to load plugins
         await this.loadPlugins();
@@ -286,12 +289,15 @@ export default {
         }
     },
     methods: {
-        toggleModal() {
+        async toggleModal() {
             this.showModal = !this.showModal;
-            window.pywebview.api.onboarding_toggled(this.showModal);
+            const backendApi = await ensureBackendApi();
+            await backendApi.onboardingToggled(this.showModal);
         },
-        closeModal() {
+        async closeModal() {
             this.showModal = false
+            const backendApi = await ensureBackendApi();
+            await backendApi.onboardingToggled(false);
         },
         async saveSettings() { // This is for main settings (bio, prefs, ai)
             console.log("Saving main settings...");
@@ -364,7 +370,8 @@ export default {
                     console.log("Pywebview not ready, waiting to load plugins...");
                     return;
                 }
-                const response = await window.pywebview.api.get_plugins_by_category();
+                const backendApi = await ensureBackendApi();
+                const response = await backendApi.getPluginsByCategory();
                 console.log(response);
                 console.table(response);
                 this.pluginData = response;
@@ -381,7 +388,8 @@ export default {
             }
 
             try {
-                const result = await window.pywebview.api.toggle_plugin(pluginName, isActive);
+                const backendApi = await ensureBackendApi();
+                const result = await backendApi.togglePlugin(pluginName, isActive);
                 if (result) {
                     plugin.active = isActive;
                 }
@@ -413,7 +421,8 @@ export default {
                 // Ensure the path is correct for dynamic imports.
                 const componentModule = await import(/* @vite-ignore */ `/plugins/${pluginName}/frontend/${pluginName}_settings.vue`);
 
-                const settings = await window.pywebview.api.get_current_plugin_settings(pluginName);
+                const backendApi = await ensureBackendApi();
+                const settings = await backendApi.getCurrentPluginSettings(pluginName);
                 console.log(`Settings for ${pluginName}:`, settings);
 
                 this.currentPluginInitialSettings = settings || {};
@@ -450,7 +459,8 @@ export default {
             this.saveStatus = null;
 
             try {
-                await window.pywebview.api.save_plugin_settings(pluginNameFromEmit, settingsData);
+                const backendApi = await ensureBackendApi();
+                await backendApi.savePluginSettings(pluginNameFromEmit, settingsData);
                 this.saveStatus = { type: 'success', message: `${pluginNameFromEmit} settings saved!` };
             } catch (error) {
                 console.error(`Error saving settings for plugin ${pluginNameFromEmit}:`, error);

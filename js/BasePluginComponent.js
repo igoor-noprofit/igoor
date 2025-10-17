@@ -1,6 +1,16 @@
 // console.log('BasePluginComponent is being imported');
 const WebSocketUtil = require("./WebSocketUtil.js");
 const BASE_WS_URL = "ws://127.0.0.1:9714/ws/"; // Base WebSocket URL
+let backendApiPromise;
+function ensureBackendApi() {
+  if (window.backendApi) {
+    return Promise.resolve(window.backendApi);
+  }
+  if (!backendApiPromise) {
+    backendApiPromise = import("/js/backend_api.js").then((module) => module.backendApi);
+  }
+  return backendApiPromise;
+}
 
 module.exports = {
   props: {
@@ -75,7 +85,9 @@ module.exports = {
         );
       }
       // Return the promise so callers can await and react to success/failure
-      return window.pywebview.api.update_plugin_settings(plugin_name, this.formData);
+      return ensureBackendApi().then((api) =>
+        api.updatePluginSettings(plugin_name, this.formData)
+      );
     },
     sendMsgToBackend(data, plugin_name = null) {
       const targetUrl = plugin_name

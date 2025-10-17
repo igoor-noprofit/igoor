@@ -306,7 +306,8 @@ module.exports = {
   methods: {
     async requestSettingsViaApi(){
       console.warn("REQUEST SETTINGS VIA API");
-      let settings = await window.pywebview.api.get_plugin_settings('daily');
+      const backendApi = await ensureBackendApi();
+      let settings = await backendApi.getPluginSettings('daily');
       console.log(settings);
       const needs = settings && settings.needs ? settings.needs : settings;
       this.applyNeeds(needs, 'api');
@@ -772,10 +773,10 @@ module.exports = {
       if (plugin_name.endsWith("Settings")) {
         plugin_name = plugin_name.substring(0, plugin_name.length - "Settings".length);
       }
-      window.pywebview.api.trigger_hook_sync("custom_save_settings", {
+      ensureBackendApi().then((api) => api.triggerHook("custom_save_settings", {
         plugin_name: plugin_name,
         settings: payload
-      });
+      }));
       console.log('Settings saved:', payload);
     },
     resetSettings() {

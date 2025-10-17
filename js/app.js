@@ -3,6 +3,36 @@ var data = {
 };
 let app;
 
+function registerReadypy(fn) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const registerFn = window.__app_register_readypy;
+  const pending = window.__app_pending_readypy;
+
+  if (typeof registerFn === "function") {
+    registerFn(fn);
+    return;
+  }
+
+  window.app = window.app || {};
+  window.app.readypy = fn;
+
+  if (Array.isArray(pending)) {
+    while (pending.length) {
+      const args = pending.shift();
+      try {
+        fn(...(Array.isArray(args) ? args : []));
+      } catch (error) {
+        console.error("Deferred readypy call failed", error);
+      }
+    }
+  }
+}
+
+import("/js/backend_api.js");
+
 window.addEventListener("pywebviewready", () => {
   console.log("âœ… pywebviewready fired");
 });
@@ -37,6 +67,8 @@ const options = {
     console.log(type, ...args);
   },
 };
+import { ensureBackendApi } from "/js/ensureBackendApi.js";
+const backendApi = await ensureBackendApi();
 const { loadModule, version } = window["vue3-sfc-loader"];
 async function initializeApp() {
   console.log("initializing app");
@@ -61,9 +93,10 @@ async function initializeApp() {
       console.warn("APP MOUNTED");
     },
     methods: {
-      readypy() {
+      async readypy() {
         this.pywebviewready = true;
         console.warn("Pywebview is ready!");
+        await backendApi.waitUntilReady();
         this.connectAppWebSocket();
       },
       connectAppWebSocket() {
@@ -121,38 +154,22 @@ async function initializeApp() {
         this.lastview = this.appview;
         this.appview = view;
 
-        const localApi = window.pywebview?.api;
-        if (!localApi) {
-          try {
-            await fetch("/api/app/change-view", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({ lastview: this.lastview, view }),
-            });
-          } catch (error) {
-            console.error("Failed to notify backend of view change:", error);
-          }
-          return;
-        }
-
         if (view === "onboarding") {
           console.warn("Forcing onboarding");
-          await localApi.force_onboarding();
+          await backendApi.forceOnboarding();
         } else {
-          await localApi.change_view(this.lastview, view);
+          await backendApi.changeView(this.lastview, view);
         }
       },
       maximize() {
         console.log("MAXIMIZE WINDOW");
-        window.pywebview.api.maximize();
+        backendApi.maximize();
         this.minimized = false;
         console.log("MINIMIZED=" + this.minimized);
       },
       minimize() {
         console.log("MINIMIZE WINDOW");
-        window.pywebview.api.minimize();
+        backendApi.minimize();
         this.minimized = true;
         console.log("MINIMIZED=" + this.minimized);
       },
@@ -162,11 +179,15 @@ async function initializeApp() {
     },
   });
   console.log("created");
-  app = app.mount("#app");   // now app is the mounted instance
-  window.app = app;   
+  app = app.mount("#app");
+  if (typeof window !== "undefined") {
+    window.app = { ...window.app, ...app };
+    registerReadypy(app.readypy.bind(app));
+  }
   console.log(app);
 }
-document.addEventListener("DOMContentLoaded", function () {
-  console.log("ready");
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initializeApp, { once: true });
+} else {
   initializeApp();
-});
+}
