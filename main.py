@@ -31,6 +31,7 @@ context_manager = ContextManager()
 manager = PluginManager()
 fastapi_server: Optional[uvicorn.Server] = None
 fastapi_thread: Optional[threading.Thread] = None
+shutdown_event = threading.Event()
 
 
 def _write_dynamic_frontend_asset(file_name: str, content: str) -> str:
@@ -127,6 +128,7 @@ def show_splash_screen(image_path):
 
 def signal_handler(sig, frame):
     logger.info('Exiting application...')
+    shutdown_event.set()
     on_closing()
     
 signal.signal(signal.SIGINT, signal_handler)
@@ -364,10 +366,11 @@ if __name__ == "__main__":
         load_frontend_components(lang=lang)
         start_fastapi_server()
         try:
-            while True:
+            while not shutdown_event.is_set():
                 time.sleep(1)
         except KeyboardInterrupt:
             logger.info("Shutdown requested (CLI mode)")
+        finally:
             stop_fastapi_server()
     else:
         start_fastapi_server()
