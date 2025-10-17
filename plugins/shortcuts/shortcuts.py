@@ -23,10 +23,10 @@ class Shortcuts(Baseplugin):
     @hookimpl
     def onboarding_toggled(self,is_onboarding):
         if is_onboarding:
-            action="shrink"
+            action={"action": "shrink"}
             self.is_onboarding_on = True
         else:
-            action="unshrink"
+            action={"action": "unshrink"}
             self.is_onboarding_on = False
         self.send_action_to_frontend(action)
 
