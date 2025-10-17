@@ -13,7 +13,8 @@ IGOOR is an open-source and free conversational application, controllable also b
 **Communication Patterns**:
 - Backend-to-backend: Via Pluggy hooks `await self.pm.trigger_hook(hook_name, data)`
 - Frontend-to-backend: WebSocket on `ws://localhost:9715/plugin_name` using `sendMsgToBackend(data)`
-- Frontend signals readiness with `{"status": "ready"}`
+- REST fallback: FastAPI now exposes REST endpoints (e.g. `/api/plugins/<name>/settings`, `/api/plugins/by-category`, `/api/hooks/<name>`, `/api/app/change-view`) mirroring the former `window.pywebview.api` bridge.
+- Frontend readiness: `window.ensureBackendApi()` lazily resolves a `BackendApi` wrapper that chooses between the PyWebView bridge and REST calls; the root app calls `readypy()` automatically when no bridge is detected.
 
 ## Key Managers
 
@@ -28,7 +29,7 @@ IGOOR is an open-source and free conversational application, controllable also b
 ## Frontend Rules
 
 **Vue 3 Without Bundlers**: Uses httpVueLoader for SFC loading
-- NEVER edit `app.js` or `app.vue` directly - ALWAYS use `app_template.js/vue`
+- NEVER edit `app.js` or `app.vue` directly, nor even in the APPDATA_FOLDER (they are just builds): ALWAYS edit `app_template.js` and `app_template.vue` 
 - Component methods prefixed with `$_` to avoid global conflicts
 - Dynamic component loading via httpVueLoader
 - When choosing colors,always start from predefined colors in /css/app.less
