@@ -31,7 +31,13 @@ function registerReadypy(fn) {
   }
 }
 
-import("/js/backend_api.js");
+const backendApiReady = import("/js/backend_api.js").then((module) => {
+  if (module?.backendApi && typeof window !== "undefined") {
+    window.backendApi = module.backendApi;
+    window.dispatchEvent(new Event("backendApiReady"));
+  }
+  return module?.backendApi;
+});
 
 window.addEventListener("pywebviewready", () => {
   console.log("✅ pywebviewready fired");

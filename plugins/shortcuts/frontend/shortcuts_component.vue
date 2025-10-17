@@ -124,12 +124,16 @@ export default {
             this.$_speak(index, button.msg);
         },
         handleIncomingMessage(event) {
-            const data = JSON.parse(event.data);
-            if (data.action == "shrink") {
-                this.shrink = true;
-            }
-            if (data.action == "unshrink") {
-                this.shrink = false;
+            try {
+                const data = JSON.parse(event.data);
+                if (data.action === "shrink") {
+                    this.shrink = true;
+                }
+                if (data.action === "unshrink") {
+                    this.shrink = false;
+                }
+            } catch (error) {
+                console.warn('Shortcuts plugin received non-JSON message:', event.data);
             }
         }
     }

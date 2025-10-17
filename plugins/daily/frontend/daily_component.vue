@@ -66,9 +66,21 @@ module.exports = {
     },
     mounted() {
         console.log('DAILY MOUNTED');
-        if (!window.pywebview || !window.pywebview.api) {
-            this.fetchInitialDataForBrowser();
-        }
+        const backendApiPromise = typeof window !== 'undefined' && typeof window.ensureBackendApi === 'function'
+            ? window.ensureBackendApi()
+            : Promise.resolve(null);
+
+        backendApiPromise
+            .then((api) => {
+                if (!api || api.isBridgeAvailable === false) {
+                    this.fetchInitialDataForBrowser();
+                }
+            })
+            .catch((error) => {
+                console.warn('Failed to resolve backendApi, using REST fallback:', error);
+                this.fetchInitialDataForBrowser();
+            });
+
         this.checkAndSendReady();
     },
     methods: {
