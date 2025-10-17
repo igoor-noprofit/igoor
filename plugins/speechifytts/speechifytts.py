@@ -52,11 +52,11 @@ class Speechifytts(Baseplugin):
                 self.logger.warning("Speechify API token not set in settings,cannot generate speech")
                 return False
             if (not self.voice_id):
-                self.logger.warning("Speechify Voice ID not set in settings,cannot generate speech")
+                print("Speechify Voice ID not set in settings,cannot generate speech")
                 return False
             self._ensure_lang_code()
             if self.lang_code not in self.supported_lang:
-                self.logger.warning(f"Configured language '{self.lang_code}' is not officially supported by Speechify plugin. Check documentation for compatibility.")
+                print(f"Configured language '{self.lang_code}' is not officially supported by Speechify plugin. Check documentation for compatibility.")
             try:
                 self.client = Speechify(token=self.api_key)
                 self.is_loaded = True
