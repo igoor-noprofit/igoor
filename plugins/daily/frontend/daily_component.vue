@@ -66,9 +66,31 @@ module.exports = {
     },
     mounted() {
         console.log('DAILY MOUNTED');
-        this.checkAndSendReady(); // 
+        if (!window.pywebview || !window.pywebview.api) {
+            this.fetchInitialDataForBrowser();
+        }
+        this.checkAndSendReady();
     },
     methods: {
+        async fetchInitialDataForBrowser() {
+            try {
+                const response = await fetch('/api/plugins/daily/settings', {
+                    credentials: 'same-origin'
+                });
+                if (!response.ok) {
+                    console.warn('Failed to fetch daily settings via REST fallback');
+                    return;
+                }
+                const payload = await response.json();
+                if (payload && Array.isArray(payload.needs)) {
+                    console.log('Loaded daily data via REST fallback');
+                    this.dailyData = payload.needs;
+                    this.processCategories();
+                }
+            } catch (error) {
+                console.warn('Error fetching daily settings via REST fallback:', error);
+            }
+        },
         checkAndSendReady() {
             console.log('DAILY: Checking if backend is ready...');
             if (this.dailyData.length === 0) {

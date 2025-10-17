@@ -40,13 +40,6 @@ def _write_dynamic_frontend_asset(file_name: str, content: str) -> str:
     with open(appdata_path, 'w', encoding='utf-8') as f:
         f.write(content)
 
-    packaged_path = resource_path(os.path.join('js', file_name))
-    try:
-        with open(packaged_path, 'w', encoding='utf-8') as f:
-            f.write(content)
-    except OSError as exc:
-        logger.debug(f"Skipping packaged write for {file_name}: {exc}")
-
     return appdata_path
 
 
@@ -215,7 +208,7 @@ def load_frontend_components(lang):
             )
 
     # Load and modify the VUE template
-    with open(resource_path('js/app_template.vue'), 'r') as f:
+    with open(resource_path('js/app_template.vue'), 'r', encoding="utf-8") as f:
         html_content = f.read()
         
     # Define the placeholders and their corresponding replacements
@@ -237,7 +230,7 @@ def load_frontend_components(lang):
     app_vue_path = _write_dynamic_frontend_asset('app.vue', final_html)
     
     # Load and modify the JAVASCRIPT
-    with open(resource_path('js/app_template.js'), 'r') as f:
+    with open(resource_path('js/app_template.js'), 'r', encoding="utf-8") as f:
         js_content = f.read()
 
     js_content = js_content.replace('{{LANG}}', f'{lang}')
@@ -326,7 +319,7 @@ def start_webview():
         logger.info("Creating webview window...")
         window = webview.create_window(
             "IGOOR", 
-            "index.html", 
+            "http://127.0.0.1:9714/index.html", 
             js_api=Api(), 
             resizable=True, 
             fullscreen=fullscreen,

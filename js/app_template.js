@@ -67,7 +67,7 @@ const options = {
     console.log(type, ...args);
   },
 };
-const backendApi = await window.ensureBackendApi();
+const backendApiPromise = window.ensureBackendApi();
 const { loadModule, version } = window["vue3-sfc-loader"];
 async function initializeApp() {
   console.log("initializing app");
@@ -88,13 +88,23 @@ async function initializeApp() {
       //** JS_COMPONENTS */
     },
     template: appTemplate,
-    mounted: async function () {
+    async mounted() {
       console.warn("APP MOUNTED");
+      const backendApi = await backendApiPromise;
+      if (!backendApi.isBridgeAvailable) {
+        if (!this.pywebviewready) {
+          await this.readypy();
+        }
+        if (this.appview === "loading") {
+          this.appview = "daily";
+        }
+      }
     },
     methods: {
       async readypy() {
         this.pywebviewready = true;
         console.warn("Pywebview is ready!");
+        const backendApi = await backendApiPromise;
         await backendApi.waitUntilReady();
         this.connectAppWebSocket();
       },
@@ -155,20 +165,22 @@ async function initializeApp() {
 
         if (view === "onboarding") {
           console.warn("Forcing onboarding");
+          const backendApi = await backendApiPromise;
           await backendApi.forceOnboarding();
         } else {
+          const backendApi = await backendApiPromise;
           await backendApi.changeView(this.lastview, view);
         }
       },
       maximize() {
         console.log("MAXIMIZE WINDOW");
-        backendApi.maximize();
+        backendApiPromise.then((api) => api.maximize());
         this.minimized = false;
         console.log("MINIMIZED=" + this.minimized);
       },
       minimize() {
         console.log("MINIMIZE WINDOW");
-        backendApi.minimize();
+        backendApiPromise.then((api) => api.minimize());
         this.minimized = true;
         console.log("MINIMIZED=" + this.minimized);
       },
