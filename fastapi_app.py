@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Dict, Optional
 
 from fastapi import APIRouter, FastAPI, HTTPException, WebSocket, WebSocketDisconnect, status
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from pydantic import BaseModel
 from starlette.staticfiles import StaticFiles
 
@@ -77,7 +77,7 @@ def create_app() -> FastAPI:
         plugin_name: str, payload: UpdateSettingsPayload
     ):
         settings_manager.update_plugin_settings(plugin_name, payload.settings)
-        return JSONResponse(status_code=status.HTTP_204_NO_CONTENT, content=None)
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
 
     @api_router.post("/plugins/{plugin_name}/toggle")
     async def api_toggle_plugin(plugin_name: str, payload: TogglePluginPayload):
@@ -109,7 +109,7 @@ def create_app() -> FastAPI:
             )
         except Exception as exc:
             raise HTTPException(status_code=500, detail=str(exc))
-        return JSONResponse(status_code=status.HTTP_204_NO_CONTENT, content=None)
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
 
     app.include_router(api_router)
 

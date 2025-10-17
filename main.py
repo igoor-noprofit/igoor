@@ -354,20 +354,27 @@ def start_webview():
         on_closing()
 
 if __name__ == "__main__":
-    splash_screen = show_splash_screen('img/igoor_logo.png')
     settings = load_settings()
     bio = settings.get_nested(["plugins", "onboarding", "bio"], default={})
-    # logger.info(bio)
     prefs = settings.get_nested(["plugins", "onboarding", "prefs"], default={})
     lang = prefs.get("lang")
-    
-    if IGOOR_CLI.lower() != 'true':
+
+    if IGOOR_CLI.lower() == 'true':
+        logger.info("IGOOR_CLI active: running headless API/WebSocket server only")
+        load_frontend_components(lang=lang)
         start_fastapi_server()
+        try:
+            while True:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            logger.info("Shutdown requested (CLI mode)")
+            stop_fastapi_server()
+    else:
+        start_fastapi_server()
+        splash_screen = show_splash_screen('img/igoor_logo.png')
         final_html = load_frontend_components(lang=lang)
         if (IGOOR_OUTPUT_HTML.lower() == 'true'):
             print(final_html)
         splash_screen.destroy()
-        start_webview()         
-    else:
-        print("CLI ONLY VERSION")
+        start_webview()
 
