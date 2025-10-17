@@ -1,9 +1,10 @@
 <template>
     <div class="autocomplete plugin" v-show="appview == 'autocomplete'">
-        <button class="btn btn-side btn-side-left" @click="$_backToDaily()">
+        <button class="btn btn-side btn-side-left" @click="$_deleteText()" :disabled="!userInput.trim()"> 
             <svg class="icon icon-l">
                 <use xlink:href="/img/svgdefs.svg#icon-close" />
             </svg>
+            <h3>{{ t("empty") }}</h3>
         </button>
 
         <div class="autocomplete_input">
@@ -28,13 +29,7 @@
             </div>
         </div>
 
-        <button @click="$_deleteText()" class="btn btn-side btn-side-right"
-            :disabled="isLoading || error || !userInput.trim()">
-            <svg class="icon icon-l">
-                <use xlink:href="img/svgdefs.svg#icon-backspace"></use>
-            </svg>
-            <h3>{{ t("Delete") }}</h3>
-        </button>
+      
         <button @click="$_speakInput()" class="btn btn-side btn-side-right speak"
             :disabled="isLoading || error || !userInput.trim()">
             <svg class="icon icon-l">
@@ -142,6 +137,7 @@ module.exports = {
         },
         $_deleteText(){
             this.$_reset();
+            this.$_focusInput();
         },
         $_backToDaily() {
             console.log("back to daily");
@@ -335,9 +331,16 @@ module.exports = {
     margin-bottom: 10px;
 }
 
+.btn-side-left:disabled {
+    opacity: 1;
+}
 
 .btn-side-right.speak:disabled svg {
     opacity: 0.6;
+}
+.btn-side-left:disabled svg, .btn-side-left:disabled h3{
+    opacity: 0.2;
+
 }
 
 .btn-side-right.speak:disabled svg use {

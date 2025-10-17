@@ -11,7 +11,7 @@
             {{ t('Change topic') }}
         </button>
 
-        <div class="answers">
+        <div class="answers" :class="`view-${appview}`">
             <div class="row columns">
                 <div v-for="col in ['left', 'center', 'right']" :key="col" :class="['column', col]">
                     <div v-for="(msg, idx) in answers[col]" :key="col + '-' + idx" class="msg msg-small"
