@@ -67,8 +67,7 @@ const options = {
     console.log(type, ...args);
   },
 };
-import { ensureBackendApi } from "/js/ensureBackendApi.js";
-const backendApi = await ensureBackendApi();
+const backendApi = await window.ensureBackendApi();
 const { loadModule, version } = window["vue3-sfc-loader"];
 async function initializeApp() {
   console.log("initializing app");

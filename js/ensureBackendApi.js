@@ -1,6 +1,6 @@
 let backendApiPromise;
 
-export function ensureBackendApi() {
+function ensureBackendApi() {
   if (typeof window !== "undefined" && window.backendApi) {
     return Promise.resolve(window.backendApi);
   }
@@ -8,4 +8,12 @@ export function ensureBackendApi() {
     backendApiPromise = import("/js/backend_api.js").then((module) => module.backendApi);
   }
   return backendApiPromise;
+}
+
+if (typeof window !== "undefined") {
+  window.ensureBackendApi = ensureBackendApi;
+}
+
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = { ensureBackendApi };
 }

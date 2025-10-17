@@ -306,7 +306,7 @@ module.exports = {
   methods: {
     async requestSettingsViaApi(){
       console.warn("REQUEST SETTINGS VIA API");
-      const backendApi = await ensureBackendApi();
+      const backendApi = await window.ensureBackendApi();
       let settings = await backendApi.getPluginSettings('daily');
       console.log(settings);
       const needs = settings && settings.needs ? settings.needs : settings;
@@ -773,7 +773,7 @@ module.exports = {
       if (plugin_name.endsWith("Settings")) {
         plugin_name = plugin_name.substring(0, plugin_name.length - "Settings".length);
       }
-      ensureBackendApi().then((api) => api.triggerHook("custom_save_settings", {
+      window.ensureBackendApi().then((api) => api.triggerHook("custom_save_settings", {
         plugin_name: plugin_name,
         settings: payload
       }));

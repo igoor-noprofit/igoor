@@ -291,12 +291,12 @@ export default {
     methods: {
         async toggleModal() {
             this.showModal = !this.showModal;
-            const backendApi = await ensureBackendApi();
+            const backendApi = await window.ensureBackendApi();
             await backendApi.onboardingToggled(this.showModal);
         },
         async closeModal() {
             this.showModal = false
-            const backendApi = await ensureBackendApi();
+            const backendApi = await window.ensureBackendApi();
             await backendApi.onboardingToggled(false);
         },
         async saveSettings() { // This is for main settings (bio, prefs, ai)
@@ -370,7 +370,7 @@ export default {
                     console.log("Pywebview not ready, waiting to load plugins...");
                     return;
                 }
-                const backendApi = await ensureBackendApi();
+                const backendApi = await window.ensureBackendApi();
                 const response = await backendApi.getPluginsByCategory();
                 console.log(response);
                 console.table(response);
@@ -388,7 +388,7 @@ export default {
             }
 
             try {
-                const backendApi = await ensureBackendApi();
+                const backendApi = await window.ensureBackendApi();
                 const result = await backendApi.togglePlugin(pluginName, isActive);
                 if (result) {
                     plugin.active = isActive;
@@ -421,7 +421,7 @@ export default {
                 // Ensure the path is correct for dynamic imports.
                 const componentModule = await import(/* @vite-ignore */ `/plugins/${pluginName}/frontend/${pluginName}_settings.vue`);
 
-                const backendApi = await ensureBackendApi();
+                const backendApi = await window.ensureBackendApi();
                 const settings = await backendApi.getCurrentPluginSettings(pluginName);
                 console.log(`Settings for ${pluginName}:`, settings);
 
@@ -459,7 +459,7 @@ export default {
             this.saveStatus = null;
 
             try {
-                const backendApi = await ensureBackendApi();
+                const backendApi = await window.ensureBackendApi();
                 await backendApi.savePluginSettings(pluginNameFromEmit, settingsData);
                 this.saveStatus = { type: 'success', message: `${pluginNameFromEmit} settings saved!` };
             } catch (error) {

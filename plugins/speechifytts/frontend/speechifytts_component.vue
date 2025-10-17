@@ -5,7 +5,6 @@
 
 <script>
 const BasePluginComponent = require('/js/BasePluginComponent.js');
-const { ensureBackendApi } = require('/js/ensureBackendApi.js');
 module.exports = {
     name: "speechify",
     mixins: [BasePluginComponent],
@@ -13,7 +12,7 @@ module.exports = {
         async $_speak(msg) {
             try {
                 console.log("triggering speak hook with message " + msg);
-                const api = await ensureBackendApi();
+                const api = await window.ensureBackendApi();
                 const result = await api.triggerHook("speak", { message: msg });
                 return result;
             } catch (error) {

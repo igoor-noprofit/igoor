@@ -21,7 +21,6 @@
 </template>
 <script>
 import BasePluginComponent from '/js/BasePluginComponent.js';
-import { ensureBackendApi } from '/js/ensureBackendApi.js';
 export default {
     name: "shortcuts",
     mixins: [BasePluginComponent],
@@ -110,7 +109,7 @@ export default {
             this.sendMsgToBackend(json);
         },
         $_minimise() {
-            ensureBackendApi().then((api) => api.winMinimize());
+            window.ensureBackendApi().then((api) => api.winMinimize());
         },
         $_parole(bid) {
             const randomIndex = Math.floor(Math.random() * this.paroles.length);
