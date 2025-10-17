@@ -196,6 +196,7 @@
 
 <script>
 import BasePluginComponent from '/js/BasePluginComponent.js';
+import { ensureBackendApi } from '/js/ensureBackendApi.js';
 
 export default {
     name: "onboarding",
@@ -234,24 +235,26 @@ export default {
         }
     },
     async mounted() {
-        // Wait for pywebview to be ready before proceeding
-        await new Promise(resolve => {
-            if (window.backendApi || (window.pywebview && window.pywebview.api)) {
-                this.pywebviewready = true;
-                resolve();
-                return;
-            }
-            const handleReady = () => {
-                this.pywebviewready = true;
-                resolve();
-                window.removeEventListener("backendApiReady", handleReady);
-                window.removeEventListener("pywebviewready", handleReady);
-            };
-            window.addEventListener("pywebviewready", handleReady, { once: true });
-            window.addEventListener("backendApiReady", handleReady, { once: true });
-        });
-        // Now safe to load plugins
+        // Wait for backend API or pywebview bridge
+        const api = await ensureBackendApi();
+        if (api.isBridgeAvailable) {
+            await api.waitUntilReady();
+        }
+        this.pywebviewready = true;
         await this.loadPlugins();
+
+        // If the backend already sent settings before the socket was ready,
+        // fetch them via REST to populate the form immediately.
+        try {
+            const settings = await api.getPluginSettings("onboarding");
+            if (settings) {
+                if (settings.bio) this.bio = { ...this.bio, ...settings.bio };
+                if (settings.prefs) this.prefs = { ...this.prefs, ...settings.prefs };
+                if (settings.ai) this.ai = { ...this.ai, ...settings.ai };
+            }
+        } catch (error) {
+            console.error("Failed to load onboarding settings via REST", error);
+        }
     },
     computed: {
         categories() {
@@ -291,12 +294,12 @@ export default {
     methods: {
         async toggleModal() {
             this.showModal = !this.showModal;
-            const backendApi = await window.ensureBackendApi();
+        const backendApi = await ensureBackendApi();
             await backendApi.onboardingToggled(this.showModal);
         },
         async closeModal() {
             this.showModal = false
-            const backendApi = await window.ensureBackendApi();
+            const backendApi = await ensureBackendApi();
             await backendApi.onboardingToggled(false);
         },
         async saveSettings() { // This is for main settings (bio, prefs, ai)
@@ -370,7 +373,7 @@ export default {
                     console.log("Pywebview not ready, waiting to load plugins...");
                     return;
                 }
-                const backendApi = await window.ensureBackendApi();
+                const backendApi = await ensureBackendApi();
                 const response = await backendApi.getPluginsByCategory();
                 console.log(response);
                 console.table(response);

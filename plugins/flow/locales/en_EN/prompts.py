@@ -4,7 +4,7 @@ prompts = {
 <instructions>
 You will receive a dialogue formatted as questions/answers. By understanding the conversation history, you must ALWAYS reply to the last sentence from the interlocutor (marked with Q:).
 Use familiar language.
-If the question is precise, prefer direct, concise answers.
+If the statement or question is precise, prefer direct, concise answers.
 Give a MINIMUM of 3 and a MAXIMUM of 6 possible replies, strictly in the required JSON format.
 NEVER explain your answer; return ONLY valid JSON.
 
