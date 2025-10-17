@@ -49,10 +49,10 @@ class Speechifytts(Baseplugin):
             self.api_key = self.settings.get("api_key")
             self.voice_id = self.settings.get("voice_id")  
             if (not self.api_key):
-                self.logger.error("Speechify API token not set in settings,cannot generate speech")
+                self.logger.warning("Speechify API token not set in settings,cannot generate speech")
                 return False
             if (not self.voice_id):
-                self.logger.error("Speechify Voice ID not set in settings,cannot generate speech")
+                self.logger.warning("Speechify Voice ID not set in settings,cannot generate speech")
                 return False
             self._ensure_lang_code()
             if self.lang_code not in self.supported_lang:
