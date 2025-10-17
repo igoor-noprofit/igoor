@@ -29,7 +29,8 @@ IGOOR is an open-source and free conversational application, controllable also b
 ## Frontend Rules
 
 **Vue 3 Without Bundlers**: Uses httpVueLoader for SFC loading
-- NEVER edit `app.js` or `app.vue` directly, nor even in the APPDATA_FOLDER (they are just builds): ALWAYS edit `app_template.js` and `app_template.vue` 
+- IMPORTANT: the only files you will find in APPDATA subfolder (/web/) are app.js and app.vue
+- IPORTANT: NEVER edit `app.js` or `app.vue` directly, nor even in the APPDATA_FOLDER (they are just builds): ALWAYS edit `app_template.js` and `app_template.vue` 
 - Component methods prefixed with `$_` to avoid global conflicts
 - Dynamic component loading via httpVueLoader
 - When choosing colors,always start from predefined colors in /css/app.less

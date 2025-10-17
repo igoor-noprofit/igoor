@@ -8,11 +8,13 @@ class BackendApi {
   constructor() {
     this._bridge = this._detectBridge();
     this._waiters = [];
+    this._bridgeReady = !!this._bridge;
     if (typeof window !== "undefined") {
       window.addEventListener(
         "pywebviewready",
         () => {
           this._bridge = this._detectBridge();
+          this._bridgeReady = !!this._bridge;
           this._resolveWaiters();
         },
         { once: true }
@@ -29,7 +31,10 @@ class BackendApi {
   }
 
   async waitUntilReady() {
-    if (this.isBridgeAvailable) {
+    if (!this.isBridgeAvailable) {
+      return;
+    }
+    if (this._bridgeReady) {
       return;
     }
     return new Promise((resolve) => {
@@ -162,6 +167,7 @@ class BackendApi {
   }
 
   _resolveWaiters() {
+    this._bridgeReady = true;
     if (!this._waiters.length) {
       return;
     }
@@ -214,6 +220,10 @@ const backendApi = new BackendApi();
 if (typeof window !== "undefined") {
   window.backendApi = backendApi;
   window.dispatchEvent(new CustomEvent("backendApiReady", { detail: backendApi }));
+}
+
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = { backendApi };
 }
 
 export { backendApi };

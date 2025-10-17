@@ -97,13 +97,11 @@ async function initializeApp() {
     async mounted() {
       console.warn("APP MOUNTED");
       const backendApi = await backendApiPromise;
-      if (!backendApi.isBridgeAvailable) {
-        if (!this.pywebviewready) {
-          await this.readypy();
-        }
-        if (this.appview === "loading") {
-          this.appview = "daily";
-        }
+      if (!backendApi.isBridgeAvailable && !this.pywebviewready) {
+        await this.readypy();
+      }
+      if (this.appview === "loading") {
+        this.appview = this.lastview;
       }
     },
     methods: {
