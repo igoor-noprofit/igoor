@@ -1,0 +1,132 @@
+from datetime import datetime
+from pathlib import Path
+from typing import Optional
+
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi.responses import FileResponse, JSONResponse
+
+from plugin_manager import hookimpl
+from plugins.baseplugin.baseplugin import Baseplugin
+
+
+def _get_recorder_router():
+    return APIRouter(prefix="/api/plugins/recorder", tags=["recorder"])
+
+
+class Recorder(Baseplugin):
+    def __init__(self, plugin_name, pm):
+        self.pm = pm
+        super().__init__(plugin_name, pm)
+        self.router: Optional[APIRouter] = None
+
+    @hookimpl
+    def startup(self):
+        self.settings = self.get_my_settings()
+        self.storage_subfolder = self.settings.get("storage_subfolder", "audio")
+        self.storage_root = Path(self.plugin_folder) / self.storage_subfolder
+        self.storage_root.mkdir(parents=True, exist_ok=True)
+
+        if self.router is None:
+            self.router = _get_recorder_router()
+            self._register_routes()
+
+        # Ensure FastAPI router is mounted through plugin manager
+        fastapi_app = getattr(self.pm, "fastapi_app", None)
+        if fastapi_app and not getattr(self, "_router_registered", False):
+            fastapi_app.include_router(self.router)
+            self._router_registered = True
+        elif fastapi_app is None:
+            self.logger.warning("FastAPI app not available; recorder endpoints not registered")
+
+        self.is_loaded = True
+
+    def _register_routes(self):
+        @self.router.post("/audio")
+        async def upload_audio(plugin: str = Form(...), file: UploadFile = File(...)):
+            if not plugin or not plugin.strip():
+                raise HTTPException(status_code=400, detail="plugin parameter is required")
+
+            plugin = plugin.strip()
+
+            if file.content_type not in {"audio/wav", "audio/x-wav", "audio/wave", "audio/vnd.wave", "application/octet-stream"}:
+                raise HTTPException(status_code=400, detail="Unsupported media type")
+
+            data = await file.read()
+            if not data:
+                raise HTTPException(status_code=400, detail="Empty file")
+
+            timestamp = datetime.utcnow().strftime("%Y%m%dT%H%M%S%fZ")
+            filename = f"{plugin}_{timestamp}.wav"
+            plugin_dir = self.storage_root / plugin
+            plugin_dir.mkdir(parents=True, exist_ok=True)
+            target_path = plugin_dir / filename
+
+            try:
+                with target_path.open("wb") as f:
+                    f.write(data)
+            except OSError as exc:
+                self.logger.error(f"Failed saving audio to {target_path}: {exc}")
+                raise HTTPException(status_code=500, detail="Failed to write file")
+
+            rel_path = target_path.relative_to(self.plugin_folder)
+
+            insert_query = (
+                "INSERT INTO records (plugin, created_at, filename) VALUES (?, ?, ?)"
+            )
+            created_at = datetime.utcnow().isoformat()
+            self.db_execute_sync(insert_query, (plugin, created_at, str(rel_path)))
+
+            select_query = "SELECT id FROM records WHERE rowid = last_insert_rowid()"
+            result = self.db_execute_sync(select_query)
+            record_id = result[0]["id"] if result else None
+
+            return JSONResponse(
+                {
+                    "id": record_id,
+                    "plugin": plugin,
+                    "created_at": created_at,
+                    "filename": str(rel_path),
+                }
+            )
+
+        @self.router.get("/audio")
+        async def list_audio(plugin: Optional[str] = None):
+            if plugin:
+                rows = self.db_execute_sync(
+                    "SELECT id, plugin, created_at, filename FROM records WHERE plugin = ? ORDER BY created_at DESC",
+                    (plugin,),
+                )
+            else:
+                rows = self.db_execute_sync(
+                    "SELECT id, plugin, created_at, filename FROM records ORDER BY created_at DESC"
+                )
+
+            return rows or []
+
+        @self.router.get("/audio/{record_id}")
+        async def get_audio(record_id: int):
+            rows = self.db_execute_sync(
+                "SELECT id, plugin, created_at, filename FROM records WHERE id = ?",
+                (record_id,),
+            )
+            if not rows:
+                raise HTTPException(status_code=404, detail="Recording not found")
+
+            row = rows[0]
+            return row
+
+        @self.router.get("/audio/{record_id}/file")
+        async def download_audio(record_id: int):
+            rows = self.db_execute_sync(
+                "SELECT filename FROM records WHERE id = ?",
+                (record_id,),
+            )
+            if not rows:
+                raise HTTPException(status_code=404, detail="Recording not found")
+
+            rel_path = rows[0]["filename"]
+            file_path = Path(self.plugin_folder) / rel_path
+            if not file_path.exists():
+                raise HTTPException(status_code=404, detail="File missing on disk")
+
+            return FileResponse(file_path, media_type="audio/wav", filename=file_path.name)
