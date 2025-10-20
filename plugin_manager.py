@@ -254,6 +254,7 @@ class PluginManager:
         self._initialized = True
         self.plugin_folder=resource_path('plugins')
         self.status_manager = StatusManager()
+        self.fastapi_app = None
         self.plugins = []
         self.plugin_manager = pluggy.PluginManager(app_name)
         self.plugin_manager.add_hookspecs(MyAppSpec)
@@ -447,6 +448,9 @@ class PluginManager:
         
     def get_plugin_manager(self):
         return self
+
+    def attach_fastapi_app(self, app):
+        self.fastapi_app = app
     
     def plugin_has_settings(self, plugin_name, return_settings=False):
         settings = self.settings_manager.get_plugin_settings(plugin_name)

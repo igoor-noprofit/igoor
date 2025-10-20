@@ -59,6 +59,7 @@ def create_app() -> FastAPI:
     api_router = APIRouter(prefix="/api", tags=["api"])
 
     plugin_manager = PluginManager()
+    plugin_manager.fastapi_app = app
     settings_manager = SettingsManager()
 
     @api_router.get("/plugins/by-category")
