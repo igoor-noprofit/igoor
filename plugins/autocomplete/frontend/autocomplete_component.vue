@@ -4,7 +4,7 @@
             <svg class="icon icon-l">
                 <use xlink:href="/img/svgdefs.svg#icon-close" />
             </svg>
-            <h3>{{ t("empty") }}</h3>
+            <h3>{{ t("Empty") }}</h3>
         </button>
 
         <div class="autocomplete_input">
