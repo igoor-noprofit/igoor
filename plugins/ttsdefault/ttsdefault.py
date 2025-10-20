@@ -10,7 +10,7 @@ class Ttsdefault(Baseplugin):
         super().__init__(plugin_name, pm)
         self.settings = self.get_my_settings()
         # Initialize SAPI
-        self.fallback_only = self.settings.get("fallback_only")
+        self.fallback_only = self.settings.get("fallback_only", False)
         self.voice_id = self.settings.get("voice_id")
         try:
             self.speaker = win32com.client.Dispatch("SAPI.SpVoice")
@@ -58,13 +58,13 @@ class Ttsdefault(Baseplugin):
     @hookimpl
     def speak(self, message):
         if self.is_loaded and not self.fallback_only:
-            self.logger.info("§§§§ SPEAKING *********************************************** :", message)
+            self.logger.info("§§§§ SPEAKING *********************************************** : %s", message)
             # Schedule the speak_func to run in the background
             asyncio.create_task(self.run_speak_func(message))
 
     @hookimpl
     def speak_fallback(self, message):
-        self.logger.info("§§§§ FALLBACK SPEAKING *********************************************** : {message}")
+        self.logger.info("§§§§ FALLBACK SPEAKING *********************************************** : %s", message)
         # Schedule the speak_func to run in the background
         if (self.fallback_only):
             asyncio.create_task(self.run_speak_func(message))
