@@ -5,6 +5,5 @@
     "chunk_num": 10,
     "score_threshold": 0.5,
     "embedding_model": "dangvantuan/french-document-embedding",
-    "embedding_type": "huggingface",
-    "openai_api_key": ""
+    "embedding_type": "huggingface"
 }
