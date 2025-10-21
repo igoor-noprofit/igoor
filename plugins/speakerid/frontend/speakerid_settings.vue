@@ -11,10 +11,9 @@
         <div class="speakerid-settings__recorder">
             <RecorderComponent
                 ref="recorder"
-                :enable-upload="true"
+                :enable-upload="false"
                 :label-overrides="recorderLabels"
                 @recorded="onRecorded"
-                @uploaded="onUploaded"
                 @error="onRecorderError"
             />
         </div>
@@ -50,9 +49,7 @@ module.exports = {
                 start: 'Start recording',
                 stop: 'Stop',
                 play: 'Play back',
-                upload: 'Upload',
-                recording: 'Recording…',
-                uploading: 'Uploading…'
+                recording: 'Recording…'
             }
         };
     },
@@ -72,9 +69,7 @@ module.exports = {
             this.pendingBlob = blob;
             this.statusMessage = 'Recording ready to save';
         },
-        onUploaded(payload) {
-            this.latestRecorderId = payload?.id ?? null;
-        },
+
         onRecorderError(error) {
             console.error('Recorder error', error);
             this.statusMessage = 'Recorder error';

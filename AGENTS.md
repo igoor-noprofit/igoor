@@ -46,7 +46,7 @@ plugin_name/
 │   └── plugin_name_settings.vue     # Settings UI
 ├── locales/
 │   └── fr_FR/
-│       ├── plugin_name_fr_FR.json  # Translations
+│       ├── plugin_name_fr_FR.json  # Translations - use t('string') method to provide translatable strings
 │       └── prompts.py              # AI prompts
 ├── plugin.json             # Plugin config & DB schema
 └── settings.json          # Default settings
