@@ -7,10 +7,10 @@
             <button type="button" @click="$_startRecording" :disabled="isRecording || loading">
                 {{ isRecording ? uiLabels.recording : uiLabels.start }}
             </button>
-            <button type="button" @click="$_stopRecording" :disabled="!isRecording">
+            <button type="button" @click="$_stopRecording" :disabled="!isRecording && !isPlaying">
                 {{ uiLabels.stop }}
             </button>
-            <button type="button" @click="$_playRecording" :disabled="!hasRecording || isRecording">
+            <button type="button" @click="$_playRecording" :disabled="!hasRecording || isRecording || isPlaying">
                 {{ uiLabels.play }}
             </button>
             <button v-if="enableUpload && showUploadButton" type="button" @click="$_uploadRecording" :disabled="!hasRecording || loading">
@@ -67,13 +67,15 @@ module.exports = {
             isRecording: false,
             hasRecording: false,
             loading: false,
+            isPlaying: false,
             statusMessage: 'Ready to record',
             recordedBlob: null,
             mediaRecorder: null,
             audioContext: null,
             analyser: null,
             meterRAF: null,
-            stream: null
+            stream: null,
+            currentAudio: null
         };
     },
     computed: {
@@ -112,13 +114,23 @@ module.exports = {
             }
         },
         $_stopRecording() {
-            if (!this.isRecording || !this.mediaRecorder) {
+            // Stop recording
+            if (this.isRecording && this.mediaRecorder) {
+                this.mediaRecorder.stop();
+                this.isRecording = false;
+                this.statusMessage = 'Recording stopped';
+                this.$emit('record-stopped');
                 return;
             }
-            this.mediaRecorder.stop();
-            this.isRecording = false;
-            this.statusMessage = 'Recording stopped';
-            this.$emit('record-stopped');
+            
+            // Stop playback
+            if (this.isPlaying && this.currentAudio) {
+                this.currentAudio.pause();
+                this.currentAudio.currentTime = 0;
+                this.isPlaying = false;
+                this.currentAudio = null;
+                this.statusMessage = 'Playback stopped';
+            }
         },
         async $_playRecording() {
             if (!this.latestRecorderId && !this.recordedBlob) {
@@ -144,6 +156,8 @@ module.exports = {
 
                 
                 const audio = new Audio(audioUrl);
+                this.isPlaying = true;
+                this.currentAudio = audio;
                 audio.play();
                 this.statusMessage = 'Playing back…';
                 
@@ -152,6 +166,8 @@ module.exports = {
                     if (!this.latestRecorderId) {
                         URL.revokeObjectURL(audioUrl);
                     }
+                    this.isPlaying = false;
+                    this.currentAudio = null;
                     this.statusMessage = 'Playback finished';
                 });
                 
@@ -159,6 +175,8 @@ module.exports = {
                     if (!this.latestRecorderId) {
                         URL.revokeObjectURL(audioUrl);
                     }
+                    this.isPlaying = false;
+                    this.currentAudio = null;
                     console.error('Playback error:', e);
                     console.error('Audio element error details:', audio.error);
                     this.statusMessage = 'Playback failed';
