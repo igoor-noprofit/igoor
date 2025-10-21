@@ -11,7 +11,7 @@
         <div class="speakerid-settings__recorder">
             <RecorderComponent
                 ref="recorder"
-                :enable-upload="false"
+                :enable-upload="true"
                 :label-overrides="recorderLabels"
                 @recorded="onRecorded"
                 @uploaded="onUploaded"

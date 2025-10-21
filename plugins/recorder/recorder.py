@@ -139,20 +139,22 @@ class Recorder(Baseplugin):
             self.logger.info(f"Inserting record: plugin={plugin}, created_at={created_at}, filename={rel_path}")
             
             try:
-                self.db_execute_sync(insert_query, (plugin, created_at, str(rel_path)))
-                self.logger.info("Database insertion successful")
+                # Get direct database connection to access lastrowid
+                db_manager = self.db
+                if db_manager is None:
+                    raise HTTPException(status_code=500, detail="Database not available")
+                
+                # Execute insert with direct connection to get lastrowid
+                query = db_manager._prefix_table_names(self.plugin_name, insert_query)
+                conn = db_manager._get_connection()
+                cursor = conn.cursor()
+                cursor.execute(query, (plugin, created_at, str(rel_path)))
+                record_id = cursor.lastrowid
+                conn.commit()
+                self.logger.info(f"Database insertion successful, record ID: {record_id}")
             except Exception as db_exc:
                 self.logger.error(f"Database insertion failed: {db_exc}")
                 raise HTTPException(status_code=500, detail="Failed to save record to database")
-
-            select_query = "SELECT id FROM records WHERE rowid = last_insert_rowid()"
-            try:
-                result = self.db_execute_sync(select_query)
-                record_id = result[0]["id"] if result else None
-                self.logger.info(f"Retrieved record ID: {record_id}")
-            except Exception as db_exc:
-                self.logger.error(f"Failed to retrieve record ID: {db_exc}")
-                record_id = None
 
             return JSONResponse(
                 {
