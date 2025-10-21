@@ -19,5 +19,6 @@
             "schema": "CREATE TABLE IF NOT EXISTS records (id INTEGER PRIMARY KEY, recorder_id INTEGER NOT NULL, speakers_id INTEGER NOT NULL, FOREIGN KEY (recorder_id) REFERENCES recorder_records(id), FOREIGN KEY (speakers_id) REFERENCES speakers(id))",
             "version": "1.0"
         }
-    }
+    },
+    "has_settings": true
 }

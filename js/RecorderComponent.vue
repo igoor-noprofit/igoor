@@ -5,16 +5,16 @@
         </div>
         <div class="recorder__controls">
             <button type="button" @click="$_startRecording" :disabled="isRecording || loading">
-                {{ isRecording ? computedLabels.recording : computedLabels.start }}
+                {{ isRecording ? uiLabels.recording : uiLabels.start }}
             </button>
             <button type="button" @click="$_stopRecording" :disabled="!isRecording">
-                {{ computedLabels.stop }}
+                {{ uiLabels.stop }}
             </button>
             <button type="button" @click="$_playRecording" :disabled="!hasRecording || isRecording">
-                {{ computedLabels.play }}
+                {{ uiLabels.play }}
             </button>
-            <button type="button" v-if="enableUpload" @click="$_uploadRecording" :disabled="!hasRecording || loading">
-                {{ loading ? computedLabels.uploading : computedLabels.upload }}
+            <button v-if="enableUpload" type="button" @click="$_uploadRecording" :disabled="!hasRecording || loading">
+                {{ loading ? uiLabels.uploading : uiLabels.upload }}
             </button>
         </div>
         <p class="recorder__status">{{ statusMessage }}</p>
@@ -22,8 +22,6 @@
 </template>
 
 <script>
-const BasePluginComponent = require('/js/BasePluginComponent.js');
-
 let wavRecorderReady = false;
 let RecorderCtor = null;
 
@@ -31,28 +29,30 @@ async function ensureWavRecorder() {
     if (wavRecorderReady && RecorderCtor) {
         return RecorderCtor;
     }
-    const { MediaRecorder, register } = await import('https://jspm.dev/extendable-media-recorder');
-    const { connect } = await import('https://jspm.dev/extendable-media-recorder-wav-encoder');
-    await register(await connect());
-    wavRecorderReady = true;
-    RecorderCtor = MediaRecorder;
-    return RecorderCtor;
+    // Use native MediaRecorder - server will handle WAV conversion
+    if (window.MediaRecorder) {
+        wavRecorderReady = true;
+        RecorderCtor = window.MediaRecorder;
+        return RecorderCtor;
+    }
+    throw new Error('MediaRecorder not available');
 }
 
-function normalizeEndpoint(url) {
+function trimEndpoint(url) {
     if (!url) {
         return '/api/plugins/recorder/audio';
     }
     return url.replace(/\/+$/, '');
 }
 
-function buildEndpoint(base, suffix = '') {
-    return `${normalizeEndpoint(base)}${suffix}`;
+function withSuffix(base, suffix = '') {
+    return `${trimEndpoint(base)}${suffix}`;
 }
+
+
 
 module.exports = {
     name: 'RecorderComponent',
-    mixins: [BasePluginComponent],
     props: {
         pluginName: { type: String, default: '' },
         uploadUrl: { type: String, default: '/api/plugins/recorder/audio' },
@@ -76,7 +76,7 @@ module.exports = {
         };
     },
     computed: {
-        computedLabels() {
+        uiLabels() {
             return {
                 start: 'Start recording',
                 recording: 'Recording…',
@@ -88,7 +88,7 @@ module.exports = {
             };
         },
         baseEndpoint() {
-            return normalizeEndpoint(this.uploadUrl);
+            return trimEndpoint(this.uploadUrl);
         }
     },
     methods: {
@@ -120,21 +120,65 @@ module.exports = {
             this.$emit('record-stopped');
         },
         async $_playRecording() {
-            if (!this.recordedBlob) {
+            if (!this.latestRecorderId && !this.recordedBlob) {
+                this.statusMessage = 'No recording available';
                 return;
             }
+            
             try {
-                if (!this.audioContext) {
-                    this.audioContext = new AudioContext();
+                let audioUrl;
+                
+                // If we have a recorder ID, fetch the converted WAV file from server
+                if (this.latestRecorderId) {
+                    // Construct the full URL properly
+                    const baseUrl = window.location.origin;
+                    audioUrl = `${baseUrl}/api/plugins/recorder/audio/${this.latestRecorderId}/file`;
+                    console.log('Playing audio from URL:', audioUrl);
+                } else {
+                    // Fallback to local blob (may not work for all formats)
+                    audioUrl = URL.createObjectURL(this.recordedBlob);
+                    console.log('Playing local blob');
                 }
-                const buffer = await this.audioContext.decodeAudioData(await this.recordedBlob.arrayBuffer());
-                const source = this.audioContext.createBufferSource();
-                source.buffer = buffer;
-                source.connect(this.audioContext.destination);
-                source.start(0);
+                
+                // Test the URL first
+                if (this.latestRecorderId) {
+                    try {
+                        const testResponse = await fetch(audioUrl, { method: 'HEAD' });
+                        console.log('Audio file HEAD response:', testResponse.status, testResponse.statusText);
+                        if (!testResponse.ok) {
+                            throw new Error(`Audio file not accessible (${testResponse.status})`);
+                        }
+                    } catch (testError) {
+                        console.error('Audio file test failed:', testError);
+                        throw testError;
+                    }
+                }
+                
+                const audio = new Audio(audioUrl);
+                audio.play();
                 this.statusMessage = 'Playing back…';
+                
+                // Clean up the object URL when playback ends (only for local blobs)
+                audio.addEventListener('ended', () => {
+                    if (!this.latestRecorderId) {
+                        URL.revokeObjectURL(audioUrl);
+                    }
+                    this.statusMessage = 'Playback finished';
+                });
+                
+                audio.addEventListener('error', (e) => {
+                    if (!this.latestRecorderId) {
+                        URL.revokeObjectURL(audioUrl);
+                    }
+                    console.error('Playback error:', e);
+                    console.error('Audio element error details:', audio.error);
+                    this.statusMessage = 'Playback failed';
+                    this.$emit('error', new Error('Audio playback failed'));
+                });
+                
             } catch (error) {
                 console.error('Playback error', error);
+                this.statusMessage = `Playback failed: ${error.message}`;
                 this.$emit('error', error);
             }
         },
@@ -150,11 +194,12 @@ module.exports = {
                 return;
             }
             this.loading = true;
-            this.statusMessage = 'Uploading…';
+            this.statusMessage = 'Uploading and converting to WAV…';
             try {
                 const payload = await this.$_submitRecording(plugin, this.recordedBlob);
+                this.latestRecorderId = payload?.id;
                 this.$emit('uploaded', payload);
-                this.statusMessage = 'Upload complete';
+                this.statusMessage = 'Upload complete - ready for playback';
                 return payload;
             } catch (error) {
                 console.error('Upload error', error);
@@ -168,7 +213,20 @@ module.exports = {
         async $_submitRecording(plugin, blob) {
             const formData = new FormData();
             formData.append('plugin', plugin);
-            formData.append('file', blob, `${plugin}_${Date.now()}.wav`);
+            
+            // Use original extension - server will convert to WAV
+            let extension = 'webm';
+            if (blob.type) {
+                const typeMap = {
+                    'audio/webm': 'webm',
+                    'audio/ogg': 'ogg',
+                    'audio/mp4': 'm4a',
+                    'audio/wav': 'wav'
+                };
+                extension = typeMap[blob.type] || 'webm';
+            }
+            
+            formData.append('file', blob, `${plugin}_${Date.now()}.${extension}`);
             const response = await fetch(this.baseEndpoint, {
                 method: 'POST',
                 body: formData,
@@ -202,7 +260,7 @@ module.exports = {
             return payload;
         },
         async $_getRecordingMeta(recordId) {
-            const response = await fetch(buildEndpoint(this.baseEndpoint, `/${recordId}`), {
+            const response = await fetch(withSuffix(this.baseEndpoint, `/${recordId}`), {
                 credentials: 'same-origin'
             });
             if (!response.ok) {
@@ -211,7 +269,7 @@ module.exports = {
             return response.json();
         },
         async $_downloadRecording(recordId) {
-            const response = await fetch(buildEndpoint(this.baseEndpoint, `/${recordId}/file`), {
+            const response = await fetch(withSuffix(this.baseEndpoint, `/${recordId}/file`), {
                 credentials: 'same-origin'
             });
             if (!response.ok) {
@@ -222,12 +280,37 @@ module.exports = {
         async $_initAudio(Recorder) {
             this.$_cleanupStream();
             this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            this.mediaRecorder = new Recorder(this.stream, { mimeType: 'audio/wav' });
+            
+            // Try to determine the best MIME type for the current browser
+            let mimeType = 'audio/wav';
+            const supportedTypes = [
+                'audio/webm;codecs=opus',
+                'audio/webm',
+                'audio/ogg;codecs=opus',
+                'audio/mp4',
+                'audio/wav'
+            ];
+            
+            for (const type of supportedTypes) {
+                if (MediaRecorder.isTypeSupported(type)) {
+                    mimeType = type;
+                    break;
+                }
+            }
+            
+            try {
+                this.mediaRecorder = new Recorder(this.stream, { mimeType });
+            } catch (error) {
+                console.warn('Failed to create MediaRecorder with MIME type:', mimeType, error);
+                // Try without specifying MIME type
+                this.mediaRecorder = new Recorder(this.stream);
+            }
+            
             this.mediaRecorder.ondataavailable = (event) => {
                 if (event.data?.size > 0) {
                     this.recordedBlob = event.data;
                     this.hasRecording = true;
-                    this.statusMessage = 'Recording available';
+                    this.statusMessage = 'Recording ready - upload to enable playback';
                     this.$emit('recorded', event.data);
                     if (this.autoUpload) {
                         this.$_uploadRecording();
@@ -236,6 +319,11 @@ module.exports = {
             };
             this.mediaRecorder.onstop = () => {
                 this.$_cleanupStream();
+            };
+            this.mediaRecorder.onerror = (event) => {
+                console.error('MediaRecorder error:', event);
+                this.statusMessage = 'Recording error occurred';
+                this.$emit('error', event.error || new Error('Recording error'));
             };
             this.$_setupMeter();
         },
@@ -311,120 +399,6 @@ module.exports = {
 };
 </script>
 
-<style scoped>
-.recorder {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-}
-
-.recorder__controls {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-    justify-content: center;
-}
-
-.recorder__meter canvas {
-    border: 1px solid #ccc;
-    border-radius: 4px;
-}
-
-.recorder__status {
-    font-size: 0.9rem;
-    color: #6b7280;
-    margin: 0;
-}
-</style>
-<template>
-    <div class="recorder">
-        <div class="recorder__meter" v-if="showMeter">
-            <canvas ref="meterCanvas" width="200" height="20"></canvas>
-        </div>
-        <div class="recorder__controls">
-            <button type="button" @click="$_startRecording" :disabled="isRecording || loading">
-                {{ isRecording ? labels.recording : labels.start }}
-            </button>
-            <button type="button" @click="$_stopRecording" :disabled="!isRecording">
-                {{ labels.stop }}
-            </button>
-            <button type="button" @click="$_playRecording" :disabled="!hasRecording || isRecording">
-                {{ labels.play }}
-            </button>
-            <button type="button" v-if="enableUpload" @click="$_uploadRecording" :disabled="!hasRecording || loading">
-                {{ loading ? labels.uploading : labels.upload }}
-            </button>
-        </div>
-        <p class="recorder__status">{{ statusMessage }}</p>
-    </div>
-</template>
-
-<script>
-const BasePluginComponent = require('/js/BasePluginComponent.js');
-
-let encoderRegistered = false;
-let RecorderCtor = null;
-
-async function ensureWavRecorderRegistered() {
-    if (encoderRegistered && RecorderCtor) {
-        return RecorderCtor;
-    }
-    const { MediaRecorder, register } = await import('https://jspm.dev/extendable-media-recorder');
-    const { connect } = await import('https://jspm.dev/extendable-media-recorder-wav-encoder');
-    await register(await connect());
-    encoderRegistered = true;
-    RecorderCtor = MediaRecorder;
-    return RecorderCtor;
-}
-
-function normalizeUrl(url) {
-    if (!url) {
-        return '/api/plugins/recorder/audio';
-    }
-    return url.replace(/\/+$/, '');
-}
-
-module.exports = {
-    name: 'RecorderComponent',
-    mixins: [BasePluginComponent],
-    props: {
-        pluginName: { type: String, default: '' },
-        uploadUrl: { type: String, default: '/api/plugins/recorder/audio' },
-        enableUpload: { type: Boolean, default: true },
-        showMeter: { type: Boolean, default: true },
-        autoUpload: { type: Boolean, default: false },
-        labelOverrides: { type: Object, default: () => ({}) }
-    },
-    data() {
-        return {
-            isRecording: false,
-            hasRecording: false,
-            loading: false,
-            statusMessage: 'Ready to record',
-            recordedBlob: null,
-            mediaRecorder: null,
-            audioContext: null,
-            analyser: null,
-            meterRAF: null,
-            stream: null
-        };
-    },
-    computed: {
-        labels() {
-            return {
-                start: 'Start recording',
-                recording: 'Recording…',
-                stop: 'Stop',
-                play: 'Play',
-                upload: 'Upload',
-                uploading: 'Uploading…',
-                ...this.labelOverrides
-            };
-        },
-        baseUploadUrl() {
-            return normalizeUrl(this.uploadUrl);
-        }
 
 <style scoped>
 .recorder {
