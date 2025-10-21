@@ -35,6 +35,8 @@ IGOOR is an open-source and free conversational application, controllable also b
 - Dynamic component loading via httpVueLoader
 - When choosing colors,always start from predefined colors in /css/app.less
 
+**Interface guidelines**: Since the interface is for users who have physical conditions,buttons should generally be big.
+
 ## Plugin Development
 
 **File Structure**:

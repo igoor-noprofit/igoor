@@ -1,7 +1,7 @@
 <template>
     <div class="speakerid-settings">
         <div class="speakerid-settings__row">
-            <label for="speakerid-select">Known person</label>
+            <label for="speakerid-select">{{ t('known_person') }}</label>
             <select id="speakerid-select" v-model.number="selectedPerson">
                 <option :value="0">Carlo</option>
                 <option :value="1">Jessica</option>
@@ -21,7 +21,7 @@
 
         <div class="speakerid-settings__actions">
             <button type="button" @click="saveRecording" :disabled="!pendingBlob || isSaving">
-                {{ isSaving ? 'Saving…' : 'Save recording' }}
+                {{ isSaving ? t('saving') : t('save_recording') }}
             </button>
             <span v-if="statusMessage" class="speakerid-settings__status">{{ statusMessage }}</span>
         </div>
@@ -46,13 +46,17 @@ module.exports = {
             latestRecorderId: null,
             isSaving: false,
             statusMessage: '',
-            recorderLabels: {
-                start: 'Start recording',
-                stop: 'Stop',
-                play: 'Play back',
-                recording: 'Recording…'
-            }
         };
+    },
+    computed: {
+        recorderLabels() {
+            return {
+                start: this.t('start_recording'),
+                stop: this.t('stop'),
+                play: this.t('play_back'),
+                recording: this.t('recording')
+            };
+        }
     },
     watch: {
         initialSettings: {
@@ -68,20 +72,20 @@ module.exports = {
     methods: {
         onRecorded(blob) {
             this.pendingBlob = blob;
-            this.statusMessage = 'Recording ready to save';
+            this.statusMessage = this.t('recording_ready_to_save');
         },
 
         onRecorderError(error) {
             console.error('Recorder error', error);
-            this.statusMessage = 'Recorder error';
+            this.statusMessage = this.t('recorder_error');
         },
         async saveRecording() {
             if (!this.pendingBlob) {
-                this.statusMessage = 'Record audio first';
+                this.statusMessage = this.t('record_audio_first');
                 return;
             }
             this.isSaving = true;
-            this.statusMessage = 'Uploading recording…';
+            this.statusMessage = this.t('uploading_recording');
             try {
                 const recorder = this.$refs.recorder;
                 if (!recorder) {
@@ -121,10 +125,10 @@ module.exports = {
                 }
 
                 this.pendingBlob = null;
-                this.statusMessage = 'Recording saved';
+                this.statusMessage = this.t('recording_saved');
             } catch (error) {
                 console.error('Failed to save recording', error);
-                this.statusMessage = error.message || 'Error saving recording';
+                this.statusMessage = error.message || this.t('error_saving_recording');
             } finally {
                 this.isSaving = false;
             }
@@ -149,6 +153,54 @@ module.exports = {
 .speakerid-settings__recorder {
     display: flex;
     justify-content: center;
+}
+
+/* Override RecorderComponent layout */
+.speakerid-settings__recorder :deep(.recorder__row) {
+    flex-direction: row;
+    align-items: center;
+    gap: 40px;
+    min-width: auto;
+    width: auto;
+    justify-content: center;
+}
+
+/* Make volume meter vertical on the right */
+.speakerid-settings__recorder :deep(.recorder__meter) {
+    order: 2;
+    min-width: 40px;
+    width: 40px;
+    flex: none;
+}
+
+.speakerid-settings__recorder :deep(.recorder__meter canvas) {
+    width: 40px !important;
+    height: 80px !important;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+/* Controls on the left */
+.speakerid-settings__recorder :deep(.recorder__controls) {
+    order: 1;
+    gap: 16px;
+    align-items: center;
+}
+
+/* Make buttons much bigger */
+.speakerid-settings__recorder :deep(.recorder__main-btn) {
+    width: 80px !important;
+    height: 80px !important;
+}
+
+.speakerid-settings__recorder :deep(.recorder__play-btn) {
+    width: 80px !important;
+    height: 80px !important;
+}
+
+.speakerid-settings__recorder :deep(.recorder__icon) {
+    width: 40px !important;
+    height: 40px !important;
 }
 
 .speakerid-settings__actions {
