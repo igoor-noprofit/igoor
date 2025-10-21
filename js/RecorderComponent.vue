@@ -13,7 +13,7 @@
             <button type="button" @click="$_playRecording" :disabled="!hasRecording || isRecording">
                 {{ uiLabels.play }}
             </button>
-            <button v-if="enableUpload" type="button" @click="$_uploadRecording" :disabled="!hasRecording || loading">
+            <button v-if="enableUpload && showUploadButton" type="button" @click="$_uploadRecording" :disabled="!hasRecording || loading">
                 {{ loading ? uiLabels.uploading : uiLabels.upload }}
             </button>
         </div>
@@ -57,6 +57,7 @@ module.exports = {
         pluginName: { type: String, default: '' },
         uploadUrl: { type: String, default: '/api/plugins/recorder/audio' },
         enableUpload: { type: Boolean, default: true },
+        showUploadButton: { type: Boolean, default: true },
         showMeter: { type: Boolean, default: true },
         autoUpload: { type: Boolean, default: false },
         labels: { type: Object, default: () => ({}) }
@@ -140,19 +141,7 @@ module.exports = {
                     console.log('Playing local blob');
                 }
                 
-                // Test the URL first
-                if (this.latestRecorderId) {
-                    try {
-                        const testResponse = await fetch(audioUrl, { method: 'HEAD' });
-                        console.log('Audio file HEAD response:', testResponse.status, testResponse.statusText);
-                        if (!testResponse.ok) {
-                            throw new Error(`Audio file not accessible (${testResponse.status})`);
-                        }
-                    } catch (testError) {
-                        console.error('Audio file test failed:', testError);
-                        throw testError;
-                    }
-                }
+
                 
                 const audio = new Audio(audioUrl);
                 audio.play();
