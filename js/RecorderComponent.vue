@@ -156,6 +156,12 @@ module.exports = {
             if (this.currentAudio && !this.isPlaying) {
                 console.log('Resuming playback');
                 this.isPlaying = true;
+                
+                // Resume audio context if suspended
+                if (this.audioContext && this.audioContext.state === 'suspended') {
+                    await this.audioContext.resume();
+                }
+                
                 this.currentAudio.play();
                 this.statusMessage = 'Playing back…';
                 return;
@@ -206,8 +212,16 @@ module.exports = {
                     this.currentAudio = null;
                     this.statusMessage = 'Playback finished';
                     
-                    // Reconnect meter to microphone if available
-                    this.$_connectMeterSource();
+                    // Clean up meter source properly
+                    if (this.meterSource) {
+                        this.meterSource.disconnect();
+                        this.meterSource = null;
+                    }
+                    
+                    // Only reconnect to microphone if we're currently recording
+                    if (this.isRecording && this.stream) {
+                        this.$_connectMeterSource();
+                    }
                 });
                 
                 audio.addEventListener('error', (e) => {
@@ -413,8 +427,13 @@ module.exports = {
                 console.log('Disconnected existing meter source');
             }
             
-            // Connect audio element for playback visualization if we have currentAudio
-            if (this.currentAudio) {
+            // Priority: recording > playback
+            if (this.isRecording && this.stream) {
+                // Connect microphone input for recording visualization
+                this.meterSource = this.audioContext.createMediaStreamSource(this.stream);
+                this.meterSource.connect(this.analyser);
+                console.log('Connected microphone to analyser for recording');
+            } else if (this.currentAudio) {
                 console.log('Trying to connect audio element for playback visualization');
                 // Try to connect playing audio for visualization
                 try {
@@ -433,18 +452,13 @@ module.exports = {
                 } catch (error) {
                     console.warn('Failed to connect audio element to analyser:', error);
                     console.warn('Error details:', error.message);
-                    // Fallback: just connect microphone for now
-                    if (this.stream) {
-                        console.log('Falling back to microphone connection');
-                        this.meterSource = this.audioContext.createMediaStreamSource(this.stream);
-                        this.meterSource.connect(this.analyser);
-                    }
+                    // Don't fall back to microphone here - we're in playback mode
                 }
             } else if (this.stream) {
-                // Connect microphone input for recording visualization
+                // Connect microphone input for recording visualization (fallback)
                 this.meterSource = this.audioContext.createMediaStreamSource(this.stream);
                 this.meterSource.connect(this.analyser);
-                console.log('Connected microphone to analyser for visualization');
+                console.log('Connected microphone to analyser for visualization (fallback)');
             } else if (this.stream) {
                 // Connect microphone input for recording visualization
                 this.meterSource = this.audioContext.createMediaStreamSource(this.stream);
@@ -519,8 +533,8 @@ module.exports = {
                 this.isPlaying = false;
                 this.statusMessage = 'Playback paused - click play to resume';
                 
-                // Reconnect meter to microphone if available
-                this.$_connectMeterSource();
+                // Don't reconnect meter here - let the user manually resume playback
+                // Reconnecting here causes issues with recording state
             }
         },
         $_cleanupStream() {
