@@ -99,7 +99,7 @@ module.exports = {
             try {
                 const Recorder = await ensureWavRecorder();
                 await this.$_initAudio(Recorder);
-                this.mediaRecorder.start(1000);
+                this.mediaRecorder.start();
                 this.isRecording = true;
                 this.statusMessage = 'Recording in progress…';
                 this.$emit('record-started');

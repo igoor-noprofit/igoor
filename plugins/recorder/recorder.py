@@ -92,8 +92,8 @@ class Recorder(Baseplugin):
             # Accept more audio formats including webm, ogg, mp4
             supported_types = {
                 "audio/wav", "audio/x-wav", "audio/wave", "audio/vnd.wave",
-                "audio/webm", "audio/ogg", "audio/mp4", "audio/mpeg",
-                "application/octet-stream"
+                "audio/webm", "audio/webm;codecs=opus", "audio/ogg", "audio/ogg;codecs=opus",
+                "audio/mp4", "audio/mpeg", "application/octet-stream"
             }
             
             if file.content_type not in supported_types:
@@ -103,23 +103,79 @@ class Recorder(Baseplugin):
             if not data:
                 raise HTTPException(status_code=400, detail="Empty file")
 
-            # Convert to WAV if not already WAV
-            if not file.content_type.startswith("audio/wav") and file.content_type != "audio/x-wav":
-                try:
-                    self.logger.info(f"Converting {file.content_type} to WAV for plugin {plugin} (data size: {len(data)} bytes)")
-                    data = convert_to_wav(data, 44100)  # Convert to 44.1kHz, 16-bit, mono
-                    self.logger.info(f"Conversion successful, new data size: {len(data)} bytes")
-                except Exception as e:
-                    self.logger.error(f"Failed to convert audio to WAV: {e}")
-                    raise HTTPException(status_code=500, detail=f"Audio conversion failed: {str(e)}")
-            else:
-                self.logger.info(f"File is already WAV format, skipping conversion (size: {len(data)} bytes)")
-
+            # Setup plugin directory (needed for both conversion and fallback)
             timestamp = datetime.utcnow().strftime("%Y%m%dT%H%M%S%fZ")
             filename = f"{plugin}_{timestamp}.wav"
             plugin_dir = self.storage_root / plugin
             plugin_dir.mkdir(parents=True, exist_ok=True)
             target_path = plugin_dir / filename
+
+            # Convert to WAV if not already WAV
+            if not file.content_type.startswith("audio/wav") and file.content_type != "audio/x-wav":
+                try:
+                    self.logger.info(f"Converting {file.content_type} to WAV for plugin {plugin} (data size: {len(data)} bytes)")
+                    
+                    # Save input data for debugging
+                    with tempfile.NamedTemporaryFile(suffix=f'_debug.{file.content_type.split("/")[-1].split(";")[0]}', delete=False) as debug_file:
+                        debug_file.write(data)
+                        debug_file_path = debug_file.name
+                        self.logger.info(f"Debug: Saved input data to {debug_file_path}")
+                    
+                    data = convert_to_wav(data, 44100)  # Convert to 44.1kHz, 16-bit, mono
+                    self.logger.info(f"Conversion successful, new data size: {len(data)} bytes")
+                    
+                    # Clean up debug file
+                    try:
+                        os.unlink(debug_file_path)
+                    except:
+                        pass
+                        
+                except Exception as e:
+                    self.logger.error(f"Failed to convert audio to WAV: {e}")
+                    # Instead of failing, try to save the original file
+                    self.logger.info("Attempting to save original audio format without conversion")
+                    timestamp = datetime.utcnow().strftime("%Y%m%dT%H%M%S%fZ")
+                    original_filename = f"{plugin}_{timestamp}.{file.content_type.split('/')[-1].split(';')[0]}"
+                    target_path = plugin_dir / original_filename
+                    with target_path.open("wb") as f:
+                        f.write(data)
+                    rel_path = target_path.relative_to(self.plugin_folder)
+                    self.logger.info(f"Saved original audio to {rel_path}")
+                    
+                    # Continue with database insertion using original file
+                    record_id = None
+                    insert_query = (
+                        "INSERT INTO records (plugin, created_at, filename) VALUES (?, ?, ?)"
+                    )
+                    created_at = datetime.utcnow().isoformat()
+                    self.logger.info(f"Inserting record: plugin={plugin}, created_at={created_at}, filename={rel_path}")
+                    
+                    try:
+                        db_manager = self.db
+                        if db_manager is None:
+                            raise HTTPException(status_code=500, detail="Database not available")
+                        
+                        query = db_manager._prefix_table_names(self.plugin_name, insert_query)
+                        conn = db_manager._get_connection()
+                        cursor = conn.cursor()
+                        cursor.execute(query, (plugin, created_at, str(rel_path)))
+                        record_id = cursor.lastrowid
+                        conn.commit()
+                        self.logger.info(f"Database insertion successful, record ID: {record_id}")
+                    except Exception as db_exc:
+                        self.logger.error(f"Database insertion failed: {db_exc}")
+                        raise HTTPException(status_code=500, detail="Failed to save record to database")
+
+                    return JSONResponse(
+                        {
+                            "id": record_id,
+                            "plugin": plugin,
+                            "created_at": created_at,
+                            "filename": str(rel_path),
+                        }
+                    )
+            else:
+                self.logger.info(f"File is already WAV format, skipping conversion (size: {len(data)} bytes)")
 
             try:
                 with target_path.open("wb") as f:
