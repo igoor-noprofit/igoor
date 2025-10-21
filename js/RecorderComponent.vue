@@ -91,7 +91,8 @@ module.exports = {
             analyser: null,
             meterRAF: null,
             stream: null,
-            currentAudio: null
+            currentAudio: null,
+            meterSource: null
         };
     },
     computed: {
@@ -182,8 +183,17 @@ module.exports = {
                 }
                 
                 const audio = new Audio(audioUrl);
-                this.isPlaying = true;
                 this.currentAudio = audio;
+                
+                // Resume audio context if suspended (browser autoplay policy)
+                if (this.audioContext && this.audioContext.state === 'suspended') {
+                    await this.audioContext.resume();
+                }
+                
+                // IMPORTANT: Connect audio to meter BEFORE setting isPlaying and playing
+                this.$_connectMeterSource();
+                
+                this.isPlaying = true;
                 audio.play();
                 this.statusMessage = 'Playing back…';
                 
@@ -195,6 +205,9 @@ module.exports = {
                     this.isPlaying = false;
                     this.currentAudio = null;
                     this.statusMessage = 'Playback finished';
+                    
+                    // Reconnect meter to microphone if available
+                    this.$_connectMeterSource();
                 });
                 
                 audio.addEventListener('error', (e) => {
@@ -369,13 +382,83 @@ module.exports = {
             }
             this.analyser = this.audioContext.createAnalyser();
             this.analyser.fftSize = 256;
-            const source = this.audioContext.createMediaStreamSource(this.stream);
-            source.connect(this.analyser);
+            
+            // Connect appropriate source based on current state
+            this.$_connectMeterSource();
             
             // Force canvas resize after a short delay to ensure CSS is applied
             setTimeout(() => {
                 this.$_drawMeter();
             }, 50);
+        },
+        $_connectMeterSource() {
+            console.log('$_connectMeterSource called, has analyser:', !!this.analyser, 'isPlaying:', this.isPlaying, 'has currentAudio:', !!this.currentAudio);
+            
+            // Ensure audio context and analyser are available for playback
+            if (!this.audioContext) {
+                console.log('Creating audio context for playback');
+                this.audioContext = new AudioContext();
+            }
+            
+            if (!this.analyser) {
+                console.log('Creating analyser for playback');
+                this.analyser = this.audioContext.createAnalyser();
+                this.analyser.fftSize = 256;
+            }
+            
+            // Disconnect any existing source
+            if (this.meterSource) {
+                this.meterSource.disconnect();
+                this.meterSource = null;
+                console.log('Disconnected existing meter source');
+            }
+            
+            // Connect audio element for playback visualization if we have currentAudio
+            if (this.currentAudio) {
+                console.log('Trying to connect audio element for playback visualization');
+                // Try to connect playing audio for visualization
+                try {
+                    // Only create MediaElementSource once per audio element
+                    if (!this.currentAudio._connectedToAnalyser) {
+                        console.log('Creating MediaElementSource...');
+                        this.meterSource = this.audioContext.createMediaElementSource(this.currentAudio);
+                        this.meterSource.connect(this.analyser);
+                        this.analyser.connect(this.audioContext.destination);
+                        this.currentAudio._connectedToAnalyser = true;
+                        console.log('Connected audio element to analyser for visualization');
+                    } else {
+                        console.log('Audio element already connected to analyser');
+                        // The analyser should already be connected and working
+                    }
+                } catch (error) {
+                    console.warn('Failed to connect audio element to analyser:', error);
+                    console.warn('Error details:', error.message);
+                    // Fallback: just connect microphone for now
+                    if (this.stream) {
+                        console.log('Falling back to microphone connection');
+                        this.meterSource = this.audioContext.createMediaStreamSource(this.stream);
+                        this.meterSource.connect(this.analyser);
+                    }
+                }
+            } else if (this.stream) {
+                // Connect microphone input for recording visualization
+                this.meterSource = this.audioContext.createMediaStreamSource(this.stream);
+                this.meterSource.connect(this.analyser);
+                console.log('Connected microphone to analyser for visualization');
+            } else if (this.stream) {
+                // Connect microphone input for recording visualization
+                this.meterSource = this.audioContext.createMediaStreamSource(this.stream);
+                this.meterSource.connect(this.analyser);
+                console.log('Connected microphone to analyser for visualization');
+            } else {
+                console.log('No audio source available to connect');
+            }
+            
+            // Start drawing meter if we have a source and it's not already running
+            if (this.meterSource && !this.meterRAF) {
+                console.log('Starting meter drawing for playback');
+                this.$_drawMeter();
+            }
         },
         $_drawMeter() {
             if (!this.analyser) {
@@ -404,6 +487,12 @@ module.exports = {
                     rms += dataArray[i] ** 2;
                 }
                 const volume = Math.sqrt(rms / dataArray.length) / 255;
+                
+                // Log volume during playback for debugging
+                if (this.isPlaying && volume > 0.01) {
+                    console.log('Playback volume:', volume);
+                }
+                
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 const color = volume > 0.8 ? '#f87171' : volume > 0.5 ? '#facc15' : '#34d399';
                 ctx.fillStyle = color;
@@ -429,6 +518,9 @@ module.exports = {
                 this.currentAudio.pause();
                 this.isPlaying = false;
                 this.statusMessage = 'Playback paused - click play to resume';
+                
+                // Reconnect meter to microphone if available
+                this.$_connectMeterSource();
             }
         },
         $_cleanupStream() {
@@ -439,6 +531,10 @@ module.exports = {
             if (this.meterRAF) {
                 cancelAnimationFrame(this.meterRAF);
                 this.meterRAF = null;
+            }
+            if (this.meterSource) {
+                this.meterSource.disconnect();
+                this.meterSource = null;
             }
             if (this.analyser) {
                 this.analyser.disconnect();
