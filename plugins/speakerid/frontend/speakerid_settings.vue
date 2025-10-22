@@ -29,7 +29,7 @@
 </template>
 
 <script>
-const RecorderComponent = require('/js/RecorderComponent.vue');
+const RecorderComponent = require('/plugins/recorder/frontend/RecorderComponent.vue');
 const BasePluginComponent = require('/js/BasePluginComponent.js');
 
 module.exports = {

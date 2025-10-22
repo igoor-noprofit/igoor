@@ -1,5 +1,5 @@
 {
-    "category": "utility",
+    "category": "core",
     "title": "Recorder",
     "description": "Central audio recorder storage and API",
     "layout": {
