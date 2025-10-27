@@ -66,7 +66,7 @@ plugin_name/
 
 **User Data Folder**: `C:/Users/Username/AppData/Roaming/igoor/`
 - Settings: `settings.json`
-- Plugins data: `plugins/` subdirectory, containing all dynamic data from plugins
+- Plugins data: `plugins/` subdirectory, containing all dynamic data from plugins. The app can download models in user data folders (ex. HuggingFace) but CANNOT create folders inside the app root,otherwise this will give problems when running as executable.
 - Logs: `logs/` (daily rotation)
 - LLM calls: `llm_invocations/` (JSON with prompts/responses)
 

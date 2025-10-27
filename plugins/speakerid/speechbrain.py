@@ -34,16 +34,23 @@ fetching.link_with_strategy = patched_link
 from speechbrain.inference.speaker import EncoderClassifier
 
 class SpeakerIdentificationSystem:
-    def __init__(self, voices_dir="./voices", embeddings_file="speaker_embeddings.pkl", model_name="speechbrain/spkrec-ecapa-voxceleb"):
+    def __init__(self, voices_dir="./voices", embeddings_file="speaker_embeddings.pkl", model_name="speechbrain/spkrec-ecapa-voxceleb", plugin_dir=None):
         self.voices_dir = Path(voices_dir)
         self.embeddings_file = embeddings_file
         self.model_name = model_name
+        
+        if plugin_dir is not None:
+                model_save_dir = os.path.join(plugin_dir, "pretrained_models", "spkrec-ecapa-voxceleb")
+        else:
+            plugin_dir = os.path.dirname(os.path.dirname(__file__))
+            model_save_dir = os.path.join(plugin_dir, "pretrained_models", "spkrec-ecapa-voxceleb")
         
         # Load the SpeechBrain model
         print("Loading speaker recognition model...")
         self.classifier = EncoderClassifier.from_hparams(
             source=model_name,
-            savedir="pretrained_models/spkrec-ecapa-voxceleb",
+            # Use passed plugin_dir or calculate from file if not provided            
+            savedir=model_save_dir,
             run_opts={"device": "cpu"}
         )
         
@@ -438,29 +445,3 @@ class RealtimeSpeakerRecognizer:
             self.stream.close()
         self.audio.terminate()
         print("Microphone closed.")
-
-
-# Main execution
-if __name__ == "__main__":
-    # Initialize the speaker identification system
-    print("Initializing speaker identification system...")
-    system = SpeakerIdentificationSystem(voices_dir="./voices")
-    
-    # List enrolled speakers
-    system.list_speakers()
-    
-    if len(system.speaker_names) == 0:
-        print("\n⚠️  No speakers enrolled! Please add speaker samples to ./voices/")
-        print("   Create subfolders with speaker names and add WAV files.")
-        exit(1)
-    
-    # Start real-time recognition
-    recognizer = RealtimeSpeakerRecognizer(
-        system,
-        sample_rate=16000,
-        vad_aggressiveness=3,  # 0-3, higher = more aggressive
-        buffer_duration_sec=2.0,
-        min_speech_duration_sec=1.0
-    )
-    
-    recognizer.start()

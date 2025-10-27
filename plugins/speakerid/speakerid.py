@@ -20,6 +20,9 @@ class Speakerid(Baseplugin):
         super().__init__(plugin_name, pm)
         self.router: Optional[APIRouter] = None
         
+        # Log instantiation immediately
+        self.logger.info("SpeakerID plugin __init__ called - class instantiated")
+        
         # Speaker identification components
         self.speaker_system = None
         self.audio_buffer = None
@@ -38,23 +41,58 @@ class Speakerid(Baseplugin):
         self.identification_cooldown = 3.0
 
     @hookimpl
-    async def startup_async(self):
+    def startup(self):
+        """Synchronous startup hook (definitely called)"""
         try:
-            self.logger.info("SpeakerID plugin startup_async method called")
+            self.logger.info("SpeakerID plugin startup method called (sync)")
             
-            # Initialize audio buffer FIRST to prevent null errors and freezing
+            # Load settings FIRST
+            self.logger.info("Loading plugin settings...")
+            self.settings = self.get_my_settings()
+            self.logger.info(f"Settings loaded successfully: {type(self.settings)}")
+            
+            self.confidence_threshold_high = self.settings.get("confidence_threshold_high", 0.7)
+            self.confidence_threshold_low = self.settings.get("confidence_threshold_low", 0.5)
+            self.buffer_duration = self.settings.get("buffer_duration", 2.0)
+            self.min_audio_duration = self.settings.get("min_audio_duration", 1.0)
+            self.identification_cooldown = self.settings.get("identification_cooldown", 3.0)
+            
+            # Initialize audio buffer AFTER settings
+            self.logger.info("Initializing audio buffer...")
             sample_rate = 16000  # Standard for speech recognition
             buffer_size = int(self.buffer_duration * sample_rate)
             self.audio_buffer = deque(maxlen=buffer_size)
             self.logger.info(f"Audio buffer initialized: {buffer_size} samples ({self.buffer_duration}s duration)")
             
-            # Initialize minimal state to prevent crashes
-            self.speaker_system = None
+            # Initialize speaker identification system
+            voices_dir = os.path.join(self.plugin_folder, "voices")
+            embeddings_file = os.path.join(self.plugin_folder, "speaker_embeddings.pkl")
             
-            # Skip heavy SpeechBrain initialization for now to prevent freezing
-            self.logger.warning("SpeechBrain initialization skipped to prevent freezing")
+        
+            # Create voices directory if it doesn't exist
+            if not os.path.exists(voices_dir):
+                os.makedirs(voices_dir, exist_ok=True)
+                self.logger.info(f"Created voices directory: {voices_dir}")
+            
+            # Initialize SpeechBrain system
+            self.logger.info("Initializing SpeechBrain system...")
+            self.speaker_system = SpeakerIdentificationSystem(
+                voices_dir=voices_dir, 
+                embeddings_file=embeddings_file,
+                plugin_dir=self.plugin_folder  # Pass plugin folder for model storage
+            )
+            self.logger.info(f"SpeakerID plugin initialized with {len(self.speaker_system.speaker_names)} enrolled speakers")
+            
+            self._ensure_router()
+            fastapi_app = getattr(self.pm, "fastapi_app", None)
+            if fastapi_app and not getattr(self, "_router_registered", False):
+                fastapi_app.include_router(self.router)
+                self._router_registered = True
+            elif fastapi_app is None:
+                self.logger.warning("FastAPI app not available; speakerid endpoints not registered")
+            
             self.is_loaded = True
-            self.logger.info("SpeakerID plugin startup completed successfully (minimal mode)")
+            self.logger.info("SpeakerID plugin startup completed successfully (sync)")
             
         except Exception as e:
             self.logger.error(f"SpeakerID plugin startup failed: {e}")
@@ -63,7 +101,7 @@ class Speakerid(Baseplugin):
             # Initialize minimal state to prevent crashes
             self.speaker_system = None
             self.audio_buffer = deque(maxlen=32000)
-    
+
     @hookimpl
     async def process_audio_chunk(self, audio_data: bytes, sample_rate: int = 16000):
         """Process incoming audio chunks for real-time speaker identification"""
