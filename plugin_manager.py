@@ -190,6 +190,11 @@ class MyAppSpec:
         """Hook to communicate with plugins that transcription has ended"""
         pass
     
+    @pluggy.HookspecMarker(app_name)
+    async def process_audio_chunk(self, audio_data: bytes, sample_rate: int = 16000):
+        """Hook for processing audio chunks in real-time (e.g., speaker identification)"""
+        pass
+    
     '''
         ************ AI FLOW AND RAG **************
     '''
