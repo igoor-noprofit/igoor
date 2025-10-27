@@ -66,7 +66,7 @@ plugin_name/
 
 **User Data Folder**: `C:/Users/Username/AppData/Roaming/igoor/`
 - Settings: `settings.json`
-- Plugins data: `plugins/` subdirectory
+- Plugins data: `plugins/` subdirectory, containing all dynamic data from plugins
 - Logs: `logs/` (daily rotation)
 - LLM calls: `llm_invocations/` (JSON with prompts/responses)
 
