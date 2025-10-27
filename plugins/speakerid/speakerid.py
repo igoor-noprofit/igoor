@@ -139,9 +139,9 @@ class Speakerid(Baseplugin):
                 buffer_duration >= self.min_audio_duration and
                 current_time - self.last_identification_time >= self.identification_cooldown):
                 
-                await self._process_buffer_for_identification(sample_rate)
+                self._process_buffer_for_identification(sample_rate)
     
-    async def _process_buffer_for_identification(self, sample_rate: int):
+    def _process_buffer_for_identification(self, sample_rate: int):
         """Process the current audio buffer for speaker identification"""
         try:
             # Convert buffer to numpy array
@@ -160,24 +160,24 @@ class Speakerid(Baseplugin):
             # Handle different confidence levels
             if confidence >= self.confidence_threshold_high:
                 # High confidence - confirmed identification
-                await self._update_speaker_context(match, confidence, "confirmed")
+                self._update_speaker_context(match, confidence, "confirmed")
                 self.is_processing = False
                 self.logger.info(f"Speaker confirmed: {match} (confidence: {confidence:.2f})")
                 
             elif confidence >= self.confidence_threshold_low:
                 # Medium confidence - partial identification, continue processing
-                await self._update_speaker_context(match, confidence, "partial")
+                self._update_speaker_context(match, confidence, "partial")
                 self.logger.debug(f"Speaker partially identified: {match} (confidence: {confidence:.2f})")
                 
             else:
                 # Low confidence - unknown speaker, continue processing
-                await self._update_speaker_context(None, confidence, "unknown")
+                self._update_speaker_context(None, confidence, "unknown")
                 self.logger.debug(f"Speaker unknown (confidence: {confidence:.2f})")
                 
         except Exception as e:
             self.logger.error(f"Error during speaker identification: {e}")
     
-    async def _update_speaker_context(self, speaker_name: str, confidence: float, status: str):
+    def _update_speaker_context(self, speaker_name: str, confidence: float, status: str):
         """Update the context manager with current speaker information"""
         speaker_info = {
             "name": speaker_name if speaker_name else "unknown",
@@ -189,10 +189,10 @@ class Speakerid(Baseplugin):
         context_manager.update_context("current_speaker", speaker_info)
         
         # Send update to frontend
-        await self.send_message_to_frontend({
-            "type": "speaker_identification",
-            "speaker": speaker_info
-        })
+        # self.send_message_to_frontend({
+        #    "type": "speaker_identification",
+        #    "speaker": speaker_info
+        # })
 
     def _ensure_router(self):
         if self.router is not None:
