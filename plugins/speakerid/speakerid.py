@@ -1,9 +1,17 @@
 from datetime import datetime
 from typing import Any, Dict, List, Optional
+import os
+import time
+import traceback
+import numpy as np
+import threading
+from collections import deque
+from context_manager import context_manager
 
 from fastapi import APIRouter, HTTPException
 from plugin_manager import hookimpl
 from plugins.baseplugin.baseplugin import Baseplugin
+from .speechbrain import SpeakerIdentificationSystem
 
 
 class Speakerid(Baseplugin):
@@ -11,18 +19,142 @@ class Speakerid(Baseplugin):
         self.pm = pm
         super().__init__(plugin_name, pm)
         self.router: Optional[APIRouter] = None
+        
+        # Speaker identification components
+        self.speaker_system = None
+        self.audio_buffer = None
+        self.buffer_lock = threading.Lock()
+        
+        # Processing state
+        self.is_processing = False
+        self.last_identification_time = 0
+        self.current_utterance_start = 0
+        
+        # Settings (will be loaded in startup)
+        self.confidence_threshold_high = 0.7
+        self.confidence_threshold_low = 0.5
+        self.buffer_duration = 2.0
+        self.min_audio_duration = 1.0
+        self.identification_cooldown = 3.0
 
     @hookimpl
-    def startup(self):
-        self.settings = self.get_my_settings()
-        self._ensure_router()
-        fastapi_app = getattr(self.pm, "fastapi_app", None)
-        if fastapi_app and not getattr(self, "_router_registered", False):
-            fastapi_app.include_router(self.router)
-            self._router_registered = True
-        elif fastapi_app is None:
-            self.logger.warning("FastAPI app not available; speakerid endpoints not registered")
-        self.is_loaded = True
+    async def startup_async(self):
+        try:
+            self.logger.info("SpeakerID plugin startup_async method called")
+            
+            # Initialize audio buffer FIRST to prevent null errors and freezing
+            sample_rate = 16000  # Standard for speech recognition
+            buffer_size = int(self.buffer_duration * sample_rate)
+            self.audio_buffer = deque(maxlen=buffer_size)
+            self.logger.info(f"Audio buffer initialized: {buffer_size} samples ({self.buffer_duration}s duration)")
+            
+            # Initialize minimal state to prevent crashes
+            self.speaker_system = None
+            
+            # Skip heavy SpeechBrain initialization for now to prevent freezing
+            self.logger.warning("SpeechBrain initialization skipped to prevent freezing")
+            self.is_loaded = True
+            self.logger.info("SpeakerID plugin startup completed successfully (minimal mode)")
+            
+        except Exception as e:
+            self.logger.error(f"SpeakerID plugin startup failed: {e}")
+            self.logger.error(f"Traceback: {traceback.format_exc()}")
+            self.is_loaded = False
+            # Initialize minimal state to prevent crashes
+            self.speaker_system = None
+            self.audio_buffer = deque(maxlen=32000)
+    
+    @hookimpl
+    async def process_audio_chunk(self, audio_data: bytes, sample_rate: int = 16000):
+        """Process incoming audio chunks for real-time speaker identification"""
+        if not self.is_loaded or not self.speaker_system:
+            return
+        
+        # Debug audio chunk reception
+        if len(audio_data) < 100:
+            self.logger.debug(f"Received small audio chunk: {len(audio_data)} bytes")
+            return
+            
+        self.logger.debug(f"Processing audio chunk: {len(audio_data)} bytes")
+        
+        # Convert bytes to numpy array (16-bit PCM)
+        audio_array = np.frombuffer(audio_data, dtype=np.int16).astype(np.float32) / 32768.0
+        
+        with self.buffer_lock:
+            # Add to buffer
+            chunk_samples = len(audio_array)
+            for sample in audio_array:
+                self.audio_buffer.append(sample)
+            
+            # Check if we have enough audio and should process
+            buffer_duration = len(self.audio_buffer) / sample_rate
+            current_time = time.time()
+            
+            # Start new utterance if not processing
+            if not self.is_processing and buffer_duration >= self.min_audio_duration:
+                self.current_utterance_start = current_time
+                self.is_processing = True
+                self.logger.debug("Started new utterance processing")
+            
+            # Process if we're in an utterance and enough time has passed
+            if (self.is_processing and 
+                buffer_duration >= self.min_audio_duration and
+                current_time - self.last_identification_time >= self.identification_cooldown):
+                
+                await self._process_buffer_for_identification(sample_rate)
+    
+    async def _process_buffer_for_identification(self, sample_rate: int):
+        """Process the current audio buffer for speaker identification"""
+        try:
+            # Convert buffer to numpy array
+            audio_array = np.array(list(self.audio_buffer))
+            
+            # Identify speaker
+            match, confidence, top_results = self.speaker_system.identify_speaker(
+                audio_array, 
+                sample_rate=sample_rate,
+                threshold=self.confidence_threshold_low,  # Use low threshold for initial processing
+                top_k=3
+            )
+            
+            self.last_identification_time = time.time()
+            
+            # Handle different confidence levels
+            if confidence >= self.confidence_threshold_high:
+                # High confidence - confirmed identification
+                await self._update_speaker_context(match, confidence, "confirmed")
+                self.is_processing = False
+                self.logger.info(f"Speaker confirmed: {match} (confidence: {confidence:.2f})")
+                
+            elif confidence >= self.confidence_threshold_low:
+                # Medium confidence - partial identification, continue processing
+                await self._update_speaker_context(match, confidence, "partial")
+                self.logger.debug(f"Speaker partially identified: {match} (confidence: {confidence:.2f})")
+                
+            else:
+                # Low confidence - unknown speaker, continue processing
+                await self._update_speaker_context(None, confidence, "unknown")
+                self.logger.debug(f"Speaker unknown (confidence: {confidence:.2f})")
+                
+        except Exception as e:
+            self.logger.error(f"Error during speaker identification: {e}")
+    
+    async def _update_speaker_context(self, speaker_name: str, confidence: float, status: str):
+        """Update the context manager with current speaker information"""
+        speaker_info = {
+            "name": speaker_name if speaker_name else "unknown",
+            "confidence": confidence,
+            "status": status,
+            "timestamp": time.time()
+        }
+        
+        context_manager.update_context("current_speaker", speaker_info)
+        
+        # Send update to frontend
+        await self.send_message_to_frontend({
+            "type": "speaker_identification",
+            "speaker": speaker_info
+        })
 
     def _ensure_router(self):
         if self.router is not None:

@@ -216,6 +216,12 @@ class Asrwhisper(Baseplugin):
                         if len(data) == 0:
                             break
                             
+                        # Send audio chunk to speaker identification
+                        try:
+                            await self.pm.trigger_hook(hook_name="process_audio_chunk", audio_data=data, sample_rate=self.sample_rate)
+                        except Exception as e:
+                            print(f"Error sending audio chunk to speaker ID: {e}")
+                            
                         # Add data to buffer
                         audio_buffer.append(data)
                         
@@ -277,6 +283,12 @@ class Asrwhisper(Baseplugin):
                         chunk_data = self.stream.read(self.chunk_size, exception_on_overflow=False)
                         if len(chunk_data) == 0:
                             continue
+
+                        # Send audio chunk to speaker identification
+                        try:
+                            await self.pm.trigger_hook(hook_name="process_audio_chunk", audio_data=chunk_data, sample_rate=self.sample_rate)
+                        except Exception as e:
+                            print(f"Error sending audio chunk to speaker ID: {e}")
 
                         audio_buffer.append(chunk_data)
 
