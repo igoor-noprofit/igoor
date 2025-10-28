@@ -1,5 +1,8 @@
 <template>
     <div class="speakerid-topbar">
+        <span class="ready-indicator" :class="getReadyStatusClass()" :title="getReadyStatusText()">
+            {{ getReadyStatusIcon() }}
+        </span>
         <span class="speaker-icon">🎤</span>
         <span class="speaker-name" :class="currentSpeaker.name ? 'speaker-known' : 'speaker-unknown'">{{ currentSpeaker.name || 'Unknown' }}</span>
         <span class="confidence" :class="getConfidenceClass()">{{ Math.round(currentSpeaker.confidence * 100) }}%</span>
@@ -23,15 +26,58 @@ export default {
                 status: 'unknown'
             },
             isListening: true,
-            voiceLevels: new Array(20).fill(0)
+            voiceLevels: new Array(20).fill(0),
+            pluginStatus: 'loading',
+            speakerCount: 0,
+            statusMessage: 'Initializing...'
         };
     },
-    mounted() {
+    async mounted() {
         // Initialize voice level visualization
         this.startVoiceAnimation();
+        
+        // Fetch initial status from backend
+        await this.fetchStatus();
+        
+        // If not ready, poll every 2 seconds until ready
+        if (this.pluginStatus !== 'ready') {
+            const pollInterval = setInterval(async () => {
+                await this.fetchStatus();
+                
+                // Stop polling once ready
+                if (this.pluginStatus === 'ready' || this.pluginStatus === 'error') {
+                    clearInterval(pollInterval);
+                }
+            }, 2000);
+        }
     },
+    
     methods: {
-        getStatusClass() {
+        async fetchStatus() {
+            try {
+                const response = await fetch('/api/plugins/speakerid/status', {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin'
+                });
+                
+                if (response.ok) {
+                    const statusData = await response.json();
+                    this.pluginStatus = statusData.status;
+                    this.statusMessage = statusData.message || '';
+                    
+                    if (statusData.speaker_count !== undefined) {
+                        this.speakerCount = statusData.speaker_count;
+                    }
+                } else {
+                    console.warn('Failed to fetch speakerid status:', response.status);
+                }
+            } catch (error) {
+                console.warn('Error fetching speakerid status:', error);
+            }
+        },
+    
+    getStatusClass() {
             if (this.currentSpeaker.status === 'confirmed') {
                 return 'status-confirmed';
             } else if (this.currentSpeaker.status === 'partial') {
@@ -71,6 +117,42 @@ export default {
             }
         },
         
+        getReadyStatusClass() {
+            if (this.pluginStatus === 'ready') {
+                return 'ready-yes';
+            } else if (this.pluginStatus === 'loading') {
+                return 'ready-loading';
+            } else if (this.pluginStatus === 'error') {
+                return 'ready-error';
+            } else {
+                return 'ready-no';
+            }
+        },
+        
+        getReadyStatusIcon() {
+            if (this.pluginStatus === 'ready') {
+                return '✓';
+            } else if (this.pluginStatus === 'loading') {
+                return '⏳';
+            } else if (this.pluginStatus === 'error') {
+                return '⚠';
+            } else {
+                return '✗';
+            }
+        },
+        
+        getReadyStatusText() {
+            if (this.pluginStatus === 'ready') {
+                return `SpeakerID Ready (${this.speakerCount} speakers enrolled)`;
+            } else if (this.pluginStatus === 'loading') {
+                return 'SpeakerID: Loading...';
+            } else if (this.pluginStatus === 'error') {
+                return 'SpeakerID: Error initializing';
+            } else {
+                return 'SpeakerID: Not ready';
+            }
+        },
+        
         getVoiceBarHeight(level) {
             return `${Math.max(2, level * 25)}%`;
         },
@@ -97,30 +179,40 @@ export default {
     
     watch: {
         '$plugin.msg'(newVal) {
-            if (newVal && newVal.type === 'speaker_identification') {
-                // Update current speaker information
-                this.currentSpeaker = {
-                    name: newVal.speaker?.name || 'unknown',
-                    confidence: newVal.speaker?.confidence || 0.0,
-                    status: newVal.speaker?.status || 'unknown',
-                    timestamp: newVal.speaker?.timestamp || Date.now()
-                };
-                
-                // Update voice levels when speech detected
-                if (newVal.speaker && newVal.speaker.confidence > 0) {
-                    // Simulate voice activity during identification
-                    for (let i = 0; i < 10; i++) {
-                        const level = Math.random() * 0.8 + Math.random() * 0.2;
-                        this.voiceLevels[i] = level;
+            if (newVal) {
+                if (newVal.type === 'speaker_identification') {
+                    // Update current speaker information
+                    this.currentSpeaker = {
+                        name: newVal.speaker?.name || 'unknown',
+                        confidence: newVal.speaker?.confidence || 0.0,
+                        status: newVal.speaker?.status || 'unknown',
+                        timestamp: newVal.speaker?.timestamp || Date.now()
+                    };
+                    
+                    // Update voice levels when speech detected
+                    if (newVal.speaker && newVal.speaker.confidence > 0) {
+                        // Simulate voice activity during identification
+                        for (let i = 0; i < 10; i++) {
+                            const level = Math.random() * 0.8 + Math.random() * 0.2;
+                            this.voiceLevels[i] = level;
+                        }
+                    }
+                    
+                    // Reset voice levels after a moment
+                    setTimeout(() => {
+                        for (let i = 0; i < this.voiceLevels.length; i++) {
+                            this.voiceLevels[i] = this.voiceLevels[i] * 0.8;
+                        }
+                    }, 500);
+                } else if (newVal.type === 'speakerid_status') {
+                    // Handle plugin status updates
+                    this.pluginStatus = newVal.status;
+                    this.statusMessage = newVal.message || '';
+                    
+                    if (newVal.speaker_count !== undefined) {
+                        this.speakerCount = newVal.speaker_count;
                     }
                 }
-                
-                // Reset voice levels after a moment
-                setTimeout(() => {
-                    for (let i = 0; i < this.voiceLevels.length; i++) {
-                        this.voiceLevels[i] = this.voiceLevels[i] * 0.8;
-                    }
-                }, 500);
             }
         }
     }
@@ -139,6 +231,35 @@ export default {
     background: var(--color-bgheader);
     border-radius: 8px;
     white-space: nowrap;
+}
+
+.ready-indicator {
+    font-weight: bold;
+    font-size: 16px;
+    margin-right: 4px;
+    padding: 2px 6px;
+    border-radius: 12px;
+    transition: all 0.3s ease;
+}
+
+.ready-yes {
+    color: var(--basecolor-accent-700);
+    background: var(--basecolor-accent-100);
+}
+
+.ready-loading {
+    color: var(--basecolor-secondary-500);
+    background: var(--basecolor-secondary-100);
+}
+
+.ready-error {
+    color: var(--basecolor-warning-500);
+    background: var(--basecolor-warning-100);
+}
+
+.ready-no {
+    color: var(--basecolor-gray-400);
+    background: var(--basecolor-gray-100);
 }
 
 .speaker-icon {

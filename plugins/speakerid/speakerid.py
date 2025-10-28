@@ -33,6 +33,15 @@ class Speakerid(Baseplugin):
         self.last_identification_time = 0
         self.current_utterance_start = 0
         
+        # Ready status tracking
+        self.speaker_system_ready = False
+        self.initialization_complete = False
+        self._current_status = {
+            "status": "not_initialized",
+            "message": "SpeakerID not yet initialized",
+            "timestamp": time.time()
+        }
+        
         # Settings (will be loaded in startup)
         self.confidence_threshold_high = 0.7
         self.confidence_threshold_low = 0.5
@@ -78,18 +87,50 @@ class Speakerid(Baseplugin):
             self.logger.info("Initializing SpeechBrain system...")
             
             def init_speaker_system():
-                self.speaker_system = SpeakerIdentificationSystem(
-                    voices_dir=voices_dir, 
-                    embeddings_file=embeddings_file,
-                    plugin_dir=self.plugin_folder  # Pass plugin folder for model storage
-                )
-                self.logger.info(f"SpeakerID plugin initialized with {len(self.speaker_system.speaker_names)} enrolled speakers")
+                try:
+                    self.speaker_system = SpeakerIdentificationSystem(
+                        voices_dir=voices_dir, 
+                        embeddings_file=embeddings_file,
+                        plugin_dir=self.plugin_folder  # Pass plugin folder for model storage
+                    )
+                    self.speaker_system_ready = True
+                    self.initialization_complete = True
+                    
+                    speaker_count = len(self.speaker_system.speaker_names) if self.speaker_system.speaker_names else 0
+                    self.logger.info(f"SpeakerID plugin initialized with {speaker_count} enrolled speakers")
+                    
+                    # Store status for frontend to fetch later
+                    self._current_status = {
+                        "status": "ready",
+                        "speaker_count": speaker_count,
+                        "message": f"Ready - {speaker_count} speakers enrolled",
+                        "timestamp": time.time()
+                    }
+                except Exception as e:
+                    self.logger.error(f"Failed to initialize speaker system: {e}")
+                    self.initialization_complete = True
+                    self.speaker_system_ready = False
+                    
+                    # Store error status for frontend to fetch later
+                    self._current_status = {
+                        "status": "error",
+                        "error": str(e),
+                        "message": "Failed to initialize speaker identification",
+                        "timestamp": time.time()
+                    }
             
             # Start initialization in background thread to avoid blocking
             import threading
             init_thread = threading.Thread(target=init_speaker_system, daemon=True)
             init_thread.start()
             self.logger.info("SpeechBrain initialization started in background thread")
+            
+            # Initialize default status
+            self._current_status = {
+                "status": "loading",
+                "message": "Initializing speaker identification system...",
+                "timestamp": time.time()
+            }
             
             self._ensure_router()
             fastapi_app = getattr(self.pm, "fastapi_app", None)
@@ -114,11 +155,13 @@ class Speakerid(Baseplugin):
     def process_audio_chunk(self, audio_data: bytes, sample_rate: int = 16000):
         """Process incoming audio chunks for real-time speaker identification"""
         # Check if speaker system is ready
-        if self.speaker_system is None:
-            self.logger.warning("SpeechBrain system not ready yet - ignoring audio chunk")
-            return {"status": "not ready"}
-        
-        if not self.is_loaded or not self.speaker_system:
+        if self.speaker_system is None or not self.speaker_system_ready:
+            if not self.initialization_complete:
+                # Still initializing
+                return {"status": "initializing"}
+            else:
+                # Initialization completed but failed
+                return {"status": "error"}
             return
         
         # Debug audio chunk reception
@@ -205,12 +248,21 @@ class Speakerid(Baseplugin):
         self.send_message_to_frontend({
             "type": "speaker_identification",
             "speaker": speaker_info
-     })
+        })
 
     def _ensure_router(self):
         if self.router is not None:
             return
         self.router = APIRouter(prefix="/api/plugins/speakerid", tags=["speakerid"])
+
+        @self.router.get("/status")
+        async def get_status():
+            """Get the current status of the speaker identification system"""
+            status = self.get_current_status()
+            return {
+                "type": "speakerid_status",
+                **status
+            }
 
         @self.router.get("/speakers")
         async def list_speakers():
@@ -253,3 +305,22 @@ class Speakerid(Baseplugin):
         except Exception as exc:
             self.logger.error(f"Database error executing '{query}': {exc}")
             raise
+    
+    def get_current_status(self):
+        """Get the current status of the speaker identification system"""
+        return self._current_status.copy()
+    
+    def get_status_summary(self):
+        """Get a human-readable status summary"""
+        status = self._current_status.get("status", "unknown")
+        message = self._current_status.get("message", "No message")
+        
+        if status == "ready":
+            speaker_count = self._current_status.get("speaker_count", 0)
+            return f"Ready - {speaker_count} speakers enrolled"
+        elif status == "loading":
+            return "Loading speaker identification system..."
+        elif status == "error":
+            return f"Error: {message}"
+        else:
+            return message
