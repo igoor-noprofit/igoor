@@ -3,8 +3,8 @@
     "title": "Speaker ID",
     "description": "Capture and tag reference recordings for known speakers",
     "layout": {
-        "part": "settings",
-        "order": 0
+        "part": "before_logo",
+        "order": 5
     },
     "is_free": true,
     "requires_subscription": false,

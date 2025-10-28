@@ -202,10 +202,10 @@ class Speakerid(Baseplugin):
         context_manager.update_context("current_speaker", speaker_info)
         
         # Send update to frontend
-        # self.send_message_to_frontend({
-        #    "type": "speaker_identification",
-        #    "speaker": speaker_info
-        # })
+        self.send_message_to_frontend({
+            "type": "speaker_identification",
+            "speaker": speaker_info
+     })
 
     def _ensure_router(self):
         if self.router is not None:
