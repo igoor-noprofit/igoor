@@ -74,14 +74,22 @@ class Speakerid(Baseplugin):
                 os.makedirs(voices_dir, exist_ok=True)
                 self.logger.info(f"Created voices directory: {voices_dir}")
             
-            # Initialize SpeechBrain system
+            # Initialize speaker identification system in background thread
             self.logger.info("Initializing SpeechBrain system...")
-            self.speaker_system = SpeakerIdentificationSystem(
-                voices_dir=voices_dir, 
-                embeddings_file=embeddings_file,
-                plugin_dir=self.plugin_folder  # Pass plugin folder for model storage
-            )
-            self.logger.info(f"SpeakerID plugin initialized with {len(self.speaker_system.speaker_names)} enrolled speakers")
+            
+            def init_speaker_system():
+                self.speaker_system = SpeakerIdentificationSystem(
+                    voices_dir=voices_dir, 
+                    embeddings_file=embeddings_file,
+                    plugin_dir=self.plugin_folder  # Pass plugin folder for model storage
+                )
+                self.logger.info(f"SpeakerID plugin initialized with {len(self.speaker_system.speaker_names)} enrolled speakers")
+            
+            # Start initialization in background thread to avoid blocking
+            import threading
+            init_thread = threading.Thread(target=init_speaker_system, daemon=True)
+            init_thread.start()
+            self.logger.info("SpeechBrain initialization started in background thread")
             
             self._ensure_router()
             fastapi_app = getattr(self.pm, "fastapi_app", None)
@@ -103,8 +111,13 @@ class Speakerid(Baseplugin):
             self.audio_buffer = deque(maxlen=32000)
 
     @hookimpl
-    async def process_audio_chunk(self, audio_data: bytes, sample_rate: int = 16000):
+    def process_audio_chunk(self, audio_data: bytes, sample_rate: int = 16000):
         """Process incoming audio chunks for real-time speaker identification"""
+        # Check if speaker system is ready
+        if self.speaker_system is None:
+            self.logger.warning("SpeechBrain system not ready yet - ignoring audio chunk")
+            return {"status": "not ready"}
+        
         if not self.is_loaded or not self.speaker_system:
             return
         
