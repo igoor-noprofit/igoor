@@ -61,38 +61,6 @@ class Asrjs(Baseplugin):
             self.logger.warning("FastAPI app not available; asrjs endpoints not registered")
     
     @hookimpl
-    async def pause_asr(self):
-        self.is_paused = True
-        await(self.send_status("paused"))
-        
-    @hookimpl
-    async def abandon_conversation(self, cause="timeout"):
-        try:
-            print("ASRWHISPER received ABANDON_CONVERSATION trigger")
-            # Your existing logic here
-            self.wakeword_detected = False
-            await self.send_status("listening")
-            print("ASRWHISPER after_conversation_end completed successfully")
-        except Exception as e:
-            print(f"Error in ASRWHISPER after_conversation_end: {e}")
-    
-    '''
-    To support external wakeword mechanism
-    '''
-    @hookimpl
-    def wakeword_detected(self):
-        self.wakeword_detected = True
-        
-        
-    @hookimpl
-    async def change_view(self,lastview,currentview):
-        print("CHANGE VIEW IN ASRWHISPER")
-        if not self.is_paused:
-            if currentview == 'onboarding':
-                await self.pause_asr()
-    
-        
-    @hookimpl
     def restart_asr(self):
         if (self.continuous):
             self.is_paused = False
@@ -120,7 +88,6 @@ class Asrjs(Baseplugin):
         print("Model is ready to use.")
         await self.send_status("ready")
         self.send_settings_to_frontend()
-        await self.start()
         # await self.test_wake_word()
     
     def load_model(self):
@@ -175,6 +142,12 @@ class Asrjs(Baseplugin):
         elif (self.model_provider == "mistral"):
             self.model=self.settings.get("model_name", "voxtral-mini-latest")
             
+        # Create recordings directory for persistent audio files
+        recordings_dir = os.path.join(self.plugin_folder, "recordings")
+        if not os.path.exists(recordings_dir):
+            os.makedirs(recordings_dir, exist_ok=True)
+            self.logger.info(f"Created recordings directory: {recordings_dir}")
+        
         # Set up audio parameters
         self.sample_rate = 16000
         self.audio_format = pyaudio.paInt16
@@ -190,163 +163,6 @@ class Asrjs(Baseplugin):
         print(f"Wake word detected! Text: '{following_text}'")
         await self.pm.trigger_hook(hook_name="add_msg_to_conversation", msg=following_text, author="def",msg_input="asrwhisper")
         await self.pm.trigger_hook(hook_name="asr_msg", msg="Q: " + following_text)
-
-    async def start(self):
-        if (self.continuous):
-            self.wakeword_detected = False
-            print("STARTING WAKEWORD RECOGNITION")
-            await self.send_status("listening")
-            # Initialize PyAudio and start the audio stream
-            self.start_stream()
-            
-            # Create a buffer to store audio data
-            audio_buffer = []
-            silence_threshold = 500  # Adjust based on your environment
-            silence_counter = 0
-            recording = False
-            
-            try:
-                while True:
-                    if not self.is_paused:
-                        data = self.stream.read(self.chunk_size, exception_on_overflow=False)
-                        if len(data) == 0:
-                            break
-                            
-                        # Send audio chunk to speaker identification
-                        try:
-                            await self.pm.trigger_hook(hook_name="process_audio_chunk", audio_data=data, sample_rate=self.sample_rate)
-                        except Exception as e:
-                            print(f"Error sending audio chunk to speaker ID: {e}")
-                            
-                        # Add data to buffer
-                        audio_buffer.append(data)
-                        
-                        # Check if we should process the audio
-                        if self.wakeword_detected or len(audio_buffer) * self.chunk_size / self.sample_rate > 5:  # Process every 5 seconds
-                            # Convert buffer to WAV file
-                            self.save_audio_to_file(audio_buffer)
-                            
-                            # Transcribe with Groq Whisper
-                            text = await self.transcribe_audio()
-                            
-                            # Clear buffer after processing
-                            audio_buffer = []
-                            
-                            if text:
-                                text = self.clean_whisper_silence(text)
-                                if not text.strip():
-                                    await self.send_status("empty")
-                                    continue  # Skip further processing
-                                if self.wakeword_detected:
-                                    await self.handle_wake_word(text)
-                                elif self.wakeword.lower() in text.lower():
-                                    self.wakeword_detected = True
-                                    await self.send_status("recording")
-                                    following_text = text.lower().split(self.wakeword.lower(), 1)[1].strip()
-                                    if following_text:
-                                        await self.handle_wake_word(following_text)
-                    else:
-                        print("is paused...")
-                        await asyncio.sleep(0.5)
-            except KeyboardInterrupt:
-                print("\nStopping...")
-        else: # NON-CONTINUOUS MODE
-            await self.send_status("listening")
-            # VAD is now handled in frontend, no need to start stream
-            sample_rate = self.sample_rate
-            frame_duration = 30  # ms
-            frame_bytes = int(sample_rate * frame_duration / 1000) * 2  # 2 bytes per sample (16-bit)
-            silence_frames = int(self.settings.get("silence_frames", 1500) / frame_duration) 
-            max_frames = int(10000 / frame_duration)  # 10 seconds max
-            
-            while True:
-                if self.recording:
-                    await self.pm.trigger_hook(hook_name="transcribing_started")
-                    audio_buffer = []
-                    silence_counter = 0
-                    speech_started = False
-                    speech_frames = 0
-                    frame_count = 0
-                    min_frames = int(1000 / frame_duration)  # Minimum 1 second of recording
-                    
-                    print("Starting recording in non-continuous mode with VAD")
-                    recording_start = time.time()
-                    max_recording_time = self.settings.get("max_recording_time", False)  # Changed from 7 to 60 seconds maximum
-                    
-                    # Process audio with both approaches
-                    while self.recording and (time.time() - recording_start) < max_recording_time:
-                        chunk_data = self.stream.read(self.chunk_size, exception_on_overflow=False)
-                        if len(chunk_data) == 0:
-                            continue
-
-                        # Send audio chunk to speaker identification
-                        try:
-                            await self.pm.trigger_hook(hook_name="process_audio_chunk", audio_data=chunk_data, sample_rate=self.sample_rate)
-                        except Exception as e:
-                            print(f"Error sending audio chunk to speaker ID: {e}")
-
-                        audio_buffer.append(chunk_data)
-
-                        # BYPASS VAD if vad_level == -1 and self.vad is None
-                        if self.settings.get("vad_level", 2) == -1 and self.vad is None:
-                            # Just record until max_recording_time or manual stop
-                            await asyncio.sleep(0.01)
-                            continue
-
-                        # Process VAD on smaller frames
-                        for i in range(0, len(chunk_data) - frame_bytes + 1, frame_bytes):
-                            frame = chunk_data[i:i+frame_bytes]
-                            if len(frame) == frame_bytes:
-                                frame_count += 1
-                                try:
-                                    is_speech = vad.is_speech(frame, sample_rate)
-                                    if is_speech:
-                                        speech_started = True
-                                        speech_frames += 1
-                                        silence_counter = 0
-                                    elif speech_started:
-                                        silence_counter += 1
-                                except Exception as e:
-                                    print(f"VAD error: {e}")
-
-                                if (speech_started and 
-                                    silence_counter >= silence_frames and 
-                                    frame_count > min_frames):
-                                    print(f"Detected end of speech after {silence_counter} silent frames")
-                                    break
-
-                        if (speech_started and 
-                            silence_counter >= silence_frames and 
-                            frame_count > min_frames):
-                            break
-
-                        await asyncio.sleep(0.01)
-                    
-                    # Process recorded audio
-                    if len(audio_buffer) > 0:
-                        self.recording = False
-                        print(f"Processing audio: {len(audio_buffer)} chunks, speech detected: {speech_started}")
-                        self.save_audio_to_file(audio_buffer)
-                        text = await self.transcribe_audio()
-                        # Always stop recording after processing
-                        self.recording = False
-                        await self.send_status("listening")
-                        if text:
-                            text = self.clean_whisper_silence(text)
-                            if not text.strip():
-                                await self.send_status("empty")
-                            else:
-                                await self.handle_wake_word(text)
-                        else:
-                            print("No text recognized from audio")
-                            await self.send_status("empty")
-                        await self.pm.trigger_hook(hook_name="transcribing_ended")
-                    else:
-                        print("No audio recorded")
-                        self.recording = False
-                        await self.send_status("listening")
-                else:
-                    await asyncio.sleep(0.1)
 
     async def process_incoming_message(self, message):
         """Extend the base plugin's message handler with ASR-specific actions"""
@@ -437,9 +253,10 @@ class Asrjs(Baseplugin):
         """Restart ASR with the new mode settings"""
         try:
             # Stop current processing
-            if hasattr(self, 'stream') and self.stream:
-                self.stream.stop_stream()
-                self.stream.close()
+            # Stream is now handled by frontend, no cleanup needed
+            # if hasattr(self, 'stream') and self.stream:
+            #     self.stream.stop_stream()
+            #     self.stream.close()
             if hasattr(self, 'p') and self.p:
                 self.p.terminate()
             
@@ -547,12 +364,35 @@ class Asrjs(Baseplugin):
         
         self.router = APIRouter(prefix="/api/plugins/asrjs", tags=["asrjs"])
         
+        @self.router.post("/start_recording")
+        async def start_recording_endpoint():
+            """Start recording via HTTP endpoint"""
+            try:
+                await self.send_status("recording")
+                await self.pm.trigger_hook(hook_name="transcribing_started")
+                return {"status": "started"}
+            except Exception as e:
+                self.logger.error(f"Error starting recording: {e}")
+                raise HTTPException(status_code=500, detail=str(e))
+
+        @self.router.post("/stop_recording")
+        async def stop_recording_endpoint():
+            """Stop recording via HTTP endpoint"""
+            try:
+                await self.send_status("listening")
+                await self.pm.trigger_hook(hook_name="transcribing_ended")
+                return {"status": "stopped"}
+            except Exception as e:
+                self.logger.error(f"Error stopping recording: {e}")
+                raise HTTPException(status_code=500, detail=str(e))
+
         @self.router.post("/transcribe")
         async def transcribe_endpoint(audio_file: UploadFile = File(...)):
             """Receive complete audio file for transcription"""
             try:
-                # Save uploaded file to temp location
-                temp_file_path = os.path.join(self.plugin_folder, f"temp_upload_{int(time.time())}.wav")
+                # Save uploaded file with timestamp for persistence
+                timestamp = int(time.time())
+                temp_file_path = os.path.join(self.plugin_folder, f"recordings/recording_{timestamp}.wav")
                 
                 with open(temp_file_path, 'wb') as f:
                     content = await audio_file.read()
@@ -569,11 +409,11 @@ class Asrjs(Baseplugin):
                 # Restore original temp file path
                 self.temp_audio_file = original_temp_file
                 
-                # Clean up uploaded file
-                try:
-                    os.remove(temp_file_path)
-                except:
-                    pass
+                # Audio file persists in recordings folder, no cleanup needed
+                # try:
+                #     os.remove(temp_file_path)
+                # except:
+                #     pass
                 
                 if text:
                     text = self.clean_whisper_silence(text)
@@ -604,3 +444,35 @@ class Asrjs(Baseplugin):
         if text == "." or text == " ." or not text:
             return ""
         return text
+        
+        
+    @hookimpl
+    async def pause_asr(self):
+        self.is_paused = True
+        await(self.send_status("paused"))
+        
+    @hookimpl
+    async def abandon_conversation(self, cause="timeout"):
+        try:
+            print("ASRWHISPER received ABANDON_CONVERSATION trigger")
+            # Your existing logic here
+            self.wakeword_detected = False
+            await self.send_status("listening")
+            print("ASRWHISPER after_conversation_end completed successfully")
+        except Exception as e:
+            print(f"Error in ASRWHISPER after_conversation_end: {e}")
+    
+    '''
+    To support external wakeword mechanism
+    '''
+    @hookimpl
+    def wakeword_detected(self):
+        self.wakeword_detected = True
+        
+        
+    @hookimpl
+    async def change_view(self,lastview,currentview):
+        print("CHANGE VIEW IN ASRWHISPER")
+        if not self.is_paused:
+            if currentview == 'onboarding':
+                await self.pause_asr()

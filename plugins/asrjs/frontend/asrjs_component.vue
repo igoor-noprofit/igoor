@@ -258,6 +258,20 @@ export default {
             return new Blob([buffer], { type: 'audio/wav' });
         },
 
+        $_writeWavHeader(view, numberOfChannels, sampleRate, length) {
+            // Write WAV file header
+            view.setUint32(0, 0x46464949, true); // "RIFF"
+            view.setUint32(4, 36 + length * numberOfChannels * 2, true); // File size + 36 (header)
+            view.setUint32(8, 0x57415645, true); // "WAVE"
+            view.setUint32(12, sampleRate, true); // Sample rate
+            view.setUint32(16, 0x10000001, true); // PCM format
+            view.setUint16(20, numberOfChannels, true); // Number of channels
+            view.setUint32(22, sampleRate * 2, true); // Byte rate
+            view.setUint16(34, numberOfChannels * 2, true); // Block align
+            view.setUint32(36, 0x61746164, true); // "data"
+            view.setUint32(40, length * numberOfChannels * 2, true); // Data size
+        },
+
         $_writeString(view, offset, string) {
             for (let i = 0; i < string.length; i++) {
                 view.setUint8(offset + i, string.charCodeAt(i));
@@ -292,13 +306,55 @@ export default {
             }
         },
 
+        async $_startRecording() {
+            // Start recording via FastAPI endpoint
+            try {
+                const response = await fetch('http://127.0.0.1:9714/api/plugins/asrjs/start_recording', {
+                    method: 'POST'
+                });
+                
+                if (response.ok) {
+                    console.log('Recording started');
+                } else {
+                    console.error('Error starting recording:', response.status);
+                }
+            } catch (error) {
+                console.error('Error starting recording:', error);
+            }
+        },
+
+        async $_stopRecording() {
+            // Stop recording via FastAPI endpoint
+            try {
+                const response = await fetch('http://127.0.0.1:9714/api/plugins/asrjs/stop_recording', {
+                    method: 'POST'
+                });
+                
+                if (response.ok) {
+                    console.log('Recording stopped');
+                } else {
+                    console.error('Error stopping recording:', response.status);
+                }
+            } catch (error) {
+                console.error('Error stopping recording:', error);
+            }
+        },
+
+
+
         async $_sendAudioToTranscribe(audioBlob) {
             // Send complete audio to ASR transcription endpoint
             try {
+                // Convert blob to base64 directly (backend will handle format)
                 const base64Audio = await this.$_blobToBase64(audioBlob);
                 
+                console.log('Sending audio to transcribe:', {
+                    blobSize: audioBlob.size,
+                    base64Length: base64Audio.length
+                });
+                
                 const formData = new FormData();
-                formData.append('audio_file', base64Audio, 'recording.wav');
+                formData.append('audio_file', base64Audio, 'recording.webm');
                 
                 const response = await fetch('http://127.0.0.1:9714/api/plugins/asrjs/transcribe', {
                     method: 'POST',
@@ -309,7 +365,7 @@ export default {
                     const result = await response.json();
                     console.log('Transcription result:', result);
                 } else {
-                    console.error('Error transcribing audio:', response.status);
+                    console.error('Error transcribing audio:', response.status, await response.text());
                 }
             } catch (error) {
                 console.error('Error sending audio to transcribe:', error);
@@ -398,25 +454,23 @@ export default {
                 if (this.status === 'listening' || this.status === 'ready') {
                     // Manual push-to-talk: start recording
                     this.status = 'recording';
-                    this.sendMsgToBackend({ action: 'start_recording' });
+                    await this.$_startRecording();
                 } else if (this.status === 'recording') {
-                    // Stop recording
-                    this.status = 'listening';
-                    
-                    // Send complete audio file for transcription
+                    alert('ending');
+                    // Send complete audio for transcription
                     if (this.audioChunks.length > 0) {
-                        // Combine chunks into a single blob
                         const audioBlob = new Blob(this.audioChunks, { type: 'audio/webm' });
-                        
-                        // Send to HTTP endpoint
                         await this.$_sendAudioToTranscribe(audioBlob);
                     }
+                    else{
+                        console.warn("No audio chunks to send for transcription");
+                    }
+                    // Stop recording and send for transcription
+                    this.status = 'listening';
+                    await this.$_stopRecording();
                     
                     // Clear audio chunks
                     this.audioChunks = [];
-                    
-                    // Also send stop recording signal
-                    this.sendMsgToBackend({ action: 'stop_recording' });
                 }
             } else {
                 console.warn("Cannot click when in continuous mode");
