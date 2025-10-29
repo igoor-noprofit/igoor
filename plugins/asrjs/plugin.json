@@ -1,0 +1,13 @@
+{
+    "category": "ASR",
+    "title": "ASR JavaScript",
+    "description": "JavaScript-based ASR with local API endpoints for transcription and speaker identification",
+    "layout": {
+        "part": "header",
+        "order": 0
+    },
+    "is_free": true,
+    "requires_subscription": true,
+    "requires_internet": true,
+    "has_settings": true
+}

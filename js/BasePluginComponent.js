@@ -44,12 +44,8 @@ module.exports = {
         const response = await fetch(url);
         if (!response.ok) throw new Error(`Could not load ${url}`);
         this.translations = await response.json();
-        console.log(
-          `Loaded translations for ${pluginName}:`,
-          this.translations
-        );
       } catch (e) {
-        // console.warn("Translation loading failed:", e);
+        console.warn(`Translation loading failed in `+ pluginName, e);
         this.translations = {};
       }
     },
