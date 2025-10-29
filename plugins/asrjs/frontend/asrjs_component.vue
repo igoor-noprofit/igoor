@@ -116,17 +116,52 @@ export default {
                 // Request microphone permission
                 const stream = await navigator.mediaDevices.getUserMedia({ 
                     audio: {
-                        sampleRate: 16000,
+                        sampleRate: { ideal: 48000, max: 48000 },  // Use 48kHz (better quality than 16kHz)
                         channelCount: 1,
-                        echoCancellation: true,
-                        noiseSuppression: true
+                        echoCancellation: false,
+                        noiseSuppression: false,
+                        autoGainControl: false,
+                        volume: 1.0,  // Force maximum volume
+                        latency: 0    // Minimal latency
                     } 
                 });
                 
                 this.mediaStream = stream;
-                this.mediaRecorder = new MediaRecorder(stream, {
-                    mimeType: 'audio/webm'
-                });
+                // Try different audio formats in order of preference
+                let mimeType = 'audio/webm;codecs=opus';
+                if (!MediaRecorder.isTypeSupported(mimeType)) {
+                    mimeType = 'audio/webm';
+                }
+                if (!MediaRecorder.isTypeSupported(mimeType)) {
+                    mimeType = 'audio/mp4'; // Fallback for Safari
+                }
+                
+                console.log('Using MediaRecorder MIME type:', mimeType);
+                console.log('Audio stream track settings:', stream.getAudioTracks()[0].getSettings());
+                
+                // Debug: Check audio stream levels
+                const audioContext = new AudioContext();
+                const source = audioContext.createMediaStreamSource(stream);
+                const analyser = audioContext.createAnalyser();
+                analyser.fftSize = 256;
+                source.connect(analyser);
+                
+                const dataArray = new Uint8Array(analyser.frequencyBinCount);
+                
+                // Monitor audio levels
+                let levelCount = 0;
+                const monitorAudio = () => {
+                    analyser.getByteFrequencyData(dataArray);
+                    const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
+                    levelCount++;
+                    if (average > 5 && levelCount % 30 === 0) { // Log every ~30 frames when audio detected
+                        console.log(`Audio level: ${average.toFixed(2)} (0-255 scale)`);
+                    }
+                    requestAnimationFrame(monitorAudio);
+                };
+                monitorAudio();
+                
+                this.mediaRecorder = new MediaRecorder(stream, { mimeType });
                 
                 // Don't start recorder here - only start when user clicks
                 // this.mediaRecorder.start(100); // Request data every 100ms
