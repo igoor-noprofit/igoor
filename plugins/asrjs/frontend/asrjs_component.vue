@@ -300,15 +300,6 @@ export default {
             }
         },
 
-        async $_blobToBase64(blob) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onloadend = () => resolve(reader.result.split(',')[1]);
-                reader.onerror = reject;
-                reader.readAsDataURL(blob);
-            });
-        },
-
         async $_checkSpeakerIDStatus() {
             // Check if speakerid plugin is active before sending chunks
             try {
@@ -406,16 +397,13 @@ export default {
         async $_sendAudioToTranscribe(audioBlob) {
             // Send complete audio to ASR transcription endpoint
             try {
-                // Convert blob to base64 directly (backend will handle format)
-                const base64Audio = await this.$_blobToBase64(audioBlob);
-                
                 console.log('Sending audio to transcribe:', {
                     blobSize: audioBlob.size,
-                    base64Length: base64Audio.length
+                    blobType: audioBlob.type
                 });
                 
                 const formData = new FormData();
-                formData.append('audio_file', base64Audio, 'recording.webm');
+                formData.append('audio_file', audioBlob, 'recording.webm');
                 
                 const response = await fetch('http://127.0.0.1:9714/api/plugins/asrjs/transcribe', {
                     method: 'POST',
