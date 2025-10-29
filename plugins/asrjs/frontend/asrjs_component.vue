@@ -41,6 +41,9 @@ export default {
         
         // Set status to listening since we're not using VAD
         this.status = 'listening';
+        
+        // Initialize microphone access
+        await this.$_initializeMicrophone();
     },
     beforeDestroy() {
         window.removeEventListener('keydown', this.$_handleKeyPress);
@@ -49,6 +52,14 @@ export default {
         // if (this.vad) {
         //     this.vad.destroy();
         // }
+        
+        // Cleanup microphone and media recorder
+        if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
+            this.mediaRecorder.stop();
+        }
+        if (this.mediaStream) {
+            this.mediaStream.getTracks().forEach(track => track.stop());
+        }
     },
     methods: {
         // $_loadVADLibrary() {
@@ -99,6 +110,30 @@ export default {
         //         document.head.appendChild(script);
         //     });
         // },
+
+        async $_initializeMicrophone() {
+            try {
+                // Request microphone permission
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: {
+                        sampleRate: 16000,
+                        channelCount: 1,
+                        echoCancellation: true,
+                        noiseSuppression: true
+                    } 
+                });
+                
+                this.mediaStream = stream;
+                this.mediaRecorder = new MediaRecorder(stream, {
+                    mimeType: 'audio/webm'
+                });
+                
+                console.log('Microphone initialized successfully');
+            } catch (error) {
+                console.error('Error accessing microphone:', error);
+                this.status = 'error';
+            }
+        },
 
         // async $_initializeVAD() {
         //     try {
