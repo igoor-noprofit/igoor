@@ -21,8 +21,8 @@ export default {
             audio: {},
             continuous: false,
             keyboardShortcut: null,
-            vad: null, // Store VAD instance
-            vadInitialized: false,
+            // vad: null, // Store VAD instance - COMMENTED OUT
+            // vadInitialized: false,
             audioChunks: [] // Store audio chunks for transcription
         };
     },
@@ -36,136 +36,139 @@ export default {
     async mounted() {
         window.addEventListener('keydown', this.$_handleKeyPress);
         
-        // Load VAD library dynamically, then initialize
-        await this.$_loadVADLibrary();
+        // Load VAD library dynamically, then initialize - COMMENTED OUT
+        // await this.$_loadVADLibrary();
+        
+        // Set status to listening since we're not using VAD
+        this.status = 'listening';
     },
     beforeDestroy() {
         window.removeEventListener('keydown', this.$_handleKeyPress);
         
-        // Cleanup VAD
-        if (this.vad) {
-            this.vad.destroy();
-        }
+        // Cleanup VAD - COMMENTED OUT
+        // if (this.vad) {
+        //     this.vad.destroy();
+        // }
     },
     methods: {
-        $_loadVADLibrary() {
-            return new Promise((resolve, reject) => {
-                // Check if already loaded
-                if (window.vad) {
-                    console.log('VAD library already loaded, skipping');
-                    resolve();
-                    return;
-                }
+        // $_loadVADLibrary() {
+        //     return new Promise((resolve, reject) => {
+        //         // Check if already loaded
+        //         if (window.vad) {
+        //             console.log('VAD library already loaded, skipping');
+        //             resolve();
+        //             return;
+        //         }
 
-                // Check if script tag already exists (prevents duplicate loading)
-                const existingScript = document.querySelector('script[src="/plugins/asrjs/static/vad/bundle.min.js"]');
-                if (existingScript) {
-                    console.log('VAD library script already added, waiting for load...');
-                    // Wait for it to load
-                    const checkInterval = setInterval(async() => {
-                        if (window.vad) {
-                            clearInterval(checkInterval);
-                            console.log('VAD library ready');
-                            await this.$_initializeVAD();
-                            resolve();
-                        }
-                        else{
-                            console.log('Waiting for VAD library to load...');
-                        }
-                    }, 100);
-                    return;
-                }
+        //         // Check if script tag already exists (prevents duplicate loading)
+        //         const existingScript = document.querySelector('script[src="/plugins/asrjs/static/vad/bundle.min.js"]');
+        //         if (existingScript) {
+        //             console.log('VAD library script already added, waiting for load...');
+        //             // Wait for it to load
+        //             const checkInterval = setInterval(async() => {
+        //                 if (window.vad) {
+        //                     clearInterval(checkInterval);
+        //                     console.log('VAD library ready');
+        //                     await this.$_initializeVAD();
+        //                     resolve();
+        //                 }
+        //                 else{
+        //                     console.log('Waiting for VAD library to load...');
+        //                 }
+        //             }, 100);
+        //             return;
+        //         }
 
-                // Create script element
-                const script = document.createElement('script');
-                script.src = '/plugins/asrjs/static/vad/bundle.min.js';
-                script.async = true;
+        //         // Create script element
+        //         const script = document.createElement('script');
+        //         script.src = '/plugins/asrjs/static/vad/bundle.min.js';
+        //         script.async = true;
                 
-                script.onload = () => {
-                    console.log('VAD library loaded successfully');
-                    resolve();
-                };
+        //         script.onload = () => {
+        //             console.log('VAD library loaded successfully');
+        //             resolve();
+        //         };
                 
-                script.onerror = () => {
-                    console.error('Failed to load VAD library');
-                    this.status = 'error';
-                    reject(new Error('Failed to load VAD library'));
-                };
+        //         script.onerror = () => {
+        //             console.error('Failed to load VAD library');
+        //             this.status = 'error';
+        //             reject(new Error('Failed to load VAD library'));
+        //         };
                 
-                // Append to document
-                document.head.appendChild(script);
-            });
-        },
+        //         // Append to document
+        //         document.head.appendChild(script);
+        //     });
+        // },
 
-        async $_initializeVAD() {
-            try {
-                // VAD library should now be loaded
-                if (!window.vad) {
-                    throw new Error('VAD library not available');
-                }
+        // async $_initializeVAD() {
+        //     try {
+        //         // VAD library should now be loaded
+        //         if (!window.vad) {
+        //             throw new Error('VAD library not available');
+        //         }
 
-                this.vad = await window.vad.MicVAD.new({
-                    // If bundling locally, specify paths:
-                    baseAssetPath: "/plugins/asrjs/static/vad-assets",
-                    onnxWASMBasePath: "/plugins/asrjs/static/onnx-wasm",
+        //         this.vad = await window.vad.MicVAD.new({
+        //             // If bundling locally, specify paths:
+        //             baseAssetPath: "/plugins/asrjs/static/vad-assets",
+        //             onnxWASMBasePath: "/plugins/asrjs/static/onnx-wasm",
                     
-                    // VAD configuration
-                    positiveSpeechThreshold: 0.5,
-                    negativeSpeechThreshold: 0.35,
-                    redemptionFrames: 8,
-                    preSpeechPadFrames: 1,
-                    minSpeechFrames: 3,
+        //             // VAD configuration
+        //             positiveSpeechThreshold: 0.5,
+        //             negativeSpeechThreshold: 0.35,
+        //             redemptionFrames: 8,
+        //             preSpeechPadFrames: 1,
+        //             minSpeechFrames: 3,
                     
-                    // Callbacks
-                    onSpeechStart: () => {
-                        console.log("Speech started");
-                        this.audioChunks = [];
-                        if (this.continuous) {
-                            this.status = 'recording';
-                            this.audio.on.play();
-                        }
-                    },
+        //             // Callbacks
+        //             onSpeechStart: () => {
+        //                 console.log("Speech started");
+        //                 this.audioChunks = [];
+        //                 if (this.continuous) {
+        //                     this.status = 'recording';
+        //                     this.audio.on.play();
+        //                 }
+        //             },
                     
-                    onSpeechEnd: (audio) => {
-                        console.log("Speech ended", audio);
-                        if (this.continuous || this.status === 'recording') {
-                            this.$_processAudio(audio);
-                            this.audio.off.play();
-                        }
-                    },
+        //             onSpeechEnd: (audio) => {
+        //                 console.log("Speech ended", audio);
+        //                 if (this.continuous || this.status === 'recording') {
+        //                     this.$_processAudio(audio);
+        //                     this.audio.off.play();
+        //                 }
+        //             },
                     
-                    onVADMisfire: () => {
-                        console.log("VAD misfire - false positive");
-                        this.status = 'empty';
-                        this.audio.off.play();
-                        setTimeout(() => {
-                            this.status = 'listening';
-                        }, 500);
-                    }
-                });
+        //             onVADMisfire: () => {
+        //                 console.log("VAD misfire - false positive");
+        //                 this.status = 'empty';
+        //                 this.audio.off.play();
+        //                 setTimeout(() => {
+        //                     this.status = 'listening';
+        //                 }, 500);
+        //             }
+        //         });
 
-                this.vadInitialized = true;
-                this.status = 'ready';
-                console.log('VAD initialized successfully');
+        //         this.vadInitialized = true;
+        //         this.status = 'ready';
+        //         console.log('VAD initialized successfully');
                 
-            } catch (error) {
-                console.error('Failed to initialize VAD:', error);
-                this.status = 'error';
-            }
-        },
+        //     } catch (error) {
+        //         console.error('Failed to initialize VAD:', error);
+        //         this.status = 'error';
+        //     }
+        // },
 
-        async $_processAudio(audioData) {
-            // Convert Float32Array audio to WAV blob
-            const wavBlob = this.$_audioToWav(audioData);
+        // async $_processAudio(audioData) {
+        //     // Convert Float32Array audio to WAV blob
+        //     const wavBlob = this.$_audioToWav(audioData);
             
-            // Send to backend for transcription
-            this.sendMsgToBackend({
-                action: 'transcribe_audio',
-                audio: await this.$_blobToBase64(wavBlob)
-            });
+        //     // Send to backend for transcription
+        //     this.sendMsgToBackend({
+        //         action: 'transcribe_audio',
+        //         audio: await this.$_blobToBase64(wavBlob)
+        //     });
             
-            this.status = 'transcribing';
-        },
+        //     this.status = 'transcribing';
+        // },
 
         $_audioToWav(float32Array) {
             // Convert Float32Array to WAV format
@@ -248,19 +251,20 @@ export default {
         $_toggleMode() {
             this.continuous = !this.continuous;
             
-            if (this.continuous) {
-                // Start VAD listening
-                if (this.vad && this.vadInitialized) {
-                    this.vad.start();
-                    this.status = 'listening';
-                }
-            } else {
-                // Pause VAD
-                if (this.vad) {
-                    this.vad.pause();
-                    this.status = 'ready';
-                }
-            }
+            // VAD functionality commented out
+            // if (this.continuous) {
+            //     // Start VAD listening
+            //     if (this.vad && this.vadInitialized) {
+            //         this.vad.start();
+            //         this.status = 'listening';
+            //     }
+            // } else {
+            //     // Pause VAD
+            //     if (this.vad) {
+            //         this.vad.pause();
+            //         this.status = 'ready';
+            //     }
+            // }
             
             this.sendMsgToBackend({
                 action: 'set_continuous_mode',
@@ -295,19 +299,19 @@ export default {
         $_handleMicClick() {
             if (!this.continuous) {
                 if (this.status === 'listening' || this.status === 'ready') {
-                    // Manual push-to-talk: start VAD
-                    if (this.vad) {
-                        this.vad.start();
+                    // Manual push-to-talk: start VAD - COMMENTED OUT
+                    // if (this.vad) {
+                    //     this.vad.start();
                         this.status = 'recording';
                         this.sendMsgToBackend({ action: 'start_recording' });
-                    }
+                    // }
                 } else if (this.status === 'recording') {
-                    // Stop recording
-                    if (this.vad) {
-                        this.vad.pause();
+                    // Stop recording - COMMENTED OUT
+                    // if (this.vad) {
+                    //     this.vad.pause();
                         this.status = 'listening';
                         this.sendMsgToBackend({ action: 'stop_recording' });
-                    }
+                    // }
                 }
             } else {
                 console.warn("Cannot click when in continuous mode");
