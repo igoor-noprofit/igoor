@@ -131,7 +131,7 @@ export default {
                 // Don't start recorder here - only start when user clicks
                 // this.mediaRecorder.start(100); // Request data every 100ms
                 
-                // Set up audio chunk streaming
+                // Set up audio chunk collection and streaming
                 this.audioChunks = [];
                 this.mediaRecorder.ondataavailable = (event) => {
                     if (event.data.size > 0) {
@@ -141,10 +141,10 @@ export default {
                             chunksCount: this.audioChunks.length
                         });
                         
-                        // Send chunk to speakerid via HTTP endpoint
+                        // Send chunk to speakerid via HTTP endpoint (during recording)
                         this.$_sendChunkToSpeakerID(event.data);
                         
-                        // Also store for final transcription
+                        // Also store for final transcription (complete file after recording stops)
                         this.audioChunks.push(event.data);
                     }
                 };
@@ -337,7 +337,7 @@ export default {
                 return;
             }
             
-            // Send audio chunk to speakerid HTTP endpoint
+            // Send audio chunk to speakerid HTTP endpoint (during recording)
             try {
                 const formData = new FormData();
                 formData.append('audio_data', chunk, 'chunk.webm');
@@ -356,7 +356,13 @@ export default {
         },
 
         async $_startRecording() {
-            // Start recording via FastAPI endpoint
+            // Start MediaRecorder to actually collect audio chunks
+            if (this.mediaRecorder && this.mediaRecorder.state === 'inactive') {
+                this.mediaRecorder.start(100); // Request data every 100ms
+                console.log('MediaRecorder started');
+            }
+            
+            // Also notify backend via FastAPI endpoint
             try {
                 const response = await fetch('http://127.0.0.1:9714/api/plugins/asrjs/start_recording', {
                     method: 'POST'
@@ -373,7 +379,13 @@ export default {
         },
 
         async $_stopRecording() {
-            // Stop recording via FastAPI endpoint
+            // Stop MediaRecorder to stop collecting audio chunks
+            if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
+                this.mediaRecorder.stop();
+                console.log('MediaRecorder stopped, chunks collected:', this.audioChunks.length);
+            }
+            
+            // Also notify backend via FastAPI endpoint
             try {
                 const response = await fetch('http://127.0.0.1:9714/api/plugins/asrjs/stop_recording', {
                     method: 'POST'
@@ -511,7 +523,10 @@ export default {
                     this.status = 'recording';
                     await this.$_startRecording();
                 } else if (this.status === 'recording') {
-                    // Send complete audio for transcription
+                    // Stop recording first
+                    await this.$_stopRecording();
+                    
+                    // Send complete audio for transcription AFTER recording stops
                     if (this.audioChunks.length > 0) {
                         const audioBlob = new Blob(this.audioChunks, { type: 'audio/webm' });
                         await this.$_sendAudioToTranscribe(audioBlob);
@@ -519,11 +534,9 @@ export default {
                     else{
                         console.warn("No audio chunks to send for transcription");
                     }
-                    // Stop recording and send for transcription
-                    this.status = 'listening';
-                    await this.$_stopRecording();
                     
-                    // Clear audio chunks
+                    // Update status and clear audio chunks
+                    this.status = 'listening';
                     this.audioChunks = [];
                 }
             } else {
