@@ -8,7 +8,7 @@ import threading
 from collections import deque
 from context_manager import context_manager
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, File, UploadFile
 from plugin_manager import hookimpl
 from plugins.baseplugin.baseplugin import Baseplugin
 from .speechbrain import SpeakerIdentificationSystem
@@ -298,6 +298,26 @@ class Speakerid(Baseplugin):
                 "SELECT id, recorder_id, speakers_id FROM records ORDER BY id DESC"
             ) or []
             return rows
+
+        @self.router.post("/process_audio")
+        async def process_audio_endpoint(audio_data: UploadFile = File(...)):
+            """Receive audio chunks for real-time speaker identification"""
+            try:
+                # Read audio data from uploaded file
+                audio_bytes = await audio_data.read()
+                
+                # Forward to existing hook implementation
+                result = await self.pm.trigger_hook(
+                    "process_audio_chunk", 
+                    audio_data=audio_bytes, 
+                    sample_rate=16000
+                )
+                
+                return {"status": "received", "result": result}
+                
+            except Exception as e:
+                self.logger.error(f"Error processing audio in endpoint: {e}")
+                raise HTTPException(status_code=500, detail=str(e))
 
     def db_execute_sync(self, query: str, params: tuple = ()):
         try:

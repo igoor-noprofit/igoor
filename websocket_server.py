@@ -59,7 +59,11 @@ class WebSocketHub:
             return
 
         try:
-            handler(message)
+            # Check if handler is async and await it if needed
+            if asyncio.iscoroutinefunction(handler):
+                await handler(message)
+            else:
+                handler(message)
         except Exception as exc:
             print(f"ERROR: Error processing message for {plugin_name}: {exc}")
 

@@ -7,6 +7,8 @@ import asyncio
 import pyaudio
 import wave
 import groq
+from typing import Optional
+from fastapi import APIRouter, UploadFile, File, HTTPException
 from utils import setup_logger, get_base_language_code
 
 class Asrjs(Baseplugin):
@@ -45,6 +47,18 @@ class Asrjs(Baseplugin):
         
         monitor_thread = threading.Thread(target=self.run_monitor_loading, daemon=True)
         monitor_thread.start()
+        
+        # Initialize FastAPI router
+        self.router: Optional[APIRouter] = None
+        self._ensure_router()
+        
+        # Register router with FastAPI app
+        fastapi_app = getattr(self.pm, "fastapi_app", None)
+        if fastapi_app and not getattr(self, "_router_registered", False):
+            fastapi_app.include_router(self.router)
+            self._router_registered = True
+        elif fastapi_app is None:
+            self.logger.warning("FastAPI app not available; asrjs endpoints not registered")
     
     @hookimpl
     async def pause_asr(self):
@@ -238,8 +252,7 @@ class Asrjs(Baseplugin):
                 print("\nStopping...")
         else: # NON-CONTINUOUS MODE
             await self.send_status("listening")
-            self.start_stream()
-            # VAD is now handled in frontend
+            # VAD is now handled in frontend, no need to start stream
             sample_rate = self.sample_rate
             frame_duration = 30  # ms
             frame_bytes = int(sample_rate * frame_duration / 1000) * 2  # 2 bytes per sample (16-bit)
@@ -335,7 +348,7 @@ class Asrjs(Baseplugin):
                 else:
                     await asyncio.sleep(0.1)
 
-    def process_incoming_message(self, message):
+    async def process_incoming_message(self, message):
         """Extend the base plugin's message handler with ASR-specific actions"""
         try:
             data = json.loads(message)
@@ -354,6 +367,66 @@ class Asrjs(Baseplugin):
                     elif data['action'] == 'stop_recording':
                         self.recording = False
                         asyncio.create_task(self.send_status("listening"))
+                    elif data['action'] == 'trigger_hook':
+                        # Handle hook triggers from frontend
+                        hook_name = data.get('hook_name')
+                        if hook_name == 'transcribing_started':
+                            asyncio.create_task(self.send_status("transcribing"))
+                            # Trigger to other plugins if needed
+                            await self.pm.trigger_hook(hook_name="transcribing_started")
+                        else:
+                            self.logger.warning(f"Unknown hook trigger: {hook_name}")
+                    elif data['action'] == 'process_audio_chunk':
+                        # Handle audio chunks from frontend for speaker identification
+                        audio_data = data.get('audio_data')
+                        if audio_data:
+                            await self.pm.trigger_hook(
+                                hook_name="process_audio_chunk", 
+                                audio_data=audio_data.encode('utf-8') if isinstance(audio_data, str) else audio_data,
+                                sample_rate=16000
+                            )
+                    elif data['action'] == 'transcribe_audio':
+                        # Handle complete audio file for transcription
+                        audio_base64 = data.get('audio')
+                        if audio_base64:
+                            import base64
+                            # Decode base64 to binary
+                            audio_bytes = base64.b64decode(audio_base64)
+                            
+                            # Save to temp file for existing transcription logic
+                            temp_file_path = os.path.join(self.plugin_folder, f"temp_upload_{int(time.time())}.wav")
+                            
+                            # Convert webm blob to WAV file
+                            # For now, assume it's already in WAV format from frontend
+                            with open(temp_file_path, 'wb') as f:
+                                f.write(audio_bytes)
+                            
+                            # Update temp_audio_file path for existing transcription logic
+                            original_temp_file = self.temp_audio_file
+                            self.temp_audio_file = temp_file_path
+                            
+                            # Transcribe audio
+                            text = await self.transcribe_audio()
+                            
+                            # Restore original temp file path
+                            self.temp_audio_file = original_temp_file
+                            
+                            # Clean up uploaded file
+                            try:
+                                os.remove(temp_file_path)
+                            except:
+                                pass
+                            
+                            if text:
+                                text = self.clean_whisper_silence(text)
+                                # Handle transcription result
+                                await self.handle_wake_word(text)
+                            
+                            # Send result back to frontend
+                            await self.send_message_to_frontend({
+                                "type": "transcription_result",
+                                "text": text
+                            })
                 else:
                     # If not an ASR-specific action, let the base plugin handle it
                     super().process_incoming_message(message)
@@ -379,7 +452,7 @@ class Asrjs(Baseplugin):
             await self.send_status("ready")
             
             # Restart with new mode
-            await self.start()
+            # No need to start stream, we'll use HTTP endpoints
         except Exception as e:
             print(f"Error during ASR restart: {e}")
             await self.send_status("error")
@@ -467,6 +540,52 @@ class Asrjs(Baseplugin):
             self.logger.error(f"Groq transcription error: {e}")
             return ""
         
+    def _ensure_router(self):
+        """Initialize FastAPI router with transcription endpoint"""
+        if self.router is not None:
+            return
+        
+        self.router = APIRouter(prefix="/api/plugins/asrjs", tags=["asrjs"])
+        
+        @self.router.post("/transcribe")
+        async def transcribe_endpoint(audio_file: UploadFile = File(...)):
+            """Receive complete audio file for transcription"""
+            try:
+                # Save uploaded file to temp location
+                temp_file_path = os.path.join(self.plugin_folder, f"temp_upload_{int(time.time())}.wav")
+                
+                with open(temp_file_path, 'wb') as f:
+                    content = await audio_file.read()
+                    f.write(content)
+                
+                # Use existing transcription methods
+                # Update temp_audio_file path for existing transcription logic
+                original_temp_file = self.temp_audio_file
+                self.temp_audio_file = temp_file_path
+                
+                # Transcribe the audio
+                text = await self.transcribe_audio()
+                
+                # Restore original temp file path
+                self.temp_audio_file = original_temp_file
+                
+                # Clean up uploaded file
+                try:
+                    os.remove(temp_file_path)
+                except:
+                    pass
+                
+                if text:
+                    text = self.clean_whisper_silence(text)
+                    # Handle transcription result
+                    await self.handle_wake_word(text)
+                
+                return {"status": "success", "text": text}
+                
+            except Exception as e:
+                self.logger.error(f"Error transcribing audio: {e}")
+                raise HTTPException(status_code=500, detail=str(e))
+    
     def clean_whisper_silence(self, text):
         print(f"Transcribed text: {text}")
         """Remove known silence artifacts from Whisper output."""

@@ -128,6 +128,18 @@ export default {
                     mimeType: 'audio/webm'
                 });
                 
+                // Set up audio chunk streaming
+                this.audioChunks = [];
+                this.mediaRecorder.ondataavailable = (event) => {
+                    if (event.data.size > 0) {
+                        // Send chunk to speakerid via HTTP endpoint
+                        this.$_sendChunkToSpeakerID(event.data);
+                        
+                        // Also store for final transcription
+                        this.audioChunks.push(event.data);
+                    }
+                };
+                
                 console.log('Microphone initialized successfully');
             } catch (error) {
                 console.error('Error accessing microphone:', error);
@@ -261,6 +273,49 @@ export default {
             });
         },
 
+        async $_sendChunkToSpeakerID(chunk) {
+            // Send audio chunk to speakerid HTTP endpoint
+            try {
+                const formData = new FormData();
+                formData.append('audio_data', chunk, 'chunk.webm');
+                
+                const response = await fetch('http://127.0.0.1:9714/api/plugins/speakerid/process_audio', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) {
+                    console.error('Error sending audio chunk to speakerid:', response.status);
+                }
+            } catch (error) {
+                console.error('Error sending chunk to speakerid:', error);
+            }
+        },
+
+        async $_sendAudioToTranscribe(audioBlob) {
+            // Send complete audio to ASR transcription endpoint
+            try {
+                const base64Audio = await this.$_blobToBase64(audioBlob);
+                
+                const formData = new FormData();
+                formData.append('audio_file', base64Audio, 'recording.wav');
+                
+                const response = await fetch('http://127.0.0.1:9714/api/plugins/asrjs/transcribe', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    console.log('Transcription result:', result);
+                } else {
+                    console.error('Error transcribing audio:', response.status);
+                }
+            } catch (error) {
+                console.error('Error sending audio to transcribe:', error);
+            }
+        },
+
         $_handleKeyPress(event) {
             console.log("Key pressed:", event.key, "with modifiers:", {
                 ctrl: event.ctrlKey,
@@ -323,6 +378,13 @@ export default {
                         this.keyboardShortcut = this.settings.shortcut;
                     }
                 }
+                if (data.type === "transcription_result") {
+                    // Handle transcription result from backend
+                    console.log('Transcription result:', data.text);
+                    if (data.text && data.text.trim()) {
+                        this.status = 'listening';
+                    }
+                }
                 if (data.status) {
                     this.status = data.status;
                 }
@@ -331,27 +393,35 @@ export default {
             }
         },
 
-        $_handleMicClick() {
+        async $_handleMicClick() {
             if (!this.continuous) {
                 if (this.status === 'listening' || this.status === 'ready') {
-                    // Manual push-to-talk: start VAD - COMMENTED OUT
-                    // if (this.vad) {
-                    //     this.vad.start();
-                        this.status = 'recording';
-                        this.sendMsgToBackend({ action: 'start_recording' });
-                    // }
+                    // Manual push-to-talk: start recording
+                    this.status = 'recording';
+                    this.sendMsgToBackend({ action: 'start_recording' });
                 } else if (this.status === 'recording') {
-                    // Stop recording - COMMENTED OUT
-                    // if (this.vad) {
-                    //     this.vad.pause();
-                        this.status = 'listening';
-                        this.sendMsgToBackend({ action: 'stop_recording' });
-                    // }
+                    // Stop recording
+                    this.status = 'listening';
+                    
+                    // Send complete audio file for transcription
+                    if (this.audioChunks.length > 0) {
+                        // Combine chunks into a single blob
+                        const audioBlob = new Blob(this.audioChunks, { type: 'audio/webm' });
+                        
+                        // Send to HTTP endpoint
+                        await this.$_sendAudioToTranscribe(audioBlob);
+                    }
+                    
+                    // Clear audio chunks
+                    this.audioChunks = [];
+                    
+                    // Also send stop recording signal
+                    this.sendMsgToBackend({ action: 'stop_recording' });
                 }
             } else {
                 console.warn("Cannot click when in continuous mode");
             }
-        }
+        },
     },
     watch: {
         status(newStatus, oldStatus) {
