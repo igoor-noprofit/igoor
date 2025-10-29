@@ -343,7 +343,7 @@ def start_webview():
         
         # Start webview
         logger.info("Starting webview...")
-        webview.start(debug=debug_enabled)
+        webview.start(debug=debug_enabled,private_mode=False)
         logger.info("✓ Webview started successfully")
         
     except Exception as e:
