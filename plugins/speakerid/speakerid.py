@@ -134,6 +134,9 @@ class Speakerid(Baseplugin):
             
             self._ensure_router()
             fastapi_app = getattr(self.pm, "fastapi_app", None)
+            self.logger.info(f"FastAPI app available: {fastapi_app is not None}")
+            self.logger.info(f"Router registered: {getattr(self, '_router_registered', False)}")
+            
             if fastapi_app and not getattr(self, "_router_registered", False):
                 fastapi_app.include_router(self.router)
                 self._router_registered = True

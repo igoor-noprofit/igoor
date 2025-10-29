@@ -128,10 +128,19 @@ export default {
                     mimeType: 'audio/webm'
                 });
                 
+                // Don't start recorder here - only start when user clicks
+                // this.mediaRecorder.start(100); // Request data every 100ms
+                
                 // Set up audio chunk streaming
                 this.audioChunks = [];
                 this.mediaRecorder.ondataavailable = (event) => {
                     if (event.data.size > 0) {
+                        console.log('Audio chunk received:', {
+                            size: event.data.size,
+                            type: event.data.type,
+                            chunksCount: this.audioChunks.length
+                        });
+                        
                         // Send chunk to speakerid via HTTP endpoint
                         this.$_sendChunkToSpeakerID(event.data);
                         
@@ -141,6 +150,19 @@ export default {
                 };
                 
                 console.log('Microphone initialized successfully');
+                
+                // Debug MediaRecorder
+                console.log('MediaRecorder initial state:', this.mediaRecorder.state);
+                
+                // Add event listener to debug state changes
+                this.mediaRecorder.addEventListener('start', () => {
+                    console.log('MediaRecorder started');
+                });
+                
+                this.mediaRecorder.addEventListener('stop', () => {
+                    console.log('MediaRecorder stopped, chunks collected:', this.audioChunks.length);
+                });
+                
             } catch (error) {
                 console.error('Error accessing microphone:', error);
                 this.status = 'error';
@@ -287,7 +309,34 @@ export default {
             });
         },
 
+        async $_checkSpeakerIDStatus() {
+            // Check if speakerid plugin is active before sending chunks
+            try {
+                const response = await fetch('http://127.0.0.1:9714/api/plugins/speakerid/status');
+                
+                if (response.ok) {
+                    const statusData = await response.json();
+                    console.log('SpeakerID status:', statusData);
+                    return true;
+                } else {
+                    console.warn('SpeakerID plugin not available, skipping chunk sending');
+                    return false;
+                }
+            } catch (error) {
+                console.error('Error checking speakerid status:', error);
+                return false;
+            }
+        },
+
         async $_sendChunkToSpeakerID(chunk) {
+            // Check if speakerid is available before sending chunks
+            const isSpeakerIDActive = await this.$_checkSpeakerIDStatus();
+            
+            if (!isSpeakerIDActive) {
+                console.log('SpeakerID not active, skipping chunk');
+                return;
+            }
+            
             // Send audio chunk to speakerid HTTP endpoint
             try {
                 const formData = new FormData();
@@ -450,13 +499,18 @@ export default {
         },
 
         async $_handleMicClick() {
+            console.log('$_handleMicClick called', {
+                status: this.status,
+                continuous: this.continuous,
+                chunksLength: this.audioChunks.length
+            });
+            
             if (!this.continuous) {
                 if (this.status === 'listening' || this.status === 'ready') {
                     // Manual push-to-talk: start recording
                     this.status = 'recording';
                     await this.$_startRecording();
                 } else if (this.status === 'recording') {
-                    alert('ending');
                     // Send complete audio for transcription
                     if (this.audioChunks.length > 0) {
                         const audioBlob = new Blob(this.audioChunks, { type: 'audio/webm' });
