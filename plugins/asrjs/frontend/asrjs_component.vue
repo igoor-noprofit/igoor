@@ -138,7 +138,7 @@ export default {
                 this.mediaStream = stream;
                 
                 // Store actual sample rate for reference
-                const actualSampleRate = settings.sampleRate || 48000;
+                this.actualSampleRate = settings.sampleRate || 48000;
                 
                 // Try different audio formats in order of preference
                 let mimeType = 'audio/webm;codecs=opus';
@@ -151,13 +151,13 @@ export default {
                 
                 console.log('Using MediaRecorder MIME type:', mimeType);
                 console.log('Audio stream settings:', {
-                    sampleRate: actualSampleRate,
+                    sampleRate: this.actualSampleRate,
                     channelCount: settings.channelCount,
                     volume: settings.volume
                 });
                 
                 // Debug: Check audio stream levels
-                const audioContext = new AudioContext({ sampleRate: actualSampleRate });
+                const audioContext = new AudioContext({ sampleRate: this.actualSampleRate });
                 const source = audioContext.createMediaStreamSource(stream);
                 const analyser = audioContext.createAnalyser();
                 analyser.fftSize = 256;
@@ -172,7 +172,7 @@ export default {
                     const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
                     levelCount++;
                     if (average > 5 && levelCount % 30 === 0) { // Log every ~30 frames when audio detected
-                        console.log(`Audio level: ${average.toFixed(2)} (0-255 scale) at ${actualSampleRate} Hz`);
+                        console.log(`Audio level: ${average.toFixed(2)} (0-255 scale) at ${this.actualSampleRate} Hz`);
                     }
                     requestAnimationFrame(monitorAudio);
                 };
@@ -412,7 +412,7 @@ export default {
             try {
                 const formData = new FormData();
                 formData.append('audio_data', chunk, 'chunk.webm');
-                formData.append('sample_rate', '48000'); // Send actual sample rate
+                formData.append('sample_rate', this.actualSampleRate.toString()); // Send actual sample rate from stream
                 
                 const response = await fetch('http://127.0.0.1:9714/api/plugins/speakerid/process_audio', {
                     method: 'POST',
@@ -597,7 +597,7 @@ export default {
                     
                     // Send complete audio for transcription AFTER recording stops
                     if (this.audioChunks.length > 0) {
-                        const audioBlob = new Blob(this.audioChunks, { type: 'audio/webm' });
+                        const audioBlob = new Blob(this.audioChunks, { type: 'audio/webm;codecs=opus' });
                         await this.$_sendAudioToTranscribe(audioBlob);
                     }
                     else{
