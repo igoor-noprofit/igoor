@@ -12,6 +12,7 @@ from fastapi import APIRouter, HTTPException, File, UploadFile
 from plugin_manager import hookimpl
 from plugins.baseplugin.baseplugin import Baseplugin
 from .speechbrain import SpeakerIdentificationSystem
+import time  # For timestamp
 
 
 class Speakerid(Baseplugin):
@@ -311,39 +312,62 @@ class Speakerid(Baseplugin):
             ) or []
             return rows
 
-        @self.router.post("/process_audio")
-        async def process_audio_endpoint(audio_data: UploadFile = File(...), sample_rate: Optional[int] = None):
-            """Receive audio chunks for real-time speaker identification"""
+        @self.router.post("/identify_speaker")
+        async def identify_speaker_endpoint(audio_file: UploadFile = File(...), sample_rate: Optional[int] = None):
+            """Receive complete audio file for speaker identification"""
             try:
                 # Read audio data from uploaded file
-                audio_bytes = await audio_data.read()
+                audio_bytes = await audio_file.read()
                 
                 # Use provided sample rate or default to 48kHz
                 effective_sample_rate = sample_rate if sample_rate is not None else 48000
                 
-                self.logger.debug(f"Processing audio chunk via HTTP endpoint: {len(audio_bytes)} bytes at {effective_sample_rate} Hz")
+                self.logger.info(f"Processing audio file for speaker identification: {len(audio_bytes)} bytes at {effective_sample_rate} Hz")
                 
                 # Convert WebM to PCM if needed
-                if audio_data.content_type and 'webm' in audio_data.content_type:
-                    # Convert WebM/Opus to raw PCM for speaker identification
-                    pcm_data = await self._convert_webm_to_pcm(audio_bytes, effective_sample_rate)
+                if audio_file.content_type and 'webm' in audio_file.content_type:
+                    # Save the uploaded WebM file to plugin's recordings folder
+                    timestamp = int(time.time())
+                    recordings_dir = os.path.join(self.plugin_folder, "recordings")
+                    if not os.path.exists(recordings_dir):
+                        os.makedirs(recordings_dir, exist_ok=True)
+                    
+                    webm_file_path = os.path.join(recordings_dir, f"identification_{timestamp}.webm")
+                    with open(webm_file_path, 'wb') as f:
+                        f.write(audio_bytes)
+                    
+                    self.logger.info(f"Saved WebM file for speaker identification: {webm_file_path}")
+                    
+                    # Convert WebM/Opus to raw PCM for speaker identification using FFmpeg
+                    pcm_data = await self._convert_webm_to_pcm_ffmpeg(None, effective_sample_rate, webm_file_path)
                     if pcm_data is not None:
-                        audio_bytes = pcm_data
-                        effective_sample_rate = 16000  # Resample to 16kHz for speaker ID
+                        # Identify speaker from converted PCM data
+                        match, score, top_results = self._identify_from_pcm_data(pcm_data)
+                        
+                        return {
+                            "status": "success", 
+                            "speaker": match, 
+                            "confidence": score, 
+                            "top_results": top_results,
+                            "sample_rate": 16000,
+                            "webm_file": webm_file_path  # Return file path for reference
+                        }
                     else:
-                        self.logger.warning("Failed to convert WebM to PCM, using raw data")
-                
-                # Forward to existing hook implementation
-                result = await self.pm.trigger_hook(
-                    "process_audio_chunk", 
-                    audio_data=audio_bytes, 
-                    sample_rate=effective_sample_rate
-                )
-                
-                return {"status": "received", "result": result, "sample_rate": effective_sample_rate}
+                        self.logger.error("Failed to convert WebM to PCM")
+                        return {"status": "error", "message": "Audio conversion failed"}
+                else:
+                    # Handle non-WebM files (WAV, etc.)
+                    match, score, top_results = self._identify_from_pcm_data(audio_bytes, effective_sample_rate)
+                    return {
+                        "status": "success", 
+                        "speaker": match, 
+                        "confidence": score, 
+                        "top_results": top_results,
+                        "sample_rate": effective_sample_rate
+                    }
                 
             except Exception as e:
-                self.logger.error(f"Error processing audio in endpoint: {e}")
+                self.logger.error(f"Error processing audio file: {e}")
                 raise HTTPException(status_code=500, detail=str(e))
 
     def db_execute_sync(self, query: str, params: tuple = ()):
@@ -356,6 +380,130 @@ class Speakerid(Baseplugin):
     def get_current_status(self):
         """Get the current status of the speaker identification system"""
         return self._current_status.copy()
+    
+    async def _convert_webm_to_pcm_ffmpeg(self, webm_data: bytes, input_sample_rate: int, webm_file_path: Optional[str] = None) -> Optional[bytes]:
+        """
+        Convert WebM/Opus audio data to raw PCM bytes using FFmpeg
+        
+        Args:
+            webm_data: Raw WebM audio data
+            input_sample_rate: Input sample rate (usually 48000)
+            webm_file_path: Path to existing WebM file (if available)
+            
+        Returns:
+            Raw PCM audio data as bytes (16-bit signed, mono, 16kHz)
+        """
+        import tempfile
+        import asyncio
+        import os
+        
+        try:
+            # If WebM file path provided, use it directly instead of creating temp
+            if webm_file_path and os.path.exists(webm_file_path):
+                webm_path = webm_file_path
+                self.logger.debug(f"Using existing WebM file: {webm_path}")
+            else:
+                # Create temporary file from data
+                with tempfile.NamedTemporaryFile(suffix='.webm', delete=False) as temp_webm_file:
+                    temp_webm_file.write(webm_data)
+                    webm_path = temp_webm_file.name
+                self.logger.debug(f"Created temporary WebM file: {webm_path}")
+            
+            # Create temporary WAV output file
+            with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as wav_file:
+                wav_path = wav_file.name
+            
+            # Use FFmpeg for conversion
+            def convert_with_ffmpeg():
+                import subprocess
+                cmd = [
+                    'ffmpeg', '-y', '-i', webm_path,  # -y to overwrite
+                    '-ar', '16000',  # Sample rate 16kHz for SpeechBrain
+                    '-ac', '1',      # Mono
+                    '-f', 's16le',   # 16-bit little-endian PCM
+                    '-loglevel', 'error',  # Reduce verbosity
+                    wav_path
+                ]
+                
+                self.logger.debug(f"Running FFmpeg: {' '.join(cmd)}")
+                result = subprocess.run(cmd, capture_output=True, timeout=30)  # Increased timeout
+                
+                if result.returncode == 0:
+                    # Read converted WAV and extract PCM data (skip header)
+                    with open(wav_path, 'rb') as f:
+                        f.seek(44)  # Skip WAV header
+                        pcm_data = f.read()
+                        self.logger.debug(f"FFmpeg converted {len(pcm_data)} bytes of PCM")
+                        return pcm_data
+                else:
+                    self.logger.error(f"FFmpeg conversion failed: {result.stderr.decode()}")
+                    return None
+            
+            # Run conversion in executor to avoid blocking
+            loop = asyncio.get_event_loop()
+            pcm_data = await loop.run_in_executor(None, convert_with_ffmpeg)
+            
+            if pcm_data:
+                self.logger.info(f"Successfully converted WebM to PCM: {len(pcm_data)} bytes")
+                return pcm_data
+            else:
+                self.logger.error("FFmpeg conversion returned no data")
+                
+        except Exception as e:
+            self.logger.error(f"FFmpeg WebM to PCM conversion failed: {e}")
+            import traceback
+            self.logger.error(f"Traceback: {traceback.format_exc()}")
+            
+        finally:
+            # Clean up temporary files (only if we created them)
+            try:
+                if 'webm_path' in locals() and (webm_file_path is None or webm_path != webm_file_path):
+                    os.unlink(webm_path)
+                    self.logger.debug(f"Cleaned up temporary WebM file: {webm_path}")
+                if 'wav_path' in locals():
+                    os.unlink(wav_path)
+                    self.logger.debug("Cleaned up temporary WAV file")
+            except Exception as e:
+                self.logger.warning(f"Failed to clean up temporary files: {e}")
+        
+        return None
+    
+    def _identify_from_pcm_data(self, pcm_data: bytes, sample_rate: int = 16000) -> tuple:
+        """
+        Identify speaker from raw PCM data
+        
+        Args:
+            pcm_data: Raw PCM audio data (16-bit signed, little-endian)
+            sample_rate: Sample rate of PCM data
+            
+        Returns:
+            tuple: (best_match_name, similarity_score, top_results)
+        """
+        if self.speaker_system is None or not self.speaker_system_ready:
+            return None, 0.0, []
+        
+        # Convert bytes to numpy array (16-bit PCM)
+        audio_array = np.frombuffer(pcm_data, dtype=np.int16).astype(np.float32) / 32768.0
+        
+        try:
+            # Identify speaker using SpeechBrain system
+            match, confidence, top_results = self.speaker_system.identify_speaker(
+                audio_array, 
+                sample_rate=sample_rate,
+                threshold=self.confidence_threshold_low,  # Use low threshold for identification
+                top_k=3
+            )
+            
+            # Prepare results in format expected by frontend
+            formatted_results = []
+            for name, score in top_results:
+                formatted_results.append({"name": name, "score": float(score)})
+            
+            return match, confidence, formatted_results
+            
+        except Exception as e:
+            self.logger.error(f"Error during speaker identification: {e}")
+            return None, 0.0, []
     
     def get_status_summary(self):
         """Get a human-readable status summary"""

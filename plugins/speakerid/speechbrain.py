@@ -12,6 +12,8 @@ import webrtcvad
 import pyaudio
 import collections
 import time
+import wave
+from pathlib import Path
 from array import array
 
 # Suppress warnings
@@ -238,7 +240,10 @@ class SpeakerIdentificationSystem:
             tuple: (best_match_name, similarity_score, top_k_results)
         """
         if self.index is None or len(self.speaker_names) == 0:
+            print("No speakers enrolled - returning empty results")
             return None, 0.0, []
+        
+        print(f"Identifying speaker from audio: {len(audio_data)} samples at {sample_rate} Hz")
         
         # Extract embedding
         test_embedding = self.extract_embedding_from_audio(audio_data, sample_rate)
@@ -259,7 +264,47 @@ class SpeakerIdentificationSystem:
         best_match = results[0][0] if results[0][1] >= threshold else None
         best_score = results[0][1] if results else 0.0
         
+        print(f"Speaker identification result: {best_match} (confidence: {best_score:.2f})")
+        print(f"Top {len(results)} matches: {[(name, f'{score:.2f}') for name, score in results]}")
+        
+        # Save processed audio as WAV for debugging
+        self.save_processed_audio(audio_data, sample_rate, "speakerid_result")
+        
         return best_match, best_score, results
+    
+    def save_processed_audio(self, audio_data, sample_rate: int, filename_prefix: str = "processed"):
+        """Save processed audio data as WAV file for debugging"""
+        import tempfile
+        
+        try:
+            # Create recordings directory if it doesn't exist
+            import os
+            from pathlib import Path
+            
+            recordings_dir = Path("./recordings")
+            recordings_dir.mkdir(exist_ok=True)
+            
+            # Save as WAV file
+            timestamp = int(time.time())
+            wav_path = recordings_dir / f"{filename_prefix}_{timestamp}.wav"
+            
+            # Convert numpy array back to int16
+            audio_int16 = (audio_data * 32767).astype(np.int16)
+            
+            # Write WAV file
+            import wave
+            with wave.open(str(wav_path), 'wb') as wav_file:
+                wav_file.setnchannels(1)
+                wav_file.setsampwidth(2)
+                wav_file.setframerate(sample_rate)
+                wav_file.writeframes(audio_int16.tobytes())
+            
+            print(f"Saved processed audio as WAV: {wav_path}")
+            return str(wav_path)
+            
+        except Exception as e:
+            print(f"Failed to save processed audio: {e}")
+            return None
     
     def save_embeddings(self):
         """Save embeddings and speaker names to disk"""

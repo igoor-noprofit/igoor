@@ -183,7 +183,7 @@ export default {
                 // Don't start recorder here - only start when user clicks
                 // this.mediaRecorder.start(100); // Request data every 100ms
                 
-                // Set up audio chunk collection and streaming
+                // Set up audio chunk collection
                 this.audioChunks = [];
                 this.mediaRecorder.ondataavailable = (event) => {
                     if (event.data.size > 0) {
@@ -193,10 +193,7 @@ export default {
                             chunksCount: this.audioChunks.length
                         });
                         
-                        // Send chunk to speakerid via HTTP endpoint (during recording)
-                        this.$_sendChunkToSpeakerID(event.data);
-                        
-                        // Also store for final transcription (complete file after recording stops)
+                        // Only store chunks for final processing (no real-time sending)
                         this.audioChunks.push(event.data);
                     }
                 };
@@ -401,29 +398,32 @@ export default {
             }
         },
 
-        async $_sendChunkToSpeakerID(chunk) {
+        async $_sendAudioToSpeakerID(audioBlob) {
             // Use cached speakerid availability (no API calls)
             if (!this.speakerIdAvailable) {
-                console.log('SpeakerID not available (cached), skipping chunk');
+                console.log('SpeakerID not available (cached), skipping identification');
                 return;
             }
             
-            // Send audio chunk to speakerid HTTP endpoint (during recording)
+            // Send complete audio file to speakerid for identification
             try {
                 const formData = new FormData();
-                formData.append('audio_data', chunk, 'chunk.webm');
-                formData.append('sample_rate', this.actualSampleRate.toString()); // Send actual sample rate from stream
+                formData.append('audio_file', audioBlob, 'recording.webm');
+                formData.append('sample_rate', this.actualSampleRate.toString());
                 
-                const response = await fetch('http://127.0.0.1:9714/api/plugins/speakerid/process_audio', {
+                const response = await fetch('http://127.0.0.1:9714/api/plugins/speakerid/identify_speaker', {
                     method: 'POST',
                     body: formData
                 });
                 
                 if (!response.ok) {
-                    console.error('Error sending audio chunk to speakerid:', response.status);
+                    console.error('Error sending audio to speakerid:', response.status);
+                } else {
+                    const result = await response.json();
+                    console.log('Speaker identification result:', result);
                 }
             } catch (error) {
-                console.error('Error sending chunk to speakerid:', error);
+                console.error('Error sending audio to speakerid:', error);
             }
         },
 
@@ -595,13 +595,18 @@ export default {
                     // Stop recording first
                     await this.$_stopRecording();
                     
-                    // Send complete audio for transcription AFTER recording stops
+                    // Send complete audio to BOTH APIs after recording stops
                     if (this.audioChunks.length > 0) {
                         const audioBlob = new Blob(this.audioChunks, { type: 'audio/webm;codecs=opus' });
+                        
+                        // Send to ASR for transcription
                         await this.$_sendAudioToTranscribe(audioBlob);
+                        
+                        // Send to SpeakerID for identification
+                        await this.$_sendAudioToSpeakerID(audioBlob);
                     }
                     else{
-                        console.warn("No audio chunks to send for transcription");
+                        console.warn("No audio chunks to send for processing");
                     }
                     
                     // Update status and clear audio chunks
