@@ -19,6 +19,7 @@ from utils import (
 from websocket_server import websocket_server
 from plugin_manager import PluginManager
 from settings_manager import SettingsManager
+from context_manager import context_manager
 
 
 class UpdateSettingsPayload(BaseModel):
@@ -111,6 +112,10 @@ def create_app() -> FastAPI:
         except Exception as exc:
             raise HTTPException(status_code=500, detail=str(exc))
         return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+    @api_router.get("/context")
+    async def api_get_context():
+        return context_manager.get_context()
 
     app.include_router(api_router)
 
