@@ -292,7 +292,7 @@ export default {
 .speaker-name {
     flex: 1;
     font-weight: 600;
-    color: var(--color-text);
+    color: #fff;
 }
 
 .speaker-known {

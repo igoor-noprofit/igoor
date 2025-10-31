@@ -1,7 +1,7 @@
 {
     "selected_speaker": null,
-    "confidence_threshold_high": 0.7,
-    "confidence_threshold_low": 0.5,
+    "confidence_threshold_high": 0.62,
+    "confidence_threshold_low": 0.45,
     "buffer_duration": 2.0,
     "min_audio_duration": 1.0,
     "identification_cooldown": 3.0

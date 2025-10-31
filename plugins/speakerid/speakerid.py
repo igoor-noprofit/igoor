@@ -13,6 +13,7 @@ from plugin_manager import hookimpl
 from plugins.baseplugin.baseplugin import Baseplugin
 from .speechbrain import SpeakerIdentificationSystem
 import time  # For timestamp
+from types import SimpleNamespace
 
 
 class Speakerid(Baseplugin):
@@ -52,6 +53,29 @@ class Speakerid(Baseplugin):
         
         # Audio settings - will be updated based on actual input
         self.sample_rate = 48000  # Default to 48kHz to match microphone
+        
+        # Speaker ID status
+        self.reset_state()
+       
+    def reset_state(self):
+        """Reset internal state for new conversation/session"""
+        self.last_speakers = []
+        self.last_speaker = SimpleNamespace(id=False,confidence=-10)
+        '''
+        with self.buffer_lock:
+            if self.audio_buffer is not None:
+                self.audio_buffer.clear()
+        self.is_processing = False
+        self.last_identification_time = 0
+        self.current_utterance_start = 0
+        self.logger.info("SpeakerID plugin state has been reset")       
+        '''
+ 
+    @hookimpl
+    def abandon_conversation(self,cause):
+        self.reset_state()
+        # SEND MESSAGE TO FRONTEND THAT SPEAKERID HAS RESET
+        self.send_message_to_frontend({"action":"speakerid_reset"})
 
     @hookimpl
     def startup(self):
@@ -226,10 +250,12 @@ class Speakerid(Baseplugin):
             
             self.last_identification_time = time.time()
             
+            ''' TO RESTORE WHEN PROCESSING LIVE AUDIO CHUNKS 
             # Handle different confidence levels
             if confidence >= self.confidence_threshold_high:
                 # High confidence - confirmed identification
                 self._update_speaker_context(match, confidence, "confirmed")
+                self.last_speaker_id = match
                 self.is_processing = False
                 self.logger.info(f"Speaker confirmed: {match} (confidence: {confidence:.2f})")
                 
@@ -242,11 +268,16 @@ class Speakerid(Baseplugin):
                 # Low confidence - unknown speaker, continue processing
                 self._update_speaker_context(None, confidence, "unknown")
                 self.logger.debug(f"Speaker unknown (confidence: {confidence:.2f})")
+            '''
                 
         except Exception as e:
             self.logger.error(f"Error during speaker identification: {e}")
     
+    
+    
+    
     def _update_speaker_context(self, speaker_name: str, confidence: float, status: str):
+        print("UPDATING SPEAKER CONTEXT with:", speaker_name, confidence, status)
         """Update the context manager with current speaker information"""
         speaker_info = {
             "name": speaker_name if speaker_name else "unknown",
@@ -255,7 +286,7 @@ class Speakerid(Baseplugin):
             "timestamp": time.time()
         }
         
-        context_manager.update_context("current_speaker", speaker_info)
+        context_manager.update_context("speaker_info", speaker_info)
         
         # Send update to frontend
         self.send_message_to_frontend({
@@ -344,31 +375,27 @@ class Speakerid(Baseplugin):
                         # Identify speaker from converted PCM data
                         match, score, top_results = self._identify_from_pcm_data(pcm_data)
                         # Send identification result directly to SpeakerID frontend
-                        
+                       
                         if match and score >= self.confidence_threshold_low:
-                            self.send_message_to_frontend({
-                                "type": "speaker_identification",
-                                "speaker": {
-                                    "name": match,
-                                    "confidence": score,
-                                    "status": "confirmed" if score >= self.confidence_threshold_low else "partial",
-                                    "timestamp": time.time()
-                                }
-                            })
-                            self.logger.info(f"Sent speaker identification to frontend: {match} (confidence: {score:.2f})")
+                            if (not self.last_speaker.id):
+                                self.new_speaker_found(match, score,top_results)
+                            elif (self.last_speaker.id != match) and (self.last_speaker.confidence < score):
+                                self.new_speaker_found(match, score,top_results)
+                            else:
+                                print("No new speaker")
                         else:
-                            # Low confidence - still send but with unknown status
-                            self.send_message_to_frontend({
-                                "type": "speaker_identification", 
-                                "speaker": {
-                                    "name": "unknown",
-                                    "confidence": score,
-                                    "status": "unknown",
-                                    "timestamp": time.time()
-                                }
-                            })
+                            if (not self.last_speaker.id): 
+                                # Low confidence - still send but with unknown status
+                                self.send_message_to_frontend({
+                                    "type": "speaker_identification", 
+                                    "speaker": {
+                                        "name": "unknown",
+                                        "confidence": score,
+                                        "status": "unknown",
+                                        "timestamp": time.time()
+                                    }
+                                })
                             self.logger.debug(f"Sent unknown speaker identification to frontend (confidence: {score:.2f})")
-                        
                         return {
                             "status": "success", 
                             "speaker": {
@@ -403,6 +430,21 @@ class Speakerid(Baseplugin):
                 self.logger.error(f"Error processing audio file: {e}")
                 raise HTTPException(status_code=500, detail=str(e))
 
+    def new_speaker_found(self, match, score, top_results):  
+        """Handle new speaker found event"""
+        self.last_speaker.id = match
+        self.last_speaker.confidence = score
+        self.send_message_to_frontend({
+            "type": "speaker_identification",
+            "speaker": {
+                "name": match,
+                "confidence": score,
+                "status": "confirmed" if score >= self.confidence_threshold_low else "partial",
+                "timestamp": time.time()
+            }
+        })
+        self.logger.info(f"New speaker found: {match} (score: {score:.2f})")
+        
     def db_execute_sync(self, query: str, params: tuple = ()):
         try:
             return super().db_execute_sync(query, params)
