@@ -65,7 +65,7 @@ class Speakerid(Baseplugin):
             self.logger.info(f"Settings loaded successfully: {type(self.settings)}")
             
             self.confidence_threshold_high = self.settings.get("confidence_threshold_high", 0.7)
-            self.confidence_threshold_low = self.settings.get("confidence_threshold_low", 0.5)
+            self.confidence_threshold_low = self.settings.get("confidence_threshold_low", 0.4)  # Match frontend threshold
             self.buffer_duration = self.settings.get("buffer_duration", 2.0)
             self.min_audio_duration = self.settings.get("min_audio_duration", 1.0)
             self.identification_cooldown = self.settings.get("identification_cooldown", 3.0)
@@ -343,16 +343,46 @@ class Speakerid(Baseplugin):
                     if pcm_data is not None:
                         # Identify speaker from converted PCM data
                         match, score, top_results = self._identify_from_pcm_data(pcm_data)
+                        # Send identification result directly to SpeakerID frontend
+                        
+                        if match and score >= self.confidence_threshold_low:
+                            self.send_message_to_frontend({
+                                "type": "speaker_identification",
+                                "speaker": {
+                                    "name": match,
+                                    "confidence": score,
+                                    "status": "confirmed" if score >= self.confidence_threshold_low else "partial",
+                                    "timestamp": time.time()
+                                }
+                            })
+                            self.logger.info(f"Sent speaker identification to frontend: {match} (confidence: {score:.2f})")
+                        else:
+                            # Low confidence - still send but with unknown status
+                            self.send_message_to_frontend({
+                                "type": "speaker_identification", 
+                                "speaker": {
+                                    "name": "unknown",
+                                    "confidence": score,
+                                    "status": "unknown",
+                                    "timestamp": time.time()
+                                }
+                            })
+                            self.logger.debug(f"Sent unknown speaker identification to frontend (confidence: {score:.2f})")
                         
                         return {
                             "status": "success", 
-                            "speaker": match, 
-                            "confidence": score, 
+                            "speaker": {
+                                "name": match,
+                                "confidence": score,
+                                "status": "confirmed" if score >= self.confidence_threshold_low else "partial"
+                            }, 
                             "top_results": top_results,
                             "sample_rate": 16000,
                             "webm_file": webm_file_path  # Return file path for reference
                         }
+                        
                     else:
+                        # WebM conversion failed
                         self.logger.error("Failed to convert WebM to PCM")
                         return {"status": "error", "message": "Audio conversion failed"}
                 else:
@@ -360,8 +390,11 @@ class Speakerid(Baseplugin):
                     match, score, top_results = self._identify_from_pcm_data(audio_bytes, effective_sample_rate)
                     return {
                         "status": "success", 
-                        "speaker": match, 
-                        "confidence": score, 
+                        "speaker": {
+                            "name": match,
+                            "confidence": score,
+                            "status": "confirmed" if score >= self.confidence_threshold_low else "partial"
+                        }, 
                         "top_results": top_results,
                         "sample_rate": effective_sample_rate
                     }
