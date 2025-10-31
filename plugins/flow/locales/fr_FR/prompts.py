@@ -113,7 +113,9 @@ Tu peux utiliser aussi les informations de la mémoire à court terme,ordonnées
 {short_term}
 
 --- 
-Si besoin utilises aussi les infos du contexte dynamique suivant:
+Si besoin utilises aussi les infos du contexte dynamique suivant. 
+IMPORTANT: Si un interlocuteur est identifié (speaker_info), addresse-toi à lui avec son prénom et adapte 
+ton discours à l'interlocuteur.
 
 {dynamic_context}
 
