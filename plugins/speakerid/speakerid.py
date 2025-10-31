@@ -443,7 +443,14 @@ class Speakerid(Baseplugin):
                 "timestamp": time.time()
             }
         })
-        self.logger.info(f"New speaker found: {match} (score: {score:.2f})")
+        print(f"New speaker found: {match} (score: {score:.2f})")
+       
+        self._update_speaker_context(match, score, "confirmed")
+        self.last_speaker_id = match
+        self.is_processing = False
+        self.logger.info(f"Speaker confirmed: {match} (score: {score:.2f})")
+                
+           
         
     def db_execute_sync(self, query: str, params: tuple = ()):
         try:
