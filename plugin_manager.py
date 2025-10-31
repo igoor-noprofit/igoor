@@ -277,8 +277,7 @@ class PluginManager:
         if hook:
             try:
                 # Log the kwargs that will be passed to the hook
-                self.logger.info(f"Executing hook {hook_name} with kwargs: {kwargs}")
-                
+                self.logger.info(f"Executing hook {hook_name} with kwargs: {str(kwargs)[:50]} ...")                
                 # Call the hook with unpacked kwargs
                 results = hook(**kwargs)
 
