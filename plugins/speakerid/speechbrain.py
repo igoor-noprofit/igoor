@@ -40,6 +40,7 @@ class SpeakerIdentificationSystem:
         self.voices_dir = Path(voices_dir)
         self.embeddings_file = embeddings_file
         self.model_name = model_name
+        self.plugin_dir = plugin_dir
         
         if plugin_dir is not None:
                 model_save_dir = os.path.join(plugin_dir, "pretrained_models", "spkrec-ecapa-voxceleb")
@@ -281,7 +282,12 @@ class SpeakerIdentificationSystem:
             import os
             from pathlib import Path
             
-            recordings_dir = Path("./recordings")
+            # Use plugin_dir/recordings instead of ./recordings
+            if self.plugin_dir is not None:
+                recordings_dir = Path(self.plugin_dir) / "recordings"
+            else:
+                # Fallback to current directory if plugin_dir not available
+                recordings_dir = Path("./recordings")
             recordings_dir.mkdir(exist_ok=True)
             
             # Save as WAV file
