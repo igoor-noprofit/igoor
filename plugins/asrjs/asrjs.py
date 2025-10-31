@@ -388,9 +388,16 @@ class Asrjs(Baseplugin):
         async def transcribe_endpoint(audio_file: UploadFile = File(...)):
             """Receive complete audio file for transcription"""
             try:
-                # Save uploaded file with timestamp for persistence (WebM format)
+                # Save uploaded file with timestamp - now supporting WAV format
                 timestamp = int(time.time())
-                temp_file_path = os.path.join(self.plugin_folder, f"recordings/recording_{timestamp}.webm")
+                
+                # Determine file extension based on content type
+                if audio_file.content_type and 'wav' in audio_file.content_type:
+                    file_ext = 'wav'
+                else:
+                    file_ext = 'webm'  # Fallback to WebM for compatibility
+                
+                temp_file_path = os.path.join(self.plugin_folder, f"recordings/recording_{timestamp}.{file_ext}")
                 
                 with open(temp_file_path, 'wb') as f:
                     content = await audio_file.read()
