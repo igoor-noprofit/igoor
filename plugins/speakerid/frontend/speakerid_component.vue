@@ -4,7 +4,7 @@
             {{ getReadyStatusIcon() }}
         </span>
         <span class="speaker-icon">🎤</span>
-        <span class="speaker-name" :class="currentSpeaker.name ? 'speaker-known' : 'speaker-unknown'">{{ currentSpeaker.name || 'Unknown' }}</span>
+        <span class="speaker-name" :class="[getSpeakerStatus(), {'confidence-low': currentSpeaker.confidence < 0.4}]">{{ currentSpeaker.name || 'Unknown' }}</span>
         <span class="confidence" :class="getConfidenceClass()">{{ Math.round(currentSpeaker.confidence * 100) }}%</span>
         <span class="status-dot" :class="getStatusClass()"></span>
     </div>
@@ -13,7 +13,7 @@
 <script>
 import BasePluginComponent from '/js/BasePluginComponent.js';
 export default {
-    name: 'SpeakerID',
+    name: 'speakerid',
     mixins: [BasePluginComponent],
     props: {
         msg: Object
@@ -110,10 +110,18 @@ export default {
         getConfidenceClass() {
             if (this.currentSpeaker.confidence >= 0.7) {
                 return 'confidence-score high';
-            } else if (this.currentSpeaker.confidence >= 0.5) {
+            } else if (this.currentSpeaker.confidence >= 0.4) {  // Lower threshold to match backend
                 return 'confidence-score medium';
             } else {
                 return 'confidence-score low';
+            }
+        },
+        
+        getSpeakerStatus() {
+            if (this.currentSpeaker.confidence >= 0.4) {
+                return 'known';
+            } else {
+                return 'unknown';
             }
         },
         
@@ -174,23 +182,35 @@ export default {
                     }
                 }
             }, 100);
-        }
-    },
-    
-    watch: {
-        '$plugin.msg'(newVal) {
-            if (newVal) {
-                if (newVal.type === 'speaker_identification') {
+        },
+
+        handleIncomingMessage(event) {
+            // Use proper handleIncomingMessage method from BasePluginComponent
+            console.log('SpeakerID handleIncomingMessage called:', event.data);
+            
+            try {
+                const data = JSON.parse(event.data);
+                if (data.type === 'speaker_identification') {
+                    // Debug incoming message
+                    console.log('Speaker identification message received:', data);
+                    console.log('Speaker data:', data.speaker);
+                    console.log('Confidence:', data.speaker?.confidence);
+                    
                     // Update current speaker information
                     this.currentSpeaker = {
-                        name: newVal.speaker?.name || 'unknown',
-                        confidence: newVal.speaker?.confidence || 0.0,
-                        status: newVal.speaker?.status || 'unknown',
-                        timestamp: newVal.speaker?.timestamp || Date.now()
+                        name: data.speaker?.name || 'unknown',
+                        confidence: data.speaker?.confidence || 0.0,
+                        status: data.speaker?.status || 'unknown',
+                        timestamp: data.speaker?.timestamp || Date.now()
                     };
                     
+                    // Debug updated currentSpeaker
+                    console.log('Updated currentSpeaker:', this.currentSpeaker);
+                    console.log('getSpeakerStatus() returns:', this.getSpeakerStatus());
+                    console.log('Confidence classes:', this.getConfidenceClass());
+                    
                     // Update voice levels when speech detected
-                    if (newVal.speaker && newVal.speaker.confidence > 0) {
+                    if (data.speaker && data.speaker.confidence > 0) {
                         // Simulate voice activity during identification
                         for (let i = 0; i < 10; i++) {
                             const level = Math.random() * 0.8 + Math.random() * 0.2;
@@ -204,15 +224,17 @@ export default {
                             this.voiceLevels[i] = this.voiceLevels[i] * 0.8;
                         }
                     }, 500);
-                } else if (newVal.type === 'speakerid_status') {
+                } else if (data.type === 'speakerid_status') {
                     // Handle plugin status updates
-                    this.pluginStatus = newVal.status;
-                    this.statusMessage = newVal.message || '';
+                    this.pluginStatus = data.status;
+                    this.statusMessage = data.message || '';
                     
-                    if (newVal.speaker_count !== undefined) {
-                        this.speakerCount = newVal.speaker_count;
+                    if (data.speaker_count !== undefined) {
+                        this.speakerCount = data.speaker_count;
                     }
                 }
+            } catch (e) {
+                console.error("Error parsing message:", e);
             }
         }
     }
@@ -281,6 +303,19 @@ export default {
 .speaker-unknown {
     color: var(--basecolor-gray-100);
     font-style: italic;
+}
+
+/* New status-based speaker name styling */
+.speaker-known.confidence-low {
+    color: var(--basecolor-secondary-300);
+}
+
+.speaker-known.confidence-medium {
+    color: var(--basecolor-accent-200);
+}
+
+.speaker-unknown.confidence-low {
+    color: var(--basecolor-gray-100);
 }
 
 .confidence {
