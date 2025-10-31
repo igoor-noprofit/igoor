@@ -23,7 +23,8 @@ export default {
             keyboardShortcut: null,
             // vad: null, // Store VAD instance - COMMENTED OUT
             // vadInitialized: false,
-            audioChunks: [] // Store audio chunks for transcription
+            audioChunks: [], // Store audio chunks for transcription
+            speakerIdAvailable: false // Cache speakerid availability
         };
     },
     created() {
@@ -41,6 +42,9 @@ export default {
         
         // Set status to listening since we're not using VAD
         this.status = 'listening';
+        
+        // Check speakerid availability during initialization
+        await this.$_checkSpeakerIdAvailability();
         
         // Initialize microphone access
         await this.$_initializeMicrophone();
@@ -335,6 +339,36 @@ export default {
             }
         },
 
+        async $_checkSpeakerIdAvailability() {
+            // Check speakerid availability up to 3 times during initialization
+            let attempts = 0;
+            const maxAttempts = 3;
+            
+            while (attempts < maxAttempts) {
+                try {
+                    const response = await fetch('http://127.0.0.1:9714/api/plugins/speakerid/status');
+                    
+                    if (response.ok) {
+                        this.speakerIdAvailable = true;
+                        console.log('SpeakerID plugin is available');
+                        return;
+                    }
+                } catch (error) {
+                    console.log(`SpeakerID check attempt ${attempts + 1} failed:`, error.message);
+                }
+                
+                attempts++;
+                if (attempts < maxAttempts) {
+                    // Wait 1 second before next attempt
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                }
+            }
+            
+            // If we get here, speakerid is not available after 3 attempts
+            this.speakerIdAvailable = false;
+            console.log('SpeakerID plugin is not available after 3 attempts');
+        },
+
         async $_checkSpeakerIDStatus() {
             // Check if speakerid plugin is active before sending chunks
             try {
@@ -355,11 +389,9 @@ export default {
         },
 
         async $_sendChunkToSpeakerID(chunk) {
-            // Check if speakerid is available before sending chunks
-            const isSpeakerIDActive = await this.$_checkSpeakerIDStatus();
-            
-            if (!isSpeakerIDActive) {
-                console.log('SpeakerID not active, skipping chunk');
+            // Use cached speakerid availability (no API calls)
+            if (!this.speakerIdAvailable) {
+                console.log('SpeakerID not available (cached), skipping chunk');
                 return;
             }
             
