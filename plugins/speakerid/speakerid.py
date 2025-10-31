@@ -48,6 +48,9 @@ class Speakerid(Baseplugin):
         self.buffer_duration = 2.0
         self.min_audio_duration = 1.0
         self.identification_cooldown = 3.0
+        
+        # Audio settings - will be updated based on actual input
+        self.sample_rate = 48000  # Default to 48kHz to match microphone
 
     @hookimpl
     def startup(self):
@@ -68,10 +71,9 @@ class Speakerid(Baseplugin):
             
             # Initialize audio buffer AFTER settings
             self.logger.info("Initializing audio buffer...")
-            sample_rate = 16000  # Standard for speech recognition
-            buffer_size = int(self.buffer_duration * sample_rate)
+            buffer_size = int(self.buffer_duration * self.sample_rate)
             self.audio_buffer = deque(maxlen=buffer_size)
-            self.logger.info(f"Audio buffer initialized: {buffer_size} samples ({self.buffer_duration}s duration)")
+            self.logger.info(f"Audio buffer initialized: {buffer_size} samples ({self.buffer_duration}s duration) at {self.sample_rate} Hz")
             
             # Initialize speaker identification system
             voices_dir = os.path.join(self.plugin_folder, "voices")
@@ -155,8 +157,15 @@ class Speakerid(Baseplugin):
             self.audio_buffer = deque(maxlen=32000)
 
     @hookimpl
-    def process_audio_chunk(self, audio_data: bytes, sample_rate: int = 16000):
+    def process_audio_chunk(self, audio_data: bytes, sample_rate: int = 48000):
         """Process incoming audio chunks for real-time speaker identification"""
+        # Update sample rate if different from current
+        if sample_rate != self.sample_rate:
+            self.sample_rate = sample_rate
+            buffer_size = int(self.buffer_duration * self.sample_rate)
+            self.audio_buffer = deque(maxlen=buffer_size)
+            self.logger.info(f"Updated audio buffer for new sample rate: {sample_rate} Hz ({buffer_size} samples)")
+        
         # Check if speaker system is ready
         if self.speaker_system is None or not self.speaker_system_ready:
             if not self.initialization_complete:
@@ -172,7 +181,7 @@ class Speakerid(Baseplugin):
             self.logger.debug(f"Received small audio chunk: {len(audio_data)} bytes")
             return
             
-        self.logger.debug(f"Processing audio chunk: {len(audio_data)} bytes")
+        self.logger.debug(f"Processing audio chunk: {len(audio_data)} bytes at {sample_rate} Hz")
         
         # Convert bytes to numpy array (16-bit PCM)
         audio_array = np.frombuffer(audio_data, dtype=np.int16).astype(np.float32) / 32768.0
@@ -303,20 +312,25 @@ class Speakerid(Baseplugin):
             return rows
 
         @self.router.post("/process_audio")
-        async def process_audio_endpoint(audio_data: UploadFile = File(...)):
+        async def process_audio_endpoint(audio_data: UploadFile = File(...), sample_rate: Optional[int] = None):
             """Receive audio chunks for real-time speaker identification"""
             try:
                 # Read audio data from uploaded file
                 audio_bytes = await audio_data.read()
                 
+                # Use provided sample rate or default to 48kHz
+                effective_sample_rate = sample_rate if sample_rate is not None else 48000
+                
+                self.logger.debug(f"Processing audio chunk via HTTP endpoint: {len(audio_bytes)} bytes at {effective_sample_rate} Hz")
+                
                 # Forward to existing hook implementation
                 result = await self.pm.trigger_hook(
                     "process_audio_chunk", 
                     audio_data=audio_bytes, 
-                    sample_rate=16000
+                    sample_rate=effective_sample_rate
                 )
                 
-                return {"status": "received", "result": result}
+                return {"status": "received", "result": result, "sample_rate": effective_sample_rate}
                 
             except Exception as e:
                 self.logger.error(f"Error processing audio in endpoint: {e}")

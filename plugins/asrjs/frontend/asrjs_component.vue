@@ -120,7 +120,7 @@ export default {
                 // Request microphone permission
                 const stream = await navigator.mediaDevices.getUserMedia({ 
                     audio: {
-                        sampleRate: { ideal: 48000, max: 48000 },  // Use 48kHz (better quality than 16kHz)
+                        sampleRate: { ideal: 48000, max: 48000 },  // Ensure 48kHz
                         channelCount: 1,
                         echoCancellation: false,
                         noiseSuppression: false,
@@ -130,7 +130,16 @@ export default {
                     } 
                 });
                 
+                // Verify actual sample rate from stream
+                const audioTrack = stream.getAudioTracks()[0];
+                const settings = audioTrack.getSettings();
+                console.log('Microphone actual sample rate:', settings.sampleRate);
+                
                 this.mediaStream = stream;
+                
+                // Store actual sample rate for reference
+                const actualSampleRate = settings.sampleRate || 48000;
+                
                 // Try different audio formats in order of preference
                 let mimeType = 'audio/webm;codecs=opus';
                 if (!MediaRecorder.isTypeSupported(mimeType)) {
@@ -141,10 +150,14 @@ export default {
                 }
                 
                 console.log('Using MediaRecorder MIME type:', mimeType);
-                console.log('Audio stream track settings:', stream.getAudioTracks()[0].getSettings());
+                console.log('Audio stream settings:', {
+                    sampleRate: actualSampleRate,
+                    channelCount: settings.channelCount,
+                    volume: settings.volume
+                });
                 
                 // Debug: Check audio stream levels
-                const audioContext = new AudioContext();
+                const audioContext = new AudioContext({ sampleRate: actualSampleRate });
                 const source = audioContext.createMediaStreamSource(stream);
                 const analyser = audioContext.createAnalyser();
                 analyser.fftSize = 256;
@@ -159,7 +172,7 @@ export default {
                     const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
                     levelCount++;
                     if (average > 5 && levelCount % 30 === 0) { // Log every ~30 frames when audio detected
-                        console.log(`Audio level: ${average.toFixed(2)} (0-255 scale)`);
+                        console.log(`Audio level: ${average.toFixed(2)} (0-255 scale) at ${actualSampleRate} Hz`);
                     }
                     requestAnimationFrame(monitorAudio);
                 };
@@ -279,8 +292,8 @@ export default {
         // },
 
         $_audioToWav(float32Array) {
-            // Convert Float32Array to WAV format
-            const sampleRate = 16000;
+            // Convert Float32Array to WAV format (48kHz for best quality)
+            const sampleRate = 48000;
             const numChannels = 1;
             const bitsPerSample = 16;
             
@@ -399,6 +412,7 @@ export default {
             try {
                 const formData = new FormData();
                 formData.append('audio_data', chunk, 'chunk.webm');
+                formData.append('sample_rate', '48000'); // Send actual sample rate
                 
                 const response = await fetch('http://127.0.0.1:9714/api/plugins/speakerid/process_audio', {
                     method: 'POST',
