@@ -154,8 +154,8 @@ class Asrjs(Baseplugin):
         self.channels = 1
         self.chunk_size = 4000
         
-        # Set up temporary file for audio storage
-        self.temp_audio_file = os.path.join(self.plugin_folder, "temp_audio.wav")
+        # Set up temporary file for audio storage (WebM format)
+        self.temp_audio_file = os.path.join(self.plugin_folder, "temp_audio.webm")
         
         self.is_loaded=True
     
@@ -209,11 +209,9 @@ class Asrjs(Baseplugin):
                             # Decode base64 to binary
                             audio_bytes = base64.b64decode(audio_base64)
                             
-                            # Save to temp file for existing transcription logic
-                            temp_file_path = os.path.join(self.plugin_folder, f"temp_upload_{int(time.time())}.wav")
+                            # Save to temp file as WebM (native browser format)
+                            temp_file_path = os.path.join(self.plugin_folder, f"temp_upload_{int(time.time())}.webm")
                             
-                            # Convert webm blob to WAV file
-                            # For now, assume it's already in WAV format from frontend
                             with open(temp_file_path, 'wb') as f:
                                 f.write(audio_bytes)
                             
@@ -390,9 +388,9 @@ class Asrjs(Baseplugin):
         async def transcribe_endpoint(audio_file: UploadFile = File(...)):
             """Receive complete audio file for transcription"""
             try:
-                # Save uploaded file with timestamp for persistence
+                # Save uploaded file with timestamp for persistence (WebM format)
                 timestamp = int(time.time())
-                temp_file_path = os.path.join(self.plugin_folder, f"recordings/recording_{timestamp}.wav")
+                temp_file_path = os.path.join(self.plugin_folder, f"recordings/recording_{timestamp}.webm")
                 
                 with open(temp_file_path, 'wb') as f:
                     content = await audio_file.read()

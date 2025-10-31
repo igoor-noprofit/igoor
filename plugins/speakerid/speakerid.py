@@ -323,6 +323,16 @@ class Speakerid(Baseplugin):
                 
                 self.logger.debug(f"Processing audio chunk via HTTP endpoint: {len(audio_bytes)} bytes at {effective_sample_rate} Hz")
                 
+                # Convert WebM to PCM if needed
+                if audio_data.content_type and 'webm' in audio_data.content_type:
+                    # Convert WebM/Opus to raw PCM for speaker identification
+                    pcm_data = await self._convert_webm_to_pcm(audio_bytes, effective_sample_rate)
+                    if pcm_data is not None:
+                        audio_bytes = pcm_data
+                        effective_sample_rate = 16000  # Resample to 16kHz for speaker ID
+                    else:
+                        self.logger.warning("Failed to convert WebM to PCM, using raw data")
+                
                 # Forward to existing hook implementation
                 result = await self.pm.trigger_hook(
                     "process_audio_chunk", 
@@ -361,3 +371,90 @@ class Speakerid(Baseplugin):
             return f"Error: {message}"
         else:
             return message
+    
+    async def _convert_webm_to_pcm(self, webm_data: bytes, input_sample_rate: int) -> Optional[bytes]:
+        """
+        Convert WebM/Opus audio data to raw PCM bytes for speaker identification
+        
+        Args:
+            webm_data: Raw WebM audio data
+            input_sample_rate: Input sample rate (usually 48000)
+            
+        Returns:
+            Raw PCM audio data as bytes (16-bit signed, mono, 16kHz)
+        """
+        import tempfile
+        import asyncio
+        import os
+        
+        try:
+            # Create temporary file
+            with tempfile.NamedTemporaryFile(suffix='.webm', delete=False) as webm_file:
+                webm_file.write(webm_data)
+                webm_path = webm_file.name
+            
+            # Use pydub for conversion (pure Python approach)
+            try:
+                from pydub import AudioSegment
+                
+                # Convert in asyncio executor to avoid blocking
+                def convert_with_pydub():
+                    # Read WebM file
+                    audio = AudioSegment.from_file(webm_path, format="webm")
+                    
+                    # Convert to mono and 16kHz
+                    audio = audio.set_channels(1)
+                    audio = audio.set_frame_rate(16000)
+                    
+                    # Export as raw PCM bytes directly
+                    raw_pcm = audio.raw_data
+                    return raw_pcm
+                
+                # Run conversion in executor
+                loop = asyncio.get_event_loop()
+                pcm_data = await loop.run_in_executor(None, convert_with_pydub)
+                
+                if pcm_data:
+                    self.logger.debug(f"Successfully converted WebM to PCM: {len(pcm_data)} bytes")
+                    return pcm_data
+                else:
+                    self.logger.warning("PyDub conversion returned empty data")
+                    
+            except ImportError:
+                self.logger.warning("pydub not available, using fallback method")
+                
+                # Fallback: Use basic audio processing with librosa
+                try:
+                    import librosa
+                    
+                    def convert_with_librosa():
+                        # Load WebM with librosa
+                        y, sr = librosa.load(webm_path, sr=16000, mono=True)
+                        
+                        # Convert float32 to int16 PCM
+                        pcm_int16 = (y * 32767).astype(np.int16)
+                        return pcm_int16.tobytes()
+                    
+                    # Run conversion in executor
+                    loop = asyncio.get_event_loop()
+                    pcm_data = await loop.run_in_executor(None, convert_with_librosa)
+                    
+                    if pcm_data:
+                        self.logger.debug(f"Successfully converted WebM to PCM using librosa: {len(pcm_data)} bytes")
+                        return pcm_data
+                        
+                except ImportError:
+                    self.logger.error("Neither pydub nor librosa available for audio conversion")
+                    
+        except Exception as e:
+            self.logger.error(f"WebM to PCM conversion failed: {e}")
+            
+        finally:
+            # Clean up temporary file
+            try:
+                if 'webm_path' in locals():
+                    os.unlink(webm_path)
+            except:
+                pass
+        
+        return None
