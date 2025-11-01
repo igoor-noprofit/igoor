@@ -1,7 +1,7 @@
 <template>
-    <div class="speakerid-topbar">
+    <div v-if="hasReceivedSpeakerData" class="speakerid-topbar">
         <span class="speaker-icon">🎤</span>
-        <span class="speaker-name" :class="[getSpeakerStatus(), {'confidence-low': currentSpeaker.confidence < 0.4}]">{{ currentSpeaker.name || 'Unknown' }}</span>
+        <span class="speaker-name" :class="[getSpeakerStatus(), {'confidence-low': currentSpeaker.confidence < 0.4}]">{{ getDisplayName() }}</span>
         <span class="confidence" :class="getConfidenceClass()">{{ Math.round(currentSpeaker.confidence * 100) }}%</span>
     </div>
 </template>
@@ -17,7 +17,7 @@ export default {
     data() {
         return {
             currentSpeaker: {
-                name: 'unknown',
+                name: null,
                 confidence: 0.0,
                 status: 'unknown'
             },
@@ -25,7 +25,8 @@ export default {
             voiceLevels: new Array(20).fill(0),
             pluginStatus: 'loading',
             speakerCount: 0,
-            statusMessage: 'Initializing...'
+            statusMessage: 'Initializing...',
+            hasReceivedSpeakerData: false
         };
     },
     async mounted() {
@@ -71,6 +72,13 @@ export default {
             } catch (error) {
                 console.warn('Error fetching speakerid status:', error);
             }
+        },
+
+        getDisplayName() {
+            if (!this.currentSpeaker.name || this.currentSpeaker.name === 'unknown') {
+                return this.t('unknown');
+            }
+            return this.currentSpeaker.name;
         },
     
     getStatusClass() {
@@ -187,13 +195,14 @@ export default {
             try {
                 const data = JSON.parse(event.data);
                 if (data.action === 'speakerid_reset'){
-                    // Reset current speaker info
+                    // Reset current speaker info and hide display
                     this.currentSpeaker = {
-                        name: 'unknown',
+                        name: null,
                         confidence: 0.0,
                         status: 'unknown',
                         timestamp: Date.now()
                     };
+                    this.hasReceivedSpeakerData = false;
                     
                 }
                 if (data.type === 'speaker_identification') {
@@ -209,6 +218,9 @@ export default {
                         status: data.speaker?.status || 'unknown',
                         timestamp: data.speaker?.timestamp || Date.now()
                     };
+                    
+                    // Mark that we've received speaker data to show the UI
+                    this.hasReceivedSpeakerData = true;
                     
                     // Debug updated currentSpeaker
                     console.log('Updated currentSpeaker:', this.currentSpeaker);
