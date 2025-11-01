@@ -312,7 +312,6 @@ class Baseplugin:
         
         return False
     
-    
     def send_action_to_frontend(self, action, plugin_name=None):
         target_plugin_name = plugin_name or self.plugin_name
         self.send_message_to_frontend(action, target_plugin_name)
