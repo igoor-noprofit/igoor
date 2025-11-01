@@ -89,7 +89,7 @@ class Speakerid(Baseplugin):
     def abandon_conversation(self,cause):
         self.reset_state()
         # SEND MESSAGE TO FRONTEND THAT SPEAKERID HAS RESET
-        self.send_message_to_frontend({"action":"speakerid_reset"})
+        self.send_action_to_frontend("speakerid_reset")
 
     @hookimpl
     def startup(self):
@@ -278,8 +278,7 @@ class Speakerid(Baseplugin):
         except Exception as e:
             self.logger.error(f"Error during speaker identification: {e}")
     
-    
-    
+
     
     def _update_speaker_context(self, speaker_name: str, confidence: float, status: str):
         print("UPDATING SPEAKER CONTEXT with:", speaker_name, confidence, status)

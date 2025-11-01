@@ -378,7 +378,6 @@ class Asrjs(Baseplugin):
             """Stop recording via HTTP endpoint"""
             try:
                 await self.send_status("listening")
-                await self.pm.trigger_hook(hook_name="transcribing_ended")
                 return {"status": "stopped"}
             except Exception as e:
                 self.logger.error(f"Error stopping recording: {e}")
@@ -424,7 +423,7 @@ class Asrjs(Baseplugin):
                     text = self.clean_whisper_silence(text)
                     # Handle transcription result
                     await self.handle_wake_word(text)
-                
+                await self.pm.trigger_hook(hook_name="transcribing_ended")
                 return {"status": "success", "text": text}
                 
             except Exception as e:
