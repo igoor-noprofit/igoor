@@ -88,3 +88,9 @@ plugin_name/
 - Full build: `create_exe.bat` (8-10 min)
 
 **Python Version**: Tested on 3.10.6 only
+
+## Accesing and testing the frontend
+For UX/UI,styles changes etc. leverage the MCP chrome-dev-tool server for live testing the actual browser window @ http://127.0.0.1:9714/
+
+## Searching the web
+Leverage the MCP Nexus server for web searches
