@@ -89,7 +89,9 @@ class Speakerid(Baseplugin):
     def abandon_conversation(self,cause):
         self.reset_state()
         # SEND MESSAGE TO FRONTEND THAT SPEAKERID HAS RESET
-        self.send_action_to_frontend("speakerid_reset")
+        self.send_message_to_frontend({
+            "action": "speakerid_reset"
+        })
 
     @hookimpl
     def startup(self):
