@@ -1,12 +1,8 @@
 <template>
     <div class="speakerid-topbar">
-        <span class="ready-indicator" :class="getReadyStatusClass()" :title="getReadyStatusText()">
-            {{ getReadyStatusIcon() }}
-        </span>
         <span class="speaker-icon">🎤</span>
         <span class="speaker-name" :class="[getSpeakerStatus(), {'confidence-low': currentSpeaker.confidence < 0.4}]">{{ currentSpeaker.name || 'Unknown' }}</span>
         <span class="confidence" :class="getConfidenceClass()">{{ Math.round(currentSpeaker.confidence * 100) }}%</span>
-        <span class="status-dot" :class="getStatusClass()"></span>
     </div>
 </template>
 
@@ -190,6 +186,16 @@ export default {
             
             try {
                 const data = JSON.parse(event.data);
+                if (data.action === 'speakerid_reset'){
+                    // Reset current speaker info
+                    this.currentSpeaker = {
+                        name: 'unknown',
+                        confidence: 0.0,
+                        status: 'unknown',
+                        timestamp: Date.now()
+                    };
+                    
+                }
                 if (data.type === 'speaker_identification') {
                     // Debug incoming message
                     console.log('Speaker identification message received:', data);
@@ -296,7 +302,6 @@ export default {
 }
 
 .speaker-known {
-    color: var(--basecolor-accent-100);
     font-weight: 700;
 }
 
