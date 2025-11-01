@@ -28,9 +28,13 @@ export default {
             audioContext: null,
             processor: null,
             source: null,
-            recordingBuffer: [],
+            recordingBuffer: [], // Buffer for native frequency audio
             isRecording: false,
-            chunkInterval: null
+            chunkInterval: null,
+            nativeSampleRate: null, // Store the actual native sample rate (typically 48kHz)
+            speakerIdBuffer: [], // Buffer for downsampled audio for speakerid
+            lastChunkSentTime: 0, // Track when we last sent a chunk to speakerid
+            chunkDuration: 3.0 // Fixed chunk duration in seconds for speakerid
         };
     },
     created() {
@@ -130,12 +134,83 @@ export default {
         //     });
         // },
 
+        async $_initializeMicrophoneMinimal() {
+            try {
+                console.log('Attempting microphone initialization with minimal constraints...');
+                
+                // Try with very minimal constraints - let browser choose everything
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: true  // Just ask for audio, no specific constraints
+                });
+                
+                // Verify actual sample rate from stream
+                const audioTrack = stream.getAudioTracks()[0];
+                const settings = audioTrack.getSettings();
+                console.log('Microphone initialized with minimal constraints at:', settings.sampleRate);
+                
+                this.mediaStream = stream;
+                this.nativeSampleRate = settings.sampleRate || 48000;
+                
+                // Initialize Web Audio API
+                this.audioContext = new (window.AudioContext || window.webkitAudioContext)({ 
+                    sampleRate: this.nativeSampleRate 
+                });
+                
+                this.source = this.audioContext.createMediaStreamSource(stream);
+                
+                // Load and start AudioWorklet processor
+                await this.audioContext.audioWorklet.addModule('/plugins/asrjs/frontend/audio-processor.js');
+                this.processor = new AudioWorkletNode(this.audioContext, 'audio-processor');
+                
+                // Handle messages from AudioWorklet
+                this.processor.port.onmessage = (event) => {
+                    if (event.data.type === 'speakerid-chunk') {
+                        // Send chunk to speakerid
+                        this.$_sendFixedChunkToSpeakerID(event.data.data);
+                    } else if (event.data.type === 'audio-data') {
+                        // Store audio data for final WAV file
+                        this.recordingBuffer = this.recordingBuffer.concat(event.data.data);
+                    }
+                };
+                
+                // Connect the audio nodes
+                this.source.connect(this.processor);
+                this.processor.connect(this.audioContext.destination);
+                
+                // Set up audio level monitoring
+                const analyser = this.audioContext.createAnalyser();
+                analyser.fftSize = 256;
+                this.source.connect(analyser);
+                
+                const dataArray = new Uint8Array(analyser.frequencyBinCount);
+                
+                // Monitor audio levels
+                let levelCount = 0;
+                const monitorAudio = () => {
+                    analyser.getByteFrequencyData(dataArray);
+                    const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
+                    levelCount++;
+                    if (average > 5 && levelCount % 30 === 0) {
+                        console.log(`Audio level: ${average.toFixed(2)} (0-255 scale) at ${this.nativeSampleRate} Hz`);
+                    }
+                    requestAnimationFrame(monitorAudio);
+                };
+                monitorAudio();
+                
+                console.log('Web Audio API initialized successfully with minimal constraints');
+                this.status = 'listening';  // Set status to listening after successful init
+                
+            } catch (error) {
+                console.error('Failed to initialize microphone even with minimal constraints:', error);
+                this.status = 'error';
+            }
+        },
+
         async $_initializeMicrophone() {
             try {
-                // Request microphone permission
+                // Request microphone permission at native frequency - no sample rate constraint
                 const stream = await navigator.mediaDevices.getUserMedia({ 
                     audio: {
-                        sampleRate: { ideal: 48000, max: 48000 },  // Ensure 48kHz
                         channelCount: 1,
                         echoCancellation: false,
                         noiseSuppression: false,
@@ -148,39 +223,34 @@ export default {
                 // Verify actual sample rate from stream
                 const audioTrack = stream.getAudioTracks()[0];
                 const settings = audioTrack.getSettings();
-                console.log('Microphone actual sample rate:', settings.sampleRate);
+                console.log('Microphone native sample rate:', settings.sampleRate);
+                console.log('Browser negotiated constraints:', settings);
                 
                 this.mediaStream = stream;
                 
-                // Store actual sample rate for reference
-                this.actualSampleRate = settings.sampleRate || 48000;
+                // Store native sample rate (typically 48kHz)
+                this.nativeSampleRate = settings.sampleRate || 48000;
+                console.log(`Recording at native frequency: ${this.nativeSampleRate}Hz`);
                 
-                // Initialize Web Audio API for direct WAV recording
+                // Initialize Web Audio API at native frequency
                 this.audioContext = new (window.AudioContext || window.webkitAudioContext)({ 
-                    sampleRate: this.actualSampleRate 
+                    sampleRate: this.nativeSampleRate 
                 });
                 
                 this.source = this.audioContext.createMediaStreamSource(stream);
                 
-                // Create script processor for real-time audio processing
-                const bufferSize = 4096; // Buffer size for processing
-                this.processor = this.audioContext.createScriptProcessor(bufferSize, 1, 1);
+                // Load and start AudioWorklet processor
+                await this.audioContext.audioWorklet.addModule('/plugins/asrjs/frontend/audio-processor.js');
+                this.processor = new AudioWorkletNode(this.audioContext, 'audio-processor');
                 
-                // Set up audio processing callback
-                this.processor.onaudioprocess = (e) => {
-                    if (!this.isRecording) return;
-                    
-                    const inputBuffer = e.inputBuffer;
-                    const inputData = inputBuffer.getChannelData(0); // Get mono channel
-                    
-                    // Store audio data for final WAV file
-                    this.recordingBuffer = this.recordingBuffer.concat(Array.from(inputData));
-                    
-                    // Also collect chunks for processing (smaller chunks for real-time)
-                    const chunkSize = 1600; // About 100ms at 16kHz
-                    if (this.recordingBuffer.length >= chunkSize) {
-                        const chunk = this.recordingBuffer.slice(-chunkSize);
-                        this.audioChunks.push(this.$_createWAVChunk(chunk, this.actualSampleRate));
+                // Handle messages from AudioWorklet
+                this.processor.port.onmessage = (event) => {
+                    if (event.data.type === 'speakerid-chunk') {
+                        // Send chunk to speakerid
+                        this.$_sendFixedChunkToSpeakerID(event.data.data);
+                    } else if (event.data.type === 'audio-data') {
+                        // Store audio data for final WAV file
+                        this.recordingBuffer = this.recordingBuffer.concat(event.data.data);
                     }
                 };
                 
@@ -202,21 +272,43 @@ export default {
                     const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
                     levelCount++;
                     if (average > 5 && levelCount % 30 === 0) { // Log every ~30 frames when audio detected
-                        console.log(`Audio level: ${average.toFixed(2)} (0-255 scale) at ${this.actualSampleRate} Hz`);
+                        console.log(`Audio level: ${average.toFixed(2)} (0-255 scale) at ${this.nativeSampleRate} Hz`);
                     }
                     requestAnimationFrame(monitorAudio);
                 };
                 monitorAudio();
                 
-                console.log('Web Audio API initialized successfully');
+                console.log('Web Audio API initialized successfully at native frequency');
                 console.log('Audio stream settings:', {
-                    sampleRate: this.actualSampleRate,
+                    sampleRate: this.nativeSampleRate,
                     channelCount: settings.channelCount,
                     volume: settings.volume
                 });
                 
             } catch (error) {
                 console.error('Error accessing microphone:', error);
+                console.error('Error details:', {
+                    name: error.name,
+                    message: error.message,
+                    constraint: error.constraint,
+                    type: error.type
+                });
+                
+                // Provide specific error messages based on error type
+                if (error.name === 'NotAllowedError') {
+                    console.error('Microphone access denied. Please allow microphone permissions.');
+                } else if (error.name === 'NotFoundError') {
+                    console.error('No microphone found. Please check your audio devices.');
+                } else if (error.name === 'NotSupportedError') {
+                    console.error('Microphone not supported or constraints not met.');
+                } else if (error.name === 'OverconstrainedError') {
+                    console.error('Requested audio constraints not supported by this device.');
+                    // Try again with minimal constraints
+                    console.log('Retrying with minimal constraints...');
+                    await this.$_initializeMicrophoneMinimal();
+                    return;
+                }
+                
                 this.status = 'error';
             }
         },
@@ -332,8 +424,8 @@ export default {
         },
 
         $_audioToWav(float32Array) {
-            // Convert Float32Array to WAV format (use actual sample rate)
-            const sampleRate = this.actualSampleRate || 48000;
+            // Convert Float32Array to WAV format (use native sample rate)
+            const sampleRate = this.nativeSampleRate || 48000;
             const numChannels = 1;
             const bitsPerSample = 16;
             
@@ -389,6 +481,53 @@ export default {
         $_writeString(view, offset, string) {
             for (let i = 0; i < string.length; i++) {
                 view.setUint8(offset + i, string.charCodeAt(i));
+            }
+        },
+
+
+
+        $_float32ToInt16(float32Array) {
+            // Convert Float32Array to Int16Array (16-bit signed PCM)
+            const int16Array = new Int16Array(float32Array.length);
+            for (let i = 0; i < float32Array.length; i++) {
+                const s = Math.max(-1, Math.min(1, float32Array[i]));
+                int16Array[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+            }
+            return int16Array;
+        },
+
+        async $_sendFixedChunkToSpeakerID(float32Chunk) {
+            // Send fixed chunk to speakerid for identification
+            if (!this.speakerIdAvailable) {
+                console.log('SpeakerID not available, skipping chunk');
+                return;
+            }
+            
+            try {
+                // Convert float32 to int16
+                const int16Data = this.$_float32ToInt16(float32Chunk);
+                
+                // Convert to WAV format
+                const wavBlob = this.$_createWAVChunk(float32Chunk, 16000);
+                
+                // Send to speakerid endpoint
+                const formData = new FormData();
+                formData.append('audio_file', wavBlob, 'chunk.wav');
+                formData.append('sample_rate', '16000');
+                
+                const response = await fetch('http://127.0.0.1:9714/api/plugins/speakerid/process_audio_chunk', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    console.log('Fixed chunk sent to speakerid:', result);
+                } else {
+                    console.error('Error sending fixed chunk to speakerid:', response.status);
+                }
+            } catch (error) {
+                console.error('Error sending fixed chunk to speakerid:', error);
             }
         },
 
@@ -452,7 +591,7 @@ export default {
             try {
                 const formData = new FormData();
                 formData.append('audio_file', audioBlob, 'chunk.wav');
-                formData.append('sample_rate', this.actualSampleRate.toString());
+                formData.append('sample_rate', this.nativeSampleRate.toString());  // Use native sample rate
                 
                 const response = await fetch('http://127.0.0.1:9714/api/plugins/speakerid/process_audio_chunk', {
                     method: 'POST',
@@ -471,6 +610,7 @@ export default {
         },
 
         async $_sendAudioToSpeakerID(audioBlob) {
+            return true;
             // Use cached speakerid availability (no API calls)
             if (!this.speakerIdAvailable) {
                 console.log('SpeakerID not available (cached), skipping identification');
@@ -481,7 +621,7 @@ export default {
             try {
                 const formData = new FormData();
                 formData.append('audio_file', audioBlob, 'recording.wav');
-                formData.append('sample_rate', this.actualSampleRate.toString());
+                formData.append('sample_rate', this.nativeSampleRate.toString());  // Use native sample rate
                 
                 const response = await fetch('http://127.0.0.1:9714/api/plugins/speakerid/identify_speaker', {
                     method: 'POST',
@@ -504,16 +644,15 @@ export default {
             this.isRecording = true;
             this.recordingBuffer = [];
             this.audioChunks = [];
+            this.speakerIdBuffer = []; // Clear speakerid buffer for new recording
             
-            // Start real-time chunk streaming for SpeakerID
-            this.chunkInterval = setInterval(async () => {
-                if (this.audioChunks.length > 0) {
-                    const latestChunk = this.audioChunks[this.audioChunks.length - 1];
-                    await this.$_sendAudioChunkToSpeakerID(latestChunk);
-                }
-            }, 2000); // Send chunks every 2 seconds
+            // Clear buffers in AudioWorklet and start recording
+            if (this.processor) {
+                this.processor.port.postMessage({ type: 'clear-buffers' });
+                this.processor.port.postMessage({ type: 'start-recording' });
+            }
             
-            console.log('WAV recording started with Web Audio API');
+            console.log(`Recording started at ${this.nativeSampleRate}Hz, sending ${this.chunkDuration}s chunks to speakerid`);
             
             // Also notify backend via FastAPI endpoint
             try {
@@ -535,13 +674,19 @@ export default {
             // Stop Web Audio API recording
             this.isRecording = false;
             
-            // Stop chunk streaming
-            if (this.chunkInterval) {
-                clearInterval(this.chunkInterval);
-                this.chunkInterval = null;
+            // Tell AudioWorklet to stop recording
+            if (this.processor) {
+                this.processor.port.postMessage({ type: 'stop-recording' });
             }
             
-            console.log('WAV recording stopped, samples collected:', this.recordingBuffer.length);
+            console.log(`Recording stopped, collected ${this.recordingBuffer.length} native samples and ${this.speakerIdBuffer.length} downsampled samples`);
+            
+            // Send any remaining speakerid buffer if it has sufficient data
+            const minChunkSize = Math.floor(16000 * 1.0); // Minimum 1 second
+            if (this.speakerIdBuffer.length >= minChunkSize) {
+                console.log(`Sending final partial chunk of ${this.speakerIdBuffer.length} samples to speakerid`);
+                await this.$_sendFixedChunkToSpeakerID(this.speakerIdBuffer);
+            }
             
             // Create final WAV file from complete recording buffer
             const finalWavBlob = this.$_audioToWav(this.recordingBuffer);

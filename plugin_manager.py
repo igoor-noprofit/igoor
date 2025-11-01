@@ -140,6 +140,17 @@ class MyAppSpec:
         """Hook for plugins to perform actions when speaker has said something via ASR"""
         pass
     
+    @pluggy.HookspecMarker(app_name)
+    async def start_recording(self) -> None:
+        """Hook for plugins to perform actions when speaker starts recording"""
+        pass
+    
+    @pluggy.HookspecMarker(app_name)
+    async def stop_recording(self) -> None:
+        """Hook for plugins to perform actions when speaker stops recording"""      
+        pass
+    
+    
     '''
         ************ CONVERSATION **************
     '''

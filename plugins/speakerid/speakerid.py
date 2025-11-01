@@ -52,7 +52,7 @@ class Speakerid(Baseplugin):
         self.identification_cooldown = 3.0
         
         # Audio settings - will be updated based on actual input
-        self.sample_rate = 48000  # Default to 48kHz to match microphone
+        self.sample_rate = 48000  # Default to actual browser rate
         
         # Speaker ID status
         self.reset_state()
@@ -61,6 +61,7 @@ class Speakerid(Baseplugin):
         """Reset internal state for new conversation/session"""
         self.last_speakers = []
         self.last_speaker = SimpleNamespace(id=False,confidence=-10)
+        self.reset_last_phrase()
         '''
         with self.buffer_lock:
             if self.audio_buffer is not None:
@@ -70,6 +71,19 @@ class Speakerid(Baseplugin):
         self.current_utterance_start = 0
         self.logger.info("SpeakerID plugin state has been reset")       
         '''
+ 
+    def reset_last_phrase(self):
+        self.last_phrase_speaker = SimpleNamespace(id=False,confidence=-10)
+ 
+    @hookimpl
+    def start_recording(self):
+        self.reset_last_phrase()
+        
+    '''
+    @hookimpl
+    def stop_recording(self):
+        self.reset_last_phrase()
+    '''
  
     @hookimpl
     def abandon_conversation(self,cause):
@@ -195,16 +209,15 @@ class Speakerid(Baseplugin):
         if self.speaker_system is None or not self.speaker_system_ready:
             if not self.initialization_complete:
                 # Still initializing
-                return {"status": "initializing"}
+                return {"status": "initializing", "message": "SpeakerID system still initializing"}
             else:
                 # Initialization completed but failed
-                return {"status": "error"}
-            return
+                return {"status": "error", "message": "SpeakerID system failed to initialize"}
         
         # Debug audio chunk reception
         if len(audio_data) < 100:
             self.logger.debug(f"Received small audio chunk: {len(audio_data)} bytes")
-            return
+            return {"status": "small_chunk", "message": "Audio chunk too small to process"}
             
         self.logger.debug(f"Processing audio chunk: {len(audio_data)} bytes at {sample_rate} Hz")
         
@@ -233,6 +246,9 @@ class Speakerid(Baseplugin):
                 current_time - self.last_identification_time >= self.identification_cooldown):
                 
                 self._process_buffer_for_identification(sample_rate)
+                return {"status": "processed", "message": "Audio chunk processed successfully"}
+            
+            return {"status": "buffering", "message": f"Buffering audio ({buffer_duration:.1f}s)", "buffer_duration": buffer_duration}
     
     def _process_buffer_for_identification(self, sample_rate: int):
         """Process the current audio buffer for speaker identification"""
@@ -250,26 +266,15 @@ class Speakerid(Baseplugin):
             
             self.last_identification_time = time.time()
             
-            ''' TO RESTORE WHEN PROCESSING LIVE AUDIO CHUNKS 
-            # Handle different confidence levels
-            if confidence >= self.confidence_threshold_high:
-                # High confidence - confirmed identification
-                self._update_speaker_context(match, confidence, "confirmed")
-                self.last_speaker_id = match
-                self.is_processing = False
-                self.logger.info(f"Speaker confirmed: {match} (confidence: {confidence:.2f})")
-                
-            elif confidence >= self.confidence_threshold_low:
-                # Medium confidence - partial identification, continue processing
-                self._update_speaker_context(match, confidence, "partial")
-                self.logger.debug(f"Speaker partially identified: {match} (confidence: {confidence:.2f})")
-                
+            if match and confidence >= self.confidence_threshold_low:
+                if (not self.last_phrase_speaker.id):
+                    self.new_speaker_found(match, confidence,top_results)
+                elif (self.last_speaker.id != match) and (self.last_speaker.confidence < confidence):
+                    self.new_speaker_found(match, confidence,top_results)
+                else:
+                    print("No new speaker")
             else:
-                # Low confidence - unknown speaker, continue processing
-                self._update_speaker_context(None, confidence, "unknown")
-                self.logger.debug(f"Speaker unknown (confidence: {confidence:.2f})")
-            '''
-                
+                print("Low confidence or no match")
         except Exception as e:
             self.logger.error(f"Error during speaker identification: {e}")
     
@@ -350,7 +355,7 @@ class Speakerid(Baseplugin):
                 # Read audio data from uploaded file
                 audio_bytes = await audio_file.read()
                 
-                # Use provided sample rate or default to 48kHz
+                # Use provided sample rate or default to 48kHz (frontend sends actual browser rate)
                 effective_sample_rate = sample_rate if sample_rate is not None else 48000
                 
                 self.logger.info(f"Processing audio file for speaker identification: {len(audio_bytes)} bytes at {effective_sample_rate} Hz")
@@ -370,6 +375,7 @@ class Speakerid(Baseplugin):
                     self.logger.info(f"Saved WebM file for speaker identification: {webm_file_path}")
                     
                     # Convert WebM/Opus to raw PCM for speaker identification using FFmpeg
+                    # Note: ASR frontend now sends 16kHz directly, so this conversion path may not be used
                     pcm_data = await self._convert_webm_to_pcm_ffmpeg(None, effective_sample_rate, webm_file_path)
                     if pcm_data is not None:
                         # Identify speaker from converted PCM data
@@ -430,8 +436,64 @@ class Speakerid(Baseplugin):
                 self.logger.error(f"Error processing audio file: {e}")
                 raise HTTPException(status_code=500, detail=str(e))
 
+        @self.router.post("/process_audio_chunk")
+        async def process_audio_chunk_endpoint(audio_file: UploadFile = File(...), sample_rate: Optional[int] = None):
+            """Receive audio chunk for real-time speaker identification"""
+            try:
+                # Read audio data from uploaded file
+                audio_bytes = await audio_file.read()
+                
+                # Use provided sample rate or default to 48kHz (actual browser rate)
+                effective_sample_rate = sample_rate if sample_rate is not None else 48000
+                
+                self.logger.debug(f"Processing audio chunk for speaker identification: {len(audio_bytes)} bytes at {effective_sample_rate} Hz")
+                
+                # Convert WebM to PCM if needed
+                if audio_file.content_type and 'webm' in audio_file.content_type:
+                    # Save the uploaded WebM file to plugin's recordings folder
+                    timestamp = int(time.time())
+                    recordings_dir = os.path.join(self.plugin_folder, "recordings")
+                    if not os.path.exists(recordings_dir):
+                        os.makedirs(recordings_dir, exist_ok=True)
+                    
+                    webm_file_path = os.path.join(recordings_dir, f"chunk_{timestamp}.webm")
+                    with open(webm_file_path, 'wb') as f:
+                        f.write(audio_bytes)
+                    
+                    self.logger.debug(f"Saved WebM chunk file: {webm_file_path}")
+                    
+                    # Convert WebM/Opus to raw PCM for speaker identification using FFmpeg
+                    pcm_data = await self._convert_webm_to_pcm_ffmpeg(None, effective_sample_rate, webm_file_path)
+                    if pcm_data is not None:
+                        # Process chunk using the existing hook method logic
+                        result = self.process_audio_chunk(pcm_data, effective_sample_rate)
+                        return {
+                            "status": "success",
+                            "chunk_result": result,
+                            "sample_rate": 16000,
+                            "chunk_file": webm_file_path
+                        }
+                    else:
+                        # WebM conversion failed
+                        self.logger.error("Failed to convert WebM chunk to PCM")
+                        return {"status": "error", "message": "Audio conversion failed"}
+                else:
+                    # Handle non-WebM files (WAV, etc.) directly
+                    result = self.process_audio_chunk(audio_bytes, effective_sample_rate)
+                    return {
+                        "status": "success",
+                        "chunk_result": result,
+                        "sample_rate": effective_sample_rate
+                    }
+                
+            except Exception as e:
+                self.logger.error(f"Error processing audio chunk: {e}")
+                raise HTTPException(status_code=500, detail=str(e))
+
     def new_speaker_found(self, match, score, top_results):  
         """Handle new speaker found event"""
+        self.last_phrase_speaker.id = match
+        self.last_phrase_speaker.confidence = score
         self.last_speaker.id = match
         self.last_speaker.confidence = score
         self.send_message_to_frontend({
