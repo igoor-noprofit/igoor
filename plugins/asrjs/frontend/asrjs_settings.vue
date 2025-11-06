@@ -1,5 +1,39 @@
 <template>
     <div class="asrjs-plugin-settings form-grid">
+        <!-- Model Provider -->
+        <div class="form-label">{{t('Model provider')}}</div>
+        <div class="form-input">
+            <select name="model_provider" v-model="formData.model_provider" @change="onProviderChange">
+                <option value="groq">Groq</option>
+                <option value="mistral">Mistral (BETA)</option>
+            </select>
+        </div>
+        <div class="form-note"></div>
+        <!-- Model Name -->
+        <div class="form-label">{{t('Model name')}}</div>
+        <div class="form-input">
+            <select name="model_name" v-model="formData.model_name">
+                <option value="whisper-large-v3" v-show="formData.model_provider === 'groq'">Whisper Large v3</option>
+                <option value="whisper-large-v3-turbo" v-show="formData.model_provider === 'groq'">Whisper Large v3 Turbo</option>
+                <option value="voxtral-mini-latest" v-show="formData.model_provider === 'mistral'">Voxtral Mini Latest</option>
+            </select>
+        </div>
+        <div class="form-note"></div>
+        <!-- MISTRAL API KEY -->
+        <div class="form-label" v-show="formData.model_name === 'voxtral-mini-latest'">{{t('Voxtral API Key (BETA)')}}</div>
+        <div class="form-input" v-show="formData.model_name === 'voxtral-mini-latest'">
+            <input
+                type="password"
+                v-model="formData.voxtral_api_key"
+                :class="{'input-error': voxtralKeyError}"
+                :placeholder="t('Required for Voxtral')"
+                required
+            />
+        </div>
+        <div class="form-note" :style="{color: voxtralKeyError ? '#ff6666' : undefined}" v-show="formData.model_name === 'voxtral-mini-latest'">
+            {{ voxtralKeyError ? t('Mistral API Key is required') : t('Mistral API Key is required for Voxtral models') }}
+        </div>
+
         <!-- VAD Level -->
         <div class="form-label">{{t('VAD level')}}</div>
         <div class="form-input">
@@ -53,30 +87,7 @@
             {{t('This keyboard combination STARTS / STOPS the speech detection process')}}
         </div>
 
-        <!-- API Endpoints Configuration -->
-        <div class="form-label">{{t('Transcription API URL')}}</div>
-        <div class="form-input">
-            <input
-                type="url"
-                v-model="formData.transcription_api_url"
-                placeholder="http://localhost:8001/transcribe"
-            />
-        </div>
-        <div class="form-note">
-            {{t('Local API endpoint for speech transcription')}}
-        </div>
 
-        <div class="form-label">{{t('Speaker ID API URL')}}</div>
-        <div class="form-input">
-            <input
-                type="url"
-                v-model="formData.speaker_api_url"
-                placeholder="http://localhost:8002/identify"
-            />
-        </div>
-        <div class="form-note">
-            {{t('Local API endpoint for speaker identification')}}
-        </div>
 
         <!-- Save Button (spans all columns) -->
         <div class="form-label"></div>
@@ -113,13 +124,15 @@ export default {
         return {
             originalSettings: null,
             formData: {
+                model_provider: 'groq',
+                model_name: 'whisper-large-v3',
+                voxtral_api_key: '',
                 vad_level: 2,
                 silence_frames: 1500,
-                shortcut: '',
-                transcription_api_url: 'http://localhost:8001/transcribe',
-                speaker_api_url: 'http://localhost:8002/identify'
+                shortcut: ''
             },
-            isRecordingShortcut: false
+            isRecordingShortcut: false,
+            voxtralKeyError: false
         };
     },
     computed: {
@@ -165,8 +178,30 @@ export default {
         clearShortcut() {
             this.formData.shortcut = '';
         },
+        onProviderChange() {
+            // Reset model_name if not compatible with provider
+            if (this.formData.model_provider === 'groq') {
+                if (!['whisper-large-v3', 'whisper-large-v3-turbo'].includes(this.formData.model_name)) {
+                    this.formData.model_name = 'whisper-large-v3';
+                }
+            } else if (this.formData.model_provider === 'mistral') {
+                if (this.formData.model_name !== 'voxtral-mini-latest') {
+                    this.formData.model_name = 'voxtral-mini-latest';
+                }
+            }
+        },
         checkBeforeUpdating() {
             console.log("Updating settings with:", this.formData);
+            // Require Voxtral API key if voxtral model is selected
+            if (
+                this.formData.model_name === 'voxtral-mini-latest' &&
+                (!this.formData.voxtral_api_key || !this.formData.voxtral_api_key.trim())
+            ) {
+                this.voxtralKeyError = true;
+                console.warn('Voxtral API Key is required for Voxtral models.');
+                return;
+            }
+            this.voxtralKeyError = false;
             this.updateSettings(this.formData);
         }
     }
@@ -200,7 +235,7 @@ export default {
     padding-top: 2px;
     text-align: left;
 }
-select, input[type="text"], input[type="url"] {
+select, input[type="text"], input[type="url"], input[type="password"] {
     background: #222;
     color: #fff;
     border: 1px solid #444;
@@ -220,5 +255,9 @@ button {
 }
 button:hover {
     background: #338a33;
+}
+.input-error {
+    border-color: #ff6666;
+    background: #2a1818;
 }
 </style>
