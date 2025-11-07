@@ -161,17 +161,6 @@ export default {
     flex-direction: column;
 }
 
-.error-banner {
-    background: #b00020;
-    color: #fff;
-    padding: 6px 10px;
-    border-radius: 4px;
-    font-size: 14px;
-    height: 100%;
-    justify-content: center;
-    align-items: center;
-}
-
 .mic.clickable {
     cursor: pointer;
     height: 100%;

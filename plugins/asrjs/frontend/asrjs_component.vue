@@ -1,6 +1,9 @@
 <template>
     <div class="asrvosk-plugin">
-        <div class="mic" :class="[status, { 'clickable': !continuous }]" @click="$_handleMicClick">
+        <div v-if="hasError" class="error-banner">
+            {{ errorMessage }}
+        </div>
+        <div  v-if="!hasError" class="mic" :class="[status, { 'clickable': !continuous }]" @click="$_handleMicClick">
             <img src="/img/mic.png">
         </div>
         <button v-show="continuous" class="mode-toggle btn btn-small" :class="{ 'active': continuous }"
@@ -36,6 +39,17 @@ export default {
             lastChunkSentTime: 0, // Track when we last sent a chunk to speakerid
             chunkDuration: 3.0 // Fixed chunk duration in seconds for speakerid
         };
+    },
+    computed: {
+        hasError() {
+            return Boolean(this.error);
+        },
+        errorMessage() {
+            if (!this.error) {
+                return '';
+            }
+            return this.error.message || this.t('Microphone access problem. Verify that Windows has access to your microphone, then restart IGOOR.');
+        }
     },
     created() {
         this.audio = {
@@ -286,6 +300,7 @@ export default {
                 });
                 
             } catch (error) {
+                this.error = error;
                 console.error('Error accessing microphone:', error);
                 console.error('Error details:', {
                     name: error.name,
