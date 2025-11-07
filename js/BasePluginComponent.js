@@ -129,6 +129,9 @@ module.exports = {
             message: data.message,
             details: data.details,
           };
+          if (this.$_handleError) {
+            this.$_handleError(this.error);
+          }
           console.error(`${this.$options.name} error:`, data.message);
           return true;
         }
