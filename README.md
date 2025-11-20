@@ -173,6 +173,8 @@ On Win, this is at:
 C:\Users\YourUsername\.cache\huggingface\hub
 ```
 
+Other models can be saved in this folder (speechbrain, fasterwhisper etc.)
+
 ## LAUNCH
 
 *EXPERIMENTAL*: You can now launch IGOOR in CLI mode (IGOOR_CLI=True in .env), which is a headless mode you can access with the browser at http://127.0.0.1:9714/ (via FastAPI).
