@@ -99,4 +99,4 @@ THEN,leverage the MCP chrome-dev-tool server for live testing the actual browser
 
 
 ## Searching the web
-Leverage the MCP Nexus server for web searches
+Leverage the Bright DATA MCP server for web searches
