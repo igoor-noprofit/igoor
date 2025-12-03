@@ -460,6 +460,7 @@ class PluginManager:
     def startup_plugins(self):
         """Calls the startup method on all registered plugins."""
         self.plugin_manager.hook.startup()
+
         
     def get_plugin_manager(self):
         return self
