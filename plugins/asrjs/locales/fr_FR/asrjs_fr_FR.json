@@ -28,5 +28,6 @@
     "Transcription API URL": "URL de l'API de transcription",
     "Local API endpoint for speech transcription": "Point de terminaison API local pour la transcription vocale",
     "Speaker ID API URL": "URL de l'API d'identification du locuteur",
-    "Local API endpoint for speaker identification": "Point de terminaison API local pour l'identification du locuteur"
+    "Local API endpoint for speaker identification": "Point de terminaison API local pour l'identification du locuteur",
+    "Clear": "Effacer"
 }
