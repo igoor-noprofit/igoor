@@ -31,7 +31,8 @@ http://localhost:9714/api/plugins/asrjs/settings
 
 **Vue 3 Without Bundlers**: Uses httpVueLoader for SFC loading
 - IMPORTANT: the only files you will find in APPDATA subfolder (/web/) are app.js and app.vue
-- IPORTANT: NEVER edit `app.js` or `app.vue` directly, nor even in the APPDATA_FOLDER (they are just builds): ALWAYS edit `app_template.js` and `app_template.vue` 
+- IMPORTANT: NEVER edit `app.js` or `app.vue` directly, nor even in the APPDATA_FOLDER (they are just builds): ALWAYS edit `app_template.js` and `app_template.vue` instead
+- IMPORTANT: NEVER edit `css/app.css`, ALWAYS edit `css/app.less` instead
 - Component methods prefixed with `$_` to avoid global conflicts
 - Dynamic component loading via httpVueLoader
 - When choosing colors,always start from predefined colors in /css/app.less
@@ -90,7 +91,12 @@ plugin_name/
 **Python Version**: Tested on 3.10.6 only
 
 ## Accesing and testing the frontend
-For UX/UI,styles changes etc. leverage the MCP chrome-dev-tool server for live testing the actual browser window @ http://127.0.0.1:9714/
+To test the frontend verify if IGOOR is running in Python. 
+If not: 
+/venv/scripts/Activate
+python main.py
+THEN,leverage the MCP chrome-dev-tool server for live testing the actual browser window @ http://127.0.0.1:9714/ 
+
 
 ## Searching the web
 Leverage the MCP Nexus server for web searches
