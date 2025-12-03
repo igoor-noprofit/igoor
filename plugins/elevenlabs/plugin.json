@@ -8,5 +8,6 @@
     },
     "is_free": false,
     "requires_subscription": true,
-    "requires_internet": true
+    "requires_internet": true,
+    "has_settings": true
 }
