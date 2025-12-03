@@ -134,21 +134,46 @@ The ingestion pipeline should run asynchronously to avoid blocking live user ses
 
 ## 6. Ontology Strategy
 
-### 6.1 MVP Taxonomy
+### 6.1 Layered Core Ontology
 
-- **PERSON**: patient, family_member, clinician, caregiver.
-- **CONDITION**: chronic_condition, acute_condition, symptom.
-- **EVENT**: diagnosis, treatment, hospitalization, life_event.
-- **RELATIONSHIPS**: treated_by, experienced_symptom, lives_with, occurred_before.
+Define reusable ontology fixtures that expose three tiers: **entity supertype**, **subtype**, and optional **archetype** metadata. Suggested baseline supertypes:
 
-Store ontology definitions in JSON fixtures consumed by plugins to keep extraction prompts consistent.
+- **PERSON** → patient, family_member, friend, caregiver, clinician, support_worker, emergency_contact.
+- **ORGANIZATION** → hospital, clinic, insurer, supplier, community_group.
+- **CONDITION** → chronic_condition, acute_condition, symptom, diagnosis_label.
+- **TREATMENT** → medication, therapy, assistive_device, procedure, care_plan.
+- **EVENT** → diagnosis_event, hospitalization, appointment, life_event, communication_event.
+- **LOCATION** → residence, care_facility, room, city, geographic_region.
+- **RESOURCE** → document, note, multimedia, guideline.
+- **GOAL** → care_goal, quality_of_life_goal, rehab_target.
 
-### 6.2 External Code Integration
+Each entity record should carry optional `role`, `status`, and `validity_period` fields in `properties` to capture context (e.g., `role:"primary_physician"`, `status:"active"`).
+
+### 6.2 Relationship Families & Directionality
+
+Model relationships as directed edges with `is_bidirectional` metadata to signal symmetry when needed. Recommended families:
+
+- **Social & Family**: `parent_of`, `child_of`, `sibling_of`, `spouse_of`, `partner_of`, `friend_of`, `cohabitates_with`, `caregiver_of`.
+- **Clinical Team**: `treated_by`, `monitored_by`, `consults_with`, `referred_by`, `assigned_to_team`.
+- **Condition & Symptom**: `has_condition`, `experiences_symptom`, `condition_worsened_by`, `condition_improved_by`.
+- **Treatment & Resource**: `prescribed`, `administered`, `uses_device`, `adheres_to`, `described_in`.
+- **Event & Temporal**: `occurred_before`, `results_in`, `scheduled_for`, `follows_up`, `took_place_at`.
+- **Location & Logistics**: `resides_at`, `admitted_to`, `travels_to`, `works_at`, `service_available_at`.
+
+Store direction metadata alongside optional `effectivity_start`, `effectivity_end`, and `strength` to track temporal validity and confidence. Symmetric edges (e.g., friendship) can be materialized as two directed edges or flagged via `is_bidirectional`.
+
+### 6.3 Attribute & Temporal Semantics
+
+- Enforce `context_id`, `observed_at`, and `asserted_by` attributes so provenance is explicit.
+- Allow relationship-level qualifiers (`frequency`, `severity`, `care_level`) to support nuanced reasoning.
+- Maintain lightweight controlled vocabularies for `role`, `status`, and `relationship_subtype` to prevent drift across plugins.
+
+### 6.4 External Code Integration
 
 - Map CONDITIONS to SNOMED CT where coverage exists; fallback to ICD-10 if missing.
 - For medications, populate RxNorm codes. Keep a `rag_external_codes` table with fields `(entity_uuid, system, code, display_name)`.
 
-### 6.3 Evolution Plan (Phase 3+)
+### 6.5 Evolution Plan (Phase 3+)
 
 - Expand PERSON subtypes (support_worker, pharmacist) as data volume grows.
 - Introduce emotional_state nodes only once UI can surface them responsibly.
