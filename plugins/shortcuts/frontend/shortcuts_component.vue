@@ -136,6 +136,41 @@ export default {
                 console.warn('Shortcuts plugin received non-JSON message:', event.data);
             }
         }
+    },
+    watch: {
+        shrink(newVal, oldVal) {
+            if (newVal !== oldVal) {
+                // Emit to parent Vue app
+                this.$emit('footer-shrink', newVal);
+                
+                // Try to find parent app instance
+                let parent = this.$parent;
+                while (parent && parent.footerShrink === undefined) {
+                    parent = parent.$parent;
+                }
+                if (parent && parent.footerShrink !== undefined) {
+                    parent.footerShrink = newVal;
+                    console.log('Updated parent.footerShrink to:', newVal);
+                }
+                
+                // Also emit to window/global event bus
+                if (window.app && window.app.footerShrink !== undefined) {
+                    window.app.footerShrink = newVal;
+                    console.log('Updated window.app.footerShrink to:', newVal);
+                }
+                
+                // Dispatch custom event to DOM
+                window.dispatchEvent(new CustomEvent('footer-shrink', { detail: newVal }));
+                
+                console.log('Shortcuts shrink changed to:', newVal);
+            }
+        }
+    },
+    mounted() {
+        // Ensure window.app reference is available
+        if (window.app) {
+            console.log('Window.app available in shortcuts mounted');
+        }
     }
 };
 </script>

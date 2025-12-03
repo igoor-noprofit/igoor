@@ -33,7 +33,7 @@
             <!-- MAIN_COMPONENTS -->
         </main>
     </div>
-    <footer>
+    <footer :class="[appview, { 'shrink': footerShrink }]" @footer-shrink="handleFooterShrink">
         <!-- FOOTER_COMPONENTS -->
     </footer>
 </div>

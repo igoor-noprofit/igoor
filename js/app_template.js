@@ -88,6 +88,7 @@ async function initializeApp() {
         headerExpanded: false,
         pywebviewready: false,
         lang: "{{LANG}}",
+        footerShrink: false,
       };
     },
     components: {
@@ -103,6 +104,11 @@ async function initializeApp() {
       if (this.appview === "loading") {
         this.appview = this.lastview;
       }
+      
+      // Listen for footer shrink events from shortcuts component
+      window.addEventListener('footer-shrink', (event) => {
+        this.footerShrink = event.detail;
+      });
     },
     methods: {
       async readypy() {
@@ -190,6 +196,9 @@ async function initializeApp() {
       },
       goBack() {
         this.appview = this.lastview;
+      },
+      handleFooterShrink(shrink) {
+        this.footerShrink = shrink;
       },
     },
   });
