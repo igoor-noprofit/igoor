@@ -1,8 +1,7 @@
 from plugin_manager import hookimpl, PluginManager
 from plugins.baseplugin.baseplugin import Baseplugin
 import threading
-from elevenlabslib import *
-from elevenlabslib.helpers import play_audio_v2
+from elevenlabs import ElevenLabs, VoiceSettings, play
 from typing import Any, Dict
 from settings_manager import SettingsManager
 import asyncio
@@ -29,19 +28,22 @@ class Elevenlabs(Baseplugin):
                 user = User(api_key)
                 # Try different method names for ElevenLabs API
                 try:
-                    voices = user.get_available_voices()
+                    voices = user.get_all_voices()
                 except AttributeError:
                     try:
-                        voices = user.get_voice_list()
+                        voices = user.get_voices()
                     except AttributeError:
-                        # Get user subscription data as fallback
-                        subscription_data = user.get_subscription_data()
-                        print(f"DEBUG: Available subscription data: {subscription_data}")
-                        return {
-                            "voices": [],
-                            "count": 0,
-                            "debug_info": {
-                                "subscription_data": subscription_data,
+                        try:
+                            voices = user.get_voice_list()
+                        except AttributeError:
+                            # Get user subscription data as fallback
+                            subscription_data = user.get_subscription_data()
+                            print(f"DEBUG: Available subscription data: {subscription_data}")
+                            return {
+                                "voices": [],
+                                "count": 0,
+                                "debug_info": {
+                                    "subscription_data": subscription_data,
                                 "available_methods": [attr for attr in dir(user) if 'voice' in attr.lower()]
                             }
                         }
@@ -61,6 +63,35 @@ class Elevenlabs(Baseplugin):
             except Exception as e:
                 raise HTTPException(status_code=400, detail=f"Failed to get voices: {str(e)}")
 
+        @self.router.get("/debug_voice")
+        async def debug_single_voice(api_key: str, voice_name: str = "Rachel"):
+            """Debug endpoint to inspect single voice object"""
+            try:
+                client = elevenlabs.ElevenLabs(api_key=api_key)
+                voices = client.voices.get_all()
+                
+                # Find specific voice
+                target_voice = None
+                for voice in voices:
+                    if hasattr(voice, 'name') and voice.name == voice_name:
+                        target_voice = voice
+                        break
+                
+                if target_voice is None:
+                    return {"error": f"Voice '{voice_name}' not found"}
+                
+                # Return detailed info about the voice object
+                return {
+                    "voice_name": getattr(target_voice, 'name', 'No name'),
+                    "voice_id": getattr(target_voice, 'voice_id', getattr(target_voice, 'id', 'No id')),
+                    "all_attributes": {attr: str(getattr(target_voice, attr)) for attr in dir(target_voice) if not attr.startswith('_')},
+                    "available_methods": [attr for attr in dir(client) if 'voice' in attr.lower()],
+                    "user_methods": [attr for attr in dir(client) if not attr.startswith('_')],
+                    "subscription_data": client.get_subscription_data()
+                }
+            except Exception as e:
+                return {"error": str(e)}
+
         @self.router.post("/test_speak")
         async def test_speak(payload: dict):
             """Test a voice with provided settings"""
@@ -72,16 +103,15 @@ class Elevenlabs(Baseplugin):
                 if not api_key or not voice_id:
                     raise HTTPException(status_code=400, detail="api_key and voice_id are required")
                 
-                user = User(api_key)
-                voice = user.get_voice_by_ID(voice_id)
+                client = elevenlabs.ElevenLabs(api_key=api_key)
+                voice = client.voices.get(voice_id)
                 
-                from elevenlabslib.helpers import play_audio_v2
+                from elevenlabs import play
                 from elevenlabslib import GenerationOptions, PlaybackOptions
                 
                 # Build generation options with current plugin settings
-                generation_options = GenerationOptions(
-                    model_id=self.settings.get("model_id", "eleven_multilingual_v2"),
-                    latencyOptimizationLevel=self.settings.get("latency_optimization", 0),
+                voice_settings = elevenlabs.VoiceSettings(
+                    model=self.settings.get("model_id", "eleven_multilingual_v2"),
                     stability=self.settings.get("stability", 0.5),
                     similarity_boost=self.settings.get("similarity_boost", 0.75),
                     style=self.settings.get("style", 0.0),
@@ -89,15 +119,11 @@ class Elevenlabs(Baseplugin):
                     speed=self.settings.get("speed", 1.0)
                 )
                 
-                playback_options = PlaybackOptions(
-                    runInBackground=False
-                )
-                
                 # Generate and play audio
-                audio_future, generation_info_future = voice.generate_audio_v3(message, generation_options)
+                audio_future = voice.generate(text=message, voice=voice_settings)
                 generation_info = generation_info_future.result()
                 audio_data = audio_future.result()
-                play_audio_v2(audio_data)
+                play(audio_data)
                 
                 return {
                     "status": "success",

@@ -203,7 +203,7 @@ export default {
     mixins: [BasePluginComponent], // Use the mixin
     data() {
         return {
-            activeTab: '', // For plugin categories
+            activeTab: 'core', // Initialize with a default category to prevent empty state
             pluginData: {},
             currentTab: 'bio', // For main tabs (bio, prefs, ai, plugins, about)
             showModal: false,
@@ -269,7 +269,7 @@ export default {
                     p => !excluded.includes(p.name)
                 );
             }
-            console.log("Filtered plugins by category:", filtered);
+            // Remove the console.log to prevent excessive logging that can cause performance issues
             return filtered;
         },
         donationLink() {
@@ -327,9 +327,20 @@ export default {
             }
         },
         handleIncomingMessage(event) {
-            console.log("Custom message handler in ONBOARDING component:", event.data);
+            // Only handle messages that are specifically for onboarding
+            // This prevents interference with plugin-specific settings components
+            if (!event.data || typeof event.data !== 'string') {
+                return false; // Let BasePluginComponent handle it
+            }
+            
             try {
                 const data = JSON.parse(event.data);
+                
+                // Only process messages that are specifically for onboarding
+                if (data.target !== 'onboarding' && !data.bio && !data.prefs && !data.ai && data.action !== 'show_modal') {
+                    return false; // Let BasePluginComponent handle it
+                }
+                
                 if (data.type && data.type == "error"){
                     this.saveStatus = {
                         type: 'error',
@@ -361,9 +372,10 @@ export default {
                 if (data.ai) {
                     this.ai = { ...this.ai, ...data.ai };
                 }
-                console.log("Updated component data:", this.bio, this.prefs, this.ai);
+                return true; // Message was handled
             } catch (e) {
-                console.warn("Error parsing JSON", e);
+                console.warn("Error parsing JSON in onboarding:", e);
+                return false;
             }
         },
         // Note: Removed the duplicate saveSettings method. The one above is more complete.
@@ -375,10 +387,12 @@ export default {
                 }
                 const backendApi = await ensureBackendApi();
                 const response = await backendApi.getPluginsByCategory();
-                console.log(response);
-                console.table(response);
+                // Remove excessive logging to prevent performance issues
                 this.pluginData = response;
-                // Do not override activeTab here, keep ABOUT as default
+                // Only set activeTab if it's still the initial value and categories are available
+                if (this.activeTab === 'core' && this.categories.length > 0 && !this.categories.includes('core')) {
+                    this.activeTab = this.categories[0];
+                }
             } catch (error) {
                 console.error("Error loading plugins:", error);
             }

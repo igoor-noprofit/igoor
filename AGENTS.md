@@ -96,7 +96,8 @@ If not:
 /venv/scripts/Activate
 python main.py
 THEN,leverage the MCP chrome-dev-tool server for live testing the actual browser window @ http://127.0.0.1:9714/ 
-
+In the frontend, to go the onboarding plugin settings (and to access all the extensions) you have to click on the settings-gear top right in the header.
+Once there,you have to click on the extensions tab,the plugin category etc.
 
 ## Searching the web
 Leverage the Bright DATA MCP server for web searches
