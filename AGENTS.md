@@ -101,3 +101,6 @@ Once there,you have to click on the extensions tab,the plugin category etc.
 
 ## Searching the web
 Leverage the Bright DATA MCP server for web searches
+
+## Checking the libraries documentation
+ALWAYS use context7 mcp to access the documentation corresponding to the installed python libraries.

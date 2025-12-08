@@ -42,7 +42,6 @@ cymem==2.0.11
 dataclasses-json==0.6.7
 distro==1.9.0
 elevenlabs==2.26.0
-elevenlabslib==0.31.3
 etelemetry==0.3.1
 exceptiongroup==1.2.2
 faiss-cpu==1.10.0
