@@ -26,7 +26,7 @@ class Elevenlabstts(Baseplugin):
         async def get_voices(api_key: str):
             """Get list of available voices for an API key"""
             try:
-                client = ElevenLabs(api_key=api_key)
+                client = self.createClient(api_key)
                 # Use the correct ElevenLabs API syntax
                 response = client.voices.get_all()
                 voices = response.voices
@@ -52,7 +52,7 @@ class Elevenlabstts(Baseplugin):
         async def debug_single_voice(api_key: str, voice_name: str = "Rachel"):
             """Debug endpoint to inspect single voice object"""
             try:
-                client = ElevenLabs(api_key=api_key)
+                client = self.createClient(api_key)
                 response = client.voices.get_all()
                 voices = response.voices
                 
@@ -91,7 +91,7 @@ class Elevenlabstts(Baseplugin):
                 if not api_key or not voice_id:
                     raise HTTPException(status_code=400, detail="api_key and voice_id are required")
                 
-                client = ElevenLabs(api_key=api_key)
+                client = self.createClient(api_key)
                 
                 audio = client.text_to_speech.convert(
                     text=message,
@@ -115,7 +115,35 @@ class Elevenlabstts(Baseplugin):
         # Register router with the main FastAPI app if available
         if hasattr(self, 'pm') and hasattr(self.pm, 'fastapi_app'):
             self.pm.fastapi_app.include_router(self.router)
-                
+        self.settings = self.get_my_settings()
+        try:
+            self.api_key = self.settings.get("api_key")
+            self.voice_id = self.settings.get("voice_id")  
+            if (not self.api_key):
+                self.logger.warning("Speechify API token not set in settings,cannot generate speech")
+                return False
+            if (not self.voice_id):
+                print("Speechify Voice ID not set in settings,cannot generate speech")
+                return False
+            try:
+                self.client = self.createClient(self.api_key)
+                self.is_loaded = True
+                return True
+            except Exception as e:
+                self.logger.error(f"Error occurred while creating Elevenlabs client : {e}")
+                return False    
+        except Exception as e:
+            self.logger.error(f"Error occurred while retrieving settings : {e}")
+            return False
+    
+    def createClient(self,ak):
+        try: 
+            return ElevenLabs(api_key=ak)
+        except Exception as e:
+            self.logger.error(f"Error occurred while creating Elevenlabs client : {e}")
+            return False
+    
+    '''
     @hookimpl
     def register_fastapi_routes(self):
         """Register plugin routes with FastAPI app"""
@@ -144,7 +172,7 @@ class Elevenlabstts(Baseplugin):
             # Initialize settings first
             self.settings = self.get_my_settings()
             
-            self.client = ElevenLabs(api_key=self.settings.get("api_key"))
+            self.client = self.createClient()
             # Voice object is not needed with new API, just store voice_id
             self.voice_id = self.settings.get("voice_id")
             self.is_loaded = True
@@ -153,6 +181,7 @@ class Elevenlabstts(Baseplugin):
             print(f"Error occurred while setting user : {e}")
             # DEFAULT SYSTEMATICALLY TO TTSDEFAULT
             return False
+    '''
     
     @hookimpl
     def on_websocket_message(self, message):
@@ -178,10 +207,10 @@ class Elevenlabstts(Baseplugin):
     def _get_voice_list(self, api_key):
         """Retrieve and send voice list to frontend"""
         try:
-            client = ElevenLabs(api_key=api_key)
+            client = self.createClient(api_key)
             response = client.voices.get_all()
             voices = response.voices
-            
+            print (response.voices)
             voice_list = []
             for voice in voices:
                 voice_data = {
@@ -212,7 +241,7 @@ class Elevenlabstts(Baseplugin):
                 self.send_error_to_frontend("API key is required for testing")
                 return
                 
-            client = ElevenLabs(api_key=api_key)
+            client = self.createClient(api_key)
             voice_id = test_settings.get("voice_id")
             
             # Generate and play audio using official SDK
@@ -234,7 +263,6 @@ class Elevenlabstts(Baseplugin):
     @hookimpl
     def speak(self, message):
         print("§§§§ ELEVENLABS SPEAKING *********************************************** :", message)
-        
         # Schedule the speak_func to run in the background
         asyncio.create_task(self.run_speak_func(message))
         asyncio.create_task(self.pm.trigger_hook(hook_name="reset_conversation_timeout"))
@@ -266,22 +294,24 @@ class Elevenlabstts(Baseplugin):
             # Ensure settings are initialized
             if not hasattr(self, 'settings'):
                 self.settings = self.get_my_settings()
-                
+            
             try:
                 # Generate audio using official SDK
-                audio_data = self.client.text_to_speech.convert(
+                audio = self.client.text_to_speech.convert(
                     text=message,
-                    voice_id=self.settings.get("voice_id"),
-                    model_id=self.settings.get("model_id", "eleven_multilingual_v2")
+                    voice_id=self.voice_id,
+                    model_id="eleven_multilingual_v2",
+                    output_format="mp3_44100_128",
                 )
+                await self.pm.trigger_hook(hook_name="pause_asr")
+                play(audio)
             except Exception as inner_e:
-                print(f"Error retrieving audio data: {inner_e}")
+                print(f"Error generating audio data: {inner_e}")
                 await self.call_fallback(message=message) 
                 return False    
             
             # Play it back
             await self.pm.trigger_hook(hook_name="pause_asr")
-            elevenlabs_play(audio_data)
             self.run_restart_asr()
             return True
 
