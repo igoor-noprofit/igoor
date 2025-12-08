@@ -1,15 +1,15 @@
 from plugin_manager import hookimpl, PluginManager
 from plugins.baseplugin.baseplugin import Baseplugin
 import threading
-from elevenlabs import ElevenLabs, VoiceSettings, play
-from elevenlabslib import GenerationOptions, PlaybackOptions, play_audio_v2
+from elevenlabs.client import ElevenLabs
+from elevenlabs.play import play
 from typing import Any, Dict
 from settings_manager import SettingsManager
 import asyncio
 import json
 from fastapi import APIRouter, HTTPException
 
-class Elevenlabs(Baseplugin):
+class Elevenlabstts(Baseplugin):
     def __init__(self, plugin_name, pm):
         self.pm = pm
         self.router = None
@@ -19,7 +19,7 @@ class Elevenlabs(Baseplugin):
         """Initialize FastAPI router for plugin endpoints"""
         if self.router is not None:
             return
-        self.router = APIRouter(prefix="/api/plugins/elevenlabs", tags=["elevenlabs"])
+        self.router = APIRouter(prefix="/api/plugins/elevenlabstts", tags=["elevenlabstts"])
 
         # Debug endpoints for development/testing
         @self.router.get("/get_voices")
@@ -82,6 +82,8 @@ class Elevenlabs(Baseplugin):
         async def test_speak(payload: dict):
             """Test a voice with provided settings"""
             try:
+                print(f"DEBUG: test_speak called with payload: {payload}")
+                
                 api_key = payload.get("api_key")
                 voice_id = payload.get("voice_id")
                 message = payload.get("message", "Hello, how are you doing? I feel better today!")
@@ -90,35 +92,19 @@ class Elevenlabs(Baseplugin):
                     raise HTTPException(status_code=400, detail="api_key and voice_id are required")
                 
                 client = ElevenLabs(api_key=api_key)
-                response = client.voices.get(voice_id)
-                voice = response
                 
-                from elevenlabs import play
-                from elevenlabslib import GenerationOptions, PlaybackOptions
-                
-                # Build generation options with current plugin settings
-                voice_settings = elevenlabs.VoiceSettings(
-                    model=self.settings.get("model_id", "eleven_multilingual_v2"),
-                    stability=self.settings.get("stability", 0.5),
-                    similarity_boost=self.settings.get("similarity_boost", 0.75),
-                    style=self.settings.get("style", 0.0),
-                    use_speaker_boost=self.settings.get("use_speaker_boost", True),
-                    speed=self.settings.get("speed", 1.0)
+                audio = client.text_to_speech.convert(
+                    text=message,
+                    voice_id=voice_id,
+                    model_id="eleven_multilingual_v2",
+                    output_format="mp3_44100_128",
                 )
-                
-                # Generate and play audio
-                audio_future = voice.generate(text=message, voice=voice_settings)
-                generation_info = generation_info_future.result()
-                audio_data = audio_future.result()
-                play(audio_data)
+
+                play(audio)
                 
                 return {
                     "status": "success",
-                    "generation_info": {
-                        "model_id": generation_info.get("model_id"),
-                        "text": generation_info.get("text"),
-                        "voice_id": generation_info.get("voice_id")
-                    }
+                    "message": "Audio generated successfully"
                 }
             except Exception as e:
                 raise HTTPException(status_code=400, detail=f"Failed to test voice: {str(e)}")
@@ -137,7 +123,7 @@ class Elevenlabs(Baseplugin):
         if hasattr(self, 'pm') and hasattr(self.pm, 'fastapi_app'):
             self.pm.fastapi_app.include_router(self.router)
         self.settings = self.get_my_settings()
-        print ("ELEVENLABS settings", self.settings)
+        print ("ELEVENLABSTTS settings", self.settings)
         
         # Set default values for new settings if they don't exist
         default_settings = {
@@ -155,8 +141,12 @@ class Elevenlabs(Baseplugin):
                 self.settings[key] = default_value
         
         try:
+            # Initialize settings first
+            self.settings = self.get_my_settings()
+            
             self.client = ElevenLabs(api_key=self.settings.get("api_key"))
-            self.voice= self.client.voices.get(self.settings.get("voice_id"))   
+            # Voice object is not needed with new API, just store voice_id
+            self.voice_id = self.settings.get("voice_id")
             self.is_loaded = True
             # self.input_streamer=ReusableInputStreamer(self.voice)
         except Exception as e:
@@ -189,13 +179,14 @@ class Elevenlabs(Baseplugin):
         """Retrieve and send voice list to frontend"""
         try:
             client = ElevenLabs(api_key=api_key)
-            voices = client.voices.get_all()
+            response = client.voices.get_all()
+            voices = response.voices
             
             voice_list = []
             for voice in voices:
                 voice_data = {
-                    "id": voice.voice_id,
-                    "display_name": voice.name,
+                    "id": getattr(voice, 'voice_id', getattr(voice, 'id', 'unknown')),
+                    "display_name": getattr(voice, 'name', str(voice)),
                     "gender": getattr(voice, 'gender', 'unknown'),
                     "age": getattr(voice, 'age', 'unknown'),
                     "language": getattr(voice, 'language', 'unknown')
@@ -222,29 +213,17 @@ class Elevenlabs(Baseplugin):
                 return
                 
             client = ElevenLabs(api_key=api_key)
-            test_voice = client.voices.get(test_settings.get("voice_id"))
+            voice_id = test_settings.get("voice_id")
             
-            # Build generation options from test settings
-            generation_options = GenerationOptions(
-                model_id=test_settings.get("model_id", self.settings.get("model_id", "eleven_multilingual_v2")),
-                latencyOptimizationLevel=test_settings.get("latency_optimization", self.settings.get("latency_optimization", 0)),
-                stability=test_settings.get("stability", self.settings.get("stability", 0.5)),
-                similarity_boost=test_settings.get("similarity_boost", self.settings.get("similarity_boost", 0.75)),
-                style=test_settings.get("style", self.settings.get("style", 0.0)),
-                use_speaker_boost=test_settings.get("use_speaker_boost", self.settings.get("use_speaker_boost", True)),
-                speed=test_settings.get("speed", self.settings.get("speed", 1.0))
+            # Generate and play audio using official SDK
+            audio_data = client.text_to_speech.convert(
+                text=message,
+                voice_id=voice_id,
+                model_id=test_settings.get("model_id", self.settings.get("model_id", "eleven_multilingual_v2"))
             )
             
-            playback_options = PlaybackOptions(
-                runInBackground=False
-            )
-            
-            # Generate and play audio
-            audio_future, generation_info_future = test_voice.generate_audio_v3(message, generation_options)
-            generation_info = generation_info_future.result()
-            audio_data = audio_future.result()
-            
-            play_audio_v2(audio_data)
+            # Use the already imported elevenlabs_play function
+            elevenlabs_play(audio_data)
             
         except Exception as e:
             print(f"Error in test speak: {e}")
@@ -284,34 +263,25 @@ class Elevenlabs(Baseplugin):
     async def speak_func(self, message):
         print("SPEAK FUNC:" + message)
         try:
-            # Set generation options from user settings
-            playback_options = PlaybackOptions(
-                runInBackground=False,
-                onPlaybackEnd=self.run_restart_asr
-            )
-            generation_options = GenerationOptions(
-                model_id=self.settings.get("model_id", "eleven_multilingual_v2"),
-                latencyOptimizationLevel=self.settings.get("latency_optimization", 0),
-                stability=self.settings.get("stability", 0.5),
-                similarity_boost=self.settings.get("similarity_boost", 0.75),
-                style=self.settings.get("style", 0.0),
-                use_speaker_boost=self.settings.get("use_speaker_boost", True),
-                speed=self.settings.get("speed", 1.0)
-            )
-            # websocket_options = WebsocketOptions(chunk_length_schedule=[125],try_trigger_generation=False)
-            # Check if stream_audio_v3 is async
-            # result = self.voice.stream_audio_v3(message, playback_options=playback_options, generation_options=generation_options, websocket_options=websocket_options)
+            # Ensure settings are initialized
+            if not hasattr(self, 'settings'):
+                self.settings = self.get_my_settings()
+                
             try:
-                audio_future, generation_info_future = self.voice.generate_audio_v3(message, generation_options)
-                generation_info = generation_info_future.result()
-                audio_data = audio_future.result()
+                # Generate audio using official SDK
+                audio_data = self.client.text_to_speech.convert(
+                    text=message,
+                    voice_id=self.settings.get("voice_id"),
+                    model_id=self.settings.get("model_id", "eleven_multilingual_v2")
+                )
             except Exception as inner_e:
                 print(f"Error retrieving audio data: {inner_e}")
                 await self.call_fallback(message=message) 
                 return False    
+            
             # Play it back
             await self.pm.trigger_hook(hook_name="pause_asr")
-            play_audio_v2(audio_data)
+            elevenlabs_play(audio_data)
             self.run_restart_asr()
             return True
 

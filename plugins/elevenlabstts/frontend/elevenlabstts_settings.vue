@@ -391,7 +391,17 @@ export default {
             testData['action'] = 'test_speak';
             testData['message'] = msg;
             testData['target'] = 'elevenlabs'; // Specify target to prevent message interference
-            const result = this.sendMsgToBackend(JSON.stringify(testData), 'elevenlabs');
+            
+            console.log('Sending test_speak message:', testData);
+            
+            // Use WebSocket but add a delay to ensure connection is ready
+            setTimeout(() => {
+                try {
+                    this.sendMsgToBackend(JSON.stringify(testData), 'elevenlabs');
+                } catch (error) {
+                    console.error('Error sending test message:', error);
+                }
+            }, 100); // Small delay to ensure WebSocket is ready
         },
         onVoiceIdChange() {
             this.voiceIdError = !this.formData.voice_id || !this.formData.voice_id.trim();
