@@ -553,13 +553,11 @@ export default {
             
             while (attempts < maxAttempts) {
                 try {
-                    const response = await fetch('http://127.0.0.1:9714/api/plugins/speakerid/status');
+                    const response = await this.callPluginRestEndpoint('speakerid', 'status');
                     
-                    if (response.ok) {
-                        this.speakerIdAvailable = true;
-                        console.log('SpeakerID plugin is available');
-                        return;
-                    }
+                    this.speakerIdAvailable = true;
+                    console.log('SpeakerID plugin is available');
+                    return;
                 } catch (error) {
                     console.log(`SpeakerID check attempt ${attempts + 1} failed:`, error.message);
                 }
@@ -579,17 +577,12 @@ export default {
         async $_checkSpeakerIDStatus() {
             // Check if speakerid plugin is active before sending chunks
             try {
-                const response = await fetch('http://127.0.0.1:9714/api/plugins/speakerid/status');
+                const statusData = await this.callPluginRestEndpoint('speakerid', 'status');
                 
-                if (response.ok) {
-                    const statusData = await response.json();
-                    console.log('SpeakerID status:', statusData);
-                    return true;
-                } else {
-                    console.warn('SpeakerID plugin not available, skipping chunk sending');
-                    return false;
-                }
+                console.log('SpeakerID status:', statusData);
+                return true;
             } catch (error) {
+                console.warn('SpeakerID plugin not available, skipping chunk sending');
                 console.error('Error checking speakerid status:', error);
                 return false;
             }
