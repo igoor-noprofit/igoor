@@ -223,4 +223,28 @@ module.exports = {
       this.websocketUtil.close();
     }
   },
+
+  async callPluginRestEndpoint(pluginName, endpoint, params = {}) {
+    const bridge = this.getBridge();
+    if (bridge?.get_plugin_rest_endpoint) {
+      return bridge.get_plugin_rest_endpoint(pluginName, endpoint, params);
+    }
+      
+    // Fallback to REST API using fetch
+    const backendApi = await ensureBackendApi();
+    const baseUrl = `/api/plugins/${encodeURIComponent(pluginName)}/${endpoint}`;
+      const urlParams = new URLSearchParams(params).toString();
+      const url = urlParams ? `${baseUrl}?${urlParams}` : baseUrl;
+      
+      try {
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return await response.json();
+      } catch (error) {
+        console.error(`Error calling ${pluginName} REST endpoint ${endpoint}:`, error);
+        throw error;
+      }
+  },
 };
