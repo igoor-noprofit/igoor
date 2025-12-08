@@ -79,8 +79,22 @@ module.exports = {
       const targetUrl = plugin_name
         ? `${BASE_WS_URL}${plugin_name}`
         : this.ws_url;
-      console.log(`Sending msg to backend on ${targetUrl}`);
-      console.log(data);
+      
+      // Ensure data is properly formatted
+      let sendData = data;
+      if (typeof data === 'string') {
+        try {
+          sendData = JSON.parse(data);
+        } catch (e) {
+          // If it's not valid JSON, wrap it in an object
+          sendData = { message: data };
+        }
+      }
+      
+      // Add target if not already present and plugin_name is provided
+      if (plugin_name && !sendData.target) {
+        sendData.target = plugin_name;
+      }
 
       if (this.websocketUtil) {
         if (plugin_name) {
@@ -89,7 +103,7 @@ module.exports = {
             onMessage: (event) =>
               console.log("Response from plugin WebSocket:", event.data),
             onOpen: () => {
-              tempWebSocketUtil.send(data);
+              tempWebSocketUtil.send(sendData);
               tempWebSocketUtil.close(); // Close the connection after sending
             },
             onClose: () =>
@@ -101,7 +115,7 @@ module.exports = {
           });
         } else {
           // Use the existing WebSocket connection
-          this.websocketUtil.send(data);
+          this.websocketUtil.send(sendData);
         }
       }
     },

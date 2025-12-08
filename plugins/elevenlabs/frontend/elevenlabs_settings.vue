@@ -351,9 +351,8 @@ export default {
             let testData = { ...this.formData };
             testData['action'] = 'test_speak';
             testData['message'] = msg;
-            console.warn("TEST SPEAK DATA", testData);
+            testData['target'] = 'elevenlabs'; // Specify target to prevent message interference
             const result = this.sendMsgToBackend(JSON.stringify(testData), 'elevenlabs');
-            console.warn(result);
         },
         onVoiceIdChange() {
             this.voiceIdError = !this.formData.voice_id || !this.formData.voice_id.trim();
