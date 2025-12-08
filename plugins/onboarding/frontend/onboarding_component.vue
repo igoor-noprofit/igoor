@@ -5,7 +5,7 @@
             <img src="/img/icons/src/settings.svg" width="30">
         </div>
         <!-- Modal Window for Plugin Settings -->
-        <div v-if="showModal" class="modal-overlay" :class="isSaving ? 'isSaving' : ''" :id="onboardingModal">
+        <div v-if="showModal" class="modal-overlay" :class="isSaving ? 'isSaving' : ''" id="onboarding-modal">
             <div class="modal-content settings container onboarding plugin">
                 <!-- Restart Alert -->
                 <div v-if="showRestartAlert" class="restart-alert">
@@ -303,7 +303,6 @@ export default {
             await backendApi.onboardingToggled(false);
         },
         async saveSettings() { // This is for main settings (bio, prefs, ai)
-            console.log("Saving main settings...");
             this.isSaving = true;
             this.saveStatus = null;
 
@@ -313,10 +312,10 @@ export default {
                     prefs: this.prefs,
                     ai: this.ai
                 };
-                await this.sendMsgToBackend({ // Or your specific API call
-                    action: 'save_settings', // Or a more specific action
-                    data: dataToSend
-                });
+                // Use the backend API directly for onboarding settings
+                const backendApi = await ensureBackendApi();
+                await backendApi.savePluginSettings('onboarding', dataToSend);
+                // If successful, the handleIncomingMessage will receive the success response
             } catch (error) {
                 console.error('Error saving main settings:', error);
                 this.isSaving = false;
@@ -344,11 +343,11 @@ export default {
                 if (data.type && data.type == "error"){
                     this.saveStatus = {
                         type: 'error',
-                        message: this.t(data.error_type) + " : " + this.t(data.missing_field) + " (" + this.t(data.category) + ")"
+                        message: this.t(data.error_type || 'Error') + (data.missing_field ? " : " + this.t(data.missing_field) + " (" + this.t(data.category || '') + ")" : '')
                     };
                     this.isSaving = false;
                 }
-                if (data.type && data.type == "success"){
+                if (data.type && data.type == "success" || data.status === "success"){
                     this.isSaving = false;
                     this.saveStatus = {
                         type: 'success',
