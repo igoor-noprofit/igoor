@@ -346,6 +346,45 @@ export default {
             this.formData.speed = 1.0;
             this.formData.latency_optimization = 0;
         },
+        async loadVoiceListFromRest() {
+            if (!this.formData.api_key || !this.formData.api_key.trim()) {
+                console.log('Cannot load voices: API key missing');
+                return;
+            }
+
+            console.log('Loading voices via REST API...');
+            try {
+                const backendApi = await ensureBackendApi();
+                const url = `/api/plugins/elevenlabs/get_voices?api_key=${encodeURIComponent(this.formData.api_key.trim())}`;
+                console.log(`Fetching voices from: ${url}`);
+                
+                const response = await fetch(url);
+                console.log('Response status:', response.status);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                console.log('Voice list response:', data);
+                
+                // Handle response structure
+                if (data.voices && Array.isArray(data.voices)) {
+                    this.voiceList = data.voices;
+                    console.log(`Loaded ${this.voiceList.length} voices via REST API`);
+                } else if (Array.isArray(data)) {
+                    this.voiceList = data;
+                    console.log(`Loaded ${this.voiceList.length} voices via REST API`);
+                } else {
+                    console.error('Unexpected voice list format:', data);
+                    this.voiceList = [];
+                }
+            } catch (err) {
+                console.error('Error loading voices via REST:', err);
+                this.voiceList = [];
+            }
+        },
+
         async testVoice() {
             let msg = this.t('Hello, how are you doing? I feel better today!')
             let testData = { ...this.formData };
@@ -376,6 +415,12 @@ export default {
                 this.saveStatus = { type: 'success', message: this.t('Settings saved') };
                 // refresh original snapshot so hasChanges becomes false
                 this.originalSettings = JSON.parse(JSON.stringify(this.formData));
+                
+                // Load voice list when API key is available and voice list is empty
+                if (this.formData.api_key && this.formData.api_key.trim() && this.voiceList.length === 0) {
+                    await this.loadVoiceListFromRest();
+                }
+                
             } catch (err) {
                 console.error('Error saving settings', err);
                 this.saveStatus = { type: 'error', message: this.t('Failed to save settings') };
@@ -408,7 +453,17 @@ export default {
 
             return false;
         }
-    }
+    },
+
+    async created() {
+        await this.loadTranslations();
+        
+        // Load voice list if API key is already available from initial settings
+        if (this.initialSettings?.api_key && this.initialSettings.api_key.trim()) {
+            console.log('Loading voices during component creation...');
+            await this.loadVoiceListFromRest();
+        }
+    },
 };
 </script>
 
