@@ -1,6 +1,6 @@
 {
   "plugins": {
-    "elevenlabs": {
+    "elevenlabstts": {
       "voice_id": "",
       "api_key": "",
       "GenerationOptions": {
