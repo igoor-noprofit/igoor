@@ -252,7 +252,7 @@ class Elevenlabstts(Baseplugin):
             )
             
             # Use the already imported elevenlabs_play function
-            elevenlabs_play(audio_data)
+            play(audio_data)
             
         except Exception as e:
             print(f"Error in test speak: {e}")

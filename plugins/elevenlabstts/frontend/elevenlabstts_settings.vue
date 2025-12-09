@@ -391,7 +391,7 @@ export default {
             // Use WebSocket but add a delay to ensure connection is ready
             setTimeout(() => {
                 try {
-                    this.sendMsgToBackend(JSON.stringify(testData), 'elevenlabstts');
+                    this.callPluginRestEndpoint('elevenlabstts', 'test_speak', {method: 'POST', data: testData});
                 } catch (error) {
                     console.error('Error sending test message:', error);
                 }
