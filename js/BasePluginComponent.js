@@ -210,7 +210,12 @@ module.exports = {
         }
       }
     },
-    async callPluginRestEndpoint(pluginName, endpoint, params = {}) {
+    async callPluginRestEndpoint(pluginName, endpoint, options = {}) {
+      // Support both old signature (params) and new signature (options)
+      const params = options.params || options;
+      const method = options.method || 'GET';
+      const data = options.data || null;
+      
       // Get backendApi instance first, then check for bridge
       const backendApi = await ensureBackendApi();
       const bridge = backendApi.getBridge();
@@ -223,11 +228,24 @@ module.exports = {
       const baseUrl = `/api/plugins/${encodeURIComponent(
         pluginName
       )}/${endpoint}`;
-      const urlParams = new URLSearchParams(params).toString();
-      const url = urlParams ? `${baseUrl}?${urlParams}` : baseUrl;
+      
+      let url = baseUrl;
+      let fetchOptions = {
+        method: method,
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      };
+
+      if (method === 'GET' && params) {
+        const urlParams = new URLSearchParams(params).toString();
+        url = urlParams ? `${baseUrl}?${urlParams}` : baseUrl;
+      } else if (method === 'POST' && data) {
+        fetchOptions.body = JSON.stringify(data);
+      }
 
       try {
-        const response = await fetch(url);
+        const response = await fetch(url, fetchOptions);
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
