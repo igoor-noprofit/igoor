@@ -15,6 +15,12 @@ class Elevenlabstts(Baseplugin):
         self.router = None
         super().__init__(plugin_name,pm)
                 
+
+    @hookimpl
+    def global_settings_updated(self):
+        print("RELOADING ELEVENLABS SETTINGS")
+        self.startup()                
+
     def _ensure_router(self):
         """Initialize FastAPI router for plugin endpoints"""
         if self.router is not None:
@@ -120,10 +126,10 @@ class Elevenlabstts(Baseplugin):
             self.api_key = self.settings.get("api_key")
             self.voice_id = self.settings.get("voice_id")  
             if (not self.api_key):
-                self.logger.warning("Speechify API token not set in settings,cannot generate speech")
+                self.logger.warning("Elevenlabs API token not set in settings,cannot generate speech")
                 return False
             if (not self.voice_id):
-                print("Speechify Voice ID not set in settings,cannot generate speech")
+                print("Elevenlabs Voice ID not set in settings,cannot generate speech")
                 return False
             try:
                 self.client = self.createClient(self.api_key)
