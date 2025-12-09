@@ -192,7 +192,7 @@
 import BasePluginComponent from '/js/BasePluginComponent.js';
 
 export default {
-    name: 'elevenlabsSettings',
+    name: 'elevenlabsttsSettings',
     mixins: [BasePluginComponent],
     props: {
         initialSettings: Object
@@ -297,7 +297,7 @@ export default {
                 this.sendMsgToBackend({
                     action: 'get_voice_list',
                     api_key: trimmedNew
-                }, 'elevenlabs');
+                }, 'elevenlabstts');
             }
         }
     },
@@ -354,18 +354,12 @@ export default {
 
             console.log('Loading voices via REST API...');
             try {
-                const backendApi = await ensureBackendApi();
-                const url = `/api/plugins/elevenlabs/get_voices?api_key=${encodeURIComponent(this.formData.api_key.trim())}`;
-                console.log(`Fetching voices from: ${url}`);
+                const params = {
+                    api_key: this.formData.api_key.trim()
+                };
+                console.log('Fetching voices using callPluginRestEndpoint with params:', params);
                 
-                const response = await fetch(url);
-                console.log('Response status:', response.status);
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-                
-                const data = await response.json();
+                const data = await this.callPluginRestEndpoint('elevenlabstts', 'get_voices', params);
                 console.log('Voice list response:', data);
                 
                 // Handle response structure
@@ -390,14 +384,14 @@ export default {
             let testData = { ...this.formData };
             testData['action'] = 'test_speak';
             testData['message'] = msg;
-            testData['target'] = 'elevenlabs'; // Specify target to prevent message interference
+            testData['target'] = 'elevenlabstts'; // Specify target to prevent message interference
             
             console.log('Sending test_speak message:', testData);
             
             // Use WebSocket but add a delay to ensure connection is ready
             setTimeout(() => {
                 try {
-                    this.sendMsgToBackend(JSON.stringify(testData), 'elevenlabs');
+                    this.sendMsgToBackend(JSON.stringify(testData), 'elevenlabstts');
                 } catch (error) {
                     console.error('Error sending test message:', error);
                 }
