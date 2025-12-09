@@ -15,7 +15,8 @@ IGOOR is an open-source and free conversational application, controllable also b
 - Frontend-to-backend: WebSocket on `ws://localhost:9715/plugin_name` using `sendMsgToBackend(data)`
 - REST fallback: FastAPI now exposes REST endpoints (e.g. `/api/plugins/<name>/settings`, `/api/plugins/by-category`, `/api/hooks/<name>`, `/api/app/change-view`) mirroring the former `window.pywebview.api` bridge. Everything is also available at localhost:9714, so you can test directly when the app is running CURL, for ex. at:
 http://localhost:9714/api/plugins/asrjs/settings
-- Frontend readiness: `window.ensureBackendApi()` lazily resolves a `BackendApi` wrapper that chooses between the PyWebView bridge and REST calls; the root app calls `readypy()` automatically when no bridge is detected.
+- Frontend readiness: `window.ensureBackendApi()` lazily resolves a `BackendApi` wrapper that chooses between the PyWebView bridge and REST calls; the root app calls `readypy()` automatically when no bridge is detected
+- Plugins can use callPluginRestEndpoint to call the API endpoints (own plugin and other plugins; supports GET and POST)
 
 ## Key Managers
 
