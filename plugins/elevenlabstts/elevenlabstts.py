@@ -14,7 +14,6 @@ class Elevenlabstts(Baseplugin):
         self.pm = pm
         self.router = None
         super().__init__(plugin_name,pm)
-                
 
     @hookimpl
     def global_settings_updated(self):
@@ -36,6 +35,7 @@ class Elevenlabstts(Baseplugin):
                 # Use the correct ElevenLabs API syntax
                 response = client.voices.get_all()
                 voices = response.voices
+                print (voices)
                 
                 print(f"DEBUG: Total voices retrieved: {len(voices) if voices else 0}")
                 voice_list = []
@@ -45,9 +45,7 @@ class Elevenlabstts(Baseplugin):
                     voice_data = {
                         "id": getattr(voice, 'voice_id', getattr(voice, 'id', 'unknown')),
                         "display_name": getattr(voice, 'name', str(voice)),
-                        "gender": getattr(voice, 'gender', 'unknown'),
-                        "age": getattr(voice, 'age', 'unknown'),
-                        "language": getattr(voice, 'language', 'unknown')
+                        "verified_languages": getattr(voice, 'verified_languages', [])
                     }
                     voice_list.append(voice_data)
                 return {"voices": voice_list, "count": len(voice_list)}
@@ -122,6 +120,22 @@ class Elevenlabstts(Baseplugin):
         if hasattr(self, 'pm') and hasattr(self.pm, 'fastapi_app'):
             self.pm.fastapi_app.include_router(self.router)
         self.settings = self.get_my_settings()
+        
+        # Set default values for voice settings if they don't exist
+        default_settings = {
+            "stability": 0.5,
+            "similarity_boost": 0.75,
+            "style": 0.0,
+            "use_speaker_boost": True,
+            "speed": 1.0,
+            "latency_optimization": 0,
+            "model_id": "eleven_multilingual_v2"
+        }
+        
+        for key, default_value in default_settings.items():
+            if key not in self.settings:
+                self.settings[key] = default_value
+        
         try:
             self.api_key = self.settings.get("api_key")
             self.voice_id = self.settings.get("voice_id")  
@@ -222,9 +236,7 @@ class Elevenlabstts(Baseplugin):
                 voice_data = {
                     "id": getattr(voice, 'voice_id', getattr(voice, 'id', 'unknown')),
                     "display_name": getattr(voice, 'name', str(voice)),
-                    "gender": getattr(voice, 'gender', 'unknown'),
-                    "age": getattr(voice, 'age', 'unknown'),
-                    "language": getattr(voice, 'language', 'unknown')
+                    "verified_languages": getattr(voice, 'verified_languages', [])
                 }
                 voice_list.append(voice_data)
             
@@ -250,11 +262,20 @@ class Elevenlabstts(Baseplugin):
             client = self.createClient(api_key)
             voice_id = test_settings.get("voice_id")
             
-            # Generate and play audio using official SDK
+            # Generate and play audio using official SDK with voice settings
+            voice_settings = {
+                "stability": test_settings.get("stability", 0.5),
+                "similarity_boost": test_settings.get("similarity_boost", 0.75),
+                "style": test_settings.get("style", 0.0),
+                "use_speaker_boost": test_settings.get("use_speaker_boost", True),
+                "speed": test_settings.get("speed", 1.0)
+            }
+            
             audio_data = client.text_to_speech.convert(
                 text=message,
                 voice_id=voice_id,
-                model_id=test_settings.get("model_id", self.settings.get("model_id", "eleven_multilingual_v2"))
+                model_id=test_settings.get("model_id", self.settings.get("model_id", "eleven_multilingual_v2")),
+                **voice_settings
             )
             
             # Use the already imported elevenlabs_play function
@@ -302,12 +323,21 @@ class Elevenlabstts(Baseplugin):
                 self.settings = self.get_my_settings()
             
             try:
-                # Generate audio using official SDK
+                # Generate audio using official SDK with voice settings
+                voice_settings = {
+                    "stability": self.settings.get("stability", 0.5),
+                    "similarity_boost": self.settings.get("similarity_boost", 0.75),
+                    "style": self.settings.get("style", 0.0),
+                    "use_speaker_boost": self.settings.get("use_speaker_boost", True),
+                    "speed": self.settings.get("speed", 1.0)
+                }
+                
                 audio = self.client.text_to_speech.convert(
                     text=message,
                     voice_id=self.voice_id,
-                    model_id="eleven_multilingual_v2",
+                    model_id=self.settings.get("model_id", "eleven_multilingual_v2"),
                     output_format="mp3_44100_128",
+                    **voice_settings
                 )
                 await self.pm.trigger_hook(hook_name="pause_asr")
                 play(audio)
