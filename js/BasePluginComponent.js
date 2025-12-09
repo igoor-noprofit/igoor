@@ -45,7 +45,7 @@ module.exports = {
         if (!response.ok) throw new Error(`Could not load ${url}`);
         this.translations = await response.json();
       } catch (e) {
-        console.warn(`Translation loading failed in `+ pluginName, e);
+        console.warn(`Translation loading failed in ` + pluginName, e);
         this.translations = {};
       }
     },
@@ -55,11 +55,14 @@ module.exports = {
     },
     requestSettings() {
       const pluginName = this.$options.name
-          .replace(/Settings$/, "")
-          .toLowerCase();
-      this.sendMsgToBackend({
-        action: "get_settings",
-      },pluginName);
+        .replace(/Settings$/, "")
+        .toLowerCase();
+      this.sendMsgToBackend(
+        {
+          action: "get_settings",
+        },
+        pluginName
+      );
     },
     updateSettings() {
       console.log("Saving plugin settings:", this.formData);
@@ -79,10 +82,10 @@ module.exports = {
       const targetUrl = plugin_name
         ? `${BASE_WS_URL}${plugin_name}`
         : this.ws_url;
-      
+
       // Ensure data is properly formatted
       let sendData = data;
-      if (typeof data === 'string') {
+      if (typeof data === "string") {
         try {
           sendData = JSON.parse(data);
         } catch (e) {
@@ -90,7 +93,7 @@ module.exports = {
           sendData = { message: data };
         }
       }
-      
+
       // Add target if not already present and plugin_name is provided
       if (plugin_name && !sendData.target) {
         sendData.target = plugin_name;
@@ -207,6 +210,36 @@ module.exports = {
         }
       }
     },
+    async callPluginRestEndpoint(pluginName, endpoint, params = {}) {
+      // Get backendApi instance first, then check for bridge
+      const backendApi = await ensureBackendApi();
+      const bridge = backendApi.getBridge();
+      
+      if (bridge?.get_plugin_rest_endpoint) {
+        return bridge.get_plugin_rest_endpoint(pluginName, endpoint, params);
+      }
+
+      // Fallback to REST API using fetch
+      const baseUrl = `/api/plugins/${encodeURIComponent(
+        pluginName
+      )}/${endpoint}`;
+      const urlParams = new URLSearchParams(params).toString();
+      const url = urlParams ? `${baseUrl}?${urlParams}` : baseUrl;
+
+      try {
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return await response.json();
+      } catch (error) {
+        console.error(
+          `Error calling ${pluginName} REST endpoint ${endpoint}:`,
+          error
+        );
+        throw error;
+      }
+    }
   },
   created() {
     console.log(
@@ -222,29 +255,5 @@ module.exports = {
     if (this.websocketUtil) {
       this.websocketUtil.close();
     }
-  },
-
-  async callPluginRestEndpoint(pluginName, endpoint, params = {}) {
-    const bridge = this.getBridge();
-    if (bridge?.get_plugin_rest_endpoint) {
-      return bridge.get_plugin_rest_endpoint(pluginName, endpoint, params);
-    }
-      
-    // Fallback to REST API using fetch
-    const backendApi = await ensureBackendApi();
-    const baseUrl = `/api/plugins/${encodeURIComponent(pluginName)}/${endpoint}`;
-      const urlParams = new URLSearchParams(params).toString();
-      const url = urlParams ? `${baseUrl}?${urlParams}` : baseUrl;
-      
-      try {
-        const response = await fetch(url);
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        return await response.json();
-      } catch (error) {
-        console.error(`Error calling ${pluginName} REST endpoint ${endpoint}:`, error);
-        throw error;
-      }
   },
 };
