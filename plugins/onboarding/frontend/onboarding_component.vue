@@ -298,6 +298,7 @@ export default {
             await backendApi.onboardingToggled(this.showModal);
         },
         async closeModal() {
+            console.log('Closing modal');
             this.showModal = false
             const backendApi = await ensureBackendApi();
             await backendApi.onboardingToggled(false);
@@ -312,9 +313,10 @@ export default {
                     prefs: this.prefs,
                     ai: this.ai
                 };
-                // Use the backend API directly for onboarding settings
-                const backendApi = await ensureBackendApi();
-                await backendApi.savePluginSettings('onboarding', dataToSend);
+                await this.sendMsgToBackend({ // Or your specific API call
+                    action: 'save_settings', // Or a more specific action
+                    data: dataToSend
+                });
                 // If successful, the handleIncomingMessage will receive the success response
             } catch (error) {
                 console.error('Error saving main settings:', error);
@@ -334,20 +336,22 @@ export default {
             
             try {
                 const data = JSON.parse(event.data);
-                
+                console.log(data);
                 // Only process messages that are specifically for onboarding
+                /*
                 if (data.target !== 'onboarding' && !data.bio && !data.prefs && !data.ai && data.action !== 'show_modal') {
                     return false; // Let BasePluginComponent handle it
                 }
+                */                 
                 
                 if (data.type && data.type == "error"){
                     this.saveStatus = {
                         type: 'error',
-                        message: this.t(data.error_type || 'Error') + (data.missing_field ? " : " + this.t(data.missing_field) + " (" + this.t(data.category || '') + ")" : '')
+                       message: this.t(data.error_type || 'Error') + (data.missing_field ? " : " + this.t(data.missing_field) + " (" + this.t(data.category || '') + ")" : '')
                     };
                     this.isSaving = false;
                 }
-                if (data.type && data.type == "success" || data.status === "success"){
+                if (data.type && data.type == "success"){
                     this.isSaving = false;
                     this.saveStatus = {
                         type: 'success',
@@ -356,7 +360,7 @@ export default {
                     setTimeout(() => {
                         this.closeModal();
                         this.saveStatus = null;
-                    }, 3000);
+                    }, 1500);
                 }
                 if (data.action && data.action == "show_modal"){
                     console.warn("ONBOARDING FORCED");
