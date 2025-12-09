@@ -13,37 +13,6 @@
 
             <!-- Voice Selection -->
             <div class="form-label">{{ t('Choose a voice for synthesis') }}</div>
-            <div class="form-input voice-filters">
-                <label>
-                    {{ t('Gender') }}
-                    <select v-model="voiceFilters.gender">
-                        <option value="any">{{ t('Any') }}</option>
-                        <option value="male">{{ t('Male') }}</option>
-                        <option value="female">{{ t('Female') }}</option>
-                        <option value="neutral">{{ t('Neutral') }}</option>
-                    </select>
-                </label>
-                <label>
-                    {{ t('Age') }}
-                    <select v-model="voiceFilters.age">
-                        <option value="any">{{ t('Any') }}</option>
-                        <option value="young">{{ t('Young') }}</option>
-                        <option value="middle-aged">{{ t('Middle-aged') }}</option>
-                        <option value="old">{{ t('Old') }}</option>
-                    </select>
-                </label>
-                <label>
-                    {{ t('Language') }}
-                    <select v-model="voiceFilters.language">
-                        <option value="any">{{ t('Any') }}</option>
-                        <option value="en">{{ t('English') }}</option>
-                        <option value="fr">{{ t('French') }}</option>
-                        <option value="es">{{ t('Spanish') }}</option>
-                        <option value="de">{{ t('German') }}</option>
-                        <option value="it">{{ t('Italian') }}</option>
-                    </select>
-                </label>
-            </div>
             <div class="form-input">
                 <select v-model="formData.voice_id" :class="{ 'input-error': voiceIdError }" @change="onVoiceIdChange"
                     :disabled="!filteredVoices.length" class="voice-selector">
@@ -215,11 +184,6 @@ export default {
             voiceIdError: false,
             isSaving: false,
             saveStatus: null,
-            voiceFilters: {
-                gender: 'any',
-                age: 'any',
-                language: 'any'
-            },
             voiceList: [],
             apiKeyInitialized: false,
             // Local v-model backing values
@@ -239,16 +203,8 @@ export default {
         },
         filteredVoices() {
             const voices = Array.isArray(this.voiceList) ? this.voiceList : [];
+            // Show all voices without filtering
             return voices
-                .filter(voice => {
-                    const genderMatches = this.voiceFilters.gender === 'any' || 
-                        voice.gender === this.voiceFilters.gender;
-                    const ageMatches = this.voiceFilters.age === 'any' || 
-                        voice.age === this.voiceFilters.age;
-                    const languageMatches = this.voiceFilters.language === 'any' || 
-                        voice.language === this.voiceFilters.language;
-                    return genderMatches && ageMatches && languageMatches;
-                })
                 .slice()
                 .sort((a, b) => a.display_name.localeCompare(b.display_name, undefined, { sensitivity: 'base' }));
         }
@@ -273,14 +229,7 @@ export default {
             immediate: true,
             deep: true
         },
-        voiceFilters: {
-            handler() {
-                if (!this.filteredVoices.some(voice => voice.id === this.formData.voice_id)) {
-                    this.formData.voice_id = '';
-                }
-            },
-            deep: true
-        },
+
         'formData.api_key': {
             handler(newVal, oldVal) {
                 if (!this.apiKeyInitialized) return;
@@ -575,21 +524,6 @@ button:hover {
     width: 80px;
 }
 
-.voice-filters {
-    flex-wrap: wrap;
-    align-items: flex-start;
-}
-
-.voice-filters label {
-    display: flex;
-    flex-direction: column;
-    font-size: 0.9em;
-    gap: 4px;
-}
-
-.voice-filters select {
-    width:12vw !important;
-}
 
 .reset-button {
     background: #666;
