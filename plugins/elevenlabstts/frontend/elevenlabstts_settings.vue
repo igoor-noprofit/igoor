@@ -36,6 +36,22 @@
                     <option value="eleven_v3">Eleven v3</option>
                 </select>
             </div>
+
+            <!-- Output Format Selection -->
+            <div class="form-label">{{ t('Output Format') }}</div>
+            <div class="form-input">
+                <select v-model="formData.output_format">
+                    <option value="mp3_44100_128">MP3 44.1kHz 128kbps</option>
+                    <option value="mp3_44100_96">MP3 44.1kHz 96kbps</option>
+                    <option value="mp3_44100_64">MP3 44.1kHz 64kbps</option>
+                    <option value="mp3_22050_128">MP3 22.05kHz 128kbps</option>
+                    <option value="mp3_22050_96">MP3 22.05kHz 96kbps</option>
+                    <option value="mp3_22050_64">MP3 22.05kHz 64kbps</option>
+                    <option value="pcm_16000">PCM 16kHz</option>
+                    <option value="pcm_22050">PCM 22.05kHz</option>
+                    <option value="pcm_44100">PCM 44.1kHz</option>
+                </select>
+            </div>
         </div>
 
         <div class="bio right">
@@ -67,6 +83,9 @@
                             <button class="reset-button" type="button" @click="resetControllers">{{ t('Reset')
                             }}</button>
                         </div>
+                    </div>
+                    <div class="form-note" style="margin: 0 0 8px 0; font-size: 0.85em;">
+                        {{ t('Note: Speed range is 0.7-1.2 (slower-faster). Values outside this range will be rejected by ElevenLabs API.') }}
                     </div>
 
                     <!-- Stability Row -->
@@ -112,12 +131,12 @@
                     <div class="ssml-row">
                         <div class="ssml-left">{{ t('Speed') }}</div>
                         <div class="ssml-center">
-                            <input type="range" :min="0.5" :max="2" step="0.1"
+                            <input type="range" :min="0.7" :max="1.2" step="0.05"
                                 v-model.number="speedValue" @input="onSpeedChange" />
                         </div>
                         <div class="ssml-right">
                             <input type="number" class="numeric-input" v-model.number="speedValue"
-                                @change="onSpeedChange" step="0.1" min="0.5" max="2" />
+                                @change="onSpeedChange" step="0.05" min="0.7" max="1.2" />
                         </div>
                     </div>
 
@@ -150,6 +169,19 @@
                         </div>
                     </div>
 
+                    <!-- Enable Logging Toggle -->
+                    <div class="ssml-row">
+                        <div class="ssml-left">{{ t('Enable Logging') }}</div>
+                        <div class="ssml-center">
+                            <input type="checkbox" id="enable_logging" v-model="formData.enable_logging" />
+                        </div>
+                        <div class="ssml-right">
+                            <label for="enable_logging">{{ t('Enable request history (Enterprise only)') }}</label>
+                        </div>
+                    </div>
+
+                    
+
                 </div>
             </div>
             <div class="form-note"></div>
@@ -177,7 +209,9 @@ export default {
                 style: 0.0,
                 use_speaker_boost: true,
                 speed: 1.0,
-                latency_optimization: 0
+                latency_optimization: 0,
+                output_format: 'mp3_44100_128',
+                enable_logging: true
             },
             originalSettings: null,
             apiKeyError: false,
@@ -192,13 +226,21 @@ export default {
             styleValue: 0.0,
             speakerBoostValue: true,
             speedValue: 1.0,
-            latencyOptimizationValue: 0
+            latencyOptimizationValue: 0,
+            outputFormatValue: 'mp3_44100_128',
+            enableLoggingValue: true,
+            seedValue: null,
+            previousTextValue: null,
+            nextTextValue: null,
+            pronunciationDictionaryLocatorsValue: null,
+            previousRequestIdsValue: null,
+            nextRequestIdsValue: null
         };
     },
     computed: {
         hasChanges() {
             if (!this.originalSettings) return false;
-            const keys = ['api_key', 'voice_id', 'model_id', 'stability', 'similarity_boost', 'style', 'use_speaker_boost', 'speed', 'latency_optimization'];
+            const keys = ['api_key', 'voice_id', 'model_id', 'stability', 'similarity_boost', 'style', 'use_speaker_boost', 'speed', 'latency_optimization', 'output_format', 'enable_logging'];
             return keys.some(k => JSON.stringify(this.formData[k]) !== JSON.stringify(this.originalSettings[k]));
         },
         filteredVoices() {
@@ -270,15 +312,17 @@ export default {
             this.formData.use_speaker_boost = this.speakerBoostValue;
         },
         onSpeedChange() {
-            if (this.speedValue < 0.5) this.speedValue = 0.5;
-            if (this.speedValue > 2) this.speedValue = 2;
-            this.formData.speed = parseFloat(this.speedValue.toFixed(1));
+            if (this.speedValue < 0.7) this.speedValue = 0.7;
+            if (this.speedValue > 1.2) this.speedValue = 1.2;
+            // Clamp speed to valid range before saving
+            this.formData.speed = Math.max(0.7, Math.min(1.2, parseFloat(this.speedValue.toFixed(1))));
         },
         onLatencyOptimizationChange() {
             if (this.latencyOptimizationValue < 0) this.latencyOptimizationValue = 0;
             if (this.latencyOptimizationValue > 4) this.latencyOptimizationValue = 4;
             this.formData.latency_optimization = parseInt(this.latencyOptimizationValue);
         },
+        
         resetControllers() {
             // Reset to default values
             this.stabilityValue = 0.5;
@@ -294,6 +338,10 @@ export default {
             this.formData.use_speaker_boost = true;
             this.formData.speed = 1.0;
             this.formData.latency_optimization = 0;
+            
+            // Reset new parameters
+            this.formData.output_format = 'mp3_44100_128';
+            this.formData.enable_logging = true;
         },
         async loadVoiceListFromRest() {
             if (!this.formData.api_key || !this.formData.api_key.trim()) {
@@ -337,14 +385,12 @@ export default {
             
             console.log('Sending test_speak message:', testData);
             
-            // Use WebSocket but add a delay to ensure connection is ready
-            setTimeout(() => {
-                try {
-                    this.callPluginRestEndpoint('elevenlabstts', 'test_speak', {method: 'POST', data: testData});
-                } catch (error) {
-                    console.error('Error sending test message:', error);
-                }
-            }, 100); // Small delay to ensure WebSocket is ready
+            // Use HTTP POST for test_speak endpoint (not WebSocket)
+            try {
+                await this.callPluginRestEndpoint('elevenlabstts', 'test_speak', {method: 'POST', data: testData});
+            } catch (error) {
+                console.error('Error sending test message:', error);
+            }
         },
         onVoiceIdChange() {
             this.voiceIdError = !this.formData.voice_id || !this.formData.voice_id.trim();
@@ -524,6 +570,15 @@ button:hover {
     width: 80px;
 }
 
+.text-input {
+    width: 100%;
+    background: #222;
+    color: #fff;
+    border: 1px solid #444;
+    border-radius: 4px;
+    padding: 6px 10px;
+    font-size: 0.9em;
+}
 
 .reset-button {
     background: #666;
