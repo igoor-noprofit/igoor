@@ -88,23 +88,11 @@ class Elevenlabstts(Baseplugin):
             try:
                 print(f"DEBUG: test_speak called with payload: {payload}")
                 
-                api_key = payload.get("api_key")
-                voice_id = payload.get("voice_id")
+                # Extract test message
                 message = payload.get("message", "Hello, how are you doing? I feel better today!")
                 
-                if not api_key or not voice_id:
-                    raise HTTPException(status_code=400, detail="api_key and voice_id are required")
-                
-                client = self.createClient(api_key)
-                
-                audio = client.text_to_speech.convert(
-                    text=message,
-                    voice_id=voice_id,
-                    model_id="eleven_multilingual_v2",
-                    output_format="mp3_44100_128",
-                )
-
-                play(audio)
+                # Call the existing _test_speak method to avoid code duplication
+                self._test_speak(message, payload)
                 
                 return {
                     "status": "success",
@@ -129,7 +117,9 @@ class Elevenlabstts(Baseplugin):
             "use_speaker_boost": True,
             "speed": 1.0,
             "latency_optimization": 0,
-            "model_id": "eleven_multilingual_v2"
+            "model_id": "eleven_multilingual_v2",
+            "output_format": "mp3_44100_128",
+            "enable_logging": True
         }
         
         for key, default_value in default_settings.items():
@@ -262,21 +252,42 @@ class Elevenlabstts(Baseplugin):
             client = self.createClient(api_key)
             voice_id = test_settings.get("voice_id")
             
-            # Generate and play audio using official SDK with voice settings
-            voice_settings = {
-                "stability": test_settings.get("stability", 0.5),
-                "similarity_boost": test_settings.get("similarity_boost", 0.75),
-                "style": test_settings.get("style", 0.0),
-                "use_speaker_boost": test_settings.get("use_speaker_boost", True),
-                "speed": test_settings.get("speed", 1.0)
+            # Build request parameters
+            request_params = {
+                "text": message,
+                "voice_id": voice_id,
+                "model_id": test_settings.get("model_id", self.settings.get("model_id", "eleven_multilingual_v2")),
+                "output_format": test_settings.get("output_format", self.settings.get("output_format", "mp3_44100_128")),
             }
             
-            audio_data = client.text_to_speech.convert(
-                text=message,
-                voice_id=voice_id,
-                model_id=test_settings.get("model_id", self.settings.get("model_id", "eleven_multilingual_v2")),
-                **voice_settings
-            )
+            # Add voice settings if any are provided
+            speed = float(test_settings.get("speed", self.settings.get("speed", 1.0)))
+            # Clamp speed to valid range (0.7 - 1.2) according to ElevenLabs API
+            speed = max(0.7, min(1.2, speed))
+            
+            voice_settings = {
+                "stability": test_settings.get("stability", self.settings.get("stability", 0.5)),
+                "similarity_boost": test_settings.get("similarity_boost", self.settings.get("similarity_boost", 0.75)),
+                "style": test_settings.get("style", self.settings.get("style", 0.0)),
+                "use_speaker_boost": test_settings.get("use_speaker_boost", self.settings.get("use_speaker_boost", True)),
+                "speed": speed
+            }
+            
+            # Only add voice_settings if at least one setting is non-default
+            request_params["voice_settings"] = voice_settings
+            
+            # Add optional parameters if provided
+            if "latency_optimization" in test_settings:
+                request_params["optimize_streaming_latency"] = test_settings["latency_optimization"]
+            elif "latency_optimization" in self.settings:
+                request_params["optimize_streaming_latency"] = self.settings["latency_optimization"]
+                
+            if "enable_logging" in test_settings:
+                request_params["enable_logging"] = test_settings["enable_logging"]
+            elif "enable_logging" in self.settings:
+                request_params["enable_logging"] = self.settings["enable_logging"]
+            
+            audio_data = client.text_to_speech.convert(**request_params)
             
             # Use the already imported elevenlabs_play function
             play(audio_data)
@@ -323,7 +334,15 @@ class Elevenlabstts(Baseplugin):
                 self.settings = self.get_my_settings()
             
             try:
-                # Generate audio using official SDK with voice settings
+                # Build request parameters
+                request_params = {
+                    "text": message,
+                    "voice_id": self.voice_id,
+                    "model_id": self.settings.get("model_id", "eleven_multilingual_v2"),
+                    "output_format": self.settings.get("output_format", "mp3_44100_128"),
+                }
+                
+                # Build voice settings
                 voice_settings = {
                     "stability": self.settings.get("stability", 0.5),
                     "similarity_boost": self.settings.get("similarity_boost", 0.75),
@@ -332,13 +351,18 @@ class Elevenlabstts(Baseplugin):
                     "speed": self.settings.get("speed", 1.0)
                 }
                 
-                audio = self.client.text_to_speech.convert(
-                    text=message,
-                    voice_id=self.voice_id,
-                    model_id=self.settings.get("model_id", "eleven_multilingual_v2"),
-                    output_format="mp3_44100_128",
-                    **voice_settings
-                )
+                # Add voice_settings to request
+                request_params["voice_settings"] = voice_settings
+                
+                # Add optional parameters if configured
+                if "latency_optimization" in self.settings:
+                    request_params["optimize_streaming_latency"] = self.settings["latency_optimization"]
+                    
+                if "enable_logging" in self.settings:
+                    request_params["enable_logging"] = self.settings["enable_logging"]
+                
+                # Generate audio
+                audio = self.client.text_to_speech.convert(**request_params)
                 await self.pm.trigger_hook(hook_name="pause_asr")
                 play(audio)
             except Exception as inner_e:
