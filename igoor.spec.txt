@@ -7,17 +7,16 @@ webview_datas = collect_data_files('webview', includes=['js/*'])
 
 # Merge with your existing datas
 datas = [
-    ('dictionary','dictionary'),
     ('css', 'css'),
+    ('dictionary','dictionary'),
     ('img', 'img'),
     ('js', 'js'),
+    ('locales','locales'),
     ('plugins', 'plugins'),
     ('tools', 'tools'),
     ('.env', '.'),
     ('README.md', '.'),
-    ('requirements.txt', '.'),
-    ('index.html', '.'),
-    ('default_settings.json','.')
+    ('index.html', '.')
 ] + webview_datas
 
 a = Analysis(
