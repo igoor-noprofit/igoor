@@ -32,8 +32,9 @@
     }
   },
   "plugins_activation": {
+    "asrjs": true,
     "asrvosk": false,
-    "asrwhisper": true,
+    "asrwhisper": false,
     "autocomplete": true,
     "autocompletelauncher": true,
     "bugreport": true,
