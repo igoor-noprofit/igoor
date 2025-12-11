@@ -139,30 +139,75 @@ Réponds en utilisant aussi les contextes ci-dessus à la dernière question de 
 Pour m'aider à prédire la prochaine réponse de l'utilisateur :
 
 - Résume le sujet de la conversation.
-- Indique si je dois consulter la mémoire à court terme ou à long terme de l'utilisateur: 
+- Indique si je dois consulter la mémoire à court terme ou à long terme de l'utilisateur:
 
     - Mémoire à court terme : Événements récents ou ponctuels.
     - Mémoire à long terme : Préférences, faits constants, souvenirs de vie.
         
-- Si la requête contient des références temporelles (aujourd'hui, hier, la semaine dernière, ce matin, etc.), extrais la période concernée. 
-Les demandes sur les préférences,les gouts et les croyances impliquent la plupart du temps la mémoire à court et à long terme.
+- Si la requête contient des références temporelles (aujourd'hui, hier, la semaine dernière, ce matin, etc.), extrais la période concernée.
+- Identifie les entités ou concepts clés mentionnés dans la dernière question de l'interlocuteur et déduis leur rôle (cible principale, comparaison, lieu, etc.).
+- Propose un ou plusieurs "graph_queries" décrivant comment interroger la base de graphes pour obtenir les informations pertinentes. Chaque requête peut contenir plusieurs étapes (steps) exécutées séquentiellement et partageant des résultats intermédiaires grâce à des identifiants (result_key) et des références ($ref:clé). Lorsque plusieurs chemins relationnels sont possibles (ex. différentes branches familiales), fournis toutes les branches pertinentes dans des étapes distinctes. Lorsque la relation recherchée peut provenir de deux branches symétriques (ex. oncle maternel vs oncle paternel), décris explicitement chacune d'elles. N'utilise qu’un seul relationship_type par étape; si plusieurs relations doivent être explorées, crée des étapes séparées.
+- Donne à chaque result_key un nom explicite (ex. "patient_spouse_candidates") pour faciliter les références.
+- Si la question contient une nuance temporelle, ajoute un objet temporal_window cohérent dans les filtres.
+- Respecte strictement l'ontologie disponible : utilise uniquement les relationship_type existants (parent_of, partner_of, friend_of, has_condition, prefers, uses_device, etc.) et ne crée pas de nouveaux types (par exemple pas de "mother_of" ni "evaluation_lookup"). Oriente toujours les relations conformément à leur définition (`parent_of` = parent → enfant, `child_of` = enfant → parent).
 
-IMPORTANT: Si la requête ne contient pas de référence temporelle, cherche la mémoire à court et long terme. 
+Les demandes sur les préférences, les goûts et les croyances impliquent la plupart du temps la mémoire à court et à long terme.
+
+IMPORTANT: Si la requête ne contient pas de référence temporelle, cherche la mémoire à court ET long terme.
+Si aucune entité ou requête graphe n'est pertinente, retourne des tableaux vides pour ces champs.
     
 Retourne EXCLUSIVEMENT un JSON valide avec la structure suivante:
 
 <example>
 {
     "theme": "le sujet de la conversation",
-    "m_type": ["short", "long"], // court ou long ou les deux
+    "m_type": ["short", "long"],
     "timeframe": {
-        "type": "absolute|relative", // "absolute" pour les dates précises, "relative" pour les références temporelles comme "hier"
-        "reference": "la référence temporelle extraite de la requête en anglais", // ex. "this morning", "yesterday", "this year"
-        "start_date": "YYYY-MM-DD", // pour les dates absolues, vide autrement
-        "end_date": "YYYY-MM-DD", // pour les dates absolues, vide autrement
-        "relative_days": -1, // jours relatifs à la date actuelle (ex. -1 pour "hier")
-        "period": "morning|afternoon|evening|full_day|full_period" // période de la journée
-    }
+        "type": "absolute|relative|none",
+        "reference": "la référence temporelle extraite de la requête en anglais",
+        "start_date": "YYYY-MM-DD",
+        "end_date": "YYYY-MM-DD",
+        "relative_days": 0,
+        "period": "morning|afternoon|evening|full_day|full_period|none"
+    },
+    "entities": [
+        {
+            "text": "surface form dans la question",
+            "entity_type": "PERSON|LOCATION|...",
+            "role": "target|subject|comparison|context",
+            "confidence": 0.0
+        }
+    ],
+    "graph_queries": [
+        {
+            "description": "but de la requête",
+            "steps": [
+                {
+                    "step": 1,
+                    "query_type": "relationship_lookup|entity_lookup",
+                    "source_entity": "nom ou identifiant (ex: <PATIENT>)",
+                    "target_filters": {
+                        "entity_type": "PERSON|CONDITION|RESOURCE|GOAL",
+                        "relationship_type": "friend_of|has_condition|prefers|...",
+                        "relationship_subtype": "best_friend|food_preference|...",
+                        "temporal_window": {
+                            "start": "YYYY-MM-DD",
+                            "end": "YYYY-MM-DD"
+                        }
+                    },
+                    "result_key": "identifiant_optionnel"
+                },
+                {
+                    "step": 2,
+                    "query_type": "relationship_lookup|entity_lookup",
+                    "source_entity": "$ref:identifiant_optionnel",
+                    "target_filters": {
+                        "entity_type": "PERSON|CONDITION|RESOURCE|GOAL"
+                    }
+                }
+            ]
+        }
+    ]
 }
 </example>
 
@@ -172,28 +217,50 @@ All the following examples assume in the input context a datetime of 2025/08/04 
 Entrée :
 {"conv": "Q: Que veux-tu manger aujourd'hui ?"}
 Sortie :
-{"theme": "Prévisions repas", "m_type": ["short", "long"], "timeframe": {"type": "relative", "reference": "today", "start_date": "", "end_date": "", "relative_days": 0, "period": "full_day"}}
+{"theme": "Prévisions repas", "m_type": ["short", "long"], "timeframe": {"type": "relative", "reference": "today", "start_date": "", "end_date": "", "relative_days": 0, "period": "full_day"}, "entities": [{"text": "manger", "entity_type": "ACTION", "role": "subject", "confidence": 0.74}], "graph_queries": [{"description": "Trouver les préférences alimentaires", "steps": [{"step": 1, "query_type": "relationship_lookup", "source_entity": "<PATIENT>", "target_filters": {"entity_type": "RESOURCE", "relationship_type": "prefers", "relationship_subtype": "food", "temporal_window": {"start": "", "end": ""}}}]}]}
 
 Entrée :
 {"conv": "Q: Qu'as-tu fait hier ?"}
 Sortie :
-{"theme": "Activités d'hier", "m_type": ["short"], "timeframe": {"type": "relative", "reference": "yesterday", "start_date": "", "end_date": "", "relative_days": -1, "period": "full_day"}}
+{"theme": "Activités d'hier", "m_type": ["short"], "timeframe": {"type": "relative", "reference": "yesterday", "start_date": "", "end_date": "", "relative_days": -1, "period": "full_day"}, "entities": [], "graph_queries": []}
 
 Entrée :
 {"conv": "Q: Raconte-moi une anecdote de ton enfance."}
 Sortie :
-{"theme": "Anecdote sur la vie de l'utilisateur", "m_type": ["long"],  "timeframe": {"type": "relative", "reference": "always", "start_date": "", "end_date": "", "relative_days": -3650, "period": "full_day"}}
+{"theme": "Anecdote sur la vie de l'utilisateur", "m_type": ["long"],  "timeframe": {"type": "relative", "reference": "always", "start_date": "", "end_date": "", "relative_days": -3650, "period": "full_day"}, "entities": [{"text": "enfance", "entity_type": "LIFE_PERIOD", "role": "context", "confidence": 0.81}], "graph_queries": []}
 
 Entrée :
 {"conv": "Q: Quelle musique t'aimes écouter"}
 Sortie :
-{"theme": "Préférences musicales de l'utilisateur", "m_type": ["short","long"], "timeframe": {"type": "relative", "reference": "always", "start_date": "", "end_date": "", "relative_days": -3650, "period": "full_day"}}
+{"theme": "Préférences musicales de l'utilisateur", "m_type": ["short","long"], "timeframe": {"type": "relative", "reference": "always", "start_date": "", "end_date": "", "relative_days": -3650, "period": "full_day"}, "entities": [{"text": "musique", "entity_type": "INTEREST", "role": "target", "confidence": 0.88}], "graph_queries": [{"description": "Récupérer les préférences musicales", "steps": [{"step": 1, "query_type": "relationship_lookup", "source_entity": "<PATIENT>", "target_filters": {"entity_type": "RESOURCE", "relationship_type": "prefers", "relationship_subtype": "music", "temporal_window": {"start": "", "end": ""}}}]}]}
 
 Entrée :
-{"conv": "Q: As-tu parlé avec ta fille cette semaine ?"}
+{"conv": "Q: Qui est ta meilleure amie ?"}
 Sortie :
-{"theme": "Communication avec sa fille", "m_type": ["short"], "timeframe": {"type": "relative", "reference": "this week", "start_date": "", "end_date": "", "relative_days": -7, "period": "full_period"}}
+{"theme": "Relations amicales", "m_type": ["short","long"], "timeframe": {"type": "none", "reference": "", "start_date": "", "end_date": "", "relative_days": 0, "period": "none"}, "entities": [{"text": "meilleure amie", "entity_type": "PERSON", "role": "target", "confidence": 0.94}], "graph_queries": [{"description": "Identifier la meilleure amie", "steps": [{"step": 1, "query_type": "relationship_lookup", "source_entity": "<PATIENT>", "target_filters": {"entity_type": "PERSON", "relationship_type": "friend_of", "relationship_subtype": "best_friend"}}]}]}
+
+Entrée :
+{"conv": "Q: Comment s'appelle ton beau frère ?"}
+Sortie :
+{"theme": "Famille élargie", "m_type": ["long"], "timeframe": {"type": "none", "reference": "", "start_date": "", "end_date": "", "relative_days": 0, "period": "none"}, "entities": [{"text": "beau frère", "entity_type": "PERSON", "role": "target", "confidence": 0.92}], "graph_queries": [{"description": "Explorer les relations menant au beau-frère", "steps": [{"step": 1, "query_type": "relationship_lookup", "source_entity": "<PATIENT>", "target_filters": {"entity_type": "PERSON", "relationship_type": "spouse_of"}, "result_key": "patient_spouse_candidates"}, {"step": 2, "query_type": "relationship_lookup", "source_entity": "$ref:patient_spouse_candidates", "target_filters": {"entity_type": "PERSON", "relationship_type": "sibling_of", "relationship_subtype": "brother"}}, {"step": 3, "query_type": "relationship_lookup", "source_entity": "<PATIENT>", "target_filters": {"entity_type": "PERSON", "relationship_type": "sibling_of"}, "result_key": "patient_sibling_candidates"}, {"step": 4, "query_type": "relationship_lookup", "source_entity": "$ref:patient_sibling_candidates", "target_filters": {"entity_type": "PERSON", "relationship_type": "partner_of", "relationship_subtype": "spouse"}}]}]}
+
+Entrée :
+{"conv": "Q: Comment va ta fille Audrey en ce moment ?"}
+Sortie :
+{"theme": "Famille de l'utilisateur", "m_type": ["short","long"], "timeframe": {"type": "relative", "reference": "now", "start_date": "", "end_date": "", "relative_days": 0, "period": "full_day"}, "entities": [{"text": "Audrey", "entity_type": "PERSON", "role": "target", "confidence": 0.95}], "graph_queries": [{"description": "Identifier les filles de l'utilisateur", "steps": [{"step": 1, "query_type": "relationship_lookup", "source_entity": "<PATIENT>", "target_filters": {"entity_type": "PERSON", "relationship_type": "parent_of", "relationship_subtype": "daughter", "temporal_window": {"start": "", "end": ""}}, "result_key": "patient_daughter_candidates"}]}, {"description": "Récupérer les événements récents concernant Audrey", "steps": [{"step": 1, "query_type": "relationship_lookup", "source_entity": "$ref:patient_daughter_candidates", "target_filters": {"entity_type": "EVENT", "relationship_type": "participated_in", "temporal_window": {"start": "2025-07-28", "end": "2025-08-04"}}}]}, {"description": "Récupérer les conditions de santé associées à Audrey", "steps": [{"step": 1, "query_type": "relationship_lookup", "source_entity": "$ref:patient_daughter_candidates", "target_filters": {"entity_type": "CONDITION", "relationship_type": "has_condition", "temporal_window": {"start": "2025-07-28", "end": "2025-08-04"}}}]}, {"description": "Récupérer les ressources décrivant Audrey", "steps": [{"step": 1, "query_type": "relationship_lookup", "source_entity": "$ref:patient_daughter_candidates", "target_filters": {"entity_type": "RESOURCE", "relationship_type": "described_in", "temporal_window": {"start": "2025-07-28", "end": "2025-08-04"}}}]}]}
+
+Entrée :
+{"conv": "Q: Comment va ta fille Audrey en ce moment ?"}
+Sortie :
+{"theme": "Famille de l'utilisateur", "m_type": ["short","long"], "timeframe": {"type": "relative", "reference": "now", "start_date": "", "end_date": "", "relative_days": 0, "period": "full_day"}, "entities": [{"text": "Audrey", "entity_type": "PERSON", "role": "target", "confidence": 0.95}], "graph_queries": [{"description": "Identifier les filles de l'utilisateur", "steps": [{"step": 1, "query_type": "relationship_lookup", "source_entity": "<PATIENT>", "target_filters": {"entity_type": "PERSON", "relationship_type": "parent_of", "relationship_subtype": "daughter", "temporal_window": {"start": "", "end": ""}}, "result_key": "patient_daughter_candidates"}]}, {"description": "Récupérer les informations récentes sur Audrey", "steps": [{"step": 1, "query_type": "relationship_lookup", "source_entity": "$ref:patient_daughter_candidates", "target_filters": {"entity_type": "EVENT|CONDITION|RESOURCE", "relationship_type": "has_condition|participated_in|described_in", "temporal_window": {"start": "2025-07-28", "end": "2025-08-04"}}}]}]}
+
+Entrée :
+{"conv": "Q: Comment s'appelle la belle mère de ton oncle ?"}
+Sortie :
+{"theme": "Famille élargie", "m_type": ["long"], "timeframe": {"type": "none", "reference": "", "start_date": "", "end_date": "", "relative_days": 0, "period": "none"}, "entities": [{"text": "belle mère de ton oncle", "entity_type": "PERSON", "role": "target", "confidence": 0.91}], "graph_queries": [{"description": "Identifier les belles-mères potentielles des oncles maternels et paternels", "steps": [{"step": 1, "query_type": "relationship_lookup", "source_entity": "<PATIENT>", "target_filters": {"entity_type": "PERSON", "relationship_type": "child_of"}, "result_key": "patient_parent_candidates"}, {"step": 2, "query_type": "relationship_lookup", "source_entity": "$ref:patient_parent_candidates", "target_filters": {"entity_type": "PERSON", "relationship_type": "sibling_of", "relationship_subtype": "brother"}, "result_key": "maternal_uncle_candidates"}, {"step": 3, "query_type": "relationship_lookup", "source_entity": "$ref:maternal_uncle_candidates", "target_filters": {"entity_type": "PERSON", "relationship_type": "partner_of", "relationship_subtype": "spouse"}, "result_key": "maternal_uncle_partner_candidates"}, {"step": 4, "query_type": "relationship_lookup", "source_entity": "$ref:maternal_uncle_partner_candidates", "target_filters": {"entity_type": "PERSON", "relationship_type": "parent_of", "relationship_subtype": "mother"}}, {"step": 5, "query_type": "relationship_lookup", "source_entity": "$ref:patient_parent_candidates", "target_filters": {"entity_type": "PERSON", "relationship_type": "sibling_of", "relationship_subtype": "brother", "branch_hint": "paternal"}, "result_key": "paternal_uncle_candidates"}, {"step": 6, "query_type": "relationship_lookup", "source_entity": "$ref:paternal_uncle_candidates", "target_filters": {"entity_type": "PERSON", "relationship_type": "partner_of", "relationship_subtype": "spouse"}, "result_key": "paternal_uncle_partner_candidates"}, {"step": 7, "query_type": "relationship_lookup", "source_entity": "$ref:paternal_uncle_partner_candidates", "target_filters": {"entity_type": "PERSON", "relationship_type": "parent_of", "relationship_subtype": "mother"}}]}]}
 </examples>
-"""
+
+N'explique JAMAIS ta réponse, retourne juste le JSON valide.
+</instructions>"""
  }
 }
