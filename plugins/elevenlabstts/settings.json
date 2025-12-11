@@ -7,5 +7,7 @@
     "style": 0.0,
     "use_speaker_boost": true,
     "speed": 1.0,
-    "latency_optimization": 0
+    "latency_optimization": 0,
+    "output_format": "mp3_44100_128",
+    "enable_logging": true
 }

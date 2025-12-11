@@ -84,15 +84,12 @@
                             }}</button>
                         </div>
                     </div>
-                    <div class="form-note" style="margin: 0 0 8px 0; font-size: 0.85em;">
-                        {{ t('Note: Speed range is 0.7-1.2 (slower-faster). Values outside this range will be rejected by ElevenLabs API.') }}
-                    </div>
 
                     <!-- Stability Row -->
                     <div class="ssml-row">
                         <div class="ssml-left">{{ t('Stability') }}</div>
                         <div class="ssml-center">
-                            <input type="range" :min="0" :max="1" step="0.01"
+                            <input type="range" id="stabilitySlider" :min="0" :max="1" step="0.01"
                                 v-model.number="stabilityValue" @input="onStabilityChange" />
                         </div>
                         <div class="ssml-right">
@@ -105,7 +102,7 @@
                     <div class="ssml-row">
                         <div class="ssml-left">{{ t('Similarity Boost') }}</div>
                         <div class="ssml-center">
-                            <input type="range" :min="0" :max="1" step="0.01"
+                            <input type="range" id="similarityBoostSlider" :min="0" :max="1" step="0.01"
                                 v-model.number="similarityBoostValue" @input="onSimilarityBoostChange" />
                         </div>
                         <div class="ssml-right">
@@ -118,7 +115,7 @@
                     <div class="ssml-row">
                         <div class="ssml-left">{{ t('Style') }}</div>
                         <div class="ssml-center">
-                            <input type="range" :min="0" :max="1" step="0.01"
+                            <input type="range" id="styleSlider" :min="0" :max="1" step="0.01"
                                 v-model.number="styleValue" @input="onStyleChange" />
                         </div>
                         <div class="ssml-right">
@@ -131,7 +128,7 @@
                     <div class="ssml-row">
                         <div class="ssml-left">{{ t('Speed') }}</div>
                         <div class="ssml-center">
-                            <input type="range" :min="0.7" :max="1.2" step="0.05"
+                            <input type="range" id="speedSlider" :min="0.7" :max="1.2" step="0.05"
                                 v-model.number="speedValue" @input="onSpeedChange" />
                         </div>
                         <div class="ssml-right">
@@ -144,7 +141,7 @@
                     <div class="ssml-row">
                         <div class="ssml-left">{{ t('Latency Optimization') }}</div>
                         <div class="ssml-center">
-                            <select v-model="latencyOptimizationValue" @change="onLatencyOptimizationChange">
+                            <select id="latencyOptimizationSlider" v-model="latencyOptimizationValue" @change="onLatencyOptimizationChange">
                                 <option :value="0">{{ t('Best Quality') }}</option>
                                 <option :value="1">{{ t('Quality') }}</option>
                                 <option :value="2">{{ t('Balanced') }}</option>
@@ -158,25 +155,20 @@
                         </div>
                     </div>
 
-                    <!-- Speaker Boost Toggle -->
+                    <!-- Speaker Boost & Logging Toggles -->
                     <div class="ssml-row">
                         <div class="ssml-left">{{ t('Speaker Boost') }}</div>
-                        <div class="ssml-center">
-                            <input type="checkbox" id="use_speaker_boost" v-model="speakerBoostValue" @change="onSpeakerBoostChange" />
+                        <div class="ssml-center checkbox-columns">
+                            <div class="checkbox-column">
+                                <input type="checkbox" id="use_speaker_boost" v-model="speakerBoostValue" @change="onSpeakerBoostChange" />
+                                <label for="use_speaker_boost">{{ t('Speaker Boost') }}</label>
+                            </div>
+                            <div class="checkbox-column">
+                                <input type="checkbox" id="enable_logging" v-model="formData.enable_logging" />
+                                <label for="enable_logging">{{ t('Enable Logging') }}</label>
+                            </div>
                         </div>
                         <div class="ssml-right">
-                            <label for="use_speaker_boost">{{ t('Enhance speaker presence') }}</label>
-                        </div>
-                    </div>
-
-                    <!-- Enable Logging Toggle -->
-                    <div class="ssml-row">
-                        <div class="ssml-left">{{ t('Enable Logging') }}</div>
-                        <div class="ssml-center">
-                            <input type="checkbox" id="enable_logging" v-model="formData.enable_logging" />
-                        </div>
-                        <div class="ssml-right">
-                            <label for="enable_logging">{{ t('Enable request history (Enterprise only)') }}</label>
                         </div>
                     </div>
 
@@ -228,13 +220,7 @@ export default {
             speedValue: 1.0,
             latencyOptimizationValue: 0,
             outputFormatValue: 'mp3_44100_128',
-            enableLoggingValue: true,
-            seedValue: null,
-            previousTextValue: null,
-            nextTextValue: null,
-            pronunciationDictionaryLocatorsValue: null,
-            previousRequestIdsValue: null,
-            nextRequestIdsValue: null
+            enableLoggingValue: true
         };
     },
     computed: {
@@ -311,6 +297,7 @@ export default {
         onSpeakerBoostChange() {
             this.formData.use_speaker_boost = this.speakerBoostValue;
         },
+
         onSpeedChange() {
             if (this.speedValue < 0.7) this.speedValue = 0.7;
             if (this.speedValue > 1.2) this.speedValue = 1.2;
@@ -322,6 +309,7 @@ export default {
             if (this.latencyOptimizationValue > 4) this.latencyOptimizationValue = 4;
             this.formData.latency_optimization = parseInt(this.latencyOptimizationValue);
         },
+
         
         resetControllers() {
             // Reset to default values
@@ -342,6 +330,8 @@ export default {
             // Reset new parameters
             this.formData.output_format = 'mp3_44100_128';
             this.formData.enable_logging = true;
+            
+
         },
         async loadVoiceListFromRest() {
             if (!this.formData.api_key || !this.formData.api_key.trim()) {
@@ -382,6 +372,9 @@ export default {
             testData['action'] = 'test_speak';
             testData['message'] = msg;
             testData['target'] = 'elevenlabstts'; // Specify target to prevent message interference
+            
+            // Remove GenerationOptions if it exists (leftover from Speechify)
+            delete testData['GenerationOptions'];
             
             console.log('Sending test_speak message:', testData);
             
@@ -463,6 +456,7 @@ export default {
             await this.loadVoiceListFromRest();
         }
     },
+
 };
 </script>
 
@@ -543,7 +537,7 @@ button:hover {
     grid-template-columns: 150px 1fr 120px;
     align-items: center;
     gap: 12px;
-    padding: 8px 0;
+    padding: 0.2vh 0;
 }
 
 .ssml-left {
@@ -593,5 +587,27 @@ button:hover {
 
 .reset-button:hover {
     background: #555;
+}
+
+/* Checkbox columns layout */
+.checkbox-columns {
+    display: flex;
+    gap: 20px;
+    justify-content: flex-start;
+}
+
+.checkbox-column {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.checkbox-column label {
+    color: #e8e8e8;
+    font-size: 0.9em;
+}
+
+.checkbox-column input[type="checkbox"] {
+    margin: 0;
 }
 </style>
