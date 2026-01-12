@@ -58,14 +58,21 @@
             <!-- Save Button -->
             <div class="form-label"></div>
             <div class="form-input">
-                <div style="display: flex; justify-content: space-evenly; width: 100%" >
+                <div style="display: flex; justify-content: space-between; align-items: center; width: 100%" >
                     <button class="" type="button" @click="testVoice">{{ t('Test voice') }}</button>
-                    <button @click="checkBeforeUpdating"
-                        :disabled="!hasChanges || apiKeyError || voiceIdError || isSaving"
-                        :class="{ disabled: !hasChanges || apiKeyError || voiceIdError || isSaving }">{{ t('SAVE PLUGIN SETTINGS')}}</button>
-                    <div v-if="saveStatus" style="margin-left:12px;">
-                        <span v-if="saveStatus.type === 'success'" style="color:#3ca23c">{{ saveStatus.message }}</span>
-                        <span v-else style="color:#ff6666">{{ saveStatus.message }}</span>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <SaveSettingsButton
+                            :hasChanges="hasChanges"
+                            :loading="isSaving"
+                            :t="t"
+                            :lang="lang"
+                            @save="checkBeforeUpdating"
+                            @cancel="resetSettings"
+                        />
+                        <div v-if="saveStatus" style="margin-left:12px;">
+                            <span v-if="saveStatus.type === 'success'" style="color:#3ca23c">{{ saveStatus.message }}</span>
+                            <span v-else style="color:#ff6666">{{ saveStatus.message }}</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -183,10 +190,14 @@
 
 <script>
 import BasePluginComponent from '/js/BasePluginComponent.js';
+import SaveSettingsButton from '/js/SaveSettingsButton.vue';
 
 export default {
     name: 'elevenlabsttsSettings',
     mixins: [BasePluginComponent],
+    components: {
+        SaveSettingsButton
+    },
     props: {
         initialSettings: Object
     },
@@ -330,8 +341,23 @@ export default {
             // Reset new parameters
             this.formData.output_format = 'mp3_44100_128';
             this.formData.enable_logging = true;
-            
 
+
+        },
+        resetSettings() {
+            // Restore to last saved settings (originalSettings)
+            if (this.originalSettings) {
+                this.formData = JSON.parse(JSON.stringify(this.originalSettings));
+                // Reset local v-model values to match formData
+                this.stabilityValue = this.formData.stability;
+                this.similarityBoostValue = this.formData.similarity_boost;
+                this.styleValue = this.formData.style;
+                this.speakerBoostValue = this.formData.use_speaker_boost;
+                this.speedValue = this.formData.speed;
+                this.latencyOptimizationValue = this.formData.latency_optimization;
+                this.outputFormatValue = this.formData.output_format;
+                this.enableLoggingValue = this.formData.enable_logging;
+            }
         },
         async loadVoiceListFromRest() {
             if (!this.formData.api_key || !this.formData.api_key.trim()) {
