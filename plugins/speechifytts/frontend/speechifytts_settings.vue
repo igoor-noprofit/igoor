@@ -69,14 +69,21 @@
             <!-- Save Button -->
             <div class="form-label"></div>
             <div class="form-input">
-                <div style="display: flex; justify-content: space-evenly; width: 100%" >
+                <div style="display: flex; justify-content: space-between; align-items: center; width: 100%" >
                     <button class="" type="button" @click="testVoice">{{ t('Test voice') }}</button>
-                    <button @click="checkBeforeUpdating"
-                        :disabled="!hasChanges || apiKeyError || voiceIdError || isSaving"
-                        :class="{ disabled: !hasChanges || apiKeyError || voiceIdError || isSaving }">{{ t('SAVE PLUGIN SETTINGS')}}</button>
-                    <div v-if="saveStatus" style="margin-left:12px;">
-                        <span v-if="saveStatus.type === 'success'" style="color:#3ca23c">{{ saveStatus.message }}</span>
-                        <span v-else style="color:#ff6666">{{ saveStatus.message }}</span>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <SaveSettingsButton
+                            :hasChanges="hasChanges"
+                            :loading="isSaving"
+                            :t="t"
+                            :lang="lang"
+                            @save="checkBeforeUpdating"
+                            @cancel="resetSettings"
+                        />
+                        <div v-if="saveStatus" style="margin-left:12px;">
+                            <span v-if="saveStatus.type === 'success'" style="color:#3ca23c">{{ saveStatus.message }}</span>
+                            <span v-else style="color:#ff6666">{{ saveStatus.message }}</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -158,10 +165,14 @@
 
 <script>
 import BasePluginComponent from '/js/BasePluginComponent.js';
+import SaveSettingsButton from '/js/SaveSettingsButton.vue';
 
 export default {
     name: 'speechifyttsSettings',
     mixins: [BasePluginComponent],
+    components: {
+        SaveSettingsButton
+    },
     props: {
         initialSettings: Object
     },
@@ -324,6 +335,16 @@ export default {
             this.formData.pitch = 0;
             this.formData.rate = 0;
             this.formData.volume = 0;
+        },
+        resetSettings() {
+            // Restore to last saved settings (originalSettings)
+            if (this.originalSettings) {
+                this.formData = JSON.parse(JSON.stringify(this.originalSettings));
+                // Reset local v-model values to match formData
+                this.pitchValue = this.formData.pitch;
+                this.rateValue = this.formData.rate;
+                this.volumeValue = this.formData.volume;
+            }
         },
         async testVoice() {
             this.formData.pitch = Math.round(this.pitchValue);
