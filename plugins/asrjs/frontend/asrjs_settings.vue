@@ -96,6 +96,7 @@
                 :hasChanges="hasUnsavedChanges"
                 :loading="loading"
                 :t="t"
+                :lang="lang"
                 @save="checkBeforeUpdating"
                 @cancel="resetSettings"
             />

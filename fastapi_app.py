@@ -123,6 +123,7 @@ def create_app() -> FastAPI:
     app.mount("/css", StaticFiles(directory=resource_path("css")), name="css")
     app.mount("/img", StaticFiles(directory=resource_path("img")), name="img")
     app.mount("/plugins", StaticFiles(directory=resource_path("plugins")), name="plugins")
+    app.mount("/locales", StaticFiles(directory=resource_path("locales")), name="locales")
     @app.websocket("/ws/{plugin_name}")
     async def websocket_endpoint(websocket: WebSocket, plugin_name: str):
         name = plugin_name.strip("/") or "app"
