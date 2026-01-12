@@ -1,11 +1,11 @@
 <template>
   <div class="save-settings-button">
     <button class="btn btn-secondary" @click="$emit('cancel')" :disabled="!hasChanges">
-      {{ t('Cancel') }}
+      {{ commonT('Cancel') }}
     </button>
     <button class="btn btn-primary" @click="$emit('save')" :disabled="!hasChanges">
       <span v-if="loading" class="loading-spinner"></span>
-      {{ t('Save') }}
+      {{ commonT('Save') }}
     </button>
   </div>
 </template>
@@ -26,8 +26,52 @@ module.exports = {
       type: Function,
       default: (key) => key,
     },
+    lang: {
+      type: String,
+      default: 'en_EN',
+    },
+  },
+  data() {
+    return {
+      commonTranslations: {},
+    };
   },
   emits: ['save', 'cancel'],
+  mounted() {
+    this.loadCommonTranslations();
+  },
+  watch: {
+    lang: {
+      handler() {
+        this.loadCommonTranslations();
+      }
+    }
+  },
+  methods: {
+    async loadCommonTranslations() {
+      try {
+        const lang = this.lang || 'en_EN';
+        const url = `/locales/${lang}/common_${lang}.json`;
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`Could not load ${url}`);
+        this.commonTranslations = await response.json();
+      } catch (e) {
+        console.warn('Failed to load common translations:', e);
+        this.commonTranslations = {};
+      }
+    },
+    commonT(key) {
+      // First try common translations
+      if (this.commonTranslations[key]) {
+        return this.commonTranslations[key];
+      }
+      // Fallback to provided t function or key itself
+      if (typeof this.t === 'function') {
+        return this.t(key);
+      }
+      return key;
+    }
+  }
 };
 </script>
 
