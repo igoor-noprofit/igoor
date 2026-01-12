@@ -2,7 +2,7 @@
 const WebSocketUtil = require("./WebSocketUtil.js");
 const BASE_WS_URL = "ws://127.0.0.1:9714/ws/"; // Base WebSocket URL
 
-module.exports = {
+const BasePluginComponent = {
   props: {
     appview: {
       type: String,
@@ -26,6 +26,7 @@ module.exports = {
       maxRetries: 5,
       retryDelay: 1000,
       translations: {},
+      originalSettings: null,
     };
   },
   methods: {
@@ -140,6 +141,14 @@ module.exports = {
           this.requestSettings();
           return true; // Indicate the message was handled
         }
+        // Handle settings received from backend
+        if (data.settings) {
+          if (this.formData === undefined) {
+            this.formData = data.settings;
+          }
+          this.setOriginalSettings(data.settings);
+          return true;
+        }
         if (data.type === "error") {
           this.error = {
             code: data.error_code,
@@ -215,11 +224,11 @@ module.exports = {
       const params = options.params || options;
       const method = options.method || 'GET';
       const data = options.data || null;
-      
+
       // Get backendApi instance first, then check for bridge
       const backendApi = await ensureBackendApi();
       const bridge = backendApi.getBridge();
-      
+
       if (bridge?.get_plugin_rest_endpoint) {
         return bridge.get_plugin_rest_endpoint(pluginName, endpoint, params);
       }
@@ -228,7 +237,7 @@ module.exports = {
       const baseUrl = `/api/plugins/${encodeURIComponent(
         pluginName
       )}/${endpoint}`;
-      
+
       let url = baseUrl;
       let fetchOptions = {
         method: method,
@@ -257,6 +266,39 @@ module.exports = {
         );
         throw error;
       }
+    },
+    setOriginalSettings(settings) {
+      this.originalSettings = JSON.parse(JSON.stringify(settings));
+    },
+    resetSettings() {
+      if (this.originalSettings) {
+        this.formData = JSON.parse(JSON.stringify(this.originalSettings));
+      } else {
+        console.warn('No original settings to reset to.');
+      }
+    },
+    saveSettings() {
+      console.log("Saving plugin settings:", this.formData);
+      let plugin_name = this.$options.name;
+      if (plugin_name.endsWith("Settings")) {
+        plugin_name = plugin_name.substring(
+          0,
+          plugin_name.length - "Settings".length
+        );
+      }
+      // Return the promise so callers can await and react to success/failure
+      return ensureBackendApi().then((api) =>
+        api.updatePluginSettings(plugin_name, this.formData).then(() => {
+          this.setOriginalSettings(this.formData);
+        })
+      );
+    }
+  },
+  computed: {
+    hasUnsavedChanges() {
+      if (!this.originalSettings) return false;
+      const data = this.formData || {};
+      return JSON.stringify(data) !== JSON.stringify(this.originalSettings);
     }
   },
   created() {
@@ -275,3 +317,14 @@ module.exports = {
     }
   },
 };
+
+// Export for both CommonJS and ES6 modules
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = BasePluginComponent;
+}
+if (typeof exports !== 'undefined') {
+  exports.default = BasePluginComponent;
+}
+if (typeof window !== 'undefined') {
+  window.BasePluginComponent = BasePluginComponent;
+}

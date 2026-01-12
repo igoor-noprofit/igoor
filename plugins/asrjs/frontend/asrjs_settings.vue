@@ -92,7 +92,13 @@
         <!-- Save Button (spans all columns) -->
         <div class="form-label"></div>
         <div class="form-input">
-            <button @click="checkBeforeUpdating">{{t('SAVE PLUGIN SETTINGS')}}</button>
+            <SaveSettingsButton
+                :hasChanges="hasUnsavedChanges"
+                :loading="loading"
+                :t="t"
+                @save="checkBeforeUpdating"
+                @cancel="resetSettings"
+            />
         </div>
         <div class="form-note"></div>
     </div>
@@ -100,6 +106,7 @@
 
 <script>
 import BasePluginComponent from '/js/BasePluginComponent.js';
+import SaveSettingsButton from '/js/SaveSettingsButton.vue';
 
 function formatShortcut(e) {
     let keys = [];
@@ -120,9 +127,11 @@ export default {
         initialSettings: Object
     },
     mixins: [BasePluginComponent],
+    components: {
+        SaveSettingsButton
+    },
     data() {
         return {
-            originalSettings: null,
             formData: {
                 model_provider: 'groq',
                 model_name: 'whisper-large-v3',
@@ -132,24 +141,26 @@ export default {
                 shortcut: ''
             },
             isRecordingShortcut: false,
-            voxtralKeyError: false
+            voxtralKeyError: false,
+            loading: false
         };
     },
     computed: {
-        hasChanges() {
-            if (!this.originalSettings) return false;
-            return Object.keys(this.formData).some(key => 
-                JSON.stringify(this.formData[key]) !== JSON.stringify(this.originalSettings[key])
-            );
+        hasUnsavedChanges() {
+            if (!this.originalSettings || !this.formData) return false;
+            return JSON.stringify(this.formData) !== JSON.stringify(this.originalSettings);
         }
     },
     watch: {
         initialSettings: {
             handler(newVal) {
                 if (newVal) {
-                    this.formData = { ...this.formData, ...newVal };
-                    // Store original settings for comparison
-                    this.originalSettings = JSON.parse(JSON.stringify(newVal));
+                    // Only set originalSettings after we've received initialSettings
+                    this.$nextTick(() => {
+                        this.setOriginalSettings(newVal);
+                        // Then update formData with actual values (not default)
+                        this.formData = { ...newVal };
+                    });
                 }
             },
             immediate: true,
@@ -202,7 +213,10 @@ export default {
                 return;
             }
             this.voxtralKeyError = false;
-            this.updateSettings(this.formData);
+            this.loading = true;
+            this.saveSettings().finally(() => {
+                this.loading = false;
+            });
         }
     }
 };
