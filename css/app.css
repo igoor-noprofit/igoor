@@ -514,6 +514,7 @@ footer.shrink {
   /* button colors */
   --color-btn-base: var(--basecolor-accent-700);
   --color-btn-form: var(--basecolor-secondary-500);
+  --color-btn-secondary: #ccc;
   --color-btn-other: var(--basecolor-secondary-500);
   --color-btn-hi: var(--basecolor-accent-500);
   --color-btn-low: var(--basecolor-accent-900);
@@ -724,8 +725,10 @@ button {
   padding: 1.5rem 1rem;
 }
 .btn-secondary {
-  background-color: var(--color-btn-base);
   padding: 0.75rem 1rem;
+}
+.pluginsContainer .btn-secondary {
+  background-color: var(--color-btn-secondary) !important;
 }
 .btn-more {
   background-color: var(--color-btn-base);
