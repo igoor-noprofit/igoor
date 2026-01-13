@@ -19,21 +19,8 @@ from array import array
 # Suppress warnings
 warnings.filterwarnings('ignore')
 
-# Patch SpeechBrain to use COPY strategy before importing
-import speechbrain.utils.fetching as fetching
-from speechbrain.utils.fetching import LocalStrategy
-
-# Force COPY strategy
-original_link = fetching.link_with_strategy
-
-def patched_link(src, dst, strategy=None):
-    # Always use COPY on Windows to avoid symlink issues
-    return original_link(src, dst, LocalStrategy.COPY)
-
-fetching.link_with_strategy = patched_link
-
-# Now import the classifier
-from speechbrain.inference.speaker import EncoderClassifier
+# Now import classifier
+from speechbrain.pretrained.interfaces import SpeakerRecognition
 
 class SpeakerIdentificationSystem:
     def __init__(self, voices_dir="./voices", embeddings_file="speaker_embeddings.pkl", model_name="speechbrain/spkrec-ecapa-voxceleb", plugin_dir=None):
@@ -47,12 +34,12 @@ class SpeakerIdentificationSystem:
         else:
             plugin_dir = os.path.dirname(os.path.dirname(__file__))
             model_save_dir = os.path.join(plugin_dir, "pretrained_models", "spkrec-ecapa-voxceleb")
-        
+
         # Load the SpeechBrain model
         print("Loading speaker recognition model...")
-        self.classifier = EncoderClassifier.from_hparams(
+        self.classifier = SpeakerRecognition.from_hparams(
             source=model_name,
-            # Use passed plugin_dir or calculate from file if not provided            
+            # Use passed plugin_dir or calculate from file if not provided
             savedir=model_save_dir,
             run_opts={"device": "cpu"}
         )
