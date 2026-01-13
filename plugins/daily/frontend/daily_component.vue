@@ -224,6 +224,7 @@ module.exports = {
 .btn-secondary {
     font-size: 1rem;
     padding: 1.2vh 1vh;
+    background-color: var(--color-btn-base);
 }
 
 .answers.secondary {
