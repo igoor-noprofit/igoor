@@ -6,6 +6,8 @@ IGOOR is an open-source and free conversational application, controllable by eye
 
 Take a look at the [IGOOR website](https://igoor.org/en) for further infos about our core principles, values and software roadmap.
 
+Also please take a look at the [IGOOR docs](https://igoor-noprofit.github.io/docs/). 
+
 ## Notice of Development, Confidentiality, and Contribution Terms
 
 **This project is currently under private development. While the final version of the software WILL BE released as free/libre under the GPLv3 License, the current codebase is not yet public and is subject to strict confidentiality.**
