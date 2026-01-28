@@ -1,0 +1,13 @@
+{
+    "voice_id": "",
+    "api_key": "",
+    "model_id": "eleven_multilingual_v2",
+    "stability": 0.5,
+    "similarity_boost": 0.75,
+    "style": 0.0,
+    "use_speaker_boost": true,
+    "speed": 1.0,
+    "latency_optimization": 0,
+    "output_format": "mp3_44100_128",
+    "enable_logging": true
+}

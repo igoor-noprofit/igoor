@@ -18,12 +18,12 @@ WebSocketUtil.prototype.connect = function() {
     };
 
     this.websocket.onopen = () => {
-        console.log('WebSocket connection established');
+        // console.log('WebSocket connection established');
         this.onOpen();
     };
 
     this.websocket.onclose = () => {
-        console.log('WebSocket connection closed');
+        // console.log('WebSocket connection closed');
         this.onClose();
     };
 

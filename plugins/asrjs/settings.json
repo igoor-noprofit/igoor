@@ -1,0 +1,15 @@
+{
+  "wakeword": "Igor",
+  "continuous": false,
+  "silence_frames": 1250,
+  "max_recording_time": 60,
+  "vad_level": -1,
+  "shortcut": "Ctrl+K",
+  "chunk_duration_ms": 30,
+  "sample_rate": 48000,
+  "audio_format": "PCM_16",
+  "model_provider": "groq",
+  "model_name": "whisper-large-v3",
+  "api_key": "",
+  "voxtral_api_key": ""
+}

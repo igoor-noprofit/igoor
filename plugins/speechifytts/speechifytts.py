@@ -7,6 +7,7 @@ from speechify import Speechify
 import sounddevice as sd
 import numpy as np
 from pydub import AudioSegment
+from pydub.exceptions import CouldntDecodeError
 from pydub.playback import play
 import io
 import base64
@@ -25,24 +26,37 @@ class Speechifytts(Baseplugin):
     def __init__(self, plugin_name, pm):
         self.pm = pm
         super().__init__(plugin_name,pm)
+        self._ensure_lang_code()
+
+    def _ensure_lang_code(self):
+        lang = getattr(self, 'lang', None)
+        if not lang:
+            lang = 'en_EN'
+        if lang == 'en_EN':
+            code = 'en'
+        else:
+            code = lang.replace('_', '-')
+        self.lang_code = code
+        return code
                 
     @hookimpl
     def startup(self):
+        # https://docs.sws.speechify.com/docs/features/language-support#beta-languages
         self.supported_lang = ['en', 'fr-FR', 'de-DE', 'es-ES', 'pt-BR', 'pt-PT']
         self.settings = self.get_my_settings()
-        print ("SPEECHIFY settings", self.settings)
+        ''' print ("SPEECHIFY settings", self.settings) '''
         try:
             self.api_key = self.settings.get("api_key")
             self.voice_id = self.settings.get("voice_id")  
             if (not self.api_key):
-                self.logger.error("Speechify API token not set in settings,cannot generate speech")
+                self.logger.warning("Speechify API token not set in settings,cannot generate speech")
                 return False
             if (not self.voice_id):
-                self.logger.error("Speechify Voice ID not set in settings,cannot generate speech")
+                print("Speechify Voice ID not set in settings,cannot generate speech")
                 return False
-            self.lang_code = self.lang.replace("_", "-")
+            self._ensure_lang_code()
             if self.lang_code not in self.supported_lang:
-                self.logger.warning(f"Configured language '{self.lang_code}' is not officially supported by Speechify plugin. Check documentation for compatibility.")
+                print(f"Configured language '{self.lang_code}' is not officially supported by Speechify plugin. Check documentation for compatibility.")
             try:
                 self.client = Speechify(token=self.api_key)
                 self.is_loaded = True
@@ -78,9 +92,35 @@ class Speechifytts(Baseplugin):
         print ("SSML:", ssml)
         asyncio.create_task(self.call_speechify(input=ssml, voice_id=voice_id, language=self.lang_code, model="simba-multilingual"))
     
-    def get_voices_list(self):
+    def get_voices_list(self, api_key_override=None):
         try:
-            voices = self.client.tts.voices.list()
+            client = getattr(self, 'client', None)
+
+            if api_key_override:
+                override_key = api_key_override.strip()
+                if not override_key:
+                    self.logger.error("Received empty API key override for voice list retrieval")
+                    return []
+                try:
+                    client = Speechify(token=override_key)
+                    self.client = client
+                    self.api_key = override_key
+                except Exception as client_error:
+                    self.logger.error(f"Failed to initialize Speechify client with override key: {client_error}")
+                    return []
+            elif client is None:
+                api_key = getattr(self, 'api_key', None)
+                if not api_key:
+                    self.logger.error("Speechify API token not set; cannot load voices")
+                    return []
+                try:
+                    client = Speechify(token=api_key)
+                    self.client = client
+                except Exception as client_error:
+                    self.logger.error(f"Failed to initialize Speechify client: {client_error}")
+                    return []
+
+            voices = client.tts.voices.list()
             # print(voices)
             if not voices:
                 self.logger.error("No voices found from Speechify")
@@ -99,7 +139,8 @@ class Speechifytts(Baseplugin):
 
             voice_list = []
             # prefer already-normalized lang_code, fall back to legacy lang property
-            lang = getattr(self, "lang_code", None) or getattr(self, "lang", "").replace("_", "-")
+            lang = self._ensure_lang_code()
+            print (f"LANG CODE IS {lang}")
             for v in voices_iter:
                 # support both dict and object shapes
                 def get_attr(obj, name, default=None):
@@ -158,6 +199,7 @@ class Speechifytts(Baseplugin):
                 vid = get_attr(v, "id", get_attr(v, "voice_id", None))
                 voice_list.append({"display_name": f"{display_name}", "id": vid, "type": type, "gender": gender, "tags": tags})
             print(f"Found {len(voice_list)} voices matching language '{lang}'")
+            self.voice_list = voice_list
             self.update_my_settings('voice_list',voice_list)
             self.settings=self.get_my_settings()
             return voice_list
@@ -241,8 +283,16 @@ class Speechifytts(Baseplugin):
                     self.test_speak(msg, **payload)
                     return
                 elif data.get('action', '') == 'get_voice_list':
-                    print(f"RETURNING VOICE LIST {self.voice_list}")
-                    return self.voice_list
+                    override_key = data.get('api_key')
+                    voice_list = self.get_voices_list(api_key_override=override_key)
+                    response = {
+                        "type": "voice_list",
+                        "voice_list": voice_list
+                    }
+                    if not voice_list:
+                        response["error"] = "voice_list_empty"
+                    self.send_message_to_frontend(response, plugin_name='speechifyttsSettings')
+                    return voice_list
             # fallback to base behaviour
             super().process_incoming_message(message)
         except Exception as e:  
@@ -306,11 +356,24 @@ class Speechifytts(Baseplugin):
             audio_bytes = base64.b64decode(response.audio_data)
             print(f"Received {len(audio_bytes)} bytes of audio data. Decoding...")
 
-            # with open("debug_speechify_output.wav", "wb") as f:
-            #    f.write(audio_bytes)
+            '''
+            debug_path = os.path.join(self.plugin_folder, "debug_speechify_output.wav")
+            with open(debug_path, "wb") as f:
+                f.write(audio_bytes)
+            '''
             # 2. Decode the audio bytes using pydub
             audio_file_like = io.BytesIO(audio_bytes)
-            audio_segment = AudioSegment.from_file(audio_file_like)
+            try:
+                if len(audio_bytes) >= 12 and audio_bytes[:4] == b"RIFF" and audio_bytes[8:12] == b"WAVE":
+                    print("Decoding Speechify audio as WAV without ffmpeg")
+                    audio_segment = AudioSegment.from_wav(audio_file_like)
+                else:
+                    raise CouldntDecodeError("Non-WAV header detected", audio_file_like)
+            except CouldntDecodeError:
+                audio_file_like.seek(0)
+                print("Falling back to AudioSegment.from_file (ffmpeg may be required)")
+                audio_segment = AudioSegment.from_file(audio_file_like)
+    
 
             # Convert to 16-bit PCM mono/stereo if needed
             audio_segment = audio_segment.set_frame_rate(22050).set_sample_width(2).set_channels(1)

@@ -1,28 +1,28 @@
 prompts = {
     "memory": {
-        "system": """<instructions>You must analyze a conversation to extract possible memories:
+        "system": """<instructions>You must analyze a conversation to extract potential memories:
 
-- Short-term memory: Recent or one-off events.
-- Long-term memory: Preferences, constant facts, life memories.
+- Short-term memory: recent or punctual events.
+- Long-term memory: preferences, lasting facts, life memories.
 
-In the conversation, Q: is the interlocutor, R: is the user (named {bio_name}).
-Return a JSON with:
+In the conversation, Q: is the interlocutor and R: is the user (named {bio_name}).
+Return a JSON containing:
 
-"theme": summarize the theme of the conversation;
-"facts": an array containing all relevant information about {bio_name}, their family, friends, preferences (food, politics, arts, etc.), life memories. For each fact, specify whether it is short-term or long-term. There may be no facts to save.
-"tags": labels to classify the conversation and make it easier to find later.
+"theme": a summary of the conversation topic;
+"facts": an array with every relevant piece of information about {bio_name}, their family, friends, preferences (food, politics, arts, etc.), or memories. For each fact, specify if it is "short" or "long". It's possible there are no facts to store.
+"tags": labels to classify the conversation and help find it later.
 
 Important criteria:
 <criteria>
-- A "fact" is an objective and verifiable piece of information about the user or their circle.
+- A "fact" is objective, verifiable information about {bio_name} or their close circle.
 - Facts must be explicitly stated or obviously deduced from the conversation.
-- Exhaustiveness and Precision: When several related details are provided on the same subject (e.g., a list of names, several characteristics of an object, the ingredients of a favorite recipe), consolidate this information into a single complete and precise fact. Avoid fragmenting information that is naturally unified in the conversation.
-- Temporary or contextual opinions are not long-term facts, unless they reveal a persistent preference or state.
-- If information is uncertain or non-essential, do not consider it a fact.
-- The "fact" must be formulated in an atomic but complete way.
+- Exhaustiveness and precision: when several related details describe the same subject (names in a list, features of an object, ingredients of a favorite recipe), consolidate them into ONE complete fact. Avoid splitting information that naturally belongs together.
+- Temporary or contextual opinions are not long-term facts unless they reveal a stable preference or state.
+- If the information is uncertain or non-essential, do not treat it as a fact.
+- Each fact must be atomic yet complete.
 </criteria>
 
-Here are some examples of prompts and the requested JSON output:
+Examples of the expected JSON output:
 
 <examples>
 Input: Q: The weather is nice today. R: Absolutely.
@@ -35,10 +35,10 @@ Input: Q: Do you want a snack? R: Yes, a yogurt. Q: Plain or with fruit? R: Plai
 Output: {{"theme":"snack","tags":["yogurt","food preferences"],"facts":[{{"fact":"{bio_name} wants a plain yogurt with a bit of sugar for snack","type":"short"}}]}}
 
 Input: R: Can you close the window? You know I'm sensitive to cold. Q: No problem!
-Output: {{"theme": "cold", "facts" : [{{"fact":"{bio_name} is sensitive to cold"]}}
+Output: {{"theme": "cold", "tags": ["window"], "facts":[{{"fact":"{bio_name} is sensitive to cold","type":"long"}}]}}
 
 Input: Q: Do you like rice pudding? R: I don't like it at all! Q: I thought you liked it! R: I don't anymore!
-Output: {{"theme":"rice pudding","facts":[{{"fact":"{bio_name} no longer likes rice pudding","type":"long"}}],"tags":["Food preferences","cake","dessert"]}}
+Output: {{"theme":"rice pudding","facts":[{{"fact":"{bio_name} no longer likes rice pudding","type":"long"}}],"tags":["food preferences","cake","dessert"]}}
 
 Input: Q: Have you heard from Anatole? R: Yes, he returned to Paris Q: Is he well? R: Yes
 Output: {{"theme":"family","tags":["Anatole","Paris","children"],"facts":[{{"fact":"Anatole returned to Paris","type":"short"}},{{"fact":"Anatole is well","type":"short"}}]}}
@@ -47,31 +47,31 @@ Input: Q: How many children do you have? R: I have three children Q: What are th
 Output: {{"theme":"family","tags":["children","family","Anton","Paloma","Anatole"],"facts":[{{"fact":"{bio_name} has three children: Anton, Paloma and Anatole","type":"long"}}]}}
 
 Input : Q: He told me Claire doesn't blame you anymore R: Are you sure? Q: Yes R: I'm very relieved
-Output : {{"theme":"family relations","tags":["Claire","family"],"facts":[{{"fact":"Claire doesn't blame him/her anymore","type":"short"}},{{"fact":"{bio_name} is very relieved that Claire doesn't blame him/her anymore","type":"short"}}]}}
+Output : {{"theme":"family relations","tags":["Claire","family"],"facts":[{{"fact":"Claire no longer blames {bio_name}","type":"short"}},{{"fact":"{bio_name} is very relieved that Claire no longer blames them","type":"short"}}]}}
 </examples>
 
-Attention: opinions expressed by the user are preceded by R:, not by Q:. For example:
+Important: only statements voiced by the user are preceded by R: and can form memories. For example:
 
 <example>
 Input: Q: I like ice cream
 Output: {{"theme":"food preferences","tags":["ice cream"],"facts":[]}}
 </example>
 
-However:
+Whereas:
 
 <example>
-Q: I like ice cream R: Me too!
+Input: Q: I like ice cream R: Me too!
 Output: {{"theme":"food preferences","tags":["ice cream"],"facts":[{{"fact":"{bio_name} likes ice cream","type":"long"}}]}}
 </example>
 
-Also, questions asked by the interlocutor that remain unanswered are NOT memories:
+Questions asked by the interlocutor without a reply are NOT memories:
 
 <example>
 Input: Q: Do you like spaghetti?
 Output: {{"theme":"food preferences","tags":["spaghetti"],"facts":[]}}
 </example>
 
-Return only the facts and opinions in JSON format, without any explanation.
+Return ONLY the JSON with theme, tags, and facts—no explanations.
 </instructions>
 """,
         "usr": """<conversation>
@@ -79,14 +79,14 @@ Return only the facts and opinions in JSON format, without any explanation.
         </conversation>"""
     },
     "memory_review": {
-        "system": """<instructions>You receive a JSON with:
+        "system": """<instructions>You receive a JSON containing:
 
-1) a conversation analyzed by the AI to extract short- and long-term memories;
-2) the long-term memory detected by the AI.
+1) a conversation the AI analyzed to extract memories;
+2) the long-term memory the AI proposes to save.
 
 <example>
 {
-    "conversation": " Q: Do you like rice pudding? R: I don't like it at all! Q: I thought you liked it! R: I don't anymore ,!",
+    "conversation": " Q: Do you like rice pudding? R: I don't like it at all! Q: I thought you liked it! R: I don't anymore!",
     "memory": {
         "fact": "{bio_name} no longer likes rice pudding",
         "type": "long"
@@ -96,62 +96,60 @@ Return only the facts and opinions in JSON format, without any explanation.
 </example>
 
 In the conversation, Q: is the interlocutor, R: is the user (named {bio_name}).
-In this example, the AI rightly recognizes that a new long-term memory should be saved,
-because a change in the user's preferences has been detected.
-Also, the information already in the knowledge base (rag) does NOT already indicate this info.
+In this example, the AI correctly identifies that a new long-term memory should be stored because it detects an evolution in the user's preferences.
+The knowledge base (RAG) does not already contain this information.
 
-The AI detects the information to memorize according to these criteria:
+The AI uses the following criteria to decide whether the memory should be kept:
 
 <criteria>
-- "fact" is relevant information about the user, their family, friends, preferences (food, politics, arts, etc.)
-- A "fact" is an objective and verifiable piece of information about the user or their circle or "stable" opinions of the user
+- A "fact" is a relevant piece of information about the user, their family, friends, or stable preferences.
+- A "fact" must be objective and verifiable, or a stable opinion clearly expressed by the user.
 - Facts must be explicitly stated or obviously deduced from the conversation.
-- Temporary or contextual opinions are not long-term facts, unless they reveal a persistent preference or state.
-- If information is uncertain or non-essential, do not consider it a fact
-- Short-term memory: Recent or one-off events.
-- Long-term memory: Preferences, constant facts, life memories.
+- Temporary or contextual opinions are not long-term facts unless they reveal a lasting preference or state.
+- If the information is uncertain or not important, do NOT consider it a fact.
+- Short-term memory: recent or punctual events.
+- Long-term memory: preferences, durable facts, life memories.
 </criteria>
 
-Example of validated memory output:
+Example of a validated memory:
 
 <example>
 {{"valid":true,"reason":"A change in {bio_name}'s preferences has been detected"}}
 </example>
 
-The "reason" field must indicate why the memory is validated.
-The memory can be validated even if the RAG already contains a different complementary piece of information (e.g. "likes rice" is compatible with "likes spaghetti").
+The "reason" field MUST explain why the memory is accepted.
+The memory can be validated even if the RAG contains other compatible information (e.g., "likes rice" and "likes spaghetti").
 
 ---
-The memory is NOT validated:
+Do NOT validate the memory if:
 
-1) if the information does not constitute a long-term memory
-2) if the RAG already contains identical or very similar information, or if the RAG contains more complete or more specific information that makes the new 'fact' redundant or less informative.
+1) the information is not long-term;
+2) the RAG already stores identical or very similar information, or a more complete/specific fact that makes the new one redundant.
 
-Furthermore, to be validated, the extracted information ("fact") must be **clear and specific**, with a **clearly defined subject**. Ambiguous memories or those lacking essential details should not be validated. For example, avoid validating facts such as:
+The extracted "fact" must also be **clear and specific**, with a **well-defined subject**. Do not validate ambiguous facts or those missing key details. For example, avoid validating:
 
-- "Igor thinks the software is the best for free photorealistic rendering" (Which software are we talking about?)
-- "The interlocutor likes Easter Island" (Who is the interlocutor?)
+- "Igor thinks the software is the best for free photorealistic rendering" (Which software?)
+- "The interlocutor loves Easter Island" (Which interlocutor?)
 
-Make sure the subject of the information is explicitly mentioned and that key details
-(such as the name of the software, or the identity of the person) are present in the "fact".
+Ensure the subject is explicitly mentioned and the crucial details (like the software name or the person's identity) appear in the fact.
 
-Examples of validation and non-validation:
+Examples of validation / rejection:
 
 <examples>
 Input:
 {
-    "conversation": " R: I am sensitive to certain flavors? Q: Which ones? R: There are many.",
+    "conversation": " R: I'm sensitive to certain flavors? Q: Which ones? R: There are many.",
     "memory": {
         "fact": "{bio_name} is sensitive to many flavors",
         "type": "long"
     }
 }
 Output:
-{{"valid":false,"reason":"We do not know which flavors {bio_name} is sensitive to"}}
+{{"valid":false,"reason":"We don't know which flavors affect {bio_name}"}}
 
 Input:
 {
-    "conversation": " R: I am sensitive to very spicy flavors?",
+    "conversation": " R: I'm sensitive to very spicy flavors?",
     "memory": {
         "fact": "{bio_name} is sensitive to very spicy flavors",
         "type": "long"
@@ -162,7 +160,7 @@ Output:
 
 Input:
 {
-    "conversation": " Q: Do you want us to make a soup tonight? R: Yes, a vegetable soup. Q: With croutons? R: Yes, and a bit of grated cheese.",
+    "conversation": " Q: Should we make soup tonight? R: Yes, a vegetable soup. Q: With croutons? R: Yes, and a bit of grated cheese.",
     "memory": {
         "fact": "{bio_name} likes croutons in their soup",
         "type": "long"
@@ -170,7 +168,7 @@ Input:
     "rag": "---{bio_name} likes Asian dishes---"
 }
 Output:
-{{"valid":false,"reason":"We do not know if {bio_name} generally likes croutons in their soup or if they just wanted to try it"}}
+{{"valid":false,"reason":"We don't know if {bio_name} generally likes croutons or just wanted to try it this time"}}
 
 Input:
 {
@@ -181,7 +179,7 @@ Input:
     }
 }
 Output:
-{{"valid":false,"reason":"The question is not clear and the user did not answer"}}
+{{"valid":false,"reason":"The question is unclear and the user didn't answer"}}
 
 Input:
 {
@@ -193,19 +191,19 @@ Input:
     "rag": "---Artistic preferences of {bio_name}: loves jazz---"
 }
 Output:
-{{"valid":false,"reason":"This is already established in their artistic preferences, no need to repeat"}}
+{{"valid":false,"reason":"The knowledge base already stores that preference"}}
 
 Input:
 {
-    "conversation": "Q:  How many children do you have? R: I have three children, Anton, Paloma and Anatole!",
+    "conversation": "Q: How many children do you have? R: I have three children, Anton, Paloma and Anatole!",
     "memory": {
         "fact": "{bio_name} has a son or daughter named Anatole",
         "type": "long"
     },
-    "---family: {bio_name}'s children are called Anton, Paloma and Anatole [children, Anton, Paloma, Anatole]---"
+    "rag": "---Family: {bio_name}'s children are Anton, Paloma and Anatole [children, Anton, Paloma, Anatole]---"
 }
 Output:
-{{"valid":false,"reason":"The information that {bio_name} has three children (Anton, Paloma, Anatole) is already present in the RAG and is more complete than the proposed fact about only Anatole."}}
+{{"valid":false,"reason":"The RAG already lists all three children, so the new fact about only Anatole is redundant"}}
 </examples>
 </instructions>
 """,

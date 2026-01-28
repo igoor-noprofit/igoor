@@ -26,7 +26,11 @@ class Api:
         return sm.get_plugin_settings(plugin_name)
     
     def get_plugin_settings(self,plugin_name):
-        return plugin_manager.plugin_has_settings(plugin_name,True)
+        result = plugin_manager.plugin_has_settings(plugin_name, True)
+        if asyncio.iscoroutine(result):
+            loop = asyncio.get_event_loop()
+            result = loop.run_until_complete(result)
+        return result
     
     def update_plugin_settings(self,plugin_name,settings):
         # print("Saving plugin settings")
@@ -73,6 +77,7 @@ class Api:
         except Exception as e:
             print(f"Error during maximize: {e}")
         
+<<<<<<< HEAD
     def open_external_url(self, url: str):
         try:
             if not isinstance(url, str):
@@ -85,6 +90,11 @@ class Api:
             print(f"Error opening external URL '{url}': {e}")
             return False
     
+=======
+    def onboarding_toggled(self, is_onboarding):
+        print(f"Onboarding toggled: {is_onboarding}")
+        asyncio.run(self.trigger_hook("onboarding_toggled", is_onboarding=is_onboarding))
+>>>>>>> 0.1.4.3
     
     def change_view(self,lastview,currentview):
         asyncio.run(self.trigger_hook("change_view",lastview=lastview,currentview=currentview))

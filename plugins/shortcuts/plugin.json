@@ -8,5 +8,17 @@
     },
     "is_free": true,
     "requires_subscription": false,
-    "requires_internet": false
+    "requires_internet": false,
+    "requires_db": true,
+    "frontend": {
+        "events": [
+            {"footer-shrink": "handleFooterShrink"}
+        ]
+    },
+    "db_tables": {
+        "usage": {
+            "schema": "CREATE TABLE IF NOT EXISTS usage (id INTEGER PRIMARY KEY, msg TEXT NOT NULL, datetime TIMESTAMP NOT NULL, onboarding INTEGER NOT NULL, bid INTEGER NOT NULL)",
+            "version": "1.1"
+        }
+    }
 }

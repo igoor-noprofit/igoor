@@ -5,13 +5,13 @@
             <img src="/img/icons/src/settings.svg" width="30">
         </div>
         <!-- Modal Window for Plugin Settings -->
-        <div v-if="showModal" class="modal-overlay" id="onboardingModal">
+        <div v-if="showModal" class="modal-overlay" :class="isSaving ? 'isSaving' : ''" id="onboarding-modal">
             <div class="modal-content settings container onboarding plugin">
                 <!-- Restart Alert -->
                 <div v-if="showRestartAlert" class="restart-alert">
                     {{ t("Please restart the app for changes to take effect.") }}
                 </div>
-                <div>
+                <div class="tabsandpluginscontainer">
                     <ul class="tabs">
                         <li :class="{ active: currentTab === 'bio' }"
                             @click="currentTab = 'bio'; viewingPluginSettings = false;">{{ t("Bio") }}</li>
@@ -93,10 +93,10 @@
                                 <label>{{ t("Model Name") }}</label>
                                 <select v-model="ai.model_name">
                                     <option value="llama-3.3-70b-versatile">Llama 3.3-70B</option>
-                                    <option value="meta-llama/llama-4-maverick-17b-128e-instruct">Llama 4-17b-128e</option>
-                                    <option value="meta-llama/llama-4-scout-17b-16e-instruct">Llama 4-17b-16e</option>
-                                    <option value="openai/gpt-oss-120b">OpenAI OSS-GPT-120B (beta)</option>
-                                    <option value="openai/gpt-oss-20b">OpenAI OSS-GPT-20B (beta)</option>
+                                    <option value="openai/gpt-oss-120b">OpenAI OSS-GPT-120B</option>
+                                    <option value="openai/gpt-oss-20b">OpenAI OSS-GPT-20B</option>
+                                    <option value="meta-llama/llama-4-maverick-17b-128e-instruct">Llama 4-17b-128e (preview)</option>
+                                    <option value="meta-llama/llama-4-scout-17b-16e-instruct">Llama 4-17b-16e (preview)</option>
                                 </select>
                             </div>
                             <div>
@@ -110,14 +110,14 @@
                             </div>
                         </div>
                     </div>
-                    <div v-if="currentTab === 'plugins'">
+                    <div v-if="currentTab === 'plugins'" class="pluginsContainer">
                         <!-- View for Plugin-Specific Settings -->
-                        <div v-if="viewingPluginSettings && selectedPluginComponent">
+                        <div v-if="viewingPluginSettings && selectedPluginComponent" class="pct_container">
                             
                             <h3 class="pluginContainerTitle"><a style="cursor: pointer" @click="closePluginSettingsView">{{ t("Plugins") }}</a> > {{ selectedPluginForSettings.title }}</h3>
                             <component :is="selectedPluginComponent" :initial-settings="currentPluginInitialSettings"
-                                :plugin-name="selectedPluginForSettings.name" :lang="lang" @save-settings="handlePluginSettingsSave"
-                                class="plugin-settings-component"></component>
+                                :plugin-name="selectedPluginForSettings.name" :lang="lang" :onboarding-open="showModal"
+                                @save-settings="handlePluginSettingsSave" class="plugin-settings-component"></component>
                             <!-- The save button is now expected to be WITHIN the loaded component -->
                         </div>
 
@@ -147,8 +147,8 @@
                                                     class="slider round"></span></label>
                                             <!-- Settings Icon for non-core plugins -->
                                             <img v-if="!plugin.is_core && plugin.has_settings && plugin.active"
-                                                src="/img/icons/src/settings.svg" width="26"
-                                                class="plugin-settings-icon" alt="Settings" title="{{ t('Configure plugin') }}"
+                                                src="/img/icons/src/settings.svg"
+                                                class="plugin-settings-icon" alt="Settings" :title="t('Configure plugin')"
                                                 @click="showPluginSettingsView(plugin)">
                                         </div>
                                     </div>
@@ -177,12 +177,16 @@
                             <br>
                             <p>{{ t('If you find this software useful, please consider donating to the not-for-profit organization IGOOR') }}</p>
                             <br>
+<<<<<<< HEAD
                                 🎁 <a :href="donationLink" target="_blank" @click.prevent="openExternalLink(donationLink)">{{ t("Make a donation") }}</a>
+=======
+                                🎁 <a :href="donationLink" target="_blank">{{ t("Make a donation") }}</a>
+>>>>>>> 0.1.4.3
                         </div>
                     </div>
                 </div>
                 <div class="save-section" v-if="currentTab !== 'plugins' || !viewingPluginSettings">
-                    <button @click="saveSettings" :disabled="isSaving">
+                    <button @click="saveSettings" :disabled="isSaving" :class="isSaving ? 'isSaving' : ''">
                         {{ isSaving ? t('Saving...') : t('Save main settings') }}
                     </button>
                     <span v-if="saveStatus" :class="['save-status', saveStatus.type]">
@@ -196,13 +200,14 @@
 
 <script>
 import BasePluginComponent from '/js/BasePluginComponent.js';
+import { ensureBackendApi } from '/js/ensureBackendApi.js';
 
 export default {
     name: "onboarding",
     mixins: [BasePluginComponent], // Use the mixin
     data() {
         return {
-            activeTab: '', // For plugin categories
+            activeTab: 'core', // Initialize with a default category to prevent empty state
             pluginData: {},
             currentTab: 'bio', // For main tabs (bio, prefs, ai, plugins, about)
             showModal: false,
@@ -234,21 +239,26 @@ export default {
         }
     },
     async mounted() {
-        // Wait for pywebview to be ready before proceeding
-        await new Promise(resolve => {
-            if (window.pywebview && window.pywebview.api) {
-                this.pywebviewready = true;
-                resolve();
-            } else {
-                window.addEventListener("pywebviewready", () => {
-                    this.pywebviewready = true;
-                    console.log("Pywebview is ready in settings component!");
-                    resolve();
-                });
-            }
-        });
-        // Now safe to load plugins
+        // Wait for backend API or pywebview bridge
+        const api = await ensureBackendApi();
+        if (api.isBridgeAvailable) {
+            await api.waitUntilReady();
+        }
+        this.pywebviewready = true;
         await this.loadPlugins();
+
+        // If the backend already sent settings before the socket was ready,
+        // fetch them via REST to populate the form immediately.
+        try {
+            const settings = await api.getPluginSettings("onboarding");
+            if (settings) {
+                if (settings.bio) this.bio = { ...this.bio, ...settings.bio };
+                if (settings.prefs) this.prefs = { ...this.prefs, ...settings.prefs };
+                if (settings.ai) this.ai = { ...this.ai, ...settings.ai };
+            }
+        } catch (error) {
+            console.error("Failed to load onboarding settings via REST", error);
+        }
     },
     computed: {
         categories() {
@@ -263,7 +273,7 @@ export default {
                     p => !excluded.includes(p.name)
                 );
             }
-            console.log("Filtered plugins by category:", filtered);
+            // Remove the console.log to prevent excessive logging that can cause performance issues
             return filtered;
         },
         donationLink() {
@@ -286,11 +296,16 @@ export default {
         }
     },
     methods: {
-        toggleModal() {
+        async toggleModal() {
             this.showModal = !this.showModal;
+        const backendApi = await ensureBackendApi();
+            await backendApi.onboardingToggled(this.showModal);
         },
-        closeModal() {
+        async closeModal() {
+            console.log('Closing modal');
             this.showModal = false
+            const backendApi = await ensureBackendApi();
+            await backendApi.onboardingToggled(false);
         },
         openExternalLink(url) {
             if (!url) {
@@ -316,30 +331,39 @@ export default {
                     action: 'save_settings', // Or a more specific action
                     data: dataToSend
                 });
+                // If successful, the handleIncomingMessage will receive the success response
             } catch (error) {
                 console.error('Error saving main settings:', error);
+                this.isSaving = false;
                 this.saveStatus = {
                     type: 'error',
                     message: this.t('Failed to save main settings. Please try again.')
                 };
-            } finally {
-                this.isSaving = false;
-                if (this.saveStatus?.type === 'success') {
-                    /* setTimeout(() => {
-                        this.saveStatus = null;
-                    }, 3000); */
-                }
             }
         },
         handleIncomingMessage(event) {
-            console.log("Custom message handler in ONBOARDING component:", event.data);
+            // Only handle messages that are specifically for onboarding
+            // This prevents interference with plugin-specific settings components
+            if (!event.data || typeof event.data !== 'string') {
+                return false; // Let BasePluginComponent handle it
+            }
+            
             try {
                 const data = JSON.parse(event.data);
+                console.log(data);
+                // Only process messages that are specifically for onboarding
+                /*
+                if (data.target !== 'onboarding' && !data.bio && !data.prefs && !data.ai && data.action !== 'show_modal') {
+                    return false; // Let BasePluginComponent handle it
+                }
+                */                 
+                
                 if (data.type && data.type == "error"){
                     this.saveStatus = {
                         type: 'error',
-                        message: this.t(data.error_type) + " : " + this.t(data.missing_field) + " (" + this.t(data.category) + ")"
+                       message: this.t(data.error_type || 'Error') + (data.missing_field ? " : " + this.t(data.missing_field) + " (" + this.t(data.category || '') + ")" : '')
                     };
+                    this.isSaving = false;
                 }
                 if (data.type && data.type == "success"){
                     this.isSaving = false;
@@ -350,7 +374,7 @@ export default {
                     setTimeout(() => {
                         this.closeModal();
                         this.saveStatus = null;
-                    }, 3000);
+                    }, 1500);
                 }
                 if (data.action && data.action == "show_modal"){
                     console.warn("ONBOARDING FORCED");
@@ -365,9 +389,10 @@ export default {
                 if (data.ai) {
                     this.ai = { ...this.ai, ...data.ai };
                 }
-                console.log("Updated component data:", this.bio, this.prefs, this.ai);
+                return true; // Message was handled
             } catch (e) {
-                console.warn("Error parsing JSON", e);
+                console.warn("Error parsing JSON in onboarding:", e);
+                return false;
             }
         },
         // Note: Removed the duplicate saveSettings method. The one above is more complete.
@@ -377,11 +402,14 @@ export default {
                     console.log("Pywebview not ready, waiting to load plugins...");
                     return;
                 }
-                const response = await window.pywebview.api.get_plugins_by_category();
-                console.log(response);
-                console.table(response);
+                const backendApi = await ensureBackendApi();
+                const response = await backendApi.getPluginsByCategory();
+                // Remove excessive logging to prevent performance issues
                 this.pluginData = response;
-                // Do not override activeTab here, keep ABOUT as default
+                // Only set activeTab if it's still the initial value and categories are available
+                if (this.activeTab === 'core' && this.categories.length > 0 && !this.categories.includes('core')) {
+                    this.activeTab = this.categories[0];
+                }
             } catch (error) {
                 console.error("Error loading plugins:", error);
             }
@@ -394,7 +422,8 @@ export default {
             }
 
             try {
-                const result = await window.pywebview.api.toggle_plugin(pluginName, isActive);
+                const backendApi = await window.ensureBackendApi();
+                const result = await backendApi.togglePlugin(pluginName, isActive);
                 if (result) {
                     plugin.active = isActive;
                 }
@@ -426,7 +455,8 @@ export default {
                 // Ensure the path is correct for dynamic imports.
                 const componentModule = await import(/* @vite-ignore */ `/plugins/${pluginName}/frontend/${pluginName}_settings.vue`);
 
-                const settings = await window.pywebview.api.get_current_plugin_settings(pluginName);
+                const backendApi = await window.ensureBackendApi();
+                const settings = await backendApi.getCurrentPluginSettings(pluginName);
                 console.log(`Settings for ${pluginName}:`, settings);
 
                 this.currentPluginInitialSettings = settings || {};
@@ -463,7 +493,8 @@ export default {
             this.saveStatus = null;
 
             try {
-                await window.pywebview.api.save_plugin_settings(pluginNameFromEmit, settingsData);
+                const backendApi = await window.ensureBackendApi();
+                await backendApi.savePluginSettings(pluginNameFromEmit, settingsData);
                 this.saveStatus = { type: 'success', message: `${pluginNameFromEmit} settings saved!` };
             } catch (error) {
                 console.error(`Error saving settings for plugin ${pluginNameFromEmit}:`, error);
@@ -482,6 +513,14 @@ export default {
 }
 </script>
 <style>
+
+.pluginsContainer{
+    /* border:1px solid #0ff; */
+    width: 100vw;
+}
+.pct_container{
+    /* border: 1px solid #f00; */
+}
 .about-tab {
     background: #000;
     font-size: 1.2rem;
@@ -660,7 +699,7 @@ button:disabled {
 /* Modal content styles */
 .modal-content {
     background: #fff;
-    padding: 20px;
+    padding: 0 20px;
     border-radius: 8px;
     position: relative;
     color: #000;
@@ -776,6 +815,8 @@ button:disabled {
     /* If your icons are dark and background is dark, or vice-versa */
     opacity: 0.7;
     padding: 6px;
+    width: 36px;
+    margin-top: 10px;
 }
 
 .plugin-settings-icon:hover {
@@ -815,5 +856,10 @@ button:disabled {
 
 a.extlink {
     color: #fff;
+}
+
+.isSaving{
+    cursor: wait !important;
+    background: #f00;
 }
 </style>

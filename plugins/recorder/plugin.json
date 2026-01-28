@@ -1,0 +1,19 @@
+{
+    "category": "core",
+    "title": "Recorder",
+    "description": "Central audio recorder storage and API",
+    "layout": {
+        "part": "hidden",
+        "order": 0
+    },
+    "is_free": true,
+    "requires_subscription": false,
+    "requires_internet": false,
+    "requires_db": true,
+    "db_tables": {
+        "records": {
+            "schema": "CREATE TABLE IF NOT EXISTS records (id INTEGER PRIMARY KEY, plugin TEXT NOT NULL, created_at TEXT NOT NULL, filename TEXT NOT NULL)",
+            "version": "1.0"
+        }
+    }
+}

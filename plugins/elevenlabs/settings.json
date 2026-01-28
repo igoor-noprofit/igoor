@@ -1,8 +1,0 @@
-{
-    "voice_id": "",
-    "api_key": "",
-    "GenerationOptions": {
-        "model_id": "eleven_multilingual_v2",
-        "optimize_streaming_latency": 1
-    }
-}

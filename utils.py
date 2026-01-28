@@ -4,7 +4,10 @@ from pathlib import Path
 from datetime import datetime
 import os
 import json
+import platform
 from logging.handlers import TimedRotatingFileHandler
+
+from version import __appname__
 
 def resource_path(relative_path):
     """ Get absolute path to resource, works for dev and for PyInstaller """
@@ -161,3 +164,42 @@ def normalize_filter_by_timeframe_result(filtered_results):
         return filtered_results
     else:
         return {}
+
+
+def get_platform():
+    """Return the current platform name using platform.system()."""
+    return platform.system()
+
+
+def get_appdata_dir(create: bool = True) -> str:
+    """Return the platform-specific application data directory for IGOOR."""
+    system = get_platform()
+    if system == "Windows":
+        base_appdata = os.getenv("APPDATA")
+        if base_appdata is None:
+            raise EnvironmentError("APPDATA environment variable is not set on Windows.")
+        path = os.path.join(base_appdata, __appname__)
+    elif system == "Darwin":
+        path = os.path.join(os.path.expanduser("~"), "Library", "Application Support", __appname__)
+    else:
+        path = os.path.join(os.path.expanduser("~"), f".{__appname__}")
+
+    if create:
+        os.makedirs(path, exist_ok=True)
+    return path
+
+
+def get_appdata_web_dir(create: bool = True) -> str:
+    """Return the APPDATA web directory used for writable frontend assets."""
+    path = os.path.join(get_appdata_dir(create=create), "web")
+    if create:
+        os.makedirs(path, exist_ok=True)
+    return path
+
+
+def get_appdata_web_js_dir(create: bool = True) -> str:
+    """Return the APPDATA web/js directory for dynamic frontend files."""
+    path = os.path.join(get_appdata_web_dir(create=create), "js")
+    if create:
+        os.makedirs(path, exist_ok=True)
+    return path

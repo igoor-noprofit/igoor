@@ -1,6 +1,9 @@
 <template>
     <div class="asrvosk-plugin">
-        <div class="mic" :class="[status, { 'clickable': !continuous }]" @click="$_handleMicClick">
+        <div v-if="hasError" class="error-banner">
+            {{ errorMessage }}
+        </div>
+        <div v-if="!hasError" class="mic" :class="[status, { 'clickable': !continuous }]" @click="$_handleMicClick">
             <img src="/img/mic.png">
         </div>
         <button v-show="continuous" class="mode-toggle btn btn-small" :class="{ 'active': continuous }"
@@ -22,6 +25,17 @@ export default {
             keyboardShortcut: null
         };
     },
+    computed: {
+        hasError() {
+            return Boolean(this.error);
+        },
+        errorMessage() {
+            if (!this.error) {
+                return '';
+            }
+            return this.error.message || this.t('Microphone access problem. Verify that Windows has access to your microphone, then restart IGOOR.');
+        }
+    },
     created() {
         this.audio = {
             on: new Audio('/plugins/asrvosk/samples/on.wav'),
@@ -39,6 +53,10 @@ export default {
         window.removeEventListener('keydown', this.$_handleKeyPress);
     },
     methods: {
+        $_handleError(error) {
+            this.status = 'error';
+            this.error = error;
+        },
         $_handleKeyPress(event) {
             console.log("Key pressed:", event.key, "with modifiers:", {
                 ctrl: event.ctrlKey,
@@ -90,6 +108,9 @@ export default {
                 }
                 if (data.status) {
                     this.status = data.status;
+                    if (data.status !== 'error') {
+                        this.error = false;
+                    }
                 }
                 // Add other specific message handling here
             } catch (e) {

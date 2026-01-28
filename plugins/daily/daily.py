@@ -47,6 +47,13 @@ class Daily(Baseplugin):
         self.load_daily_data()
         
     @hookimpl
+    def onboarding_toggled(self,is_onboarding):
+        if (is_onboarding):
+            self.send_settings_to_frontend()
+            settings = self.get_my_settings()
+            # self.send_settings_to_settings_frontend(settings)
+        
+    @hookimpl
     def custom_save_settings(self, plugin_name:str,settings):
         print("CUSTOM SAVE SETTINGS CALLED with plugin_name:", plugin_name)
         print("AND SETTINGS:", settings)

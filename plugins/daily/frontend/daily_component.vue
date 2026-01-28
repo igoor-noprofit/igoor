@@ -20,7 +20,7 @@
             <button class="btn btn-side btn-side-left" @click="switchToMainView"><svg class="icon icon-l">
                     <use xlink:href="/img/svgdefs.svg#icon-chevron_left" />
                 </svg></button>
-            <div v-for="(category, index) in secondaryCategories" :key="index" class="options-col">
+            <div v-for="(category, index) in secondaryCategories" :key="index" class="options-col" v-show="hasCategoryItems(category)">
                 <h3>{{ translateCategory(category.name) }}</h3>
                 <button v-for="(item, key) in category.items" :key="key" class="btn"
                     :class="{ 'btn-primary': item.fixed, 'btn-secondary': !item.fixed }"
@@ -66,9 +66,49 @@ module.exports = {
     },
     mounted() {
         console.log('DAILY MOUNTED');
-        this.checkAndSendReady(); // 
+        const backendApiPromise = typeof window !== 'undefined' && typeof window.ensureBackendApi === 'function'
+            ? window.ensureBackendApi()
+            : Promise.resolve(null);
+
+        backendApiPromise
+            .then((api) => {
+                if (!api || api.isBridgeAvailable === false) {
+                    this.fetchInitialDataForBrowser();
+                }
+            })
+            .catch((error) => {
+                console.warn('Failed to resolve backendApi, using REST fallback:', error);
+                this.fetchInitialDataForBrowser();
+            });
+
+        this.checkAndSendReady();
     },
     methods: {
+        hasCategoryItems(category) {
+            const items = category && category.items;
+            if (!items) return false;
+            if (Array.isArray(items)) return items.length > 0;
+            return Object.keys(items).length > 0;
+        },
+        async fetchInitialDataForBrowser() {
+            try {
+                const response = await fetch('/api/plugins/daily/settings', {
+                    credentials: 'same-origin'
+                });
+                if (!response.ok) {
+                    console.warn('Failed to fetch daily settings via REST fallback');
+                    return;
+                }
+                const payload = await response.json();
+                if (payload && Array.isArray(payload.needs)) {
+                    console.log('Loaded daily data via REST fallback');
+                    this.dailyData = payload.needs;
+                    this.processCategories();
+                }
+            } catch (error) {
+                console.warn('Error fetching daily settings via REST fallback:', error);
+            }
+        },
         checkAndSendReady() {
             console.log('DAILY: Checking if backend is ready...');
             if (this.dailyData.length === 0) {
@@ -169,6 +209,24 @@ module.exports = {
 </script>
 
 <style scoped>
+.daily-plugin {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+.btn-primary {
+    font-size: 1.1rem;
+    padding: 1.5vh 1vh;
+}
+
+.btn-secondary {
+    font-size: 1rem;
+    padding: 1.2vh 1vh;
+    background-color: var(--color-btn-base);
+}
+
 .answers.secondary {
     display: flex;
     justify-content: center;
@@ -208,16 +266,25 @@ module.exports = {
     z-index: 10;
     box-shadow: 0rem -0.5rem 1rem 0rem rgba(0, 0, 0, 0.2);
     overflow: hidden;
-    padding: 1rem;
-    margin-bottom: 6rem;
     height: 100%;
     width: 100%;
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    gap: 1rem;
 }
 
 .options {
+    padding: 1rem;
     padding-right: 5rem;
     display: flex;
     gap: 1rem;
+    flex: 1 1 auto;
+    align-items: stretch;
+    min-height: 0;
+    height: 100%;
+    position: relative;
 }
 
 .options.secondary,
@@ -235,12 +302,26 @@ module.exports = {
 
 .options-col {
     display: flex;
+    flex: 1 1 0;
+    min-width: 0;
     flex-direction: column;
-    gap: 0.25rem;
-    width: 100%;
+    gap: 0.5rem;
 }
 
 .options-col .btn {
     width: 100%;
+    flex: 1 1 0;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+}
+
+.options-col .btn-primary {
+    flex-grow: 1.15;
+}
+
+.options-col .btn-secondary {
+    flex-grow: 1;
 }
 </style>
