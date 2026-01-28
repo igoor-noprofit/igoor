@@ -109,9 +109,23 @@ class Asrwhisper(Baseplugin):
             asyncio.run(self.send_status(new_status))
     
     def start_stream(self):
-        self.p = pyaudio.PyAudio()
-        self.stream = self.p.open(format=pyaudio.paInt16, channels=1, rate=16000, input=True, frames_per_buffer=4000)
-        self.stream.start_stream()
+        try:
+            self.p = pyaudio.PyAudio()
+            self.stream = self.p.open(format=pyaudio.paInt16, channels=1, rate=16000, input=True, frames_per_buffer=4000)
+            self.stream.start_stream()
+            return True
+        except OSError as e:
+            self.logger.error(f"Microphone access problem: {e}")
+            if hasattr(self, "stream"):
+                self.stream = None
+            if hasattr(self, "p") and self.p:
+                try:
+                    self.p.terminate()
+                except Exception:
+                    pass
+                self.p = None
+            self.send_error_to_frontend(error_code="microphone_access", error="")
+            return False
     
     def run_monitor_loading(self):
         asyncio.run(self.monitor_loading())
@@ -199,9 +213,9 @@ class Asrwhisper(Baseplugin):
         if (self.continuous):
             self.wakeword_detected = False
             print("STARTING WAKEWORD RECOGNITION")
+            if not self.start_stream():
+                return
             await self.send_status("listening")
-            # Initialize PyAudio and start the audio stream
-            self.start_stream()
             
             # Create a buffer to store audio data
             audio_buffer = []
@@ -215,6 +229,12 @@ class Asrwhisper(Baseplugin):
                         data = self.stream.read(self.chunk_size, exception_on_overflow=False)
                         if len(data) == 0:
                             break
+                            
+                        # Send audio chunk to speaker identification
+                        try:
+                            await self.pm.trigger_hook(hook_name="process_audio_chunk", audio_data=data, sample_rate=self.sample_rate)
+                        except Exception as e:
+                            print(f"Error sending audio chunk to speaker ID: {e}")
                             
                         # Add data to buffer
                         audio_buffer.append(data)
@@ -249,8 +269,9 @@ class Asrwhisper(Baseplugin):
             except KeyboardInterrupt:
                 print("\nStopping...")
         else: # NON-CONTINUOUS MODE
+            if not self.start_stream():
+                return
             await self.send_status("listening")
-            self.start_stream()
             vad = self.vad
             sample_rate = self.sample_rate
             frame_duration = 30  # ms, must be 10, 20, or 30 for webrtcvad
@@ -277,6 +298,12 @@ class Asrwhisper(Baseplugin):
                         chunk_data = self.stream.read(self.chunk_size, exception_on_overflow=False)
                         if len(chunk_data) == 0:
                             continue
+
+                        # Send audio chunk to speaker identification
+                        try:
+                            await self.pm.trigger_hook(hook_name="process_audio_chunk", audio_data=chunk_data, sample_rate=self.sample_rate)
+                        except Exception as e:
+                            print(f"Error sending audio chunk to speaker ID: {e}")
 
                         audio_buffer.append(chunk_data)
 

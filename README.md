@@ -6,6 +6,8 @@ IGOOR is an open-source and free conversational application, controllable by eye
 
 Take a look at the [IGOOR website](https://igoor.org/en) for further infos about our core principles, values and software roadmap.
 
+Also please take a look at the [IGOOR docs](https://igoor-noprofit.github.io/docs/). 
+
 ## Notice of Development, Confidentiality, and Contribution Terms
 
 **This project is currently under private development. While the final version of the software WILL BE released as free/libre under the GPLv3 License, the current codebase is not yet public and is subject to strict confidentiality.**
@@ -62,7 +64,7 @@ The embedding model from HuggingFace currently requires 1.15Gb on disk.
 
 The app should take less than 3Gb.
 
-### FFMPEG
+### FFMPEG (TO BE VERIFIED)
 
 As of now, TTS plugin for Speechify requires ffmpeg, and that the path to ffmpeg\bin folder be included in the system PATH environment variable.
 
@@ -151,6 +153,8 @@ IGOOR_FOLDER/plugins/asrvosk/models/language/model_size
 
 NOTE: Because of its high WER compared to Whisper and Voxtral, we recommend using Vosk only if audio privacy is paramount.
 
+VOSK will be probably deprecated in favor of a local fasterwhisper model.
+
 ### Static Knowledge Base from patient documents (RAG, RetrievalAugmentedGeneration)
 
 Documents in IGOOR_FOLDER/plugins/rag/medias/ are scanned by the RAG plugin.
@@ -171,7 +175,14 @@ On Win, this is at:
 C:\Users\YourUsername\.cache\huggingface\hub
 ```
 
+Other models can be saved in this folder (speechbrain, fasterwhisper etc.)
+
 ## LAUNCH
+
+*EXPERIMENTAL*: You can now launch IGOOR in CLI mode (IGOOR_CLI=True in .env), which is a headless mode you can access with the browser at http://127.0.0.1:9714/ (via FastAPI).
+
+Default mode is inside pywebview webedge window (IGOOR_CLI=False).
+PLEASE NOTE: Opening inside pywebview AND external browser will yield unwantend sync between the two clients.
 
 ```
 python main.py
@@ -185,7 +196,7 @@ Use:
 igoor.bat
 ```
 
-to open a on-top window, without debug console (CLI window will open and then disappear in the system bar).
+to open a on-top window, without debug console (powershell window will open and then disappear in the system bar).
 
 ## CREATE AN EXECUTABLE
 
@@ -257,9 +268,12 @@ For TTS, check if the external model supports the language (Eleven Labs, Speechi
 
 ### PLUGINS
 
-### WHISPER
-Whisper and Voxtral models have a known bug that can convert silences or very low, inaudible sounds, to specific strings never uttered by the user (ex. "Sous-titrage ST' 501"). These are cleaned by the function "clean_whisper_silence" in plugins/asrwhisper.py (added in 0.1.3.5). 
-New languages may require new filters to be applied.
+### RAG
+The better embedding model for a specific language mus
+
+### ASR KNOWN BUGS
+New languages may require new filters to be applied (see known issues 1).
 
 ## KNOWN ISSUES ##
 1) ASR models can interpret silence or very low, inaudible sounds as speech and return texts like "Thank you" instead of empty texts. This depends on the ASR models, not the IGOOR app.
+Whisper and Voxtral models have a known bug that can convert silences or very low, inaudible sounds, to specific strings never uttered by the user (ex. "Sous-titrage ST' 501"). These are cleaned by the function "clean_whisper_silence" in plugins/asrwhisper.py (added in 0.1.3.5). 

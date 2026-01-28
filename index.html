@@ -13,6 +13,45 @@
   </head>
   <body>
     <div id="app"></div>
-    <script src="js/app.js" type="module"></script>
+    <script src="/js/ensureBackendApi.js"></script>
+    <script src="/js/readypy_bootstrap.js"></script>
+    <script src="/js/app.js" type="module"></script>
+    <script> 
+    
+      function getWindowsScaleFactor() {
+        return window.devicePixelRatio || 1;
+      }
+
+      function applyDPICounterScale() {
+        const scale = getWindowsScaleFactor();
+        const resizeFactor = 1.8; // 🔧 tweak this to fine-tune
+        console.log("Windows scale factor detected:", scale);
+
+        const elements = document.querySelectorAll(
+          ".plugin-settings-component"
+        );
+
+        elements.forEach((el) => {
+          if (scale > 1.4) {
+            console.warn('scaling');
+            const inverseScale = (1 / scale) * resizeFactor;
+            el.style.transformOrigin = "0 0";
+            el.style.transform = `scale(${inverseScale})`;
+
+            // Prevent overflow scrollbars for scaled content
+            el.style.width = `${(100 * scale) / resizeFactor}vw`;
+            el.style.height = `${(100 * scale) / resizeFactor}vh`;
+          } else {
+            // Reset styles when scaling not needed
+            el.style.transform = "";
+            el.style.width = "";
+            el.style.height = "";
+          }
+        });
+      }
+
+      window.addEventListener("load", applyDPICounterScale);
+      window.addEventListener("resize", applyDPICounterScale);
+    </script>
   </body>
 </html>

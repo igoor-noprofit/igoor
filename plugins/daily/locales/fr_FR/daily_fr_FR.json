@@ -4,5 +4,14 @@
     "+ Item": "+ Élément",
     "Do you really want to delete this delete this category?": "Supprimer cette catégorie ?",
     "Do you really want to delete this item?": "Supprimer cet élément ?",
-    "Cancel": "Annuler"
+    "Cancel": "Annuler",
+    "Maximum categories reached on the destination page.": "Nombre maximum de catégories atteint sur la page de destination.",
+    "Do you really want to delete this delete this item?": "Supprimer cet élément ?",
+    "Drag item here": "Déposer l'élément ici",
+    "Confirm": "Confirmer",
+    "Edit": "Modifier",
+    "Back": "Retour",
+    "Reorder item": "Réorganiser l'élément",
+    "Categories": "Catégories",
+    "Delete category": "Supprimer la catégorie"
 }

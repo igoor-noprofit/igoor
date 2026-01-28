@@ -22,7 +22,16 @@ class SettingsManager:
         
         self.logger = setup_logger('sm', os.path.join(os.getenv('APPDATA'), __appname__))
         self.settings_file = os.path.join(os.getenv('APPDATA'), __appname__, 'settings.json')
-        self.default_settings_file = resource_path('default_settings.json')
+        start_lang = os.getenv('IGOOR_START_LANG', 'en_EN')
+        locale_settings_path = os.path.join('locales', start_lang, 'default_settings.json')
+        default_settings_path = resource_path(locale_settings_path)
+        if not os.path.exists(default_settings_path):
+            fallback_settings_path = resource_path(os.path.join('locales', 'en_EN', 'default_settings.json'))
+            if os.path.exists(fallback_settings_path):
+                default_settings_path = fallback_settings_path
+            else:
+                raise FileNotFoundError('Default settings file not found for en_EN locale')
+        self.default_settings_file = default_settings_path
         self.ensure_settings_file_exists()
         self.settings = self.load_settings()
 

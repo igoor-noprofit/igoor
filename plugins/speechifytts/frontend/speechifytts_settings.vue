@@ -43,7 +43,7 @@
             </div>
             <div class="form-input">
                 <select v-model="formData.voice_id" :class="{ 'input-error': voiceIdError }" @change="onVoiceIdChange"
-                    :disabled="!filteredVoices.length">
+                    :disabled="!filteredVoices.length" class="voice-selector">
                     <option disabled value="">{{ t('Select a voice') }}</option>
                     <option v-for="voice in filteredVoices" :key="voice.id" :value="voice.id">
                         {{ voice.display_name }}
@@ -61,11 +61,33 @@
             <input type="hidden" v-model="formData.voice_id" />
             <!-- model_id hidden -->
             <div class="form-label" style="display:none">{{ t('Model ID') }}</div>
-            <div class="form-input" style="display:none">
+            <div class="form-input" style="display:none">voiceSelector
                 <input type="text" v-model="formData.model_id" />
             </div>
         </div>
         <div class="bio right">
+            <!-- Save Button -->
+            <div class="form-label"></div>
+            <div class="form-input">
+                <div style="display: flex; justify-content: space-between; align-items: center; width: 100%" >
+                    <button class="" type="button" @click="testVoice">{{ t('Test voice') }}</button>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <SaveSettingsButton
+                            :hasChanges="hasChanges"
+                            :loading="isSaving"
+                            :t="t"
+                            :lang="lang"
+                            @save="checkBeforeUpdating"
+                            @cancel="resetSettings"
+                        />
+                        <div v-if="saveStatus" style="margin-left:12px;">
+                            <span v-if="saveStatus.type === 'success'" style="color:#3ca23c">{{ saveStatus.message }}</span>
+                            <span v-else style="color:#ff6666">{{ saveStatus.message }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="form-note"></div>
             <!-- Use SSML Toggle -->
              <div class="form-grid" style="grid-template-columns: 1fr 2fr; align-items: center; gap: 12px 18px;">
                 <div class="form-label">{{ t('Use SSML') }}</div>
@@ -135,21 +157,7 @@
             </div>
             <div class="form-note"></div>
 
-            <!-- Save Button -->
-            <div class="form-label"></div>
-            <div class="form-input">
-                <div style="display: flex; justify-content: space-evenly; width: 100%" >
-                    <button class="" type="button" @click="testVoice">{{ t('Test voice') }}</button>
-                    <button @click="checkBeforeUpdating"
-                        :disabled="!hasChanges || apiKeyError || voiceIdError || isSaving"
-                        :class="{ disabled: !hasChanges || apiKeyError || voiceIdError || isSaving }">{{ t('SAVE PLUGIN SETTINGS')}}</button>
-                    <div v-if="saveStatus" style="margin-left:12px;">
-                        <span v-if="saveStatus.type === 'success'" style="color:#3ca23c">{{ saveStatus.message }}</span>
-                        <span v-else style="color:#ff6666">{{ saveStatus.message }}</span>
-                    </div>
-                </div>
-            </div>
-            <div class="form-note"></div>
+            
         </div>
 
     </div>
@@ -157,10 +165,14 @@
 
 <script>
 import BasePluginComponent from '/js/BasePluginComponent.js';
+import SaveSettingsButton from '/js/SaveSettingsButton.vue';
 
 export default {
     name: 'speechifyttsSettings',
     mixins: [BasePluginComponent],
+    components: {
+        SaveSettingsButton
+    },
     props: {
         initialSettings: Object
     },
@@ -199,7 +211,8 @@ export default {
                 age: 'any',
                 gender: 'any'
             },
-            voiceList: []
+            voiceList: [],
+            apiKeyInitialized: false
         };
     },
     computed: {
@@ -252,6 +265,7 @@ export default {
                 }
                 // store original settings snapshot for change detection
                 this.originalSettings = JSON.parse(JSON.stringify(this.formData));
+                this.apiKeyInitialized = true;
             },
             immediate: true,
             deep: true
@@ -263,6 +277,25 @@ export default {
                 }
             },
             deep: true
+        },
+        'formData.api_key': {
+            handler(newVal, oldVal) {
+                if (!this.apiKeyInitialized) return;
+                const trimmedNew = (newVal || '').trim();
+                const trimmedOld = (oldVal || '').trim();
+                if (trimmedNew === trimmedOld) return;
+
+                if (!trimmedNew) {
+                    this.voiceList = [];
+                    this.formData.voice_id = '';
+                    return;
+                }
+
+                this.sendMsgToBackend({
+                    action: 'get_voice_list',
+                    api_key: trimmedNew
+                }, 'speechifytts');
+            }
         }
     },
     methods: {
@@ -303,6 +336,16 @@ export default {
             this.formData.rate = 0;
             this.formData.volume = 0;
         },
+        resetSettings() {
+            // Restore to last saved settings (originalSettings)
+            if (this.originalSettings) {
+                this.formData = JSON.parse(JSON.stringify(this.originalSettings));
+                // Reset local v-model values to match formData
+                this.pitchValue = this.formData.pitch;
+                this.rateValue = this.formData.rate;
+                this.volumeValue = this.formData.volume;
+            }
+        },
         async testVoice() {
             this.formData.pitch = Math.round(this.pitchValue);
             this.formData.rate = Math.round(this.rateValue);
@@ -342,6 +385,30 @@ export default {
                 this.isSaving = false;
                 setTimeout(() => { this.saveStatus = null; }, 3000);
             }
+        },
+        handleIncomingMessage(event) {
+            const handled = BasePluginComponent.methods.handleIncomingMessage.call(this, event);
+            if (handled) {
+                return true;
+            }
+
+            let payload;
+            try {
+                payload = JSON.parse(event.data);
+            } catch (err) {
+                return false;
+            }
+
+            if (payload && payload.type === 'voice_list') {
+                const voices = Array.isArray(payload.voice_list) ? payload.voice_list : [];
+                this.voiceList = voices.slice();
+                if (!this.voiceList.some(v => v.id === this.formData.voice_id)) {
+                    this.formData.voice_id = '';
+                }
+                return true;
+            }
+
+            return false;
         }
     }
 };
@@ -359,6 +426,10 @@ export default {
     display: flex;
     align-items: center;
     gap: 8px;
+}
+
+.voice-selector{
+    width: 37vw;
 }
 
 .form-note {
@@ -459,6 +530,6 @@ button:hover {
 }
 
 .voice-filters select {
-    min-width: 140px;
+    width:12vw !important;
 }
 </style>

@@ -13,7 +13,10 @@ IGOOR is an open-source and free conversational application, controllable also b
 **Communication Patterns**:
 - Backend-to-backend: Via Pluggy hooks `await self.pm.trigger_hook(hook_name, data)`
 - Frontend-to-backend: WebSocket on `ws://localhost:9715/plugin_name` using `sendMsgToBackend(data)`
-- Frontend signals readiness with `{"status": "ready"}`
+- REST fallback: FastAPI now exposes REST endpoints (e.g. `/api/plugins/<name>/settings`, `/api/plugins/by-category`, `/api/hooks/<name>`, `/api/app/change-view`) mirroring the former `window.pywebview.api` bridge. Everything is also available at localhost:9714, so you can test directly when the app is running CURL, for ex. at:
+http://localhost:9714/api/plugins/asrjs/settings
+- Frontend readiness: `window.ensureBackendApi()` lazily resolves a `BackendApi` wrapper that chooses between the PyWebView bridge and REST calls; the root app calls `readypy()` automatically when no bridge is detected
+- Plugins can use callPluginRestEndpoint to call the API endpoints (own plugin and other plugins; supports GET and POST)
 
 ## Key Managers
 
@@ -28,9 +31,14 @@ IGOOR is an open-source and free conversational application, controllable also b
 ## Frontend Rules
 
 **Vue 3 Without Bundlers**: Uses httpVueLoader for SFC loading
-- NEVER edit `app.js` or `app.vue` directly - use `app_template.js/vue`
+- IMPORTANT: the only files you will find in APPDATA subfolder (/web/) are app.js and app.vue
+- IMPORTANT: NEVER edit `app.js` or `app.vue` directly, nor even in the APPDATA_FOLDER (they are just builds): ALWAYS edit `app_template.js` and `app_template.vue` instead
+- IMPORTANT: NEVER edit `css/app.css`, ALWAYS edit `css/app.less` instead
 - Component methods prefixed with `$_` to avoid global conflicts
 - Dynamic component loading via httpVueLoader
+- When choosing colors,always start from predefined colors in /css/app.less
+
+**Interface guidelines**: Since the interface is for users who have physical conditions,buttons should generally be big.
 
 ## Plugin Development
 
@@ -43,7 +51,7 @@ plugin_name/
 │   └── plugin_name_settings.vue     # Settings UI
 ├── locales/
 │   └── fr_FR/
-│       ├── plugin_name_fr_FR.json  # Translations
+│       ├── plugin_name_fr_FR.json  # Translations - use t('string') method to provide translatable strings
 │       └── prompts.py              # AI prompts
 ├── plugin.json             # Plugin config & DB schema
 └── settings.json          # Default settings
@@ -61,7 +69,7 @@ plugin_name/
 
 **User Data Folder**: `C:/Users/Username/AppData/Roaming/igoor/`
 - Settings: `settings.json`
-- Plugins data: `plugins/` subdirectory
+- Plugins data: `plugins/` subdirectory, containing all dynamic data from plugins. The app can download models in user data folders (ex. HuggingFace) but CANNOT create folders inside the app root,otherwise this will give problems when running as executable.
 - Logs: `logs/` (daily rotation)
 - LLM calls: `llm_invocations/` (JSON with prompts/responses)
 
@@ -80,3 +88,18 @@ plugin_name/
 - Full build: `create_exe.bat` (8-10 min)
 
 **Python Version**: Tested on 3.10.6 only
+
+## Accesing and testing the frontend
+To test the frontend verify if IGOOR is running in Python. 
+If not: 
+/venv/scripts/Activate
+python main.py
+THEN,leverage the MCP chrome-dev-tool server for live testing the actual browser window @ http://127.0.0.1:9714/ 
+In the frontend, to go the onboarding plugin settings (and to access all the extensions) you have to click on the settings-gear top right in the header.
+Once there,you have to click on the extensions tab,the plugin category etc.
+
+## Searching the web
+Leverage the Bright DATA MCP server for web searches
+
+## Checking the libraries documentation
+ALWAYS use context7 mcp to access the documentation corresponding to the installed python libraries.

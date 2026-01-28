@@ -1,8 +1,7 @@
 from version import __appname__, __version__, __codename__
 import webview
-import threading
 import os
-import re
+import time
 from dotenv import load_dotenv
 load_dotenv()
 from plugin_manager import PluginManager
@@ -10,22 +9,73 @@ from context_manager import ContextManager
 from js_api import Api
 from settings_manager import SettingsManager
 from websocket_server import websocket_server
-import signal,sys
+import signal
+import sys
 import tkinter as tk
 import asyncio
-from utils import resource_path, setup_logger
+import threading
+from typing import Optional
+from utils import (
+    resource_path,
+    setup_logger,
+    get_appdata_dir,
+    get_appdata_web_js_dir,
+)
+from fastapi_app import app as fastapi_app
+import uvicorn
 from idle_detector import IdleDetector
 
-window = None
-
-
-appdata_dir = os.path.join(os.getenv('APPDATA'), __appname__)
-if not os.path.exists(appdata_dir):
-    os.makedirs(appdata_dir)
+appdata_dir = get_appdata_dir(create=True)
 logger = setup_logger('main', appdata_dir)
-prompts=None
 context_manager = ContextManager()
 manager = PluginManager()
+fastapi_server: Optional[uvicorn.Server] = None
+fastapi_thread: Optional[threading.Thread] = None
+shutdown_event = threading.Event()
+
+
+def _write_dynamic_frontend_asset(file_name: str, content: str) -> str:
+    js_web_dir = get_appdata_web_js_dir(create=True)
+    appdata_path = os.path.join(js_web_dir, file_name)
+
+    with open(appdata_path, 'w', encoding='utf-8') as f:
+        f.write(content)
+
+    return appdata_path
+
+
+def start_fastapi_server() -> None:
+    global fastapi_server, fastapi_thread
+    if fastapi_server and fastapi_thread and fastapi_thread.is_alive():
+        return
+
+    config = uvicorn.Config(
+        fastapi_app,
+        host="127.0.0.1",
+        port=9714,
+        log_level="info",
+    )
+    fastapi_server = uvicorn.Server(config)
+
+    fastapi_thread = threading.Thread(target=fastapi_server.run, daemon=True)
+    fastapi_thread.start()
+
+    # Wait briefly for the server to signal readiness
+    if hasattr(fastapi_server, "started"):
+        while fastapi_thread.is_alive() and fastapi_server.started is False:
+            time.sleep(0.05)
+
+
+def stop_fastapi_server() -> None:
+    global fastapi_server, fastapi_thread
+    if fastapi_server:
+        fastapi_server.should_exit = True
+
+    if fastapi_thread and fastapi_thread.is_alive():
+        fastapi_thread.join(timeout=5)
+
+    fastapi_server = None
+    fastapi_thread = None
 
 def on_idle_change(is_idle):
     if is_idle:
@@ -34,8 +84,6 @@ def on_idle_change(is_idle):
     else:
         logger.info("User is now active!")
         # 10 MINUTES TOTAL INACTIVITY
-        
-
 
 def show_splash_screen(image_path):
     """Create a simple splash screen with a logo."""
@@ -80,6 +128,7 @@ def show_splash_screen(image_path):
 
 def signal_handler(sig, frame):
     logger.info('Exiting application...')
+    shutdown_event.set()
     on_closing()
     
 signal.signal(signal.SIGINT, signal_handler)
@@ -161,7 +210,7 @@ def load_frontend_components(lang):
             )
 
     # Load and modify the VUE template
-    with open(resource_path('js/app_template.vue'), 'r') as f:
+    with open(resource_path('js/app_template.vue'), 'r', encoding="utf-8") as f:
         html_content = f.read()
         
     # Define the placeholders and their corresponding replacements
@@ -180,13 +229,10 @@ def load_frontend_components(lang):
 
     final_html = html_content
 
-    # Write the final vue to app.vue
-    with open(resource_path('js/app.vue'), 'w') as f:
-        f.write(final_html)
-        f.close()
+    app_vue_path = _write_dynamic_frontend_asset('app.vue', final_html)
     
     # Load and modify the JAVASCRIPT
-    with open(resource_path('js/app_template.js'), 'r') as f:
+    with open(resource_path('js/app_template.js'), 'r', encoding="utf-8") as f:
         js_content = f.read()
 
     js_content = js_content.replace('{{LANG}}', f'{lang}')
@@ -199,13 +245,14 @@ def load_frontend_components(lang):
     for placeholder, replacement in replacements.items():
         js_content = js_content.replace(placeholder, replacement)
     
-    # Load and modify the JAVASCRIPT
-    with open(resource_path('js/app.js'), 'w') as f:
-        f.write(js_content)  
+    app_js_path = _write_dynamic_frontend_asset('app.js', js_content)
+
+    logger.info(f"Updated frontend files: {app_vue_path}, {app_js_path}")
 
     return final_html
 
 def on_closing():
+    stop_fastapi_server()
     websocket_server.stop()  
     print("WebSocket server has been closed.")
 
@@ -218,13 +265,12 @@ def on_loaded():
         logger.error("Window object is None! Cannot proceed with evaluate_js")
         return False
         
-    # Test with warning
+    # Attempt to bootstrap front-end readiness
     try:
-        window.evaluate_js("console.warn('Calling READYPY');")
-        window.evaluate_js("console.warn(app); app.readypy();")
-        logger.info("✓ Warning evaluate_js test successful")
+        window.evaluate_js("window.app?.readypy?.();")
+        logger.info("✓ readypy invocation dispatched")
     except Exception as e:
-        logger.error(f"✗ Warning evaluate_js failed: {e}")            
+        logger.error(f"Failed to invoke readypy: {e}")
     
     try:
         asyncio.run(manager.trigger_hook("gui_ready"))
@@ -275,7 +321,7 @@ def start_webview():
         logger.info("Creating webview window...")
         window = webview.create_window(
             "IGOOR", 
-            "index.html", 
+            "http://127.0.0.1:9714/index.html", 
             js_api=Api(), 
             resizable=True, 
             fullscreen=fullscreen,
@@ -297,7 +343,7 @@ def start_webview():
         
         # Start webview
         logger.info("Starting webview...")
-        webview.start(debug=debug_enabled)
+        webview.start(debug=debug_enabled,private_mode=False)
         logger.info("✓ Webview started successfully")
         
     except Exception as e:
@@ -310,19 +356,28 @@ def start_webview():
         on_closing()
 
 if __name__ == "__main__":
-    splash_screen = show_splash_screen('img/igoor_logo.png')
     settings = load_settings()
     bio = settings.get_nested(["plugins", "onboarding", "bio"], default={})
-    # logger.info(bio)
     prefs = settings.get_nested(["plugins", "onboarding", "prefs"], default={})
     lang = prefs.get("lang")
-    
-    if IGOOR_CLI.lower() != 'true':
+
+    if IGOOR_CLI.lower() == 'true':
+        logger.info("IGOOR_CLI active: running headless API/WebSocket server only")
+        load_frontend_components(lang=lang)
+        start_fastapi_server()
+        try:
+            while not shutdown_event.is_set():
+                time.sleep(1)
+        except KeyboardInterrupt:
+            logger.info("Shutdown requested (CLI mode)")
+        finally:
+            stop_fastapi_server()
+    else:
+        start_fastapi_server()
+        splash_screen = show_splash_screen('img/igoor_logo.png')
         final_html = load_frontend_components(lang=lang)
         if (IGOOR_OUTPUT_HTML.lower() == 'true'):
             print(final_html)
         splash_screen.destroy()
-        start_webview()         
-    else:
-        print("CLI ONLY VERSION")
+        start_webview()
 

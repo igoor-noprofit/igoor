@@ -73,6 +73,10 @@ class MyAppSpec:
         pass
     
     @pluggy.HookspecMarker(app_name)
+    async def onboarding_toggled(self,is_onboarding):
+        pass
+    
+    @pluggy.HookspecMarker(app_name)
     async def user_idle_on_pc(self):
         """Hook for when the user is completely idle on the PC """
         pass
@@ -136,6 +140,17 @@ class MyAppSpec:
         """Hook for plugins to perform actions when speaker has said something via ASR"""
         pass
     
+    @pluggy.HookspecMarker(app_name)
+    async def start_recording(self) -> None:
+        """Hook for plugins to perform actions when speaker starts recording"""
+        pass
+    
+    @pluggy.HookspecMarker(app_name)
+    async def stop_recording(self) -> None:
+        """Hook for plugins to perform actions when speaker stops recording"""      
+        pass
+    
+    
     '''
         ************ CONVERSATION **************
     '''
@@ -184,6 +199,11 @@ class MyAppSpec:
     @pluggy.HookspecMarker(app_name)
     async def transcribing_ended(self):
         """Hook to communicate with plugins that transcription has ended"""
+        pass
+    
+    @pluggy.HookspecMarker(app_name)
+    async def process_audio_chunk(self, audio_data: bytes, sample_rate: int = 16000):
+        """Hook for processing audio chunks in real-time (e.g., speaker identification)"""
         pass
     
     '''
@@ -250,6 +270,7 @@ class PluginManager:
         self._initialized = True
         self.plugin_folder=resource_path('plugins')
         self.status_manager = StatusManager()
+        self.fastapi_app = None
         self.plugins = []
         self.plugin_manager = pluggy.PluginManager(app_name)
         self.plugin_manager.add_hookspecs(MyAppSpec)
@@ -267,8 +288,7 @@ class PluginManager:
         if hook:
             try:
                 # Log the kwargs that will be passed to the hook
-                self.logger.info(f"Executing hook {hook_name} with kwargs: {kwargs}")
-                
+                self.logger.info(f"Executing hook {hook_name} with kwargs: {str(kwargs)[:50]} ...")                
                 # Call the hook with unpacked kwargs
                 results = hook(**kwargs)
 
@@ -440,9 +460,13 @@ class PluginManager:
     def startup_plugins(self):
         """Calls the startup method on all registered plugins."""
         self.plugin_manager.hook.startup()
+
         
     def get_plugin_manager(self):
         return self
+
+    def attach_fastapi_app(self, app):
+        self.fastapi_app = app
     
     def plugin_has_settings(self, plugin_name, return_settings=False):
         settings = self.settings_manager.get_plugin_settings(plugin_name)

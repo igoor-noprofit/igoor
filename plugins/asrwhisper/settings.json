@@ -1,8 +1,8 @@
 {
   "wakeword": "Igor",
   "allowed_model_providers": ["groq", "mistral"],
-  "model_provider": "mistral",
-  "model_name": "voxtral-mini-latest",
+  "model_provider": "groq",
+  "model_name": "whisper-large-v3",
   "continuous": false,
   "api_key": "",
   "voxtral_api_key": "",

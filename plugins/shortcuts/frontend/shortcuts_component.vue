@@ -1,44 +1,21 @@
 <template>
-    <div class="shortcuts shortcuts-plugin">
+    <div class="shortcuts shortcuts-plugin" v-show="appview != 'onboarding'" :class="{ 'shrink': shrink }">
         <button class="btn btn-shortcut" @click="$_minimise()">
             <img src="img/minimize.svg">
-            <h3>{{ t('Minimize') }}</h3>
+            <h3 v-show="!shrink">{{ t('Minimize window') }}</h3>
+            <h3 v-show="shrink">{{ t('Minimize') }}</h3>
         </button>
-        <button class="btn btn-shortcut" @click="$_speak(t('I\'m thirsty'))"><svg class="icon icon-l">
-                <use xlink:href="img/svgdefs.svg#icon-drink"></use>
+        <button
+            v-for="(button, index) in shortcutButtons"
+            :key="button.key"
+            class="btn btn-shortcut"
+            :class="{ 'btn-hilite': button.highlight }"
+            @click="$_handleShortcut(button, index)"
+        >
+            <svg class="icon icon-l">
+                <use :xlink:href="'img/svgdefs.svg#' + button.icon"></use>
             </svg>
-            <h3>{{ t('Drink') }}</h3>
-        </button>
-        <button class="btn btn-shortcut" @click="$_speak(t('I need to go to the toilet'))"><svg class="icon icon-l">
-                <use xlink:href="img/svgdefs.svg#icon-toilet"></use>
-            </svg>
-            <h3>{{ t('Toilet') }}</h3>
-        </button>
-        <button class="btn btn-shortcut" @click="$_parole()"><svg class="icon icon-l">
-                <use xlink:href="img/svgdefs.svg#icon-talk"></use>
-            </svg>
-            <h3>{{ t('Just a sec') }}</h3>
-        </button>
-        <button class="btn btn-shortcut" @click="$_speak(t('Yes'))"><svg class="icon icon-l">
-                <use xlink:href="img/svgdefs.svg#icon-ok"></use>
-            </svg>
-            <h3>{{ t('Yes') }}</h3>
-        </button>
-        <button class="btn btn-shortcut" @click="$_speak(t('No'))"><svg class="icon icon-l">
-                <use xlink:href="img/svgdefs.svg#icon-no"></use>
-            </svg>
-            <h3>{{ t('No') }}</h3>
-        </button>
-        <button class="btn btn-shortcut" @click="$_speak(t('Thanks'))"><svg class="icon icon-l">
-                <use xlink:href="img/svgdefs.svg#icon-thankyou"></use>
-            </svg>
-            <h3>{{ t('Thanks') }}</h3>
-        </button>
-        <button class="btn btn-shortcut btn-hilite" @click="$_speak(t('Please help me, it\'s urgent!'))"><svg
-                class="icon icon-l">
-                <use xlink:href="img/svgdefs.svg#icon-sos"></use>
-            </svg>
-            <h3>{{ t('Help!') }}</h3>
+            <h3>{{ button.label }}</h3>
         </button>
     </div>
 </template>
@@ -50,7 +27,8 @@ export default {
     data() {
         return {
             websocket: null,  // Store WebSocket instance
-            status: 'loading'
+            status: 'loading',
+            shrink: false
         };
     },
     computed: {
@@ -62,24 +40,136 @@ export default {
                 this.t("Just give me two seconds"),
                 this.t("I'm just finishing")
             ];
+        },
+        shortcutButtons() {
+            return [
+                {
+                    key: 'drink',
+                    icon: 'icon-drink',
+                    label: this.t('Drink'),
+                    msg: this.t("I'm thirsty"),
+                    random: false,
+                    highlight: false
+                },
+                {
+                    key: 'toilet',
+                    icon: 'icon-toilet',
+                    label: this.t('Toilet'),
+                    msg: this.t('I need to go to the toilet'),
+                    random: false,
+                    highlight: false
+                },
+                {
+                    key: 'parole',
+                    icon: 'icon-talk',
+                    label: this.t('Just a sec'),
+                    random: true,
+                    highlight: false
+                },
+                {
+                    key: 'yes',
+                    icon: 'icon-ok',
+                    label: this.t('Yes'),
+                    msg: this.t('Yes'),
+                    random: false,
+                    highlight: false
+                },
+                {
+                    key: 'no',
+                    icon: 'icon-no',
+                    label: this.t('No'),
+                    msg: this.t('No'),
+                    random: false,
+                    highlight: false
+                },
+                {
+                    key: 'thanks',
+                    icon: 'icon-thankyou',
+                    label: this.t('Thanks'),
+                    msg: this.t('Thanks'),
+                    random: false,
+                    highlight: false
+                },
+                {
+                    key: 'help',
+                    icon: 'icon-sos',
+                    label: this.t('Help!'),
+                    msg: this.t("Please help me, it's urgent!"),
+                    random: false,
+                    highlight: true
+                }
+            ];
         }
     },
     methods: {
-        $_speak(msg) {
-            const json = { action: "speak", msg: msg };
+        $_speak(bid, msg) {
+            const json = { action: "speak", msg: msg, bid };
             console.log("sending JSON");
             console.log(json);
             this.sendMsgToBackend(json);
         },
         $_minimise() {
-            window.pywebview.api.win_minimize()
+            window.ensureBackendApi().then((api) => api.winMinimize());
         },
-        $_parole() {
-            console.log(this.paroles);
+        $_parole(bid) {
             const randomIndex = Math.floor(Math.random() * this.paroles.length);
             const randomMsg = this.paroles[randomIndex];
-            console.log("Sending random parole:", randomMsg);
-            this.$_speak(this.t(randomMsg));
+            this.$_speak(bid, randomMsg);
+        },
+        $_handleShortcut(button, index) {
+            if (button.random) {
+                this.$_parole(index);
+                return;
+            }
+            this.$_speak(index, button.msg);
+        },
+        handleIncomingMessage(event) {
+            try {
+                const data = JSON.parse(event.data);
+                if (data.action === "shrink") {
+                    this.shrink = true;
+                }
+                if (data.action === "unshrink") {
+                    this.shrink = false;
+                }
+            } catch (error) {
+                console.warn('Shortcuts plugin received non-JSON message:', event.data);
+            }
+        }
+    },
+    watch: {
+        shrink(newVal, oldVal) {
+            if (newVal !== oldVal) {
+                // Emit to parent Vue app
+                this.$emit('footer-shrink', newVal);
+                
+                // Try to find parent app instance
+                let parent = this.$parent;
+                while (parent && parent.footerShrink === undefined) {
+                    parent = parent.$parent;
+                }
+                if (parent && parent.footerShrink !== undefined) {
+                    parent.footerShrink = newVal;
+                    console.log('Updated parent.footerShrink to:', newVal);
+                }
+                
+                // Also emit to window/global event bus
+                if (window.app && window.app.footerShrink !== undefined) {
+                    window.app.footerShrink = newVal;
+                    console.log('Updated window.app.footerShrink to:', newVal);
+                }
+                
+                // Dispatch custom event to DOM
+                window.dispatchEvent(new CustomEvent('footer-shrink', { detail: newVal }));
+                
+                console.log('Shortcuts shrink changed to:', newVal);
+            }
+        }
+    },
+    mounted() {
+        // Ensure window.app reference is available
+        if (window.app) {
+            console.log('Window.app available in shortcuts mounted');
         }
     }
 };
@@ -94,7 +184,19 @@ export default {
     padding: 4px;
     width: 100%;
 }
-
+.shortcuts.shrink{
+    max-height: 70px;
+}
+.shrink svg.icon, .shrink img {
+    display: none;
+}
+.shrink .btn-shortcut h3 {
+    font-size: 1.2em;
+    font-weight: bold;
+}
+.shrink .btn-shortcut:not(.btn-hilite) {
+    background: #28373b;
+}
 .btn-shortcut {
     flex: 1 1 0;
     min-width: 0;

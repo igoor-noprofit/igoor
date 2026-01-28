@@ -1,0 +1,53 @@
+{
+  "plugins": {
+    "elevenlabstts": {
+      "voice_id": "",
+      "api_key": "",
+      "GenerationOptions": {
+        "model_id": "eleven_multilingual_v2",
+        "optimize_streaming_latency": 1
+      }
+    },
+    "onboarding": {
+      "bio": {
+        "name": "",
+        "pronoun": "",
+        "birth_date": "",
+        "health_state": "",
+        "style": "",
+        "style_weight": "2 r\u00e9ponse sur 6 maximum"
+      },
+      "prefs": {
+        "lang": "fr_FR",
+        "darklight": "light",
+        "locale": "fr_FR.UTF-8",
+        "idle_threshold": 600
+      },
+      "ai": {
+        "provider": "groq",
+        "api_key": "",
+        "model_name": "openai/gpt-oss-120b",
+        "temperature": 0.5
+      }
+    }
+  },
+  "plugins_activation": {
+    "asrjs": true,
+    "asrvosk": false,
+    "asrwhisper": false,
+    "autocomplete": true,
+    "autocompletelauncher": true,
+    "bugreport": true,
+    "clock": true,
+    "conversation": true,
+    "daily": true,
+    "flow": true,
+    "onboarding": true,
+    "shortcuts": true,
+    "ttsdefault": true,
+    "speechifytts": true,
+    "rag": true,
+    "memory": true,
+    "extkeyb": false
+  }
+}

@@ -21,17 +21,28 @@
         <!-- Save Button -->
         <div class="form-label"></div>
         <div class="form-input">
-            <button @click="updateSettings" :disabled="!hasChanges">{{ t('Save plugin settings') }}</button>
+            <SaveSettingsButton
+                :hasChanges="hasChanges"
+                :loading="isSaving"
+                :t="t"
+                :lang="lang"
+                @save="handleSave"
+                @cancel="resetSettings"
+            />
         </div>
     </div>
 </template>
 
 <script>
 import BasePluginComponent from '/js/BasePluginComponent.js';
+import SaveSettingsButton from '/js/SaveSettingsButton.vue';
 
 export default {
     name: 'ttsdefaultSettings',
     mixins: [BasePluginComponent],
+    components: {
+        SaveSettingsButton
+    },
     props: {
         initialSettings: Object
     },
@@ -43,6 +54,8 @@ export default {
                 voice_list: []
             },
             originalSettings: null,
+            isSaving: false,
+            saveStatus: null
         };
     },
     computed: {
@@ -66,21 +79,28 @@ export default {
         }
     },
     methods: {
-        async checkBeforeUpdating() {
+        resetSettings() {
+            if (this.originalSettings) {
+                this.formData = JSON.parse(JSON.stringify(this.originalSettings));
+            }
+        },
+        async handleSave() {
             try {
-                    this.isSaving = true;
-                    this.saveStatus = null;
-                    await this.updateSettings();
-                    this.saveStatus = { type: 'success', message: this.t('Settings saved') };
-                    // refresh original snapshot so hasChanges becomes false
-                    this.originalSettings = JSON.parse(JSON.stringify(this.formData));
-                } catch (err) {
-                    console.error('Error saving settings', err);
-                    this.saveStatus = { type: 'error', message: this.t('Failed to save settings') };
-                } finally {
-                    this.isSaving = false;
-                    setTimeout(() => { this.saveStatus = null; }, 3000);
-                }
+                this.isSaving = true;
+                this.saveStatus = null;
+                
+                // Call BasePluginComponent's updateSettings method
+                await this.updateSettings();
+                
+                this.saveStatus = { type: 'success', message: this.t('Settings saved') };
+                this.originalSettings = JSON.parse(JSON.stringify(this.formData));
+            } catch (err) {
+                console.error('Error saving settings', err);
+                this.saveStatus = { type: 'error', message: this.t('Failed to save settings') };
+            } finally {
+                this.isSaving = false;
+                setTimeout(() => { this.saveStatus = null; }, 3000);
+            }
         }
     }
 };

@@ -2,7 +2,7 @@
     <div class="conversation-plugin" v-if="appview !== 'autocomplete' && appview !== 'onboarding'"
         :class="{ 'expanded': isExpanded }">
         <div class="scrollableConv" ref="scrollableConv">
-            <div v-for="(message, index) in thread" :key="index">
+            <div v-for="(message, index) in thread" :key="index" v-show="message.msg != ''">
                 <div class="card msg" :class="getMsgClass(message, index)" @click="handleMessageClick(message)">
                     <div class="card-body">
                         <p class="card-text">{{ message.msg }}</p>

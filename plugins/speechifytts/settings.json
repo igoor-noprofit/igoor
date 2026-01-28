@@ -3,7 +3,7 @@
     "voice_id": "",
     "model_id": "simba-multilingual",
     "use_ssml": true,
-    "rate": 100,
-    "pitch": 100,
-    "volume": 100
+    "rate": 0,
+    "pitch": 0,
+    "volume": 0
 }

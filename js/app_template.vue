@@ -9,27 +9,31 @@
 <div id="hidden">
     <!-- HIDDEN_COMPONENTS -->
 </div>
-<div id="topbar">
-    <div class="topbar-left">
-        <!-- BEFORE_LOGO_COMPONENTS -->
+<div class="app-shell">
+    <div id="topbar">
+        <div class="topbar-left">
+            <!-- BEFORE_LOGO_COMPONENTS -->
+        </div>
+        <div class="topbar-center">
+            <a @click="minimize()"><img src="img/logo_small.svg" class="logo_small" id="igoor_logo"></a>
+        </div>
+        <div class="topbar-right">
+            <!-- AFTER_LOGO_COMPONENTS -->
+        </div>
     </div>
-    <div class="topbar-center">
-        <a @click="minimize()"><img src="img/logo_small.svg" class="logo_small" id="igoor_logo"></a>
+    <!-- AFTER_TOPBAR_COMPONENTS -->
+    <div class="app-main">
+        <header v-show="appview !== 'onboarding'" :class="{ 'expanded': headerExpanded }">
+            <!-- HEADER_COMPONENTS -->
+        </header>
+        <div class="after_header" v-show="appview !== 'onboarding'">
+            <!-- AFTER_HEADER_COMPONENTS -->
+        </div>
+        <main>
+            <!-- MAIN_COMPONENTS -->
+        </main>
     </div>
-    <div class="topbar-right">
-        <!-- AFTER_LOGO_COMPONENTS -->
-    </div>
+    <footer :class="[appview, { 'shrink': footerShrink }]" @footer-shrink="handleFooterShrink">
+        <!-- FOOTER_COMPONENTS -->
+    </footer>
 </div>
-<!-- AFTER_TOPBAR_COMPONENTS -->
-<header v-show="appview !== 'onboarding'" :class="{ 'expanded': headerExpanded }">
-    <!-- HEADER_COMPONENTS -->
-</header>
-<div class="after_header" v-show="appview !== 'onboarding'">
-    <!-- AFTER_HEADER_COMPONENTS -->
-</div>
-<main>
-    <!-- MAIN_COMPONENTS -->
-</main>
-<footer>
-    <!-- FOOTER_COMPONENTS -->
-</footer>
