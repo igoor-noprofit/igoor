@@ -75,9 +75,6 @@ class Onboarding(Baseplugin):
                 if message.get('action') == 'save_settings':
                     return self.handle_save_settings(message.get('data', {}))
                 
-                # Legacy support for direct settings update
-                return self.handle_save_settings(message)
-                
         except json.JSONDecodeError as e:
             print(f"Error processing message: {e}")
             self.send_message_to_frontend({
