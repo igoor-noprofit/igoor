@@ -20,6 +20,21 @@ class Asrjs(Baseplugin):
         self.wakeword_detected = False  # Initialize wakeword state
         super().__init__(plugin_name, pm)
         
+        # Create recordings directory for persistent audio files
+        recordings_dir = os.path.join(self.plugin_folder, "recordings")
+        if not os.path.exists(recordings_dir):
+            os.makedirs(recordings_dir, exist_ok=True)
+            self.logger.info(f"Created recordings directory: {recordings_dir}")
+        
+        # Set up audio parameters
+        self.sample_rate = 16000
+        self.audio_format = pyaudio.paInt16
+        self.channels = 1
+        self.chunk_size = 4000
+        
+        # Set up temporary file for audio storage (WebM format)
+        self.temp_audio_file = os.path.join(self.plugin_folder, "temp_audio.webm")
+        
     @hookimpl 
     def startup(self):
         print ("ASRWHISPER IS STARTING UP")
@@ -142,21 +157,6 @@ class Asrjs(Baseplugin):
         elif (self.model_provider == "mistral"):
             self.model=self.settings.get("model_name", "voxtral-mini-latest")
             
-        # Create recordings directory for persistent audio files
-        recordings_dir = os.path.join(self.plugin_folder, "recordings")
-        if not os.path.exists(recordings_dir):
-            os.makedirs(recordings_dir, exist_ok=True)
-            self.logger.info(f"Created recordings directory: {recordings_dir}")
-        
-        # Set up audio parameters
-        self.sample_rate = 16000
-        self.audio_format = pyaudio.paInt16
-        self.channels = 1
-        self.chunk_size = 4000
-        
-        # Set up temporary file for audio storage (WebM format)
-        self.temp_audio_file = os.path.join(self.plugin_folder, "temp_audio.webm")
-        
         self.is_loaded=True
     
     async def handle_wake_word(self,following_text):
