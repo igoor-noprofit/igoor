@@ -38,7 +38,10 @@ a = Analysis(
         'settings_manager',
         'llm_manager',
         'db_manager',
-        'pydantic.deprecated.decorator'
+        'pydantic.deprecated.decorator',
+        'win32gui',
+        'win32con',
+        'pywinauto'
     ],
     hookspath=[],
     hooksconfig={},
