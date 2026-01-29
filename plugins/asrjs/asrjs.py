@@ -25,6 +25,16 @@ class Asrjs(Baseplugin):
         if not os.path.exists(recordings_dir):
             os.makedirs(recordings_dir, exist_ok=True)
             self.logger.info(f"Created recordings directory: {recordings_dir}")
+        else:
+            # Clean up old recordings on startup
+            try:
+                for filename in os.listdir(recordings_dir):
+                    file_path = os.path.join(recordings_dir, filename)
+                    if os.path.isfile(file_path):
+                        os.remove(file_path)
+                self.logger.info(f"Cleaned up old recordings from: {recordings_dir}")
+            except Exception as e:
+                self.logger.error(f"Error cleaning up recordings: {e}")
         
         # Set up audio parameters
         self.sample_rate = 16000
@@ -37,7 +47,6 @@ class Asrjs(Baseplugin):
         
     @hookimpl 
     def startup(self):
-        print ("ASRWHISPER IS STARTING UP")
         self.settings = self.get_my_settings()
         
         # Get global language preference and process it
@@ -45,10 +54,8 @@ class Asrjs(Baseplugin):
         
         self.wakeword = self.settings.get("wakeword")
         
-
-        
         self.continuous = self.settings.get("continuous", False) # Ensure default for continuous
-        print (f"WHISPER settings: {self.settings}, Global Lang for ASR: {self.lang_code}")
+        print (f"ASRJS settings: {self.settings}, Global Lang for ASR: {self.lang_code}")
 
         self.model_provider = self.settings.get("model_provider", "groq")  # Default to Groq if not set
         if self.model_provider not in self.settings.get("allowed_model_providers", []):
@@ -458,13 +465,13 @@ class Asrjs(Baseplugin):
     @hookimpl
     async def abandon_conversation(self, cause="timeout"):
         try:
-            print("ASRWHISPER received ABANDON_CONVERSATION trigger")
+            print("ASRJS received ABANDON_CONVERSATION trigger")
             # Your existing logic here
             self.wakeword_detected = False
             await self.send_status("listening")
-            print("ASRWHISPER after_conversation_end completed successfully")
+            print("ASRJS after_conversation_end completed successfully")
         except Exception as e:
-            print(f"Error in ASRWHISPER after_conversation_end: {e}")
+            print(f"Error in ASRJS after_conversation_end: {e}")
     
     '''
     To support external wakeword mechanism
@@ -476,7 +483,7 @@ class Asrjs(Baseplugin):
         
     @hookimpl
     async def change_view(self,lastview,currentview):
-        print("CHANGE VIEW IN ASRWHISPER")
+        print("CHANGE VIEW IN ASRJS")
         if not self.is_paused:
             if currentview == 'onboarding':
                 await self.pause_asr()
