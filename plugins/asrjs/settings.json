@@ -11,5 +11,6 @@
   "model_provider": "groq",
   "model_name": "whisper-large-v3",
   "api_key": "",
-  "voxtral_api_key": ""
+  "voxtral_api_key": "",
+  "allowed_model_providers": ["groq", "mistral"]
 }
