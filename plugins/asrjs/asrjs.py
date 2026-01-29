@@ -105,8 +105,7 @@ class Asrjs(Baseplugin):
     async def monitor_loading(self):
         while not self.is_loaded:
             # Wait until the model is loaded
-            time.sleep(1)
-        self.model_thread.join()
+            await asyncio.sleep(1)
         print("Model is ready to use.")
         await self.send_status("ready")
         self.send_settings_to_frontend()
