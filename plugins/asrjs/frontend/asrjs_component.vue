@@ -59,17 +59,30 @@ export default {
         Object.values(this.audio).forEach(audio => audio.load());
     },
     async mounted() {
+        // Load settings directly via REST API
+        try {
+            const settings = await this.callPluginRestEndpoint('asrjs', 'settings');
+            console.log('ASRJS settings received:', settings);
+            this.settings = settings;
+            this.continuous = settings.continuous || false;
+            if (settings.shortcut) {
+                console.log('ASRJS SHORTCUT:', settings.shortcut);
+                this.keyboardShortcut = settings.shortcut;
+            }
+        } catch (error) {
+            console.error('Error loading settings via REST:', error);
+        }
+
         window.addEventListener('keydown', this.$_handleKeyPress);
-        
         // Load VAD library dynamically, then initialize - COMMENTED OUT
         // await this.$_loadVADLibrary();
-        
+
         // Set status to listening since we're not using VAD
         this.status = 'listening';
-        
+
         // Check speakerid availability during initialization
         await this.$_checkSpeakerIdAvailability();
-        
+
         // Initialize microphone access
         await this.$_initializeMicrophone();
     },
@@ -583,7 +596,7 @@ export default {
                 return true;
             } catch (error) {
                 console.warn('SpeakerID plugin not available, skipping chunk sending');
-                console.error('Error checking speakerid status:', error);
+                console.warn('Error checking speakerid status:', error);
                 return false;
             }
         },
@@ -762,6 +775,7 @@ export default {
                 pressed.push(event.key.length === 1 ? event.key.toUpperCase() : event.key);
             }
             const pressedCombo = pressed.join("+");
+            console.warn("Pressed combination:", pressedCombo + ", looking for:", this.keyboardShortcut);
             if (this.keyboardShortcut && pressedCombo === this.keyboardShortcut) {
                 event.preventDefault();
                 this.$_handleMicClick();
@@ -794,20 +808,24 @@ export default {
 
         handleIncomingMessage(event) {
             const handled = BasePluginComponent.methods.handleIncomingMessage.call(this, event);
-            if (handled) return true;
-            console.log(this.$options.name + ' handling message');
-            
-            try {
+            if (handled) {
+                // Base component handled the message, check if it was settings
                 const data = JSON.parse(event.data);
-                if (data.type === "settings") {
+                if (data.settings) {
+                    console.log('ASRJS SETTINGS:', data.settings);
                     this.settings = data.settings;
-                    console.log('ASRJS SETTINGS:', this.settings);
                     this.continuous = this.settings.continuous || false;
                     if (this.settings.shortcut) {
                         console.log('ASRJS SHORTCUT:', this.settings.shortcut);
                         this.keyboardShortcut = this.settings.shortcut;
                     }
                 }
+                return true;
+            }
+            console.log(this.$options.name + ' handling message');
+
+            try {
+                const data = JSON.parse(event.data);
                 if (data.type === "transcription_result") {
                     // Handle transcription result from backend
                     console.log('Transcription result:', data.text);
