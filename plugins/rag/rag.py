@@ -21,6 +21,13 @@ class Rag(Baseplugin):
     def __init__(self, plugin_name, pm):
         self.pm = pm
         super().__init__(plugin_name,pm)
+        try:
+            import sentence_transformers
+            import transformers
+            import torch
+            self.logger.info(f"sentence_transformers version: {sentence_transformers.__version__}")
+        except ImportError as e:
+            self.logger.error(f"Failed to import: {e}")
         
     @hookimpl
     def startup(self):
