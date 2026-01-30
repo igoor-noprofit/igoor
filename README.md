@@ -48,7 +48,7 @@ While we are working on a fully local, offline-first version, as of now the soft
 
 ### AI INFERENCE PROVIDER
 
-The only AI inference provider currently meeting our requirements of speed, privacy, quality and support of opensource models is Groq.
+The only AI inference provider currently meeting our requirements of speed, privacy, quality, support of opensource models and availability of both ASR/LLM inference is Groq.
 Signup for a FREE-tier access to Groq's API here:
 
 https://console.groq.com/login
