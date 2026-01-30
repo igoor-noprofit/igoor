@@ -134,65 +134,68 @@ Respond using the above contexts to the last question in this conversation:
 """
     },
     "preflow": {
-        "system": """<instructions>You receive a JSON containing an ongoing conversation between an interlocutor (Q) and the user (R), a person whose condition affects communication.
-To help predict the user's next reply:
+        "system": """<instructions>
+You are an AI assistant helping a RAG (Retrieval Augmented Generation) system.
+You receive an ongoing conversation between an interlocutor (Q) and the user (R), a person affected by a communication condition.
 
-- Summarize the topic of the conversation.
-- Indicate whether short-term or long-term memory should be consulted:
+Your mission is to contextualize the query to filter the user's memories (SQL).
 
-    - Short-term memory: recent or one-off events.
-    - Long-term memory: preferences, constant facts, life memories.
-        
-- If the request contains temporal references (today, yesterday, last week, this morning, etc.), extract the relevant timeframe.
-Requests about preferences, tastes, or beliefs usually require both short- and long-term memory.
+GOLDEN RULE: The database contains ONLY memories from the PAST. It contains no future data.
 
-IMPORTANT: If the request has no temporal reference, search BOTH short- and long-term memory.
-    
-Return ONLY valid JSON with the following structure:
+Analyze the conversation to:
+1. Summarize the **theme**.
+2. Define the **memory type** needed:
+   - "short": Recent events or one-off events
+   - "long": Preferences, constant facts, habits, life memories.
+3. Extract the **timeframe** (Timeframe) for the SQL query.
 
-<example>
+<timeframe_rules>
+- If the query concerns the PAST:
+    - Extract the date or the relative number of days.
+    - IMPORTANT: If the user is seeking a REMINDER of a decision made today for later (ex: "What did I want to eat tonight?", "What are we doing later?"):
+        - It's a memory recorded earlier (morning/noon).
+        - Set relative_days = 0.
+        - Force period = "full_day" (DO NOT set "evening").
+- If the query concerns the PRESENT or FUTURE: Reference = "now", relative_days = 0, period = "full_day".
+- If no temporal reference: Search in the global past.
+</timeframe_rules>
+
+Return EXCLUSIVELY a valid JSON with this structure:
+
 {
-    "theme": "topic of the conversation",
-    "m_type": ["short", "long"],
+    "theme": "string",
+    "m_type": ["short"] or ["long"] or ["short", "long"],
     "timeframe": {
         "type": "absolute|relative",
-        "reference": "temporal reference in English",
-        "start_date": "YYYY-MM-DD",
-        "end_date": "YYYY-MM-DD",
-        "relative_days": -1,
+        "reference": "English term (now, yesterday, always...)",
+        "start_date": "YYYY-MM-DD" (or empty),
+        "end_date": "YYYY-MM-DD" (or empty),
+        "relative_days": integer (ALWAYS <= 0),
         "period": "morning|afternoon|evening|full_day|full_period"
     }
 }
-</example>
-
-All examples below assume the current datetime is 2025/08/04 16:00:00:
 
 <examples>
-Input:
-{"conv": "Q: What do you want to eat today?"}
-Output:
-{"theme": "Meal plans", "m_type": ["short", "long"], "timeframe": {"type": "relative", "reference": "today", "start_date": "", "end_date": "", "relative_days": 0, "period": "full_day"}}
+Context Date: 2025-08-04 16:00:00
 
-Input:
-{"conv": "Q: What did you do yesterday?"}
+Input: {"conv": "Q: What do you want to do tomorrow?"}
 Output:
-{"theme": "Activities yesterday", "m_type": ["short"], "timeframe": {"type": "relative", "reference": "yesterday", "start_date": "", "end_date": "", "relative_days": -1, "period": "full_day"}}
+{"theme": "Intentions or activity habits", "m_type": ["short", "long"], "timeframe": {"type": "relative", "reference": "now", "start_date": "", "end_date": "", "relative_days": 0, "period": "full_day"}}
 
-Input:
-{"conv": "Q: Tell me a story from your childhood."}
+Input: {"conv": "Q: What did you do yesterday?"}
 Output:
-{"theme": "Childhood anecdote", "m_type": ["long"], "timeframe": {"type": "relative", "reference": "always", "start_date": "", "end_date": "", "relative_days": -3650, "period": "full_day"}}
+{"theme": "Past activities", "m_type": ["short"], "timeframe": {"type": "relative", "reference": "yesterday", "start_date": "", "end_date": "", "relative_days": -1, "period": "full_day"}}
 
-Input:
-{"conv": "Q: What music do you like to listen to"}
+Input: {"conv": "Q: Tell me a story from your childhood."}
 Output:
-{"theme": "Music preferences", "m_type": ["short", "long"], "timeframe": {"type": "relative", "reference": "always", "start_date": "", "end_date": "", "relative_days": -3650, "period": "full_day"}}
+{"theme": "Childhood memories", "m_type": ["long"], "timeframe": {"type": "relative", "reference": "always", "start_date": "", "end_date": "", "relative_days": -3650, "period": "full_day"}}
 
-Input:
-{"conv": "Q: Did you talk to your daughter this week?"}
+Input: {"conv": "Q: Are we seeing your mother this weekend?"}
 Output:
-{"theme": "Talks with daughter", "m_type": ["short"], "timeframe": {"type": "relative", "reference": "this week", "start_date": "", "end_date": "", "relative_days": -7, "period": "full_period"}}
+{"theme": "Family planning / Mother relationship", "m_type": ["short", "long"], "timeframe": {"type": "relative", "reference": "now", "start_date": "", "end_date": "", "relative_days": 0, "period": "full_day"}}
 </examples>
-"""
- }
+
+NEVER explain your answer. Return ONLY the JSON.
+</instructions>"""
+    }
 }
