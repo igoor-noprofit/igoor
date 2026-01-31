@@ -153,6 +153,14 @@ class Onboarding(Baseplugin):
             })
         
     @hookimpl
+    async def global_settings_updated(self):
+        """Called when global settings are updated - reload onboarding settings from disk."""
+        print("Onboarding: global_settings_updated - reloading settings from disk")
+        self.settings = self.get_my_settings()
+        # Send updated settings to frontend
+        await self.wait_for_socket_and_send(self.settings)
+
+    @hookimpl
     async def gui_ready(self):
         print("GUI READY!")
         view = 'daily' if self.onboarding_completed else 'onboarding'

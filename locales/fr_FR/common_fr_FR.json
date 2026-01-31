@@ -1,4 +1,7 @@
 {
   "Save": "Sauvegarder",
-  "Cancel": "Annuler"
+  "Cancel": "Annuler",
+  "Unsaved Changes": "Modifications non sauvegardées",
+  "You have unsaved changes. Do you want to save them?": "Vous avez des modifications non sauvegardées. Voulez-vous les sauvegarder ?",
+  "Failed to save changes.": "Échec de la sauvegarde des modifications."
 }
