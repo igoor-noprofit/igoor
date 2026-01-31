@@ -343,6 +343,7 @@ export default {
                     return;
                 }
                 // No unsaved changes - proceed with closing
+                            this.currentTab = 'bio';
                 this.showModal = false;
                 const backendApi = await ensureBackendApi();
                 await backendApi.onboardingToggled(false);
@@ -355,7 +356,9 @@ export default {
         },
         async closeModal() {
             console.log('Closing modal');
+
             this.showModal = false
+
             const backendApi = await ensureBackendApi();
             await backendApi.onboardingToggled(false);
         },
@@ -498,11 +501,9 @@ export default {
             this.viewingPluginSettings = false;
             this.selectedPluginComponent = null;
             this.selectedPluginForSettings = null;
-            this.currentPluginInitialSettings = {};
         },
         async loadPluginComponent(pluginName) {
             this.selectedPluginComponent = null; // Clear previous one
-            this.currentPluginInitialSettings = {};
             try {
                 console.log(`Attempting to load settings component: /plugins/${pluginName}/frontend/${pluginName}_settings.vue`);
                 // Ensure the path is correct for dynamic imports.
@@ -606,7 +607,6 @@ export default {
                 this.viewingPluginSettings = false;
                 this.selectedPluginComponent = null;
                 this.selectedPluginForSettings = null;
-                this.currentPluginInitialSettings = {};
             }
 
             this.pendingNavigation = null;
