@@ -113,9 +113,9 @@
                     <div v-if="currentTab === 'plugins'" class="pluginsContainer">
                         <!-- View for Plugin-Specific Settings -->
                         <div v-if="viewingPluginSettings && selectedPluginComponent" class="pct_container">
-                            
+
                             <h3 class="pluginContainerTitle"><a style="cursor: pointer" @click="closePluginSettingsView">{{ t("Plugins") }}</a> > {{ selectedPluginForSettings.title }}</h3>
-                            <component :is="selectedPluginComponent" :initial-settings="currentPluginInitialSettings"
+                            <component ref="pluginSettingsComponent" :is="selectedPluginComponent" :initial-settings="currentPluginInitialSettings"
                                 :plugin-name="selectedPluginForSettings.name" :lang="lang" :onboarding-open="showModal"
                                 @save-settings="handlePluginSettingsSave" class="plugin-settings-component"></component>
                             <!-- The save button is now expected to be WITHIN the loaded component -->
@@ -191,6 +191,22 @@
                 </div>
             </div>
         </div>
+
+        <!-- Unsaved Changes Confirmation Modal -->
+        <div v-if="showUnsavedChangesModal" class="unsaved-changes-modal-overlay">
+            <div class="unsaved-changes-modal-content">
+                <h3>{{ t("Unsaved Changes") }}</h3>
+                <p>{{ t("You have unsaved changes. Do you want to save them?") }}</p>
+                <div class="modal-actions">
+                    <button class="btn btn-secondary" @click="confirmSaveBeforeNavigation(false)">
+                        {{ t("Cancel") }}
+                    </button>
+                    <button class="btn btn-primary" @click="confirmSaveBeforeNavigation(true)">
+                        {{ t("Save") }}
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 </template>
 
@@ -231,7 +247,9 @@ export default {
             selectedPluginForSettings: null, // Holds the plugin object whose settings are being viewed/edited
             selectedPluginComponent: null,   // Holds the dynamically loaded settings component for a plugin
             currentPluginInitialSettings: {}, // Holds initial settings to pass as prop
-            viewingPluginSettings: false     // Controls visibility of plugin-specific settings view
+            viewingPluginSettings: false,     // Controls visibility of plugin-specific settings view
+            showUnsavedChangesModal: false,  // Controls visibility of unsaved changes confirmation modal
+            pendingNavigation: null            // Stores the pending navigation action to execute after confirmation
         }
     },
     async mounted() {
@@ -254,6 +272,23 @@ export default {
             }
         } catch (error) {
             console.error("Failed to load onboarding settings via REST", error);
+        }
+    },
+    async onGlobalSettingsUpdated() {
+        // Called when global settings are updated
+        console.log("Onboarding frontend: global settings updated, reloading settings from disk");
+        try {
+            const api = await ensureBackendApi();
+            const settings = await api.getPluginSettings("onboarding");
+            if (settings) {
+                if (settings.bio) this.bio = { ...this.bio, ...settings.bio };
+                if (settings.prefs) this.prefs = { ...this.prefs, ...settings.prefs };
+                if (settings.ai) this.ai = { ...this.ai, ...settings.ai };
+            }
+            // Reload plugins list to get updated activation states
+            await this.loadPlugins();
+        } catch (error) {
+            console.error("Failed to reload onboarding settings after global update", error);
         }
     },
     computed: {
@@ -293,9 +328,30 @@ export default {
     },
     methods: {
         async toggleModal() {
-            this.showModal = !this.showModal;
-        const backendApi = await ensureBackendApi();
-            await backendApi.onboardingToggled(this.showModal);
+            // Only check for unsaved changes when CLOSING the modal (showModal = true -> false)
+            // Not when just switching between tabs within the modal
+            if (this.showModal && !this.viewingPluginSettings) {
+                // Closing modal while viewing main tabs - no unsaved changes to check
+                this.showModal = false;
+                const backendApi = await ensureBackendApi();
+                await backendApi.onboardingToggled(false);
+            } else if (this.showModal && this.viewingPluginSettings) {
+                // Closing modal while viewing plugin settings - check for unsaved changes
+                if (this.hasUnsavedPluginChanges()) {
+                    this.showUnsavedChangesModal = true;
+                    this.pendingNavigation = 'close-modal';
+                    return;
+                }
+                // No unsaved changes - proceed with closing
+                this.showModal = false;
+                const backendApi = await ensureBackendApi();
+                await backendApi.onboardingToggled(false);
+            } else {
+                // Opening modal
+                this.showModal = true;
+                const backendApi = await ensureBackendApi();
+                await backendApi.onboardingToggled(true);
+            }
         },
         async closeModal() {
             console.log('Closing modal');
@@ -333,17 +389,17 @@ export default {
             if (!event.data || typeof event.data !== 'string') {
                 return false; // Let BasePluginComponent handle it
             }
-            
+
             try {
                 const data = JSON.parse(event.data);
-                console.log(data);
+                console.log("Onboarding received message:", data);
                 // Only process messages that are specifically for onboarding
                 /*
                 if (data.target !== 'onboarding' && !data.bio && !data.prefs && !data.ai && data.action !== 'show_modal') {
                     return false; // Let BasePluginComponent handle it
                 }
-                */                 
-                
+                */
+
                 if (data.type && data.type == "error"){
                     this.saveStatus = {
                         type: 'error',
@@ -366,6 +422,7 @@ export default {
                     console.warn("ONBOARDING FORCED");
                     this.showModal = true;
                 }
+                // Handle settings updates (both initial load and global settings update)
                 if (data.bio) {
                     this.bio = { ...this.bio, ...data.bio };
                 }
@@ -374,6 +431,10 @@ export default {
                 }
                 if (data.ai) {
                     this.ai = { ...this.ai, ...data.ai };
+                }
+                // Reload plugins list when settings are updated
+                if (data.bio || data.prefs || data.ai) {
+                    this.loadPlugins();
                 }
                 return true; // Message was handled
             } catch (e) {
@@ -428,6 +489,12 @@ export default {
             this.loadPluginComponent(plugin.name);
         },
         closePluginSettingsView() {
+            // Check for unsaved changes before closing
+            if (this.hasUnsavedPluginChanges()) {
+                this.showUnsavedChangesModal = true;
+                this.pendingNavigation = 'back-to-plugins';
+                return;
+            }
             this.viewingPluginSettings = false;
             this.selectedPluginComponent = null;
             this.selectedPluginForSettings = null;
@@ -494,6 +561,55 @@ export default {
                     this.saveStatus = null;
                 }, 3000);
             }
+        },
+        hasUnsavedPluginChanges() {
+            // Check if the currently loaded plugin settings component has unsaved changes
+            // The component has a hasUnsavedChanges computed property from BasePluginComponent
+            // We need to access it via the component's ref
+            if (!this.viewingPluginSettings || !this.$refs.pluginSettingsComponent) {
+                return false;
+            }
+            return this.$refs.pluginSettingsComponent.hasUnsavedChanges;
+        },
+        async confirmSaveBeforeNavigation(saveChanges) {
+            // Handle the user's choice in the unsaved changes modal
+            if (saveChanges) {
+                // Save the plugin settings first
+                try {
+                    // Call the child component's save method (each plugin might name it differently)
+                    // Try common method names
+                    const comp = this.$refs.pluginSettingsComponent;
+                    if (comp) {
+                        if (typeof comp.checkBeforeUpdating === 'function') {
+                            await comp.checkBeforeUpdating();
+                        } else if (typeof comp.saveSettings === 'function') {
+                            await comp.saveSettings();
+                        }
+                    }
+                    // Wait a bit for save to complete
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                } catch (error) {
+                    console.error('Error saving before navigation:', error);
+                    this.saveStatus = { type: 'error', message: this.t('Failed to save changes.') };
+                    return; // Don't proceed if save failed
+                }
+            }
+
+            // Execute the pending navigation
+            this.showUnsavedChangesModal = false;
+
+            if (this.pendingNavigation === 'close-modal') {
+                this.showModal = false;
+                const backendApi = await ensureBackendApi();
+                await backendApi.onboardingToggled(false);
+            } else if (this.pendingNavigation === 'back-to-plugins') {
+                this.viewingPluginSettings = false;
+                this.selectedPluginComponent = null;
+                this.selectedPluginForSettings = null;
+                this.currentPluginInitialSettings = {};
+            }
+
+            this.pendingNavigation = null;
         }
     }
 }
@@ -510,12 +626,11 @@ export default {
 .about-tab {
     background: #000;
     font-size: 1.2rem;
-
-    a {
-        color: #fff
-    }
-
     padding: 30px;
+}
+
+.about-tab a {
+    color: #fff;
 }
 
 .tabs {
@@ -847,5 +962,75 @@ a.extlink {
 .isSaving{
     cursor: wait !important;
     background: #f00;
+}
+
+/* Unsaved Changes Modal */
+.unsaved-changes-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+}
+
+.unsaved-changes-modal-content {
+    background: #fff;
+    color: #000;
+    padding: 30px;
+    border-radius: 8px;
+    max-width: 400px;
+    width: 90%;
+    text-align: center;
+}
+
+.unsaved-changes-modal-content h3 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    color: #333;
+}
+
+.unsaved-changes-modal-content p {
+    margin-bottom: 25px;
+    color: #666;
+    line-height: 1.5;
+}
+
+.unsaved-changes-modal-content .modal-actions {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+}
+
+.unsaved-changes-modal-content .btn {
+    padding: 10px 24px;
+    font-size: 1rem;
+    border-radius: 4px;
+    border: none;
+    cursor: pointer;
+    transition: background 0.2s;
+    min-width: 100px;
+}
+
+.unsaved-changes-modal-content .btn-primary {
+    background: #2196F3;
+    color: #fff;
+}
+
+.unsaved-changes-modal-content .btn-primary:hover {
+    background: #1976D2;
+}
+
+.unsaved-changes-modal-content .btn-secondary {
+    background: #e0e0e0;
+    color: #333;
+}
+
+.unsaved-changes-modal-content .btn-secondary:hover {
+    background: #d0d0d0;
 }
 </style>

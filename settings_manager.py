@@ -145,6 +145,13 @@ class SettingsManager:
         except Exception as e:
             self.logger.error(f"Error saving settings: {e}")
             return False
+    
+    def load_and_notify(self, plugin_manager=None):
+        """Load settings from disk and notify all plugins via global_settings_updated hook."""
+        self.settings = self.load_settings()
+        if plugin_manager:
+            asyncio.create_task(plugin_manager.trigger_hook('global_settings_updated'))
+        return self.settings
         
     def as_json(self):
         """Return settings as a formatted JSON string."""
