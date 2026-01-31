@@ -278,7 +278,7 @@ const BasePluginComponent = {
       }
     },
     saveSettings() {
-      console.log("Saving plugin settings:", this.formData);
+      console.log("Baseplugin saving settings:", this.formData);
       let plugin_name = this.$options.name;
       if (plugin_name.endsWith("Settings")) {
         plugin_name = plugin_name.substring(
