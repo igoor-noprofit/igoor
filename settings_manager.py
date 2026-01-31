@@ -1,6 +1,7 @@
 from version import __appname__, __version__, __codename__
 import json
 import os
+import asyncio
 from utils import resource_path, setup_logger
 
 class SettingsManager:
