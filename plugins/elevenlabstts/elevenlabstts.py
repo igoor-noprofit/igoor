@@ -36,7 +36,7 @@ class Elevenlabstts(Baseplugin):
                 response = client.voices.get_all()
                 voices = response.voices
                 print (voices)
-                
+
                 print(f"DEBUG: Total voices retrieved: {len(voices) if voices else 0}")
                 voice_list = []
                 for voice in voices:
@@ -48,6 +48,11 @@ class Elevenlabstts(Baseplugin):
                         "verified_languages": getattr(voice, 'verified_languages', [])
                     }
                     voice_list.append(voice_data)
+
+                # Update the main client with the new API key for subsequent operations
+                self.api_key = api_key
+                self.client = client
+
                 return {"voices": voice_list, "count": len(voice_list)}
             except Exception as e:
                 raise HTTPException(status_code=400, detail=f"Failed to get voices: {str(e)}")

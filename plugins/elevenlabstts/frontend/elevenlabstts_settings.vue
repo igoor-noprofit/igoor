@@ -8,7 +8,7 @@
                     placeholder="ex. 93acd-...-...-...-fe1" />
             </div>
             <div class="form-note" :style="{ color: apiKeyError ? '#ff6666' : undefined }">
-                {{ apiKeyError ? t('API Key is required') : '' }}
+                {{ apiKeyError ? (apiKeyErrorMessage || t('API Key is required')) : '' }}
             </div>
 
             <!-- Voice Selection -->
@@ -218,6 +218,7 @@ export default {
             },
             originalSettings: null,
             apiKeyError: false,
+            apiKeyErrorMessage: '',
             voiceIdError: false,
             isSaving: false,
             saveStatus: null,
@@ -275,6 +276,10 @@ export default {
                 const trimmedNew = (newVal || '').trim();
                 const trimmedOld = (oldVal || '').trim();
                 if (trimmedNew === trimmedOld) return;
+
+                // Clear errors when API key changes
+                this.apiKeyError = false;
+                this.apiKeyErrorMessage = '';
 
                 if (!trimmedNew) {
                     this.voiceList = [];
@@ -354,9 +359,17 @@ export default {
                 this.latencyOptimizationValue = this.formData.latency_optimization;
                 this.outputFormatValue = this.formData.output_format;
                 this.enableLoggingValue = this.formData.enable_logging;
+                // Clear errors
+                this.apiKeyError = false;
+                this.apiKeyErrorMessage = '';
+                this.voiceIdError = false;
             }
         },
         async loadVoiceListFromRest() {
+            // Clear any previous error
+            this.apiKeyError = false;
+            this.apiKeyErrorMessage = '';
+
             if (!this.formData.api_key || !this.formData.api_key.trim()) {
                 console.log('Cannot load voices: API key missing');
                 return;
@@ -368,10 +381,10 @@ export default {
                     api_key: this.formData.api_key.trim()
                 };
                 console.log('Fetching voices using callPluginRestEndpoint with params:', params);
-                
+
                 const data = await this.callPluginRestEndpoint('elevenlabstts', 'get_voices', params);
                 console.log('Voice list response:', data);
-                
+
                 // Handle response structure
                 if (data.voices && Array.isArray(data.voices)) {
                     this.voiceList = data.voices;
@@ -386,6 +399,39 @@ export default {
             } catch (err) {
                 console.error('Error loading voices via REST:', err);
                 this.voiceList = [];
+                this.apiKeyError = true;
+
+                // Extract error message from response
+                if (err.response && err.response.data) {
+                    const errorData = err.response.data;
+                    if (errorData.detail) {
+                        if (typeof errorData.detail === 'string') {
+                            // Try to parse JSON string from detail
+                            try {
+                                const parsed = JSON.parse(errorData.detail);
+                                if (parsed.detail && parsed.detail.message) {
+                                    this.apiKeyErrorMessage = parsed.detail.message;
+                                } else if (parsed.message) {
+                                    this.apiKeyErrorMessage = parsed.message;
+                                } else {
+                                    this.apiKeyErrorMessage = 'Invalid API key';
+                                }
+                            } catch (parseErr) {
+                                // If parsing fails, use the detail string directly
+                                this.apiKeyErrorMessage = errorData.detail;
+                            }
+                        } else if (errorData.detail.message) {
+                            this.apiKeyErrorMessage = errorData.detail.message;
+                        }
+                    } else if (errorData.message) {
+                        this.apiKeyErrorMessage = errorData.message;
+                    }
+                }
+
+                // Fallback message if we couldn't extract a specific one
+                if (!this.apiKeyErrorMessage) {
+                    this.apiKeyErrorMessage = 'Failed to validate API key. Please check your key and try again.';
+                }
             }
         },
 
@@ -413,6 +459,7 @@ export default {
         },
         async checkBeforeUpdating() {
             this.apiKeyError = !this.formData.api_key || !this.formData.api_key.trim();
+            this.apiKeyErrorMessage = '';
             this.voiceIdError = !this.formData.voice_id || !this.formData.voice_id.trim();
             if (this.apiKeyError || this.voiceIdError) return;
 
@@ -430,12 +477,12 @@ export default {
                 this.saveStatus = { type: 'success', message: this.t('Settings saved') };
                 // refresh original snapshot so hasChanges becomes false
                 this.originalSettings = JSON.parse(JSON.stringify(this.formData));
-                
+
                 // Load voice list when API key is available and voice list is empty
                 if (this.formData.api_key && this.formData.api_key.trim() && this.voiceList.length === 0) {
                     await this.loadVoiceListFromRest();
                 }
-                
+
             } catch (err) {
                 console.error('Error saving settings', err);
                 this.saveStatus = { type: 'error', message: this.t('Failed to save settings') };
