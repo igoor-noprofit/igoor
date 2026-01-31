@@ -270,7 +270,7 @@ export default {
         },
 
         'formData.api_key': {
-            handler(newVal, oldVal) {
+            async handler(newVal, oldVal) {
                 if (!this.apiKeyInitialized) return;
                 const trimmedNew = (newVal || '').trim();
                 const trimmedOld = (oldVal || '').trim();
@@ -282,10 +282,7 @@ export default {
                     return;
                 }
 
-                this.sendMsgToBackend({
-                    action: 'get_voice_list',
-                    api_key: trimmedNew
-                }, 'elevenlabstts');
+                await this.loadVoiceListFromRest();
             }
         }
     },
