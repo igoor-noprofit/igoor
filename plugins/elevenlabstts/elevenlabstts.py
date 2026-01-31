@@ -337,7 +337,31 @@ class Elevenlabstts(Baseplugin):
             # Ensure settings are initialized
             if not hasattr(self, 'settings'):
                 self.settings = self.get_my_settings()
-            
+
+            # Refresh settings to get latest values
+            self.settings = self.get_my_settings()
+            current_api_key = self.settings.get("api_key")
+            current_voice_id = self.settings.get("voice_id")
+
+            # Validate required settings
+            if not current_api_key:
+                print("API key not found in settings")
+                await self.call_fallback(message=message)
+                return False
+            if not current_voice_id:
+                print("Voice ID not found in settings")
+                await self.call_fallback(message=message)
+                return False
+
+            # Recreate client with current API key if changed or not exists
+            if not hasattr(self, 'client') or not hasattr(self, 'api_key') or self.api_key != current_api_key:
+                print(f"Refreshing ElevenLabs client with new API key")
+                self.api_key = current_api_key
+                self.client = self.createClient(self.api_key)
+
+            # Update voice_id from settings
+            self.voice_id = current_voice_id
+
             try:
                 # Build request parameters
                 request_params = {
@@ -346,7 +370,7 @@ class Elevenlabstts(Baseplugin):
                     "model_id": self.settings.get("model_id", "eleven_multilingual_v2"),
                     "output_format": self.settings.get("output_format", "mp3_44100_128"),
                 }
-                
+
                 # Build voice settings
                 voice_settings = {
                     "stability": self.settings.get("stability", 0.5),
@@ -355,26 +379,26 @@ class Elevenlabstts(Baseplugin):
                     "use_speaker_boost": self.settings.get("use_speaker_boost", True),
                     "speed": self.settings.get("speed", 1.0)
                 }
-                
+
                 # Add voice_settings to request
                 request_params["voice_settings"] = voice_settings
-                
+
                 # Add optional parameters if configured
                 if "latency_optimization" in self.settings:
                     request_params["optimize_streaming_latency"] = self.settings["latency_optimization"]
-                    
+
                 if "enable_logging" in self.settings:
                     request_params["enable_logging"] = self.settings["enable_logging"]
-                
+
                 # Generate audio
                 audio = self.client.text_to_speech.convert(**request_params)
                 await self.pm.trigger_hook(hook_name="pause_asr")
                 play(audio)
             except Exception as inner_e:
                 print(f"Error generating audio data: {inner_e}")
-                await self.call_fallback(message=message) 
-                return False    
-            
+                await self.call_fallback(message=message)
+                return False
+
             # Play it back
             await self.pm.trigger_hook(hook_name="pause_asr")
             self.run_restart_asr()
@@ -382,7 +406,7 @@ class Elevenlabstts(Baseplugin):
 
         except Exception as e:
             print(f"Error occurred while speaking: {e}")
-            await self.call_fallback(message=message) 
+            await self.call_fallback(message=message)
             return False
         
     async def call_fallback(self,message):
