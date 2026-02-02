@@ -103,6 +103,9 @@ import SaveSettingsButton from '/js/SaveSettingsButton.vue';
 
 export default {
     name: "meteoSettings",
+    props: {
+        initialSettings: Object
+    },
     mixins: [BasePluginComponent],
     components: {
         SaveSettingsButton
@@ -133,19 +136,8 @@ export default {
     },
     computed: {
         hasUnsavedChanges() {
-            if (!this.originalSettings) {
-                console.log('hasUnsavedChanges: originalSettings is null, returning false');
-                return false;
-            }
-            const formDataStr = JSON.stringify(this.formData);
-            const originalStr = JSON.stringify(this.originalSettings);
-            console.log('hasUnsavedChanges comparison:');
-            console.log('  formData:', formDataStr);
-            console.log('  originalSettings:', originalStr);
-            console.log('  match:', formDataStr === originalStr);
-            const result = formDataStr !== originalStr;
-            console.log('  result:', result);
-            return result;
+            if (!this.originalSettings || !this.formData) return false;
+            return JSON.stringify(this.formData) !== JSON.stringify(this.originalSettings);
         },
         shouldShowManualCoords() {
             // Show manual input when:
@@ -158,6 +150,22 @@ export default {
         }
     },
     watch: {
+        initialSettings: {
+            handler(newVal) {
+                console.log('initialSettings watcher triggered, newVal:', newVal);
+                if (newVal) {
+                    // First set originalSettings (to track what we started with)
+                    // Then update formData with actual values (not defaults)
+                    this.$nextTick(() => {
+                        this.setOriginalSettings(newVal);
+                        this.formData = { ...newVal };
+                        console.log('formData after initialization:', this.formData);
+                    });
+                }
+            },
+            immediate: true,
+            deep: true
+        },
         'formData.api_key'(newValue) {
             // Debounce API key validation
             if (this.validationDebounce) {
@@ -190,26 +198,43 @@ export default {
                 this.geocodedPlaceName = null;
             }
         },
-        initialSettings: {
+        originalSettings: {
             handler(newVal) {
-                console.log('initialSettings watcher triggered, newVal:', newVal);
+                console.log('originalSettings watcher triggered, newVal:', newVal);
+                console.log('  settingsLoaded:', this.settingsLoaded);
+                console.log('  Current formData:', this.formData);
                 if (newVal) {
-                    this.$nextTick(() => {
-                        this.setOriginalSettings(newVal);
-                        // Merge with defaults to ensure all fields exist
+                    // Mark that settings have been loaded from backend
+                    this.settingsLoaded = true;
+
+                    // Check if formData is a simple object (not a proxy yet)
+                    // If formData is still empty defaults, merge with backend settings
+                    const needsMerge = !this.formData.api_key && !this.formData.lat_home &&
+                                      !this.formData.lng_home && !this.formData.home_address;
+
+                    console.log('  needsMerge:', needsMerge);
+
+                    if (needsMerge) {
+                        // Merge backend settings with defaults
                         this.formData = {
-                            api_key: '',
-                            lat_home: '',
-                            lng_home: '',
-                            always_home: false,
-                            home_address: '',
-                            ...newVal
+                            api_key: newVal.api_key || '',
+                            lat_home: newVal.lat_home || '',
+                            lng_home: newVal.lng_home || '',
+                            always_home: newVal.always_home !== undefined ? newVal.always_home : false,
+                            home_address: newVal.home_address || ''
                         };
-                        console.log('formData after initialization:', this.formData);
-                    });
+                        console.log('formData after merge:', this.formData);
+                    } else {
+                        // Settings already loaded via BasePluginComponent,
+                        // just ensure we have the values
+                        if (newVal.api_key) this.formData.api_key = newVal.api_key;
+                        if (newVal.lat_home) this.formData.lat_home = newVal.lat_home;
+                        if (newVal.lng_home) this.formData.lng_home = newVal.lng_home;
+                        if (newVal.home_address) this.formData.home_address = newVal.home_address;
+                        console.log('formData after direct update:', this.formData);
+                    }
                 }
             },
-            immediate: true,
             deep: true
         },
         hasUnsavedChanges(newVal) {
@@ -300,6 +325,7 @@ export default {
             console.log('  apiKeyError:', this.apiKeyError);
             console.log('  addressError:', this.addressError);
 
+            // Only mandatory field: API key
             if (!this.formData.api_key || !this.formData.api_key.trim()) {
                 console.log('  BLOCK: API key is empty');
                 this.apiKeyError = true;
@@ -311,21 +337,7 @@ export default {
                 return; // Don't save if API key has validation error
             }
 
-            // Check if we have coordinates (either from geocoding or manually set)
-            if (!this.formData.lat_home || !this.formData.lng_home) {
-                console.log('  BLOCK: Lat/Lng is empty');
-                console.log('    lat_home:', this.formData.lat_home);
-                console.log('    lng_home:', this.formData.lng_home);
-                this.addressError = true;
-                this.addressErrorMessage = this.t('Please enter a valid address to get coordinates');
-                return;
-            }
-            if (this.addressError) {
-                console.log('  BLOCK: Address has error');
-                return; // Don't save if address geocoding failed
-            }
-
-            console.log('  PASS: All checks passed, saving...');
+            console.log('  PASS: API key is valid, saving...');
             this.isSaving = true;
             this.saveSettings().finally(() => {
                 this.isSaving = false;
@@ -333,7 +345,9 @@ export default {
         }
     },
     created() {
-
+        console.log('meteoSettings created hook called');
+        // Don't initialize formData here - wait for settings from backend
+        // formData will be set in originalSettings watcher with defaults merged
     },
     beforeDestroy() {
         if (this.validationDebounce) {
