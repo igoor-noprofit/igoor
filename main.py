@@ -343,6 +343,7 @@ def start_webview():
         
         # Start webview
         logger.info("Starting webview...")
+        webview.settings['OPEN_DEVTOOLS_IN_DEBUG'] = False
         webview.start(debug=debug_enabled,private_mode=False)
         logger.info("✓ Webview started successfully")
         
