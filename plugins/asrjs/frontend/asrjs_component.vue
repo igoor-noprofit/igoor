@@ -775,7 +775,7 @@ export default {
                 pressed.push(event.key.length === 1 ? event.key.toUpperCase() : event.key);
             }
             const pressedCombo = pressed.join("+");
-            console.warn("Pressed combination:", pressedCombo + ", looking for:", this.keyboardShortcut);
+            // console.log("Pressed combination:", pressedCombo + ", looking for:", this.keyboardShortcut);
             if (this.keyboardShortcut && pressedCombo === this.keyboardShortcut) {
                 event.preventDefault();
                 this.$_handleMicClick();
