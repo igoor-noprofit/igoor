@@ -7,6 +7,7 @@ import threading
 import time,asyncio
 import requests
 from dotenv import load_dotenv
+from fastapi import APIRouter, HTTPException
 load_dotenv()
 from context_manager import context_manager
 import math
@@ -16,11 +17,93 @@ import math
 class Meteo(Baseplugin):
     def __init__(self, plugin_name, pm):
         self.pm = pm
+        self.router = None
         super().__init__(plugin_name,pm)
+
+    def _ensure_router(self):
+        """Initialize FastAPI router for plugin endpoints"""
+        if self.router is not None:
+            return
+        self.router = APIRouter(prefix="/api/plugins/meteo", tags=["meteo"])
+
+        @self.router.get("/validate_api_key")
+        async def validate_api_key(api_key: str):
+            """Validate OpenWeatherMap API key"""
+            if not api_key or not api_key.strip():
+                raise HTTPException(status_code=400, detail="API key is required")
+
+            try:
+                # Try to fetch weather data for Paris as a validation test
+                config_dict = get_default_config()
+                owm = OWM(api_key.strip(), config_dict)
+                mgr = owm.weather_manager()
+
+                # Test the API key by fetching weather for Paris coordinates
+                observation = mgr.weather_at_coords(48.8566, 2.3522)  # Paris coordinates
+
+                return {"valid": True}
+            except Exception as e:
+                error_msg = str(e).lower()
+                if 'unauthorized' in error_msg or 'invalid api key' in error_msg:
+                    raise HTTPException(status_code=400, detail="Invalid API Key")
+                elif 'timeout' in error_msg or 'connection' in error_msg:
+                    raise HTTPException(status_code=400, detail="Connection error: could not validate API key")
+                else:
+                    raise HTTPException(status_code=400, detail=f"API Key validation failed: {str(e)}")
+
+        @self.router.get("/geocode_address")
+        async def geocode_address(address: str):
+            """Geocode an address using Nominatim (OpenStreetMap)"""
+            if not address or not address.strip():
+                raise HTTPException(status_code=400, detail="Address is required for geocoding")
+
+            try:
+                # Use Nominatim (OpenStreetMap) for geocoding - no API key required
+                url = "https://nominatim.openstreetmap.org/search"
+                params = {
+                    "q": address.strip(),
+                    "format": "json",
+                    "limit": 1,
+                    "addressdetails": 1
+                }
+                headers = {
+                    "User-Agent": "IGOOR/1.0",
+                    "Referer": "https://igoor.local"
+                }
+
+                response = requests.get(url, params=params, headers=headers, timeout=8)
+                response.raise_for_status()
+                data = response.json()
+
+                if data and len(data) > 0:
+                    # Take the first (best) match
+                    result = data[0]
+                    return {
+                        "lat": float(result["lat"]),
+                        "lon": float(result["lon"]),
+                        "name": result.get("display_name", ""),
+                        "country": result.get("address", {}).get("country", "")
+                    }
+                else:
+                    raise HTTPException(status_code=404, detail="Address not found")
+
+            except requests.exceptions.Timeout:
+                raise HTTPException(status_code=400, detail="Could not connect to geocoding service (timeout)")
+            except requests.exceptions.ConnectionError:
+                raise HTTPException(status_code=400, detail="Could not connect to geocoding service")
+            except requests.exceptions.HTTPError as e:
+                raise HTTPException(status_code=400, detail=f"Geocoding failed: HTTP error {str(e)}")
+            except Exception as e:
+                raise HTTPException(status_code=400, detail=f"Geocoding failed: {str(e)}")
 
     @hookimpl
     def startup(self):
         print("METEO IS STARTING UP")
+        self._ensure_router()
+        # Register router with the main FastAPI app if available
+        if hasattr(self, 'pm') and hasattr(self.pm, 'fastapi_app'):
+            self.pm.fastapi_app.include_router(self.router)
+
         self.settings = self.get_my_settings()
         print("METEO settings", self.settings)
         self.geoloc = self.get_geoloc()
