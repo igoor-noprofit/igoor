@@ -13,8 +13,6 @@ import math
 # openstreetmap for automatic address to
 # from geopy.geocoders import Nominatim
 
-
-
 class Meteo(Baseplugin):
     def __init__(self, plugin_name, pm):
         self.pm = pm
