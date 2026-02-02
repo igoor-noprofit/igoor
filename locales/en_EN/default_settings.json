@@ -48,6 +48,7 @@
     "speechifytts": true,
     "rag": true,
     "memory": true,
-    "extkeyb": false
+    "extkeyb": false,
+    "weather": false
   }
 }
