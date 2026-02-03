@@ -9,6 +9,7 @@ IGOOR is an open-source and free conversational application, controllable also b
 - Frontend: `frontend/plugin_name_component.vue` extending `Baseplugincomponent.js`
 - Configuration: `plugin.json` with activation status, category, and database schema
 - Settings: `settings.json` for user preferences
+- "has_settings": true in plugin.json to allow displaying of plugin settings interface
 
 **Communication Patterns**:
 - Backend-to-backend: Via Pluggy hooks `await self.pm.trigger_hook(hook_name, data)`
