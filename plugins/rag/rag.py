@@ -12,6 +12,8 @@ import time,sys, asyncio, threading
 import numpy as np
 from typing import Union, List, Dict, Optional
 from datetime import datetime, timedelta, date
+from fastapi import APIRouter, UploadFile, HTTPException, status
+from typing import List
 
 # Vector store types
 INGESTED = 0
@@ -20,6 +22,7 @@ SHORT_TERM = 2
 class Rag(Baseplugin):
     def __init__(self, plugin_name, pm):
         self.pm = pm
+        self.router = None
         super().__init__(plugin_name,pm)
         try:
             import sentence_transformers
@@ -31,37 +34,42 @@ class Rag(Baseplugin):
         
     @hookimpl
     def startup(self):
+        self._ensure_router()
         print("RAG IS STARTING UP")
         self.is_loaded = False
         self.settings = self.get_my_settings()
         self.medias_folder_name = "medias"
-        
+
+        # Register router with main FastAPI app if available
+        if hasattr(self, 'pm') and hasattr(self.pm, 'fastapi_app'):
+            self.pm.fastapi_app.include_router(self.router)
+
         # Define folder names for the three vector stores
         self.index_folder_names = {
             INGESTED: "ingested",
             LONG_TERM: "long",
             SHORT_TERM: "short"
         }
-        
+
         # Initialize vector stores
         self.vector_stores = {
             INGESTED: None,
             LONG_TERM: None,
             SHORT_TERM: None
         }
-        
+
         self.index_loaded = {
             INGESTED: False,
             LONG_TERM: False,
             SHORT_TERM: False
         }
-        
+
         self.embedding_loaded = False
         self.loading_event = asyncio.Event()
-        
+
         self.score_threshold = self.settings.get("score_threshold", 0.5)
-        
-        
+
+
         # Start a thread to load both embedding model and indexes
         thread = threading.Thread(target=lambda: asyncio.run(self.initialize_resources()))
         thread.start()
@@ -146,9 +154,86 @@ class Rag(Baseplugin):
         # await self.print_all_chunks()
         # await self.check_all_chunks()
         # await self.test_query_rag()
-        
-        
-    
+
+    def _ensure_router(self):
+        """Initialize FastAPI router for plugin endpoints"""
+        if self.router is not None:
+            return
+        self.router = APIRouter(prefix="/api/plugins/rag", tags=["rag"])
+
+        @self.router.get("/documents")
+        async def get_documents():
+            results = await self.db_execute("SELECT id, title, filename, created_at FROM documents ORDER BY created_at DESC")
+            return results or []
+
+        @self.router.post("/documents")
+        async def upload_documents(files: List[UploadFile]):
+            new_files = []
+            errors = []
+
+            for file in files:
+                filename = file.filename
+                ext = os.path.splitext(filename)[1].lower()
+
+                if ext not in ['.txt', '.md', '.pdf']:
+                    errors.append(f"{filename}: Unsupported format. Use .txt, .md, or .pdf")
+                    continue
+
+                existing = await self.db_execute(
+                    "SELECT id FROM documents WHERE filename = ?", (filename,)
+                )
+                if existing:
+                    errors.append(f"{filename}: Already exists. Please rename and retry.")
+                    continue
+
+                file_path = os.path.join(self.plugin_folder, self.medias_folder_name, filename)
+                try:
+                    with open(file_path, "wb") as f:
+                        f.write(await file.read())
+                    new_files.append(filename)
+                except Exception as e:
+                    self.logger.error(f"Error saving file {filename}: {e}")
+                    errors.append(f"{filename}: Failed to save file.")
+
+            if new_files:
+                await self.ingest_new_files(new_files)
+
+            if errors:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail={"errors": errors, "created": len(new_files)}
+                )
+
+            return {"created": len(new_files), "filenames": new_files}
+
+        @self.router.delete("/documents/{document_id}")
+        async def delete_document(document_id: int):
+            doc = await self.db_execute(
+                "SELECT filename FROM documents WHERE id = ?", (document_id,)
+            )
+            if not doc:
+                raise HTTPException(status_code=404, detail="Document not found")
+
+            filename = doc[0]['filename']
+
+            chunks = await self.db_execute(
+                "SELECT docstore_id FROM chunks WHERE document_id = ?", (document_id,)
+            )
+
+            if chunks:
+                docstore_ids = [chunk['docstore_id'] for chunk in chunks]
+                await self.delete_chunks(INGESTED, docstore_ids)
+
+            file_path = os.path.join(self.plugin_folder, self.medias_folder_name, filename)
+            if os.path.exists(file_path):
+                os.remove(file_path)
+
+            await self.db_execute("DELETE FROM documents WHERE id = ?", (document_id,))
+
+            await self.save_index(INGESTED)
+
+            return None
+
     def create_folders(self):
         """Create all necessary folders for the plugin"""
         self.medias_folder = self.create_subfolder(self.medias_folder_name)
