@@ -3,9 +3,11 @@
         <div class="bio left">
             <!-- API Key -->
             <div class="form-label">{{ t('API Key used to authenticate with the ElevenLabs provider') }}</div>
-            <div class="form-input">
-                <input type="password" v-model="formData.api_key" :class="{ 'input-error': apiKeyError }"
-                    placeholder="ex. 93acd-...-...-...-fe1" />
+            <div class="form-input" style="display: flex; align-items: center; gap: 8px;">
+                <input type="password" v-model="formData.api_key"
+                       :class="{ 'input-error': apiKeyError, 'input-success': apiKeyValid }"
+                       placeholder="ex. 93acd-...-...-...-fe1" />
+                <span v-if="apiKeyValid" class="valid-icon">✓</span>
             </div>
             <div class="form-note" :style="{ color: apiKeyError ? '#ff6666' : undefined }">
                 {{ apiKeyError ? (apiKeyErrorMessage || t('API Key is required')) : '' }}
@@ -220,6 +222,7 @@ export default {
             apiKeyError: false,
             apiKeyErrorMessage: '',
             voiceIdError: false,
+            apiKeyValid: false,
             isSaving: false,
             saveStatus: null,
             voiceList: [],
@@ -280,6 +283,7 @@ export default {
                 // Clear errors when API key changes
                 this.apiKeyError = false;
                 this.apiKeyErrorMessage = '';
+                this.apiKeyValid = false;
 
                 if (!trimmedNew) {
                     this.voiceList = [];
@@ -362,6 +366,7 @@ export default {
                 // Clear errors
                 this.apiKeyError = false;
                 this.apiKeyErrorMessage = '';
+                this.apiKeyValid = false;
                 this.voiceIdError = false;
             }
         },
@@ -388,9 +393,11 @@ export default {
                 // Handle response structure
                 if (data.voices && Array.isArray(data.voices)) {
                     this.voiceList = data.voices;
+                    this.apiKeyValid = true;
                     console.log(`Loaded ${this.voiceList.length} voices via REST API`);
                 } else if (Array.isArray(data)) {
                     this.voiceList = data;
+                    this.apiKeyValid = true;
                     console.log(`Loaded ${this.voiceList.length} voices via REST API`);
                 } else {
                     console.error('Unexpected voice list format:', data);
@@ -400,6 +407,7 @@ export default {
                 console.error('Error loading voices via REST:', err);
                 this.voiceList = [];
                 this.apiKeyError = true;
+                this.apiKeyValid = false;
 
                 // Extract error message from response
                 if (err.response && err.response.data) {
@@ -591,6 +599,17 @@ button:hover {
 .input-error {
     border-color: #ff6666;
     background: #2a1818;
+}
+
+.input-success {
+    border-color: #3ca23c !important;
+}
+
+.valid-icon {
+    color: #3ca23c;
+    font-size: 1.2em;
+    font-weight: bold;
+    margin-left: 8px;
 }
 
 /* SSML card */
