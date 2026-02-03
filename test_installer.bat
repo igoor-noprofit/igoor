@@ -5,17 +5,24 @@ echo Testing version extraction and InnoSetup compilation
 echo ========================================
 echo.
 
-echo Step 1: Extracting version from version.py...
+echo Step 1: Extracting version and app name from version.py...
 echo ----------------------------------------
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0get_version.ps1" > __version__.txt
-set /p __version=<__version__.txt
-del __version__.txt
+for /f "tokens=2 delims==" %%a in ('type "%~dp0version.py" ^| findstr "__version__"') do set "__version=%%a"
+set "__version=%__version:"=%"
+set "__version=%__version:'=%"
+set "__version=%__version: =%"
 
-if "!__version!"=="" (
+for /f "tokens=2 delims==" %%a in ('type "%~dp0version.py" ^| findstr "__appname__"') do set "__appname=%%a"
+set "__appname=%__appname:"=%"
+set "__appname=%__appname:'=%"
+set "__appname=%__appname: =%"
+
+if "%__version%"=="" (
     echo ERROR: Could not extract version from version.py
     exit /b 1
 )
-echo Version extracted: !__version!
+echo Version extracted: %__version%
+echo App name extracted: %__appname%
 echo.
 
 echo Step 2: Creating installer with InnoSetup...
@@ -33,7 +40,18 @@ if not exist "!ISS_FILE!" (
     exit /b 1
 )
 
-"!ISCC_PATH!" /DMyAppVersion="!__version!" "!ISS_FILE!"
+echo.
+echo Running ISCC with:
+echo   ISCC_PATH: !ISCC_PATH!
+echo   ISS_FILE:  !ISS_FILE!
+echo   MyAppVersion: "!__version!"
+echo   MyAppName: "!__appname!"
+echo.
+echo Full command:
+"!ISCC_PATH!" /DMyAppVersion="!__version!" /DMyAppName="!__appname!" "!ISS_FILE!"
+echo.
+
+"!ISCC_PATH!" /DMyAppVersion="!__version!" /DMyAppName="!__appname!" "!ISS_FILE!"
 if !ERRORLEVEL! NEQ 0 (
     echo.
     echo ERROR: InnoSetup compilation failed!
