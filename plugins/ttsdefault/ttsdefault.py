@@ -1,10 +1,15 @@
 from plugin_manager import hookimpl
 from plugins.baseplugin.baseplugin import Baseplugin
 from settings_manager import SettingsManager
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 import asyncio
 import win32com.client
+
+
+class SetVoicePayload(BaseModel):
+    voice_id: int
+    fallback_only: bool
 
 class Ttsdefault(Baseplugin):
     def __init__(self, plugin_name, pm):
@@ -46,18 +51,18 @@ class Ttsdefault(Baseplugin):
         self.router = APIRouter(prefix="/api/plugins/ttsdefault", tags=["ttsdefault"])
 
         @self.router.post("/set_voice")
-        async def set_voice(voice_id: int, fallback_only: bool):
+        async def set_voice(payload: SetVoicePayload):
             """Set voice ID and fallback_only mode immediately"""
             try:
-                self.logger.info(f"Setting voice: voice_id={voice_id}, fallback_only={fallback_only}")
+                self.logger.info(f"Setting voice: voice_id={payload.voice_id}, fallback_only={payload.fallback_only}")
 
                 # Update instance variables immediately
-                self.voice_id = voice_id
-                self.fallback_only = fallback_only
+                self.voice_id = payload.voice_id
+                self.fallback_only = payload.fallback_only
 
                 # Update settings file
-                self.update_my_settings("voice_id", voice_id)
-                self.update_my_settings("fallback_only", fallback_only)
+                self.update_my_settings("voice_id", payload.voice_id)
+                self.update_my_settings("fallback_only", payload.fallback_only)
 
                 # Update SAPI speaker voice if loaded
                 if self.is_loaded:
