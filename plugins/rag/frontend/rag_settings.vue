@@ -405,7 +405,7 @@ export default {
 }
 
 .rag-right h3 {
-    margin: 0 0 12px 0;
+    margin: 16px 0 12px 0;
     font-size: 1.1rem;
     font-weight: 600;
     color: #ecf0f1;
