@@ -148,6 +148,7 @@ Analyse la conversation pour :
 2. Définir le **type de mémoire** nécessaire :
    - "short" : Événements récents ou ponctuels
    - "long" : Préférences, faits constants, habitudes, souvenirs de vie.
+**IMPORTANT**:Dans le doute, choisis TOUJOURS les deux types de mémoire.
 3. Extraire la **période temporelle** (Timeframe) pour la requête SQL.
 
 <timeframe_rules>
