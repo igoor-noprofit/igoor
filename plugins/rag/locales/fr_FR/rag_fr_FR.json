@@ -1,0 +1,19 @@
+{
+    "Documents": "Documents",
+    "Refresh": "Actualiser",
+    "Loading documents...": "Chargement des documents...",
+    "No documents uploaded yet": "Aucun document téléchargé pour le moment",
+    "Upload Documents": "Télécharger des documents",
+    "Drag and drop files here": "Glissez et déposez des fichiers ici",
+    "Supported: .txt, .md, .pdf": "Formats supportés : .txt, .md, .pdf",
+    "Browse Files": "Parcourir les fichiers",
+    "Uploading and ingesting documents...": "Téléchargement et ingestion des documents...",
+    "Delete": "Supprimer",
+    "Are you sure you want to delete this document?": "Voulez-vous vraiment supprimer ce document ?",
+    "Document deleted successfully": "Document supprimé avec succès",
+    "Failed to delete document": "Échec de la suppression du document",
+    "Failed to load documents": "Échec du chargement des documents",
+    "Failed to upload documents": "Échec du téléchargement des documents",
+    "{count} document(s) uploaded successfully": "{count} document(s) téléchargé(s) avec succès",
+    "Upload errors: {errors}": "Erreurs de téléchargement : {errors}"
+}

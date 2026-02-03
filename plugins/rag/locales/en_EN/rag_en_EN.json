@@ -1,0 +1,19 @@
+{
+    "Documents": "Documents",
+    "Refresh": "Refresh",
+    "Loading documents...": "Loading documents...",
+    "No documents uploaded yet": "No documents uploaded yet",
+    "Upload Documents": "Upload Documents",
+    "Drag and drop files here": "Drag and drop files here",
+    "Supported: .txt, .md, .pdf": "Supported: .txt, .md, .pdf",
+    "Browse Files": "Browse Files",
+    "Uploading and ingesting documents...": "Uploading and ingesting documents...",
+    "Delete": "Delete",
+    "Are you sure you want to delete this document?": "Are you sure you want to delete this document?",
+    "Document deleted successfully": "Document deleted successfully",
+    "Failed to delete document": "Failed to delete document",
+    "Failed to load documents": "Failed to load documents",
+    "Failed to upload documents": "Failed to upload documents",
+    "{count} document(s) uploaded successfully": "{count} document(s) uploaded successfully",
+    "Upload errors: {errors}": "Upload errors: {errors}"
+}
