@@ -9,6 +9,8 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+.github_token.txt
+
 # C extensions
 *.so
 
