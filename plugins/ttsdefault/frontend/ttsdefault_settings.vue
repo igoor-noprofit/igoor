@@ -88,10 +88,20 @@ export default {
             try {
                 this.isSaving = true;
                 this.saveStatus = null;
-                
+
+                 // Call set_voice endpoint to immediately update voice settings
+                await this.callPluginRestEndpoint('ttsdefault', 'set_voice', {
+                    method: 'POST',
+                    data: {
+                        voice_id: this.formData.voice_id,
+                        fallback_only: this.formData.fallback_only
+                    }
+                });
                 // Call BasePluginComponent's updateSettings method
                 await this.updateSettings();
-                
+
+               
+
                 this.saveStatus = { type: 'success', message: this.t('Settings saved') };
                 this.originalSettings = JSON.parse(JSON.stringify(this.formData));
             } catch (err) {
