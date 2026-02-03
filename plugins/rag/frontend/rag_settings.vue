@@ -41,14 +41,8 @@
 
                 <div v-else class="documents-list">
                     <div v-for="doc in documents" :key="doc.id" class="document-item">
-                        <div class="document-info">
-                            <div class="document-title">{{ doc.title }}</div>
-                            <div class="document-meta">
-                                <span class="document-filename">{{ doc.filename }}</span>
-                                <span class="document-separator">•</span>
-                                <span class="document-date">{{ formatDate(doc.created_at) }}</span>
-                            </div>
-                        </div>
+                        <div class="document-title">{{ doc.title }}</div>
+                        <div class="document-date">{{ formatDate(doc.created_at) }}</div>
                         <button
                             class="btn-delete"
                             @click="deleteDocument(doc.id)"
@@ -234,6 +228,8 @@ export default {
     align-items: start;
     background: none;
     flex-wrap: wrap;
+    max-height: 80vh;
+    overflow: hidden;
 }
 
 /* Error and Success Messages */
@@ -272,7 +268,7 @@ export default {
     padding: 16px;
     display: flex;
     flex-direction: column;
-    max-height: calc(100vh - 100px);
+    max-height: 70vh;
 }
 
 .documents-header {
@@ -352,44 +348,26 @@ export default {
     background: rgba(42, 62, 80, 0.4);
     border-radius: 8px;
     transition: background 0.2s ease;
+    gap: 12px;
 }
 
 .document-item:hover {
     background: rgba(26, 188, 156, 0.15);
 }
 
-.document-info {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
 .document-title {
+    flex: 1;
     font-size: 1rem;
     font-weight: 600;
     color: #ecf0f1;
-}
-
-.document-meta {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 0.9rem;
-    color: #95a5a6;
-}
-
-.document-filename {
-    font-weight: 500;
-    color: #bdc3c7;
-}
-
-.document-separator {
-    color: #4a5c60;
+    text-align: left;
 }
 
 .document-date {
+    font-size: 0.9rem;
     color: #7f8c8d;
+    text-align: right;
+    white-space: nowrap;
 }
 
 .btn-delete {
@@ -404,7 +382,7 @@ export default {
     justify-content: center;
     cursor: pointer;
     transition: background 0.2s ease;
-    margin-left: 12px;
+    flex-shrink: 0;
 }
 
 .btn-delete:hover:not(:disabled) {
@@ -423,6 +401,7 @@ export default {
     display: flex;
     flex-direction: column;
     gap: 16px;
+    overflow: auto;
 }
 
 .rag-right h3 {
