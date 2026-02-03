@@ -83,7 +83,18 @@
                                 </select>
                             </div>
                             <div>
-                                <label>{{ t("API Key") }}</label><input type="password" v-model="ai.api_key">
+                                <label>{{ t("API Key") }}</label>
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <input
+                                        type="password"
+                                        v-model="ai.api_key"
+                                        :class="{'input-error': apiKeyError, 'input-success': apiKeyValid}"
+                                        :disabled="isValidating"
+                                    />
+                                    <span v-if="isValidating">{{ t('Validating...') }}</span>
+                                    <span v-if="apiKeyValid" class="valid-icon">✓</span>
+                                </div>
+                                <p v-if="apiKeyError" class="error-message">{{ apiKeyErrorMessage }}</p>
                                 <p>{{ t("Groq is our default provider:") }} <br><a class="extlink"
                                         href="https://console.groq.com/login" target="_blank">{{ t("To obtain a FREE api key sign up here") }}</a>
                                     <br><a class="extlink" href="https://groq.com/privacy-policy/" target="_blank">{{ t("Our default provider privacy policy") }}</a>
@@ -249,7 +260,13 @@ export default {
             currentPluginInitialSettings: {}, // Holds initial settings to pass as prop
             viewingPluginSettings: false,     // Controls visibility of plugin-specific settings view
             showUnsavedChangesModal: false,  // Controls visibility of unsaved changes confirmation modal
-            pendingNavigation: null            // Stores the pending navigation action to execute after confirmation
+            pendingNavigation: null,            // Stores the pending navigation action to execute after confirmation
+            // API key validation properties
+            apiKeyError: false,
+            apiKeyErrorMessage: '',
+            apiKeyValid: false,
+            validationDebounce: null,
+            isValidating: false
         }
     },
     async mounted() {
@@ -324,9 +341,63 @@ export default {
                     this.showRestartAlert = false;
                 }, 4000);
             }
+        },
+        'ai.api_key'(newValue) {
+            // Debounce API key validation
+            if (this.validationDebounce) {
+                clearTimeout(this.validationDebounce);
+            }
+            if (newValue && newValue.trim()) {
+                this.validationDebounce = setTimeout(() => {
+                    this.validateApiKey(newValue);
+                }, 500);
+            } else {
+                this.apiKeyError = false;
+                this.apiKeyErrorMessage = '';
+                this.apiKeyValid = false;
+            }
+        },
+        'ai.model_name'(newModel) {
+            // Re-validate API key when model changes
+            if (this.ai.api_key && this.ai.api_key.trim()) {
+                this.validateApiKey(this.ai.api_key);
+            }
         }
     },
     methods: {
+        async validateApiKey(apiKey) {
+            if (!apiKey || !apiKey.trim() || !this.ai.model_name) {
+                this.apiKeyError = false;
+                this.apiKeyErrorMessage = '';
+                return;
+            }
+
+            this.isValidating = true;
+
+            try {
+                const response = await fetch(
+                    `/api/plugins/onboarding/validate_api_key?provider=${encodeURIComponent(this.ai.provider || 'groq')}&api_key=${encodeURIComponent(apiKey)}&model_name=${encodeURIComponent(this.ai.model_name)}`
+                );
+                const data = await response.json();
+
+                if (response.ok) {
+                    this.apiKeyError = false;
+                    this.apiKeyErrorMessage = '';
+                    this.apiKeyValid = true;
+                } else {
+                    this.apiKeyError = true;
+                    this.apiKeyErrorMessage = this.t(data.detail) || this.t('Invalid API Key');
+                    this.apiKeyValid = false;
+                }
+            } catch (error) {
+                console.error('API key validation error:', error);
+                this.apiKeyError = true;
+                this.apiKeyErrorMessage = this.t('Could not validate API key');
+                this.apiKeyValid = false;
+            } finally {
+                this.isValidating = false;
+            }
+        },
         async toggleModal() {
             // Only check for unsaved changes when CLOSING the modal (showModal = true -> false)
             // Not when just switching between tabs within the modal
@@ -363,6 +434,15 @@ export default {
             await backendApi.onboardingToggled(false);
         },
         async saveSettings() { // This is for main settings (bio, prefs, ai)
+            // Check API key validation before saving
+            if (this.apiKeyError) {
+                this.saveStatus = {
+                    type: 'error',
+                    message: this.t('Please fix API key validation errors before saving.')
+                };
+                return;
+            }
+
             this.isSaving = true;
             this.saveStatus = null;
 
@@ -611,6 +691,11 @@ export default {
 
             this.pendingNavigation = null;
         }
+    },
+    beforeDestroy() {
+        if (this.validationDebounce) {
+            clearTimeout(this.validationDebounce);
+        }
     }
 }
 </script>
@@ -765,6 +850,27 @@ input:checked+.slider:before {
 button:disabled {
     opacity: 0.7;
     cursor: not-allowed;
+}
+
+.input-error {
+    border-color: #ff6666 !important;
+    background: #2a1818 !important;
+}
+
+.input-success {
+    border-color: #3ca23c !important;
+}
+
+.valid-icon {
+    color: #3ca23c;
+    font-size: 1.2em;
+    font-weight: bold;
+    margin-left: 8px;
+}
+
+.error-message {
+    color: #ff6666;
+    margin: 5px 0 0 0;
 }
 
 /* SETTINGS */
