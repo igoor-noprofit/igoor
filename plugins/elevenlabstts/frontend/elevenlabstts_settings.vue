@@ -430,7 +430,7 @@ export default {
 
                 // Fallback message if we couldn't extract a specific one
                 if (!this.apiKeyErrorMessage) {
-                    this.apiKeyErrorMessage = 'Failed to validate API key. Please check your key and try again.';
+                    this.apiKeyErrorMessage = this.t('Failed to validate API key. Please check your key and try again.');
                 }
             }
         },
