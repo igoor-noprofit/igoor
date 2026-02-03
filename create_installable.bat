@@ -283,6 +283,9 @@ if !ERRORLEVEL! EQU 0 (
     echo Installer uploaded successfully!
     echo.
     echo Release URL: https://github.com/igoor-noprofit/igoor/releases/tag/!RELEASE_TAG!
+    echo.
+    echo Download URL:
+    powershell -NoProfile -Command "$json = Get-Content __upload_response__.txt | ConvertFrom-Json; Write-Output $json.browser_download_url"
 ) else (
     echo WARNING: Upload verification failed
     echo Response from GitHub:
