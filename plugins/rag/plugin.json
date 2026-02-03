@@ -19,5 +19,6 @@
       "schema": "CREATE TABLE IF NOT EXISTS chunks (id INTEGER PRIMARY KEY, docstore_id TEXT, type INTEGER, content TEXT, reason TEXT, theme TEXT, tags TEXT, created_at TIMESTAMP, document_id INTEGER, conversation_id INTEGER, FOREIGN KEY(document_id) REFERENCES documents(id), FOREIGN KEY(conversation_id) REFERENCES conversation_threads(id))",
       "version": "1.2"
     }
-  }
+  },
+  "has_settings": true
 }
