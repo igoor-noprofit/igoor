@@ -249,6 +249,13 @@ This takes around 5/7 minutes.
 In a CMD window, launch /dist/igoor/igoor.exe 
 (so you can see the logs if there's any error)
 
+### CREATE THE INNOSETUP INSTALLER
+(adapt the script to your local path)
+
+```
+venv\scripts\Activate
+.\create_installable.bat
+```
 
 ## IGOOR LOGS
 Daily logs are in:
