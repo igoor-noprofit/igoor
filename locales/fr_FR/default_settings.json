@@ -45,7 +45,7 @@
     "onboarding": true,
     "shortcuts": true,
     "ttsdefault": true,
-    "speechifytts": true,
+    "speechifytts": false,
     "rag": true,
     "memory": true,
     "extkeyb": false,
