@@ -18,6 +18,13 @@
             <a @click="minimize()"><img src="img/logo_small.svg" class="logo_small" id="igoor_logo"></a>
         </div>
         <div class="topbar-right">
+            <a style="color: #fff" href="https://forms.gle/GSN17WHFEN8dbuTGA" target="_blank">
+                <span style="display: flex; align-items: center; gap: 8px;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 28 28" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                    </svg>
+                </span>
+            </a>
             <!-- AFTER_LOGO_COMPONENTS -->
         </div>
     </div>
