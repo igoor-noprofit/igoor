@@ -4,10 +4,6 @@
     "description": "Reminds users to complete the survey about IGOOR during the testing period at Hôpital Marin d'Hendaye",
     "is_free": true,
     "requires_subscription": false,
-    "requires_internet": true,
-    "requires_db": true,
-    "layout": {
-        "part": "topbar",
-        "order": 0
-    }
+    "requires_internet": false,
+    "requires_db": false
 }
