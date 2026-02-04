@@ -1,0 +1,13 @@
+{
+    "category": "monitoring",
+    "title": "Survey Reminder",
+    "description": "Reminds users to complete the survey about IGOOR during the testing period at Hôpital Marin d'Hendaye",
+    "is_free": true,
+    "requires_subscription": false,
+    "requires_internet": true,
+    "requires_db": false,
+    "layout": {
+        "part": "topbar",
+        "order": 0
+    }
+}
