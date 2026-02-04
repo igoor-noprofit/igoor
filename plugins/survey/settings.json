@@ -1,0 +1,6 @@
+{
+    "min_days": 15,
+    "min_conversations": 20,
+    "has_filled": false,
+    "last_reminded": null
+}
