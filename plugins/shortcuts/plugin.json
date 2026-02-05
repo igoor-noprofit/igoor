@@ -10,6 +10,7 @@
     "requires_subscription": false,
     "requires_internet": false,
     "requires_db": true,
+    "has_settings": true,
     "frontend": {
         "events": [
             {"footer-shrink": "handleFooterShrink"}

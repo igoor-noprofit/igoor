@@ -28,7 +28,10 @@ export default {
         return {
             websocket: null,  // Store WebSocket instance
             status: 'loading',
-            shrink: false
+            shrink: false,
+            isAlertPlaying: false,
+            alertTimeout: null,
+            alertAudio: null
         };
     },
     computed: {
@@ -108,6 +111,85 @@ export default {
             console.log(json);
             this.sendMsgToBackend(json);
         },
+        $_handleHelp() {
+            const button = this.shortcutButtons.find(b => b.key === 'help');
+            const helpMsg = button.msg;
+            const helpBid = this.shortcutButtons.indexOf(button);
+            
+            // Get help mode from settings
+            const settings = this.$parent.formData || {};
+            const helpMode = settings.help_mode || 'speak';
+            
+            if (helpMode === 'speak') {
+                this.$_speak(helpBid, helpMsg);
+            } else if (helpMode === 'sound') {
+                this.sendMsgToBackend({
+                    action: 'help'
+                });
+            }
+        },
+        startAlertPlayback(repetitions, interval) {
+            if (this.isAlertPlaying) {
+                console.log('Alert already playing');
+                return;
+            }
+            
+            console.log(`Starting alert playback: ${repetitions} repetitions, ${interval}s interval`);
+            this.isAlertPlaying = true;
+            
+            let playCount = 0;
+            const maxPlays = repetitions === 0 ? Infinity : repetitions;
+            
+            const playSound = () => {
+                if (!this.isAlertPlaying) {
+                    console.log('Alert stopped, not playing sound');
+                    return;
+                }
+                
+                if (playCount >= maxPlays && maxPlays !== Infinity) {
+                    console.log('Finished all repetitions, stopping alert');
+                    this.stopAlertPlayback();
+                    return;
+                }
+                
+                try {
+                    this.alertAudio = new Audio('/plugins/shortcuts/alerte.wav');
+                    this.alertAudio.play();
+                    playCount++;
+                    console.log(`Played alert ${playCount}/${maxPlays === Infinity ? 'forever' : maxPlays}`);
+                    
+                    if (playCount < maxPlays || maxPlays === Infinity) {
+                        this.alertTimeout = setTimeout(() => {
+                            playSound();
+                        }, interval * 1000);
+                    }
+                } catch (error) {
+                    console.error('Error playing alert sound:', error);
+                    this.isAlertPlaying = false;
+                }
+            };
+            
+            playSound();
+        },
+        stopAlertPlayback() {
+            console.log('Stopping alert playback');
+            this.isAlertPlaying = false;
+            
+            if (this.alertTimeout) {
+                clearTimeout(this.alertTimeout);
+                this.alertTimeout = null;
+            }
+            
+            if (this.alertAudio) {
+                try {
+                    this.alertAudio.pause();
+                    this.alertAudio.currentTime = 0;
+                } catch (e) {
+                    console.warn('Error stopping audio:', e);
+                }
+                this.alertAudio = null;
+            }
+        },
         $_minimise() {
             window.ensureBackendApi().then((api) => api.winMinimize());
         },
@@ -117,13 +199,29 @@ export default {
             this.$_speak(bid, randomMsg);
         },
         $_handleShortcut(button, index) {
+            // Stop alert if clicking any shortcut button while alert is playing
+            if (this.isAlertPlaying) {
+                this.stopAlertPlayback();
+                return;
+            }
+            
             if (button.random) {
                 this.$_parole(index);
                 return;
             }
+            
+            // Special handling for help button
+            if (button.key === 'help') {
+                this.$_handleHelp();
+                return;
+            }
+            
             this.$_speak(index, button.msg);
         },
         handleIncomingMessage(event) {
+            // Call parent handler first
+            BasePluginComponent.methods.handleIncomingMessage.call(this, event);
+            
             try {
                 const data = JSON.parse(event.data);
                 if (data.action === "shrink") {
@@ -131,6 +229,12 @@ export default {
                 }
                 if (data.action === "unshrink") {
                     this.shrink = false;
+                }
+                if (data.action === "play_alert") {
+                    this.startAlertPlayback(data.repetitions, data.interval);
+                }
+                if (data.action === "stop_alert") {
+                    this.stopAlertPlayback();
                 }
             } catch (error) {
                 console.warn('Shortcuts plugin received non-JSON message:', event.data);
@@ -171,6 +275,10 @@ export default {
         if (window.app) {
             console.log('Window.app available in shortcuts mounted');
         }
+    },
+    beforeDestroy() {
+        // Stop any playing alert when component is destroyed
+        this.stopAlertPlayback();
     }
 };
 </script>

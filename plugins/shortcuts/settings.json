@@ -1,1 +1,5 @@
-{}
+{
+    "help_mode": "speak",
+    "alert_repetitions": 3,
+    "alert_interval": 15
+}
