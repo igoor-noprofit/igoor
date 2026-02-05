@@ -240,7 +240,6 @@ input:focus {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 8px;
     padding: 12px 20px;
     background: var(--color-btn-other, #407d1c);
     color: #fff;
