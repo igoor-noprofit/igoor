@@ -4,21 +4,21 @@
         <div class="form-label">{{ t('Help button mode') }}</div>
         <div class="form-input">
             <button
-                class="mode-toggle-btn"
+                class="mode-toggle-btn btn-secondary"
                 :class="{ 'active': formData.help_mode === 'speak' }"
                 @click="formData.help_mode = 'speak'"
             >
-                <svg class="icon icon-l" v-if="formData.help_mode === 'speak'">
+                <svg class="icon icon-l">
                     <use xlink:href="/img/svgdefs.svg#icon-talk"></use>
                 </svg>
                 <h3>{{ t('Speak') }}</h3>
             </button>
             <button
-                class="mode-toggle-btn"
+                class="mode-toggle-btn btn-secondary"
                 :class="{ 'active': formData.help_mode === 'sound' }"
                 @click="formData.help_mode = 'sound'"
             >
-                <svg class="icon icon-l" v-if="formData.help_mode === 'sound'">
+                <svg class="icon icon-l">
                     <use xlink:href="/img/svgdefs.svg#icon-sos"></use>
                 </svg>
                 <h3>{{ t('Play sound') }}</h3>
@@ -206,26 +206,23 @@ input:focus {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 8px;
     padding: 12px 20px;
-    background: var(--color-btn-base, #216776);
-    color: #fff;
-    border: none;
-    border-radius: 8px;
-    font-weight: 600;
+    background: #444;
+    color: #aaa;
     cursor: pointer;
-    transition: background 0.2s, box-shadow 0.2s;
+    transition: background 0.2s, box-shadow 0.2s, color 0.2s;
     min-width: 140px;
     height: 80px;
 }
 
-.mode-toggle-btn:hover {
-    background: var(--color-btn-rollover-base, #0095c0);
+.mode-toggle-btnbtn-secondary:hover {
+    background: #555;
+    color: #fff;
 }
 
-.mode-toggle-btn.active {
-    background: var(--color-btn-hilite, #a8351b);
-    box-shadow: 0 0 8px rgba(168, 53, 27, 0.4);
+.mode-toggle-btn.btn-secondary.active {
+    background: var(--color-btn-other, #407d1c) !important;
+    color: #fff;
 }
 
 .mode-toggle-btn .icon {
