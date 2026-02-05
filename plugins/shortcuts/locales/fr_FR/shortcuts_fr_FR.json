@@ -15,5 +15,12 @@
     "Just a moment, I'll finish": "Juste un instant, je termine",
     "One second and it's done": "Une seconde et c'est bon",
     "Just give me two seconds": "Donne moi juste deux secondes",
-    "I'm just finishing": "Je suis en train de finir"
+    "I'm just finishing": "Je suis en train de finir",
+    "Help button mode": "Mode du bouton Aide",
+    "Speak": "Parler",
+    "Play sound": "Jouer un son",
+    "Number of repetitions (0 = forever)": "Nombre de répétitions (0 = toujours)",
+    "Frequency interval (seconds)": "Intervalle de fréquence (secondes)",
+    "Test sound": "Tester le son",
+    "0 means repeat forever": "0 signifie répéter indéfiniment"
 }
