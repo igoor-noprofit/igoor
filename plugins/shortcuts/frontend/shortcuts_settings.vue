@@ -120,6 +120,8 @@ export default {
             this.isSaving = true;
             try {
                 await BasePluginComponent.methods.saveSettings.call(this);
+                // Dispatch event to notify other components
+                window.dispatchEvent(new CustomEvent('settings-updated', { detail: { plugin: 'shortcuts' } }));
             } finally {
                 this.isSaving = false;
             }

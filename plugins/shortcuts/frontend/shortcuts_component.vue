@@ -31,7 +31,12 @@ export default {
             shrink: false,
             isAlertPlaying: false,
             alertTimeout: null,
-            alertAudio: null
+            alertAudio: null,
+            settings: {
+                help_mode: 'speak',
+                alert_repetitions: 3,
+                alert_interval: 15
+            }
         };
     },
     computed: {
@@ -111,14 +116,30 @@ export default {
             console.log(json);
             this.sendMsgToBackend(json);
         },
+        async loadSettings() {
+            try {
+                const response = await fetch('/api/plugins/shortcuts/settings');
+                if (response.ok) {
+                    const data = await response.json();
+                    this.settings = {
+                        help_mode: data.help_mode || 'speak',
+                        alert_repetitions: data.alert_repetitions || 3,
+                        alert_interval: data.alert_interval || 15
+                    };
+                    console.log('Loaded shortcuts settings:', this.settings);
+                }
+            } catch (error) {
+                console.error('Failed to load shortcuts settings:', error);
+            }
+        },
         $_handleHelp() {
             const button = this.shortcutButtons.find(b => b.key === 'help');
             const helpMsg = button.msg;
             const helpBid = this.shortcutButtons.indexOf(button);
             
-            // Get help mode from settings
-            const settings = this.$parent.formData || {};
-            const helpMode = settings.help_mode || 'speak';
+            // Get help mode from component settings
+            const helpMode = this.settings.help_mode || 'speak';
+            console.log('Help mode:', helpMode);
             
             if (helpMode === 'speak') {
                 this.$_speak(helpBid, helpMsg);
@@ -275,10 +296,16 @@ export default {
         if (window.app) {
             console.log('Window.app available in shortcuts mounted');
         }
+        // Load settings
+        this.loadSettings();
+        // Listen for settings updates
+        window.addEventListener('settings-updated', this.loadSettings);
     },
     beforeDestroy() {
         // Stop any playing alert when component is destroyed
         this.stopAlertPlayback();
+        // Remove settings update listener
+        window.removeEventListener('settings-updated', this.loadSettings);
     }
 };
 </script>
