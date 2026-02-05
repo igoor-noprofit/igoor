@@ -9,7 +9,7 @@
             v-for="(button, index) in shortcutButtons"
             :key="button.key"
             class="btn btn-shortcut"
-            :class="{ 'btn-hilite': button.highlight }"
+            :class="{ 'btn-hilite': button.highlight, 'sos-pulsing': button.key === 'help' && isAlertPlaying }"
             @click="$_handleShortcut(button, index)"
         >
             <svg class="icon icon-l">
@@ -168,12 +168,6 @@ export default {
                     return;
                 }
 
-                if (playCount >= maxPlays && maxPlays !== Infinity) {
-                    console.log('Finished all repetitions, stopping alert');
-                    this.stopAlertPlayback();
-                    return;
-                }
-
                 try {
                     if (useSpeak) {
                         // Send speak message to backend with translated message
@@ -189,6 +183,14 @@ export default {
                     }
                     playCount++;
 
+                    // Check if we've reached the limit AFTER incrementing
+                    if (playCount >= maxPlays && maxPlays !== Infinity) {
+                        console.log('Finished all repetitions, stopping alert');
+                        this.stopAlertPlayback();
+                        return;
+                    }
+
+                    // Schedule next iteration if there are more
                     if (playCount < maxPlays || maxPlays === Infinity) {
                         this.alertTimeout = setTimeout(() => {
                             playAlert();
@@ -205,12 +207,12 @@ export default {
         stopAlertPlayback() {
             console.log('Stopping alert playback');
             this.isAlertPlaying = false;
-            
+
             if (this.alertTimeout) {
                 clearTimeout(this.alertTimeout);
                 this.alertTimeout = null;
             }
-            
+
             if (this.alertAudio) {
                 try {
                     this.alertAudio.pause();
@@ -233,7 +235,13 @@ export default {
             // Stop alert if clicking any shortcut button while alert is playing
             if (this.isAlertPlaying) {
                 this.stopAlertPlayback();
-                // Continue to execute the button action
+
+                // If it's the help button itself, don't restart it - just exit
+                if (button.key === 'help') {
+                    return;
+                }
+
+                // Continue to execute other button actions
             }
 
             if (button.random) {
@@ -241,7 +249,7 @@ export default {
                 return;
             }
 
-            // Special handling for help button
+            // Special handling for help button (only when not stopping an existing loop)
             if (button.key === 'help') {
                 this.$_handleHelp();
                 return;
@@ -276,11 +284,14 @@ export default {
         }
     },
     watch: {
+        isAlertPlaying(newVal, oldVal) {
+            console.log('isAlertPlaying changed from', oldVal, 'to', newVal);
+        },
         shrink(newVal, oldVal) {
             if (newVal !== oldVal) {
                 // Emit to parent Vue app
                 this.$emit('footer-shrink', newVal);
-                
+
                 // Try to find parent app instance
                 let parent = this.$parent;
                 while (parent && parent.footerShrink === undefined) {
@@ -290,16 +301,16 @@ export default {
                     parent.footerShrink = newVal;
                     console.log('Updated parent.footerShrink to:', newVal);
                 }
-                
+
                 // Also emit to window/global event bus
                 if (window.app && window.app.footerShrink !== undefined) {
                     window.app.footerShrink = newVal;
                     console.log('Updated window.app.footerShrink to:', newVal);
                 }
-                
+
                 // Dispatch custom event to DOM
                 window.dispatchEvent(new CustomEvent('footer-shrink', { detail: newVal }));
-                
+
                 console.log('Shortcuts shrink changed to:', newVal);
             }
         }
@@ -332,19 +343,24 @@ export default {
     padding: 4px;
     width: 100%;
 }
+
 .shortcuts.shrink{
     max-height: 70px;
 }
+
 .shrink svg.icon, .shrink img {
     display: none;
 }
+
 .shrink .btn-shortcut h3 {
     font-size: 1.2em;
     font-weight: bold;
 }
+
 .shrink .btn-shortcut:not(.btn-hilite) {
     background: #28373b;
 }
+
 .btn-shortcut {
     flex: 1 1 0;
     min-width: 0;
@@ -355,6 +371,25 @@ export default {
     padding: 8px 4px;
 }
 
+/* Alert animation - pulsing orange/red only on SOS button when alert loop is active */
+.btn-shortcut.sos-pulsing {
+    animation: pulse-alert 1.5s ease-in-out infinite;
+    box-shadow: 0 0 15px rgba(255, 69, 0, 0.8);
+}
+
+@keyframes pulse-alert {
+    0%, 100% {
+        background-color: #ff4500;
+        transform: scale(1);
+        box-shadow: 0 0 15px rgba(255, 69, 0, 0.8);
+    }
+    50% {
+        background-color: #ff6b35;
+        transform: scale(1.08);
+        box-shadow: 0 0 20px rgba(255, 107, 53, 0.9);
+    }
+}
+
 .btn-shortcut .icon,
 .btn-shortcut img {
     width: 100%;
@@ -363,7 +398,6 @@ export default {
     max-height: 64px;
     object-fit: contain;
 }
-
 
 .btn-shortcut h3 {
     margin: 4px 0 0 0;
