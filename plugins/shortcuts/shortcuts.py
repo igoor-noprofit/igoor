@@ -173,10 +173,8 @@ class Shortcuts(Baseplugin):
                 if action == "help":
                     self.logger.info(f"Help button pressed, mode: {self.help_mode}")
                     if self.help_mode == "speak":
-                        # Use existing speak behavior
-                        help_msg = "Please help me, it's urgent!"
-                        asyncio.create_task(self.pm.trigger_hook(hook_name="speak", message=help_msg))
                         # Log to database
+                        help_msg = "Please help me, it's urgent!"
                         onboarding_flag = 1 if self.is_onboarding_on else 0
                         timestamp = datetime.utcnow().isoformat()
                         try:
@@ -187,6 +185,12 @@ class Shortcuts(Baseplugin):
                                 )
                         except Exception as exc:
                             self.logger.error(f"Failed to store help usage: {exc}")
+                        # Send alert playback command to frontend for repeated speaking
+                        self.send_message_to_frontend({
+                            "action": "play_alert_speak",
+                            "repetitions": self.alert_repetitions,
+                            "interval": self.alert_interval
+                        })
                     elif self.help_mode == "sound":
                         # Send alert playback command to frontend
                         self.send_message_to_frontend({

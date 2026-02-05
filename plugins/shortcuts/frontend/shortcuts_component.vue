@@ -133,64 +133,73 @@ export default {
             }
         },
         $_handleHelp() {
-            const button = this.shortcutButtons.find(b => b.key === 'help');
-            const helpMsg = button.msg;
-            const helpBid = this.shortcutButtons.indexOf(button);
-            
             // Get help mode from component settings
             const helpMode = this.settings.help_mode || 'speak';
             console.log('Help mode:', helpMode);
-            
-            if (helpMode === 'speak') {
-                this.$_speak(helpBid, helpMsg);
-            } else if (helpMode === 'sound') {
-                this.sendMsgToBackend({
-                    action: 'help'
-                });
-            }
+
+            // Send help action to backend - backend will handle mode-specific behavior
+            this.sendMsgToBackend({
+                action: 'help'
+            });
         },
         startAlertPlayback(repetitions, interval) {
+            this.startAlert(repetitions, interval, false);
+        },
+        startAlertSpeak(repetitions, interval) {
+            this.startAlert(repetitions, interval, true);
+        },
+        startAlert(repetitions, interval, useSpeak) {
             if (this.isAlertPlaying) {
                 console.log('Alert already playing');
                 return;
             }
-            
-            console.log(`Starting alert playback: ${repetitions} repetitions, ${interval}s interval`);
+
+            const mode = useSpeak ? 'speak' : 'sound';
+            console.log(`Starting alert ${mode}: ${repetitions} repetitions, ${interval}s interval`);
             this.isAlertPlaying = true;
-            
+
             let playCount = 0;
             const maxPlays = repetitions === 0 ? Infinity : repetitions;
-            
-            const playSound = () => {
+
+            const playAlert = () => {
                 if (!this.isAlertPlaying) {
-                    console.log('Alert stopped, not playing sound');
+                    console.log('Alert stopped, not playing');
                     return;
                 }
-                
+
                 if (playCount >= maxPlays && maxPlays !== Infinity) {
                     console.log('Finished all repetitions, stopping alert');
                     this.stopAlertPlayback();
                     return;
                 }
-                
+
                 try {
-                    this.alertAudio = new Audio('/plugins/shortcuts/alerte.wav');
-                    this.alertAudio.play();
+                    if (useSpeak) {
+                        // Send speak message to backend with translated message
+                        const helpButton = this.shortcutButtons.find(b => b.key === 'help');
+                        const helpMsg = helpButton ? helpButton.msg : "Please help me, it's urgent!";
+                        this.sendMsgToBackend({ action: "speak", msg: helpMsg, bid: 6 });
+                        console.log(`Spoke help message ${playCount + 1}/${maxPlays === Infinity ? 'forever' : maxPlays}`);
+                    } else {
+                        // Play audio
+                        this.alertAudio = new Audio('/plugins/shortcuts/alerte.wav');
+                        this.alertAudio.play();
+                        console.log(`Played alert ${playCount + 1}/${maxPlays === Infinity ? 'forever' : maxPlays}`);
+                    }
                     playCount++;
-                    console.log(`Played alert ${playCount}/${maxPlays === Infinity ? 'forever' : maxPlays}`);
-                    
+
                     if (playCount < maxPlays || maxPlays === Infinity) {
                         this.alertTimeout = setTimeout(() => {
-                            playSound();
+                            playAlert();
                         }, interval * 1000);
                     }
                 } catch (error) {
-                    console.error('Error playing alert sound:', error);
+                    console.error('Error during alert playback:', error);
                     this.isAlertPlaying = false;
                 }
             };
-            
-            playSound();
+
+            playAlert();
         },
         stopAlertPlayback() {
             console.log('Stopping alert playback');
@@ -242,7 +251,7 @@ export default {
         handleIncomingMessage(event) {
             // Call parent handler first
             BasePluginComponent.methods.handleIncomingMessage.call(this, event);
-            
+
             try {
                 const data = JSON.parse(event.data);
                 if (data.action === "shrink") {
@@ -253,6 +262,9 @@ export default {
                 }
                 if (data.action === "play_alert") {
                     this.startAlertPlayback(data.repetitions, data.interval);
+                }
+                if (data.action === "play_alert_speak") {
+                    this.startAlertSpeak(data.repetitions, data.interval);
                 }
                 if (data.action === "stop_alert") {
                     this.stopAlertPlayback();
