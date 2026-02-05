@@ -149,9 +149,10 @@ export default {
             this.startAlert(repetitions, interval, true);
         },
         startAlert(repetitions, interval, useSpeak) {
+            // Stop any existing alert before starting a new one
             if (this.isAlertPlaying) {
-                console.log('Alert already playing');
-                return;
+                console.log('Alert already playing, stopping it first');
+                this.stopAlertPlayback();
             }
 
             const mode = useSpeak ? 'speak' : 'sound';
@@ -232,20 +233,20 @@ export default {
             // Stop alert if clicking any shortcut button while alert is playing
             if (this.isAlertPlaying) {
                 this.stopAlertPlayback();
-                return;
+                // Continue to execute the button action
             }
-            
+
             if (button.random) {
                 this.$_parole(index);
                 return;
             }
-            
+
             // Special handling for help button
             if (button.key === 'help') {
                 this.$_handleHelp();
                 return;
             }
-            
+
             this.$_speak(index, button.msg);
         },
         handleIncomingMessage(event) {
