@@ -371,7 +371,7 @@ export default {
 }
 
 .btn-delete {
-    background: #c0392b;
+    background: #c0392b !important;
     color: #fff;
     border: none;
     border-radius: 6px;
