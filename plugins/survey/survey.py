@@ -76,6 +76,19 @@ class Survey(Baseplugin):
             self.logger.info(f"Language is {lang}, not French, skipping survey reminder")
             return
 
+        # Check if enough time has passed since last_reminded (minimum min_interval hours)
+        last_reminded = settings.get("last_reminded")
+        min_interval = settings.get("min_interval", 12)  # Default 12 hours
+        if last_reminded:
+            try:
+                last_reminded_time = datetime.fromisoformat(last_reminded.replace('Z', '+00:00'))
+                hours_since_reminder = (datetime.now() - last_reminded_time).total_seconds() / 3600
+                if hours_since_reminder < min_interval:
+                    self.logger.info(f"Survey reminded {hours_since_reminder:.1f} hours ago, skipping (min {min_interval} hours)")
+                    return
+            except Exception as e:
+                self.logger.error(f"Error parsing last_reminded timestamp: {e}")
+
         # Get conversations via API endpoint
         min_conversations = settings.get("min_conversations", 20)
         conversations = await self._get_conversations(
