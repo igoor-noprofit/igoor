@@ -3,7 +3,7 @@ from plugins.baseplugin.baseplugin import Baseplugin
 from plugin_manager import hookimpl
 from prompt_manager import PromptManager
 from context_manager import context_manager
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Response
 import asyncio,json
 from concurrent.futures import ThreadPoolExecutor
 
@@ -47,10 +47,74 @@ class Conversation(Baseplugin):
                 conversations = []
                 for row in results:
                     conversations.append(dict(row))
-                
+
                 return conversations
             except Exception as e:
                 self.logger.error(f"Error getting conversations: {e}")
+                raise e
+
+        @self.router.get("/conversations_for_llm")
+        async def conversations_for_llm(
+            format: str = Query("json", description="Response format: json, text, or markdown"),
+            limit: int = Query(None, description="Maximum number of conversations to return (optional)")
+        ):
+            """
+            Get all conversations with non-empty content, ordered by start_time ASC.
+            Suitable for inclusion in LLM prompts.
+            """
+            try:
+                # Validate format parameter
+                valid_formats = ["json", "text", "markdown"]
+                if format not in valid_formats:
+                    raise ValueError(f"Invalid format '{format}'. Must be one of: {', '.join(valid_formats)}")
+
+                # Build SQL query with optional limit
+                sql = "SELECT id, start_time, topic, content FROM threads WHERE content IS NOT NULL AND content != '' ORDER BY start_time ASC"
+                params = ()
+
+                if limit is not None and limit > 0:
+                    sql += " LIMIT ?"
+                    params = (limit,)
+
+                results = await self.db_execute(sql, params)
+
+                if format == "json":
+                    # Return JSON format
+                    conversations = []
+                    for row in results:
+                        conversations.append({
+                            "id": row['id'],
+                            "start_time": row['start_time'],
+                            "topic": row['topic'] or "",
+                            "content": row['content']
+                        })
+                    return {"count": len(conversations), "conversations": conversations}
+
+                elif format == "text":
+                    # Return plain text format
+                    lines = []
+                    for row in results:
+                        topic_display = row['topic'] or "No topic"
+                        lines.append(f"Conversation {row['id']} - Started: {row['start_time']} - Topic: {topic_display}")
+                        lines.append("---")
+                        lines.append(row['content'])
+                        lines.append("")
+                    return Response(content="\n".join(lines), media_type="text/plain; charset=utf-8")
+
+                elif format == "markdown":
+                    # Return markdown format
+                    lines = []
+                    for row in results:
+                        topic_display = row['topic'] or "No topic"
+                        lines.append(f"## Conversation {row['id']} (Started: {row['start_time']})")
+                        lines.append(f"**Topic:** {topic_display}")
+                        lines.append("")
+                        lines.append(row['content'])
+                        lines.append("")
+                    return Response(content="\n".join(lines), media_type="text/markdown; charset=utf-8")
+
+            except Exception as e:
+                self.logger.error(f"Error getting conversations for LLM: {e}")
                 raise e
         
     def init_timeout(self):
