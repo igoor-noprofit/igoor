@@ -28,19 +28,29 @@
                 </button>
             </div>
 
+            <div class="search-container">
+                <input
+                    type="text"
+                    v-model="searchTerm"
+                    class="search-input"
+                    :placeholder="t('Search documents...')"
+                    :disabled="isUploading"
+                />
+            </div>
+
             <div class="documents-list-container">
                 <div v-if="isLoading" class="loading-state">
                     <div class="spinner"></div>
                     <span>{{ t('Loading documents...') }}</span>
                 </div>
 
-                <div v-else-if="documents.length === 0" class="empty-state">
+                <div v-else-if="filteredDocuments.length === 0" class="empty-state">
                     <span class="empty-icon">📁</span>
-                    <p>{{ t('No documents uploaded yet') }}</p>
+                    <p>{{ documents.length === 0 ? t('No documents uploaded yet') : t('No matching documents') }}</p>
                 </div>
 
                 <div v-else class="documents-list">
-                    <div v-for="doc in documents" :key="doc.id" class="document-item" :class="{'document-item--always-send': doc.always_send}">
+                    <div v-for="doc in filteredDocuments" :key="doc.id" class="document-item" :class="{'document-item--always-send': doc.always_send}">
                         <div class="document-info">
                             <div class="document-title">{{ doc.title }}</div>
                             <div class="document-date">{{ formatDate(doc.created_at) }}</div>
@@ -111,12 +121,24 @@ export default {
     data() {
         return {
             documents: [],
+            searchTerm: '',
             isLoading: false,
             isUploading: false,
             isDragOver: false,
             errorMessage: '',
             successMessage: ''
         };
+    },
+    computed: {
+        filteredDocuments() {
+            if (!this.searchTerm || this.searchTerm.trim() === '') {
+                return this.documents;
+            }
+            const searchLower = this.searchTerm.toLowerCase();
+            return this.documents.filter(doc =>
+                doc.title.toLowerCase().includes(searchLower)
+            );
+        }
     },
     mounted() {
         this.loadDocuments();
@@ -314,6 +336,30 @@ export default {
     margin-bottom: 16px;
     padding-bottom: 12px;
     border-bottom:1px solid rgba(74, 92, 96, 0.3);
+}
+
+.search-container {
+    margin-bottom: 16px;
+}
+
+.search-input {
+    width: 100%;
+    padding: 12px 16px;
+    border: 1px solid rgba(74, 92, 96, 0.3);
+    border-radius: 8px;
+    background: rgba(42, 62, 80, 0.3);
+    color: #ecf0f1;
+    font-size: 1rem;
+    transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.search-input:focus {
+    border-color: #ffffff;
+}
+
+.search-input:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 
 .documents-header h3 {
