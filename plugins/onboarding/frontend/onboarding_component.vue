@@ -74,49 +74,62 @@
                         </div>
                     </div>
                     <div v-if="currentTab === 'ai'">
-                        <div class="ai left">
-                            <div>
-                                <label>{{ t("Provider") }}</label>
-                                <select v-model="ai.provider">
-                                    <option value="groq">Groq</option>
-                                    <!--option value="openai">OpenAI</option-->
-                                </select>
-                            </div>
-                            <div>
-                                <label>{{ t("API Key") }}</label>
-                                <div style="display: flex; align-items: center; gap: 8px;">
-                                    <input
-                                        type="password"
-                                        v-model="ai.api_key"
-                                        :class="{'input-error': apiKeyError, 'input-success': apiKeyValid}"
-                                        :disabled="isValidating"
-                                    />
-                                    <span v-if="isValidating">{{ t('Validating...') }}</span>
-                                    <span v-if="apiKeyValid" class="valid-icon">✓</span>
+                        <div class="ai-container">
+                            <div class="ai left">
+                                <div>
+                                    <label>{{ t("Provider") }}</label>
+                                    <select v-model="ai.provider">
+                                        <option value="groq">Groq</option>
+                                        <!--option value="openai">OpenAI</option-->
+                                    </select>
                                 </div>
-                                <p v-if="apiKeyError" class="error-message">{{ apiKeyErrorMessage }}</p>
-                                <p>{{ t("Groq is our default provider:") }} <br><a class="extlink"
-                                        href="https://console.groq.com/login" target="_blank">{{ t("To obtain a FREE api key sign up here") }}</a>
-                                    <br><a class="extlink" href="https://groq.com/privacy-policy/" target="_blank">{{ t("Our default provider privacy policy") }}</a>
-                                </p>
+                                <div>
+                                    <label>{{ t("API Key") }}</label>
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <input
+                                            type="password"
+                                            v-model="ai.api_key"
+                                            :class="{'input-error': apiKeyError, 'input-success': apiKeyValid}"
+                                            :disabled="isValidating"
+                                        />
+                                        <span v-if="isValidating">{{ t('Validating...') }}</span>
+                                        <span v-if="apiKeyValid" class="valid-icon">✓</span>
+                                    </div>
+                                    <p v-if="apiKeyError" class="error-message">{{ apiKeyErrorMessage }}</p>
+                                    <p>{{ t("Groq is our default provider:") }} <br><a class="extlink"
+                                            href="https://console.groq.com/login" target="_blank">{{ t("To obtain a FREE api key sign up here") }}</a>
+                                        <br><a class="extlink" href="https://groq.com/privacy-policy/" target="_blank">{{ t("Our default provider privacy policy") }}</a>
+                                    </p>
+                                </div>
                             </div>
-                            <div>
-                                <label>{{ t("Model Name") }}</label>
-                                <select v-model="ai.model_name">
-                                    <option value="llama-3.3-70b-versatile">Llama 3.3-70B</option>
-                                    <option value="openai/gpt-oss-120b">OpenAI OSS-GPT-120B</option>
-                                    <option value="openai/gpt-oss-20b">OpenAI OSS-GPT-20B</option>
-                                    <option value="meta-llama/llama-4-maverick-17b-128e-instruct">Llama 4-17b-128e (preview)</option>
-                                    <option value="meta-llama/llama-4-scout-17b-16e-instruct">Llama 4-17b-16e (preview)</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label>{{ t("Temperature") }}</label>
-                                <div style="display: flex; align-items: center; gap: 12px;">
-                                    <input type="range" v-model.number="ai.temperature" min="0" max="1" step="0.01"
-                                        style="flex: 1 1 60%;">
-                                    <input type="number" v-model.number="ai.temperature" step="0.1" min="0" max="1"
-                                        placeholder="0.2" style="width: 60px;">
+                            <div class="ai right">
+                                <div>
+                                    <label>{{ t("Model Name") }}</label>
+                                    <select v-model="ai.model_name">
+                                        <option value="llama-3.3-70b-versatile">Llama 3.3-70B</option>
+                                        <option value="openai/gpt-oss-120b">OpenAI OSS-GPT-120B</option>
+                                        <option value="openai/gpt-oss-20b">OpenAI OSS-GPT-20B</option>
+                                        <option value="meta-llama/llama-4-maverick-17b-128e-instruct">Llama 4-17b-128e (preview)</option>
+                                        <option value="meta-llama/llama-4-scout-17b-16e-instruct">Llama 4-17b-16e (preview)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label>{{ t("Temperature") }}</label>
+                                    <div style="display: flex; align-items: center; gap: 12px;">
+                                        <input type="range" v-model.number="ai.temperature" min="0" max="1" step="0.01"
+                                            style="flex: 1 1 60%;">
+                                        <input type="number" v-model.number="ai.temperature" step="0.1" min="0" max="1"
+                                            placeholder="0.2" style="width: 60px;">
+                                    </div>
+                                </div>
+                                <div v-if="supportsReasoning">
+                                    <label>{{ t("Reasoning effort") }}</label>
+                                    <select v-model="ai.reasoning_effort">
+                                        <option value="low">{{ t("Low") }}</option>
+                                        <option value="medium">{{ t("Medium") }}</option>
+                                        <option value="high">{{ t("High") }}</option>
+                                    </select>
+                                    <p>{{ t("Higher reasoning means slower, more expensive, but usually more intelligent responses.") }}</p>
                                 </div>
                             </div>
                         </div>
@@ -249,7 +262,8 @@ export default {
                 provider: "",
                 api_key: "",
                 model_name: "",
-                temperature: ""
+                temperature: "",
+                reasoning_effort: ""
             },
             isSaving: false,
             saveStatus: null,
@@ -311,6 +325,9 @@ export default {
     computed: {
         categories() {
             return Object.keys(this.pluginData)
+        },
+        supportsReasoning() {
+            return ["openai/gpt-oss-120b", "openai/gpt-oss-20b"].includes(this.ai.model_name);
         },
         pluginsByCategory() {
             // Exclude plugins by name
@@ -810,6 +827,10 @@ input:checked+.slider:before {
 }
 
 .bio-container {
+    display: flex;
+}
+
+.ai-container {
     display: flex;
 }
 
