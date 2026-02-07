@@ -26,6 +26,8 @@ class LLMManager:
         except (TypeError, ValueError):
             self.logger.warning(f"Invalid temperature value {temp_raw!r}; falling back to 0.7")
             self.temperature = 0.7
+        # Get reasoning_effort from settings
+        self.reasoning_effort = ai.get("reasoning_effort", "low")
         self.chat_instance = self._create_chat()
         self.json_schema = False
         # Setup dedicated logger for LLM invocations
@@ -89,9 +91,9 @@ class LLMManager:
                     schema = self.schema_model
                     if self.model_name in ["openai/gpt-oss-120b", "openai/gpt-oss-20b"]:
                         reasoning_format = "parsed"
-                    else:  
+                    else:
                         reasoning_format = None
-                        
+
                     if self.model_name == "llama-3.3-70b-versatile":
                         response_format={
                             "type": "json_object"
@@ -103,16 +105,16 @@ class LLMManager:
                                 "name": schema.__name__,
                                 "schema": schema.model_json_schema()
                             }
-                        }     
+                        }
                     call_args = {
                         "model": self.model_name,
                         "messages": messages,
                         "temperature": self.temperature,
                         "response_format": response_format
-                    } 
+                    }
                     if reasoning_format is not None:
                         call_args["reasoning_format"] = reasoning_format
-                        call_args["reasoning_effort"] = "medium"
+                        call_args["reasoning_effort"] = self.reasoning_effort
                     response = client.chat.completions.create(**call_args)
                     raw_content = response.choices[0].message.content
                     if reasoning_format == "parsed":
