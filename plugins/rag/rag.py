@@ -163,7 +163,7 @@ class Rag(Baseplugin):
 
         @self.router.get("/documents")
         async def get_documents():
-            results = await self.db_execute("SELECT id, title, filename, created_at FROM documents ORDER BY created_at DESC")
+            results = await self.db_execute("SELECT id, title, filename, always_send, created_at FROM documents ORDER BY created_at DESC")
             return results or []
 
         @self.router.post("/documents")
@@ -233,6 +233,20 @@ class Rag(Baseplugin):
             await self.save_index(INGESTED)
 
             return None
+
+        @self.router.put("/documents/{document_id}/always_send")
+        async def toggle_always_send(document_id: int):
+            doc = await self.db_execute("SELECT id FROM documents WHERE id = ?", (document_id,))
+            if not doc:
+                raise HTTPException(status_code=404, detail="Document not found")
+
+            await self.db_execute(
+                "UPDATE documents SET always_send = CASE WHEN always_send = 0 THEN 1 ELSE 0 END WHERE id = ?",
+                (document_id,)
+            )
+
+            result = await self.db_execute("SELECT always_send FROM documents WHERE id = ?", (document_id,))
+            return {"document_id": document_id, "always_send": result[0]['always_send']}
 
     def create_folders(self):
         """Create all necessary folders for the plugin"""
@@ -890,7 +904,25 @@ class Rag(Baseplugin):
             # Ensure store_types is a list
             if not isinstance(store_types, list):
                 store_types = [store_types]
-            
+
+            # Collect always-send chunks first
+            always_send_chunks = await self.get_always_send_chunks()
+            already_sent_docstore_ids = set()
+
+            if always_send_chunks:
+                doc_titles = await self.db_execute("SELECT title FROM documents WHERE always_send = 1")
+                titles = [d['title'] for d in doc_titles]
+                self.logger.info(f"Including {len(always_send_chunks)} chunks from always-send documents: {titles}")
+
+                for doc, docstore_id in always_send_chunks:
+                    doc.metadata["store_type"] = INGESTED
+                    doc.metadata["score"] = 0.0
+                    doc.metadata["index"] = docstore_id
+                    doc.metadata["always_send"] = True
+                    all_results.append(doc)
+                    chunk_ids_by_store[INGESTED].append(docstore_id)
+                    already_sent_docstore_ids.add(docstore_id)
+
             for store_type in store_types:
                 if not self.index_loaded[store_type]:
                     self.logger.warning(f"Index type {store_type} not loaded yet, skipping")
@@ -908,11 +940,16 @@ class Rag(Baseplugin):
                 
                 # Process results which now include (doc, score, index)
                 for doc, score, index in results:
+                    # DEDUPLICATION: Skip if this chunk is already in always-send list
+                    if store_type == INGESTED and index in already_sent_docstore_ids:
+                        self.logger.debug(f"Skipping duplicate chunk {index} (already in always-send list)")
+                        continue
+
                     # Add store type to metadata for tracking
                     doc.metadata["store_type"] = store_type
                     doc.metadata["score"] = score
                     doc.metadata["index"] = index
-                    
+
                     # Add to results
                     all_results.append(doc)
                     
@@ -1123,6 +1160,32 @@ class Rag(Baseplugin):
         return results_by_type
         
     
+    async def get_always_send_chunks(self) -> List[tuple]:
+        """
+        Retrieve ALL chunks from documents marked as always_send.
+
+        Returns:
+            List of tuples: (document, docstore_id) from FAISS for all chunks
+        """
+        always_send_docs = await self.db_execute("SELECT id, title FROM documents WHERE always_send = 1")
+        if not always_send_docs:
+            return []
+
+        all_chunks = []
+        for doc in always_send_docs:
+            chunks = await self.db_execute(
+                "SELECT docstore_id FROM chunks WHERE document_id = ? AND type = ?",
+                (doc['id'], INGESTED)
+            )
+            vector_store = self.vector_stores.get(INGESTED)
+            if vector_store:
+                for chunk_row in chunks:
+                    docstore_id = chunk_row['docstore_id']
+                    if docstore_id in vector_store.docstore._dict:
+                        faiss_doc = vector_store.docstore._dict[docstore_id]
+                        all_chunks.append((faiss_doc, docstore_id))
+        return all_chunks
+
     async def search_short_term_memory(self, query_text: str):
         self.logger.debug("SEARCHING SHORT TERM MEMORY")
         try:

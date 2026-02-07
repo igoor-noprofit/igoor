@@ -40,17 +40,31 @@
                 </div>
 
                 <div v-else class="documents-list">
-                    <div v-for="doc in documents" :key="doc.id" class="document-item">
-                        <div class="document-title">{{ doc.title }}</div>
-                        <div class="document-date">{{ formatDate(doc.created_at) }}</div>
-                        <button
-                            class="btn-delete"
-                            @click="deleteDocument(doc.id)"
-                            :disabled="isUploading"
-                            :aria-label="t('Delete')"
-                        >
-                            ✕
-                        </button>
+                    <div v-for="doc in documents" :key="doc.id" class="document-item" :class="{'document-item--always-send': doc.always_send}">
+                        <div class="document-info">
+                            <div class="document-title">{{ doc.title }}</div>
+                            <div class="document-date">{{ formatDate(doc.created_at) }}</div>
+                        </div>
+                        <div class="document-actions">
+                            <button
+                                class="btn-toggle-always-send"
+                                :class="{'active': doc.always_send}"
+                                @click="toggleAlwaysSend(doc.id, doc.always_send)"
+                                :title="doc.always_send ? t('Always sent') : t('Send with every call')"
+                                :disabled="isUploading"
+                            >
+                                <span v-if="doc.always_send">★</span>
+                                <span v-else>☆</span>
+                            </button>
+                            <button
+                                class="btn-delete"
+                                @click="deleteDocument(doc.id)"
+                                :disabled="isUploading"
+                                :aria-label="t('Delete')"
+                            >
+                                ✕
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -216,6 +230,28 @@ export default {
             if (!dateString) return '';
             const date = new Date(dateString);
             return date.toLocaleString();
+        },
+
+        async toggleAlwaysSend(documentId, currentStatus) {
+            try {
+                const response = await this.callPluginRestEndpoint(
+                    'rag',
+                    `documents/${documentId}/always_send`,
+                    { method: 'PUT' }
+                );
+
+                const doc = this.documents.find(d => d.id === documentId);
+                if (doc) {
+                    doc.always_send = response.always_send;
+                }
+
+                this.successMessage = response.always_send
+                    ? this.t('Document will be sent with every call')
+                    : this.t('Document will only be sent based on relevance');
+            } catch (error) {
+                console.error('Error toggling always send:', error);
+                this.errorMessage = this.t('Failed to update document setting');
+            }
         }
     }
 };
@@ -351,12 +387,20 @@ export default {
     gap: 12px;
 }
 
+.document-item--always-send {
+    background: rgba(26, 188, 156, 0.2);
+    border: 1px solid rgba(26, 188, 156, 0.5);
+}
+
 .document-item:hover {
     background: rgba(26, 188, 156, 0.15);
 }
 
-.document-title {
+.document-info {
     flex: 1;
+}
+
+.document-title {
     font-size: 1rem;
     font-weight: 600;
     color: #ecf0f1;
@@ -368,6 +412,35 @@ export default {
     color: #7f8c8d;
     text-align: right;
     white-space: nowrap;
+}
+
+.document-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.btn-toggle-always-send {
+    background: rgba(236, 240, 241, 0.1);
+    color: #95a5a6;
+    border: none;
+    border-radius: 6px;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-toggle-always-send:hover:not(:disabled) {
+    background: rgba(236, 240, 241, 0.2);
+    color: #ecf0f1;
+}
+
+.btn-toggle-always-send.active {
+    background: rgba(241, 196, 15, 0.2);
+    color: #f1c40f;
 }
 
 .btn-delete {

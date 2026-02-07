@@ -15,5 +15,10 @@
     "Failed to load documents": "Failed to load documents",
     "Failed to upload documents": "Failed to upload documents",
     "{count} document(s) uploaded successfully": "{count} document(s) uploaded successfully",
-    "Upload errors: {errors}": "Upload errors: {errors}"
+    "Upload errors: {errors}": "Upload errors: {errors}",
+    "Always sent": "Always sent",
+    "Send with every call": "Send with every call",
+    "Document will be sent with every call": "Document will be sent with every call",
+    "Document will only be sent based on relevance": "Document will only be sent based on relevance",
+    "Failed to update document setting": "Failed to update document setting"
 }
