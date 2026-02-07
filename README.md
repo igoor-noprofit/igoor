@@ -8,23 +8,6 @@ Take a look at the [IGOOR website](https://igoor.org/en) for further infos about
 
 Also please take a look at the [IGOOR docs](https://igoor-noprofit.github.io/docs/). 
 
-## Notice of Development, Confidentiality, and Contribution Terms
-
-**This project is currently under private development. While the final version of the software WILL BE released as free/libre under the GPLv3 License, the current codebase is not yet public and is subject to strict confidentiality.**
-
-IGOOR is written by Carlo Giordano, based on a concept by Igor Novitzki.
-Original UX/UI by Zenoid.
-
-All collaborators and contributors are reminded that:
-
-1. Sharing Prohibited: The code, documentation, and any associated materials must not be shared, distributed, or disclosed to anyone outside of the development team without prior written permission.
-2. Access Restriction: Access to this repository is granted solely for the purpose of contributing to the project's private development phase.
-3. Contribution Licensing: By contributing to this project, you agree that all contributions you make will be licensed under the GPLv3 License upon the software's public release.
-
-Failure to comply with these terms may result in immediate removal from the project and other appropriate actions.
-
-Thank you for your understanding and cooperation in ensuring the successful development of this software.
-
 ## REQUIREMENTS
 
 ### OS 
@@ -265,6 +248,16 @@ IGOOR_FOLDER/logs/
 ```
 
 Separate llm_invocations contain a JSON of all LLM calls, with prompt/answer and reasoning (where applicable)
+
+## License
+
+IGOOR is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+
+Copyright (C) 2025 Carlo Giordano, Igor Novitzki and the IGOOR not-for-profit organization (https://igoor.org)
+
+IGOOR is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with IGOOR.  If not, see <https://www.gnu.org/licenses/>.
 
 ## ADDING A LANGUAGE
 
