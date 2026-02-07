@@ -15,5 +15,10 @@
     "Failed to load documents": "Échec du chargement des documents",
     "Failed to upload documents": "Échec du téléchargement des documents",
     "{count} document(s) uploaded successfully": "{count} document(s) téléchargé(s) avec succès",
-    "Upload errors: {errors}": "Erreurs de téléchargement : {errors}"
+    "Upload errors: {errors}": "Erreurs de téléchargement : {errors}",
+    "Always sent": "Toujours envoyé",
+    "Send with every call": "Envoyer à chaque appel",
+    "Document will be sent with every call": "Le document sera envoyé à chaque appel",
+    "Document will only be sent based on relevance": "Le document ne sera envoyé que s'il est pertinent",
+    "Failed to update document setting": "Échec de la mise à jour du paramètre"
 }
