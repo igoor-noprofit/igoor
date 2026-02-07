@@ -61,5 +61,10 @@
   "Connection error: could not validate API key": "Erreur de connexion : impossible de valider la clé API",
   "API Key validation failed": "Échec de la validation de la clé API",
   "Could not validate API key": "Impossible de valider la clé API",
-  "Please fix API key validation errors before saving.": "Veuillez corriger les erreurs de validation de la clé API avant de sauvegarder."
+  "Please fix API key validation errors before saving.": "Veuillez corriger les erreurs de validation de la clé API avant de sauvegarder.",
+  "Reasoning effort": "Effort de raisonnement",
+  "Low": "Faible",
+  "Medium": "Moyen",
+  "High": "Élevé",
+  "Higher reasoning means slower, more expensive, but usually more intelligent responses.": "Un raisonnement plus élevé signifie des réponses plus lentes, plus coûteuses, mais généralement plus intelligentes."
 }
