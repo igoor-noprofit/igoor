@@ -486,3 +486,14 @@ class Asrjs(Baseplugin):
         if not self.is_paused:
             if currentview == 'onboarding':
                 await self.pause_asr()
+
+    @hookimpl
+    def global_settings_updated(self):
+        """Called when global settings are updated - reload Groq client if API key changed."""
+        self.logger.info("ASRJS: global_settings_updated - reloading Groq client")
+        # Reload settings from disk
+        self.settings = self.get_my_settings()
+        # Reload model provider from settings
+        self.model_provider = self.settings.get("model_provider", "groq")
+        # Reinitialize the model/client with new settings
+        self.load_model()
