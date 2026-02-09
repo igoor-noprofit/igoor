@@ -83,7 +83,7 @@
   "Requires Internet": "Nécessite Internet",
   "Requires Subscription": "Nécessite un abonnement",
   "Concept by Igor Novitzki": "Concept par Igor Novitzki",
-  "© 2025 Developed by": "© 2025 Développé par",
+  "© 2025-2026 Developed by": "© 2025-2026 Développé par",
   "in partnership with": "en partenariat avec",
   "Main settings saved!": "Paramètres principaux enregistrés !",
   "Failed to save main settings. Please try again.": "Échec de l'enregistrement des paramètres principaux. Veuillez réessayer.",
@@ -103,6 +103,23 @@
   "Configure plugin": "Configurer l'extension",
   "https://igoor.org/en/donate/": "https://igoor.org/faire-un-don/",
   "If you find this software useful, please consider donating to the not-for-profit organization IGOOR": "Si vous trouvez ce logiciel utile, faites un don à l'organisation à but non lucratif IGOOR",
-  "Make a donation": "Faire un don"
+  "Make a donation": "Faire un don",
+  "Save": "Sauvegarder",
+  "Cancel": "Annuler",
+  "Unsaved Changes": "Modifications non sauvegardées",
+  "You have unsaved changes. Do you want to save them?": "Vous avez des modifications non sauvegardées. Voulez-vous les sauvegarder ?",
+  "Failed to save changes.": "Échec de la sauvegarde des modifications.",
+  "Validating...": "Validation en cours...",
+  "Invalid API Key": "Clé API invalide",
+  "Unsupported model": "Modèle non pris en charge",
+  "Connection error: could not validate API key": "Erreur de connexion : impossible de valider la clé API",
+  "API Key validation failed": "Échec de la validation de la clé API",
+  "Could not validate API key": "Impossible de valider la clé API",
+  "Please fix API key validation errors before saving.": "Veuillez corriger les erreurs de validation de la clé API avant de sauvegarder.",
+  "Reasoning effort": "Effort de raisonnement",
+  "Low": "Faible",
+  "Medium": "Moyen",
+  "High": "Élevé",
+  "Higher reasoning means slower, more expensive, but usually more intelligent responses.": "Un raisonnement plus élevé signifie des réponses plus lentes, plus coûteuses, mais généralement plus intelligentes."
 }
 >>>>>>> 0.1.4.3

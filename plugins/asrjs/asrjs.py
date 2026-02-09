@@ -20,9 +20,33 @@ class Asrjs(Baseplugin):
         self.wakeword_detected = False  # Initialize wakeword state
         super().__init__(plugin_name, pm)
         
+        # Create recordings directory for persistent audio files
+        recordings_dir = os.path.join(self.plugin_folder, "recordings")
+        if not os.path.exists(recordings_dir):
+            os.makedirs(recordings_dir, exist_ok=True)
+            self.logger.info(f"Created recordings directory: {recordings_dir}")
+        else:
+            # Clean up old recordings on startup
+            try:
+                for filename in os.listdir(recordings_dir):
+                    file_path = os.path.join(recordings_dir, filename)
+                    if os.path.isfile(file_path):
+                        os.remove(file_path)
+                self.logger.info(f"Cleaned up old recordings from: {recordings_dir}")
+            except Exception as e:
+                self.logger.error(f"Error cleaning up recordings: {e}")
+        
+        # Set up audio parameters
+        self.sample_rate = 16000
+        self.audio_format = pyaudio.paInt16
+        self.channels = 1
+        self.chunk_size = 4000
+        
+        # Set up temporary file for audio storage (WebM format)
+        self.temp_audio_file = os.path.join(self.plugin_folder, "temp_audio.webm")
+        
     @hookimpl 
     def startup(self):
-        print ("ASRWHISPER IS STARTING UP")
         self.settings = self.get_my_settings()
         
         # Get global language preference and process it
@@ -30,10 +54,8 @@ class Asrjs(Baseplugin):
         
         self.wakeword = self.settings.get("wakeword")
         
-
-        
         self.continuous = self.settings.get("continuous", False) # Ensure default for continuous
-        print (f"WHISPER settings: {self.settings}, Global Lang for ASR: {self.lang_code}")
+        print (f"ASRJS settings: {self.settings}, Global Lang for ASR: {self.lang_code}")
 
         self.model_provider = self.settings.get("model_provider", "groq")  # Default to Groq if not set
         if self.model_provider not in self.settings.get("allowed_model_providers", []):
@@ -83,8 +105,7 @@ class Asrjs(Baseplugin):
     async def monitor_loading(self):
         while not self.is_loaded:
             # Wait until the model is loaded
-            time.sleep(1)
-        self.model_thread.join()
+            await asyncio.sleep(1)
         print("Model is ready to use.")
         await self.send_status("ready")
         self.send_settings_to_frontend()
@@ -142,21 +163,6 @@ class Asrjs(Baseplugin):
         elif (self.model_provider == "mistral"):
             self.model=self.settings.get("model_name", "voxtral-mini-latest")
             
-        # Create recordings directory for persistent audio files
-        recordings_dir = os.path.join(self.plugin_folder, "recordings")
-        if not os.path.exists(recordings_dir):
-            os.makedirs(recordings_dir, exist_ok=True)
-            self.logger.info(f"Created recordings directory: {recordings_dir}")
-        
-        # Set up audio parameters
-        self.sample_rate = 16000
-        self.audio_format = pyaudio.paInt16
-        self.channels = 1
-        self.chunk_size = 4000
-        
-        # Set up temporary file for audio storage (WebM format)
-        self.temp_audio_file = os.path.join(self.plugin_folder, "temp_audio.webm")
-        
         self.is_loaded=True
     
     async def handle_wake_word(self,following_text):
@@ -458,13 +464,13 @@ class Asrjs(Baseplugin):
     @hookimpl
     async def abandon_conversation(self, cause="timeout"):
         try:
-            print("ASRWHISPER received ABANDON_CONVERSATION trigger")
+            print("ASRJS received ABANDON_CONVERSATION trigger")
             # Your existing logic here
             self.wakeword_detected = False
             await self.send_status("listening")
-            print("ASRWHISPER after_conversation_end completed successfully")
+            print("ASRJS after_conversation_end completed successfully")
         except Exception as e:
-            print(f"Error in ASRWHISPER after_conversation_end: {e}")
+            print(f"Error in ASRJS after_conversation_end: {e}")
     
     '''
     To support external wakeword mechanism
@@ -476,7 +482,18 @@ class Asrjs(Baseplugin):
         
     @hookimpl
     async def change_view(self,lastview,currentview):
-        print("CHANGE VIEW IN ASRWHISPER")
+        print("CHANGE VIEW IN ASRJS")
         if not self.is_paused:
             if currentview == 'onboarding':
                 await self.pause_asr()
+
+    @hookimpl
+    def global_settings_updated(self):
+        """Called when global settings are updated - reload Groq client if API key changed."""
+        self.logger.info("ASRJS: global_settings_updated - reloading Groq client")
+        # Reload settings from disk
+        self.settings = self.get_my_settings()
+        # Reload model provider from settings
+        self.model_provider = self.settings.get("model_provider", "groq")
+        # Reinitialize the model/client with new settings
+        self.load_model()

@@ -5,6 +5,9 @@ from PyInstaller.utils.hooks import collect_data_files
 # Collect pywebview JS files
 webview_datas = collect_data_files('webview', includes=['js/*'])
 
+# Collect vosk DLL files
+vosk_datas = collect_data_files('vosk')
+
 # Merge with your existing datas
 datas = [
     ('css', 'css'),
@@ -17,7 +20,7 @@ datas = [
     ('.env', '.'),
     ('README.md', '.'),
     ('index.html', '.')
-] + webview_datas
+] + webview_datas + vosk_datas
 
 a = Analysis(
     ['main.py'],
@@ -33,14 +36,46 @@ a = Analysis(
         'webrtcvad',
         'pyaudio',
         'vosk',
+        'huggingface_hub',
         'prompt_manager',
         'context_manager',
         'settings_manager',
         'llm_manager',
         'db_manager',
-        'pydantic.deprecated.decorator'
+        'pydantic.deprecated.decorator',
+        'win32gui',
+        'win32con',
+        'pywinauto',
+        # === YOUR EXISTING IMPORTS ===
+        'elevenlabslib',
+        'pydub.playback',
+        'speechify',
+        'pymupdf4llm',
+        'PIL.ImageGrab',
+        'webrtcvad',
+        'pyaudio',
+        'vosk',
+        'numpy',
+        
+        # === CORE SENTENCE TRANSFORMERS (Required) ===
+        'sentence_transformers',
+        'sentence_transformers.models',
+        
+        # === TRANSFORMERS (Required) ===
+        'transformers',
+        'transformers.models.bert',  # If using BERT-based models
+        
+        # === TORCH (Required) ===
+        'torch',
+        'torch.nn',
+        
+        # === SCIPY - Only if you get scipy errors ===
+        # Uncomment ONLY if needed:
+        # 'scipy',
+        # 'scipy.special.cython_special'
+
     ],
-    hookspath=[],
+    hookspath=['.'],
     hooksconfig={},
     runtime_hooks=[],
     excludes=['torch.utils.tensorboard','cefpython3'],

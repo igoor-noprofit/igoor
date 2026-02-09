@@ -1,11 +1,11 @@
 {
     "bio":{
-        "name":"Igor",
-        "pronoun": "Il",
-        "birth_date": "1973",
-        "health_state": "Parle à travers une tablette et cette IA, appeée IGOOR",
+        "name":"",
+        "pronoun": "",
+        "birth_date": "",
+        "health_state": "",
         "style": "",
-        "style_weight": "1 r\u00e9ponse sur 5 MAXIMUM"
+        "style_weight": "2 r\u00e9ponse sur 6 MAXIMUM"
     },
     "prefs":{
         "lang": "fr_FR",
@@ -16,7 +16,8 @@
     "ai":{
         "provider": "groq",
         "api_key": "",
-        "model_name": "meta-llama/llama-4-maverick-17b-128e-instruct",
-        "temperature": 0.2
+        "model_name": "openai/gpt-oss-120b",
+        "temperature": 0.5,
+        "reasoning_effort": "low"
     }
 }

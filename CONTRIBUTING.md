@@ -2,31 +2,6 @@
 
 Thank you for your interest in contributing to **IGOOR** — an open, free, and human-centered conversational application designed for people with neurodegenerative diseases or paralysis.
 
-This document outlines how to contribute **safely and respectfully** during the project’s **private development phase**.
-
----
-
-## ⚠️ Notice of Confidential Development
-
-IGOOR is currently under **private development**.
-While the final version of the software **will be released** as free/libre under the **GPLv3 License**, the **current codebase is confidential**.
-
-By accessing this repository, you agree to the following terms:
-
-1. **Confidentiality:**
-   You must **not share, distribute, or disclose** any code, documentation, or materials related to IGOOR outside the development team.
-
-2. **Access Purpose:**
-   Your access is granted **solely for contributing to IGOOR’s development**. Do not use the codebase or data for any other purpose.
-
-3. **Contribution Licensing:**
-   All contributions (code, documentation, assets, etc.) will be automatically licensed under **GPLv3** upon the public release of the software.
-
-4. **Breach of Terms:**
-   Any breach of confidentiality may result in **immediate removal** from the project and potential legal or administrative action.
-
----
-
 ## 🧱 Development Setup
 
 ### Requirements
@@ -107,11 +82,7 @@ If your contribution affects plugin behavior, include:
   IGOOR_FOLDER/logs/
   ```
 * Review logs for runtime errors or warnings before submitting code.
-* If your PR involves LLM interaction or RAG improvements, verify JSON logging in:
-
-  ```
-  IGOOR_FOLDER/logs/llm_invocations/
-  ```
+* If your PR involves LLM interaction or RAG improvements, verify JSON logging of llm_invocations in the same folder.
 
 ---
 
@@ -127,21 +98,8 @@ A PR may be:
 
 Please be patient and open to review discussions.
 
----
-
-## 🌐 Future Open Source Transition
-
-Once IGOOR’s private phase is complete:
-
-* The repository will become public under **GPLv3**.
-* Contributors will be fully credited.
-* All prior contributions will be automatically covered under GPLv3.
-
----
 
 ## ❤️ Acknowledgments
 
 IGOOR is authored by **Carlo Giordano**, based on a concept by **Igor Novitzki**.
 Original UX/UI by **Zenoid**.
-
-Thank you for helping shape IGOOR into a powerful, ethical, and inclusive tool.

@@ -78,6 +78,12 @@ class Daily(Baseplugin):
         print("RELOADING DAILY SETTINGS")
         self.load_settings()
         self.startup()
+        # Reload all cached values from updated onboarding settings
+        bio = self.settings_manager.get_bio()
+        self.bio_name = bio.get("name")
+        # Reload language and prompts in case language was changed
+        self.lang = self.settings_manager.get_lang()
+        self.prompts = self.get_my_prompts()
     
     @hookimpl
     def abandon_conversation(self):
