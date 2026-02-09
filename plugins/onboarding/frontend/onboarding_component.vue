@@ -29,12 +29,12 @@
                             <div>
                                 <label>{{ t("Name") }}</label><input type="text" v-model="bio.name">
                             </div>
-                            <div>
+                            <!--div>
                                 <label>{{ t("Pronoun") }}</label><input type="text" v-model="bio.pronoun">
                             </div>
                             <div>
                                 <label>{{ t("Year of birth") }}</label><input type="text" v-model="bio.birth_date">
-                            </div>
+                            </div-->
                         </div>
                         <div class="bio right">
                             <div>
