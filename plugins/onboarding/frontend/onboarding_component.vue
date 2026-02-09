@@ -201,11 +201,7 @@
                             <br>
                             <p>{{ t('If you find this software useful, please consider donating to the not-for-profit organization IGOOR') }}</p>
                             <br>
-<<<<<<< HEAD
-                                🎁 <a :href="donationLink" target="_blank" @click.prevent="openExternalLink(donationLink)">{{ t("Make a donation") }}</a>
-=======
                                 🎁 <a :href="donationLink" target="_blank">{{ t("Make a donation") }}</a>
->>>>>>> 0.1.4.3
                         </div>
                     </div>
                 </div>
@@ -453,16 +449,6 @@ export default {
 
             const backendApi = await ensureBackendApi();
             await backendApi.onboardingToggled(false);
-        },
-        openExternalLink(url) {
-            if (!url) {
-                return;
-            }
-            if (window.pywebview?.api?.open_external_url) {
-                window.pywebview.api.open_external_url(url);
-            } else {
-                window.open(url, '_blank', 'noopener,noreferrer');
-            }
         },
         async saveSettings() { // This is for main settings (bio, prefs, ai)
             // Check API key validation before saving
