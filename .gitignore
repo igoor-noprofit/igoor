@@ -16,7 +16,7 @@ __pycache__/
 
 # Factory AI Droid
 AI/
-.factory/*.*
+.factory/
 
 # Distribution / packaging
 .Python
