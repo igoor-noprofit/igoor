@@ -103,7 +103,8 @@ class LLMManager:
                             "type": "json_schema",
                             "json_schema": {
                                 "name": schema.__name__,
-                                "schema": schema.model_json_schema()
+                                "schema": schema.model_json_schema(),
+                                "strict": False
                             }
                         }
                     call_args = {
