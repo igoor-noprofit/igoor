@@ -12,6 +12,8 @@ __pycache__/
 .factory/
 AI/
 
+.github_token.txt
+
 # C extensions
 *.so
 
