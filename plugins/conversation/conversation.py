@@ -3,6 +3,7 @@ from plugins.baseplugin.baseplugin import Baseplugin
 from plugin_manager import hookimpl
 from prompt_manager import PromptManager
 from context_manager import context_manager
+from fastapi import APIRouter, Query, Response
 import asyncio,json
 from concurrent.futures import ThreadPoolExecutor
 
@@ -15,6 +16,106 @@ class Conversation(Baseplugin):
         self.thread=[]
         self.topic=""
         self.current_thread_id = None
+        self.router = None
+
+    def _ensure_router(self):
+        """Initialize FastAPI router for plugin endpoints"""
+        if self.router is not None:
+            return
+        self.router = APIRouter(prefix="/api/plugins/conversation", tags=["conversation"])
+
+        @self.router.get("/get_conversations")
+        async def get_conversations(
+            order_by: str = Query("start_time ASC", description="Order by clause (e.g., 'start_time ASC')"),
+            limit: int = Query(20, description="Maximum number of conversations to retrieve")
+        ):
+            """Get conversation threads with ordering and limit"""
+            try:
+                # Parse order_by to ensure it's safe
+                order_clauses = {
+                    "start_time ASC": "start_time ASC",
+                    "start_time DESC": "start_time DESC",
+                    "end_time ASC": "end_time ASC",
+                    "end_time DESC": "end_time DESC"
+                }
+                order_clause = order_clauses.get(order_by, "start_time ASC")
+
+                sql = f"SELECT * FROM threads ORDER BY {order_clause} LIMIT ?"
+                results = await self.db_execute(sql, (limit,))
+                
+                # Convert to list of dicts
+                conversations = []
+                for row in results:
+                    conversations.append(dict(row))
+
+                return conversations
+            except Exception as e:
+                self.logger.error(f"Error getting conversations: {e}")
+                raise e
+
+        @self.router.get("/conversations_for_llm")
+        async def conversations_for_llm(
+            format: str = Query("json", description="Response format: json, text, or markdown"),
+            limit: int = Query(None, description="Maximum number of conversations to return (optional)")
+        ):
+            """
+            Get all conversations with non-empty content, ordered by start_time ASC.
+            Suitable for inclusion in LLM prompts.
+            """
+            try:
+                # Validate format parameter
+                valid_formats = ["json", "text", "markdown"]
+                if format not in valid_formats:
+                    raise ValueError(f"Invalid format '{format}'. Must be one of: {', '.join(valid_formats)}")
+
+                # Build SQL query with optional limit
+                sql = "SELECT id, start_time, topic, content FROM threads WHERE content IS NOT NULL AND content != '' ORDER BY start_time ASC"
+                params = ()
+
+                if limit is not None and limit > 0:
+                    sql += " LIMIT ?"
+                    params = (limit,)
+
+                results = await self.db_execute(sql, params)
+
+                if format == "json":
+                    # Return JSON format
+                    conversations = []
+                    for row in results:
+                        conversations.append({
+                            "id": row['id'],
+                            "start_time": row['start_time'],
+                            "topic": row['topic'] or "",
+                            "content": row['content']
+                        })
+                    return {"count": len(conversations), "conversations": conversations}
+
+                elif format == "text":
+                    # Return plain text format
+                    lines = []
+                    for row in results:
+                        topic_display = row['topic'] or "No topic"
+                        lines.append(f"Conversation {row['id']} - Started: {row['start_time']} - Topic: {topic_display}")
+                        lines.append("---")
+                        lines.append(row['content'])
+                        lines.append("")
+                    return Response(content="\n".join(lines), media_type="text/plain; charset=utf-8")
+
+                elif format == "markdown":
+                    # Return markdown format
+                    lines = []
+                    for row in results:
+                        topic_display = row['topic'] or "No topic"
+                        lines.append(f"## Conversation {row['id']} (Started: {row['start_time']})")
+                        lines.append(f"**Topic:** {topic_display}")
+                        lines.append("")
+                        lines.append(row['content'])
+                        lines.append("")
+                    return Response(content="\n".join(lines), media_type="text/markdown; charset=utf-8")
+
+            except Exception as e:
+                self.logger.error(f"Error getting conversations for LLM: {e}")
+                raise e
         
     def init_timeout(self):
         print("INIT TIMEOUT")
@@ -166,6 +267,13 @@ class Conversation(Baseplugin):
             )
         )
         
+    @hookimpl
+    def startup(self):
+        self._ensure_router()
+        # Register router with the main FastAPI app if available
+        if hasattr(self, 'pm') and hasattr(self.pm, 'fastapi_app'):
+            self.pm.fastapi_app.include_router(self.router)
+
     @hookimpl
     async def transcribing_started(self):
         self.logger.info("Transcribing started")

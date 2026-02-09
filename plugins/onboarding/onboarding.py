@@ -8,12 +8,14 @@ from dotenv import load_dotenv
 load_dotenv()
 from context_manager import context_manager
 from settings_manager import SettingsManager
+from fastapi import APIRouter, HTTPException
 
 class Onboarding(Baseplugin):
     def __init__(self, plugin_name, pm):
         self.pm = pm
         self.sm = SettingsManager()
         self.onboarding_completed = False
+        self.router = None
         super().__init__(plugin_name,pm)
     
     @hookimpl
@@ -21,9 +23,55 @@ class Onboarding(Baseplugin):
         print("ONBOARDING PLUGIN is forcing onboard")
         self.onboarding_completed = False
         self.send_message_to_frontend({"action": "show_modal"})
-    
+
+    def _ensure_router(self):
+        """Initialize FastAPI router for plugin endpoints"""
+        if self.router is not None:
+            return
+        self.router = APIRouter(prefix="/api/plugins/onboarding", tags=["onboarding"])
+
+        @self.router.get("/validate_api_key")
+        async def validate_api_key(provider: str = "groq", api_key: str = "", model_name: str = ""):
+            """Validate API key and model for a provider"""
+            if not api_key or not api_key.strip():
+                raise HTTPException(status_code=400, detail="API key is required")
+            if not model_name or not model_name.strip():
+                raise HTTPException(status_code=400, detail="Model name is required")
+
+            try:
+                if provider == "groq":
+                    from groq import Groq
+                    client = Groq(api_key=api_key.strip())
+                    messages = [{"role": "user", "content": "Hi"}]
+                    response = client.chat.completions.create(
+                        model=model_name.strip(),
+                        messages=messages,
+                        max_tokens=5
+                    )
+                    return {"valid": True}
+                else:
+                    raise HTTPException(status_code=400, detail=f"Unsupported provider: {provider}")
+            except Exception as e:
+                error_msg = str(e).lower()
+                # Handle Groq-specific errors
+                if 'unauthorized' in error_msg or 'invalid api key' in error_msg:
+                    raise HTTPException(status_code=400, detail="Invalid API Key")
+                elif 'unsupported model' in error_msg or '2025' in error_msg:
+                    raise HTTPException(status_code=400, detail="Unsupported model")
+                elif '401' in error_msg or 'authentication' in error_msg:
+                    raise HTTPException(status_code=400, detail="Invalid API Key")
+                elif 'timeout' in error_msg or 'connection' in error_msg:
+                    raise HTTPException(status_code=400, detail="Connection error: could not validate API key")
+                else:
+                    raise HTTPException(status_code=400, detail=f"API Key validation failed: {str(e)}")
+
     @hookimpl
     def startup(self):
+        self._ensure_router()
+        # Register router with the main FastAPI app if available
+        if hasattr(self, 'pm') and hasattr(self.pm, 'fastapi_app'):
+            self.pm.fastapi_app.include_router(self.router)
+
         self.settings = self.get_my_settings()
         ''' check all mandatory settings are not empty
         if it's the case, send message to frontend to hide '''
@@ -152,6 +200,14 @@ class Onboarding(Baseplugin):
                 'message': f'Failed to save settings: {str(e)}'
             })
         
+    @hookimpl
+    async def global_settings_updated(self):
+        """Called when global settings are updated - reload onboarding settings from disk."""
+        print("Onboarding: global_settings_updated - reloading settings from disk")
+        self.settings = self.get_my_settings()
+        # Send updated settings to frontend
+        await self.wait_for_socket_and_send(self.settings)
+
     @hookimpl
     async def gui_ready(self):
         print("GUI READY!")

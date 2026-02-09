@@ -79,7 +79,15 @@ def create_app() -> FastAPI:
         plugin_name: str, payload: UpdateSettingsPayload
     ):
         settings_manager.update_plugin_settings(plugin_name, payload.settings)
+        # Auto-reload settings after plugin update to notify all plugins
+        settings_manager.load_and_notify(plugin_manager)
         return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+    @api_router.post("/settings/reload")
+    async def api_reload_settings():
+        """Force reload settings from disk and notify all plugins."""
+        settings_manager.load_and_notify(plugin_manager)
+        return {"status": "ok"}
 
     @api_router.post("/plugins/{plugin_name}/toggle")
     async def api_toggle_plugin(plugin_name: str, payload: TogglePluginPayload):

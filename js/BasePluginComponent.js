@@ -278,7 +278,7 @@ const BasePluginComponent = {
       }
     },
     saveSettings() {
-      console.log("Saving plugin settings:", this.formData);
+      console.log("Baseplugin saving settings:", this.formData);
       let plugin_name = this.$options.name;
       if (plugin_name.endsWith("Settings")) {
         plugin_name = plugin_name.substring(
@@ -290,8 +290,23 @@ const BasePluginComponent = {
       return ensureBackendApi().then((api) =>
         api.updatePluginSettings(plugin_name, this.formData).then(() => {
           this.setOriginalSettings(this.formData);
+          // Trigger global settings reload after successful save
+          this.reloadGlobalSettings();
         })
       );
+    },
+    reloadGlobalSettings() {
+      // Reload global settings from disk to notify all plugins
+      ensureBackendApi().then((api) => {
+        fetch('/api/settings/reload', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        }).catch((error) => {
+          console.error('Error reloading global settings:', error);
+        });
+      });
     }
   },
   computed: {

@@ -12,12 +12,13 @@
   "requires_db": true,
   "db_tables": {
     "documents": {
-      "schema": "CREATE TABLE IF NOT EXISTS documents (id INTEGER PRIMARY KEY, title TEXT, filename TEXT NOT NULL, created_at TIMESTAMP)",
-      "version": "1.0"
+      "schema": "CREATE TABLE IF NOT EXISTS documents (id INTEGER PRIMARY KEY, title TEXT, filename TEXT NOT NULL, always_send INTEGER DEFAULT 0, created_at TIMESTAMP)",
+      "version": "2.0"
     },
     "chunks": {
       "schema": "CREATE TABLE IF NOT EXISTS chunks (id INTEGER PRIMARY KEY, docstore_id TEXT, type INTEGER, content TEXT, reason TEXT, theme TEXT, tags TEXT, created_at TIMESTAMP, document_id INTEGER, conversation_id INTEGER, FOREIGN KEY(document_id) REFERENCES documents(id), FOREIGN KEY(conversation_id) REFERENCES conversation_threads(id))",
       "version": "1.2"
     }
-  }
+  },
+  "has_settings": true
 }

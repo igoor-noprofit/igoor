@@ -9,9 +9,6 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-.factory/
-AI/
-
 .github_token.txt
 
 # C extensions
@@ -19,7 +16,7 @@ AI/
 
 # Factory AI Droid
 AI/
-.factory/docs
+.factory/
 
 # Distribution / packaging
 .Python
@@ -178,3 +175,5 @@ cython_debug/
 #.idea/
 js/app.js
 js/app.vue
+/.factory
+.factory/skills/igoor-plugin-development/SKILL.md

@@ -29,12 +29,12 @@
                             <div>
                                 <label>{{ t("Name") }}</label><input type="text" v-model="bio.name">
                             </div>
-                            <div>
+                            <!--div>
                                 <label>{{ t("Pronoun") }}</label><input type="text" v-model="bio.pronoun">
                             </div>
                             <div>
                                 <label>{{ t("Year of birth") }}</label><input type="text" v-model="bio.birth_date">
-                            </div>
+                            </div-->
                         </div>
                         <div class="bio right">
                             <div>
@@ -74,38 +74,62 @@
                         </div>
                     </div>
                     <div v-if="currentTab === 'ai'">
-                        <div class="ai left">
-                            <div>
-                                <label>{{ t("Provider") }}</label>
-                                <select v-model="ai.provider">
-                                    <option value="groq">Groq</option>
-                                    <!--option value="openai">OpenAI</option-->
-                                </select>
+                        <div class="ai-container">
+                            <div class="ai left">
+                                <div>
+                                    <label>{{ t("Provider") }}</label>
+                                    <select v-model="ai.provider">
+                                        <option value="groq">Groq</option>
+                                        <!--option value="openai">OpenAI</option-->
+                                    </select>
+                                </div>
+                                <div>
+                                    <label>{{ t("API Key") }}</label>
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <input
+                                            type="password"
+                                            v-model="ai.api_key"
+                                            :class="{'input-error': apiKeyError, 'input-success': apiKeyValid}"
+                                            :disabled="isValidating"
+                                        />
+                                        <span v-if="isValidating">{{ t('Validating...') }}</span>
+                                        <span v-if="apiKeyValid" class="valid-icon">✓</span>
+                                    </div>
+                                    <p v-if="apiKeyError" class="error-message">{{ apiKeyErrorMessage }}</p>
+                                    <p>{{ t("Groq is our default provider:") }} <br><a class="extlink"
+                                            href="https://console.groq.com/login" target="_blank">{{ t("To obtain a FREE api key sign up here") }}</a>
+                                        <br><a class="extlink" href="https://groq.com/privacy-policy/" target="_blank">{{ t("Our default provider privacy policy") }}</a>
+                                    </p>
+                                </div>
                             </div>
-                            <div>
-                                <label>{{ t("API Key") }}</label><input type="password" v-model="ai.api_key">
-                                <p>{{ t("Groq is our default provider:") }} <br><a class="extlink"
-                                        href="https://console.groq.com/login" target="_blank">{{ t("To obtain a FREE api key sign up here") }}</a>
-                                    <br><a class="extlink" href="https://groq.com/privacy-policy/" target="_blank">{{ t("Our default provider privacy policy") }}</a>
-                                </p>
-                            </div>
-                            <div>
-                                <label>{{ t("Model Name") }}</label>
-                                <select v-model="ai.model_name">
-                                    <option value="llama-3.3-70b-versatile">Llama 3.3-70B</option>
-                                    <option value="openai/gpt-oss-120b">OpenAI OSS-GPT-120B</option>
-                                    <option value="openai/gpt-oss-20b">OpenAI OSS-GPT-20B</option>
-                                    <option value="meta-llama/llama-4-maverick-17b-128e-instruct">Llama 4-17b-128e (preview)</option>
-                                    <option value="meta-llama/llama-4-scout-17b-16e-instruct">Llama 4-17b-16e (preview)</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label>{{ t("Temperature") }}</label>
-                                <div style="display: flex; align-items: center; gap: 12px;">
-                                    <input type="range" v-model.number="ai.temperature" min="0" max="1" step="0.01"
-                                        style="flex: 1 1 60%;">
-                                    <input type="number" v-model.number="ai.temperature" step="0.1" min="0" max="1"
-                                        placeholder="0.2" style="width: 60px;">
+                            <div class="ai right">
+                                <div>
+                                    <label>{{ t("Model Name") }}</label>
+                                    <select v-model="ai.model_name">
+                                        <option value="llama-3.3-70b-versatile">Llama 3.3-70B</option>
+                                        <option value="openai/gpt-oss-120b">OpenAI OSS-GPT-120B</option>
+                                        <option value="openai/gpt-oss-20b">OpenAI OSS-GPT-20B</option>
+                                        <option value="meta-llama/llama-4-maverick-17b-128e-instruct">Llama 4-17b-128e (preview)</option>
+                                        <option value="meta-llama/llama-4-scout-17b-16e-instruct">Llama 4-17b-16e (preview)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label>{{ t("Temperature") }}</label>
+                                    <div style="display: flex; align-items: center; gap: 12px;">
+                                        <input type="range" v-model.number="ai.temperature" min="0" max="1" step="0.01"
+                                            style="flex: 1 1 60%;">
+                                        <input type="number" v-model.number="ai.temperature" step="0.1" min="0" max="1"
+                                            placeholder="0.2" style="width: 60px;">
+                                    </div>
+                                </div>
+                                <div v-if="supportsReasoning">
+                                    <label>{{ t("Reasoning effort") }}</label>
+                                    <select v-model="ai.reasoning_effort">
+                                        <option value="low">{{ t("Low") }}</option>
+                                        <option value="medium">{{ t("Medium") }}</option>
+                                        <option value="high">{{ t("High") }}</option>
+                                    </select>
+                                    <p>{{ t("Higher reasoning means slower, more expensive, but usually more intelligent responses.") }}</p>
                                 </div>
                             </div>
                         </div>
@@ -113,9 +137,9 @@
                     <div v-if="currentTab === 'plugins'" class="pluginsContainer">
                         <!-- View for Plugin-Specific Settings -->
                         <div v-if="viewingPluginSettings && selectedPluginComponent" class="pct_container">
-                            
+
                             <h3 class="pluginContainerTitle"><a style="cursor: pointer" @click="closePluginSettingsView">{{ t("Plugins") }}</a> > {{ selectedPluginForSettings.title }}</h3>
-                            <component :is="selectedPluginComponent" :initial-settings="currentPluginInitialSettings"
+                            <component ref="pluginSettingsComponent" :is="selectedPluginComponent" :initial-settings="currentPluginInitialSettings"
                                 :plugin-name="selectedPluginForSettings.name" :lang="lang" :onboarding-open="showModal"
                                 @save-settings="handlePluginSettingsSave" class="plugin-settings-component"></component>
                             <!-- The save button is now expected to be WITHIN the loaded component -->
@@ -171,7 +195,7 @@
                     <div v-if="currentTab === 'about'">
                         <div class="about about-tab left">
                             <p>{{ t("Concept by Igor Novitzki") }}</p>
-                            <p>{{ t("© 2025 Developed by") }} <a href="https://igoor.org/?utm_source=igoor_app"
+                            <p>{{ t("© 2025-2026 Developed by") }} <a href="https://igoor.org/?utm_source=igoor_app"
                                     target="_blank">IGOOR</a>, {{ t("in partnership with") }} <a href="https://www.arsla.org/?utm_source=igoor_app" target="_blank">ARSLA</a>
                             </p>
                             <br>
@@ -192,6 +216,22 @@
                     <span v-if="saveStatus" :class="['save-status', saveStatus.type]">
                         {{ saveStatus.message }}
                     </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Unsaved Changes Confirmation Modal -->
+        <div v-if="showUnsavedChangesModal" class="unsaved-changes-modal-overlay">
+            <div class="unsaved-changes-modal-content">
+                <h3>{{ t("Unsaved Changes") }}</h3>
+                <p>{{ t("You have unsaved changes. Do you want to save them?") }}</p>
+                <div class="modal-actions">
+                    <button class="btn btn-secondary" @click="confirmSaveBeforeNavigation(false)">
+                        {{ t("Cancel") }}
+                    </button>
+                    <button class="btn btn-primary" @click="confirmSaveBeforeNavigation(true)">
+                        {{ t("Save") }}
+                    </button>
                 </div>
             </div>
         </div>
@@ -226,7 +266,8 @@ export default {
                 provider: "",
                 api_key: "",
                 model_name: "",
-                temperature: ""
+                temperature: "",
+                reasoning_effort: ""
             },
             isSaving: false,
             saveStatus: null,
@@ -235,7 +276,15 @@ export default {
             selectedPluginForSettings: null, // Holds the plugin object whose settings are being viewed/edited
             selectedPluginComponent: null,   // Holds the dynamically loaded settings component for a plugin
             currentPluginInitialSettings: {}, // Holds initial settings to pass as prop
-            viewingPluginSettings: false     // Controls visibility of plugin-specific settings view
+            viewingPluginSettings: false,     // Controls visibility of plugin-specific settings view
+            showUnsavedChangesModal: false,  // Controls visibility of unsaved changes confirmation modal
+            pendingNavigation: null,            // Stores the pending navigation action to execute after confirmation
+            // API key validation properties
+            apiKeyError: false,
+            apiKeyErrorMessage: '',
+            apiKeyValid: false,
+            validationDebounce: null,
+            isValidating: false
         }
     },
     async mounted() {
@@ -260,9 +309,29 @@ export default {
             console.error("Failed to load onboarding settings via REST", error);
         }
     },
+    async onGlobalSettingsUpdated() {
+        // Called when global settings are updated
+        console.log("Onboarding frontend: global settings updated, reloading settings from disk");
+        try {
+            const api = await ensureBackendApi();
+            const settings = await api.getPluginSettings("onboarding");
+            if (settings) {
+                if (settings.bio) this.bio = { ...this.bio, ...settings.bio };
+                if (settings.prefs) this.prefs = { ...this.prefs, ...settings.prefs };
+                if (settings.ai) this.ai = { ...this.ai, ...settings.ai };
+            }
+            // Reload plugins list to get updated activation states
+            await this.loadPlugins();
+        } catch (error) {
+            console.error("Failed to reload onboarding settings after global update", error);
+        }
+    },
     computed: {
         categories() {
             return Object.keys(this.pluginData)
+        },
+        supportsReasoning() {
+            return ["openai/gpt-oss-120b", "openai/gpt-oss-20b"].includes(this.ai.model_name);
         },
         pluginsByCategory() {
             // Exclude plugins by name
@@ -293,17 +362,95 @@ export default {
                     this.showRestartAlert = false;
                 }, 4000);
             }
+        },
+        'ai.api_key'(newValue) {
+            // Debounce API key validation
+            if (this.validationDebounce) {
+                clearTimeout(this.validationDebounce);
+            }
+            if (newValue && newValue.trim()) {
+                this.validationDebounce = setTimeout(() => {
+                    this.validateApiKey(newValue);
+                }, 500);
+            } else {
+                this.apiKeyError = false;
+                this.apiKeyErrorMessage = '';
+                this.apiKeyValid = false;
+            }
+        },
+        'ai.model_name'(newModel) {
+            // Re-validate API key when model changes
+            if (this.ai.api_key && this.ai.api_key.trim()) {
+                this.validateApiKey(this.ai.api_key);
+            }
         }
     },
     methods: {
+        async validateApiKey(apiKey) {
+            if (!apiKey || !apiKey.trim() || !this.ai.model_name) {
+                this.apiKeyError = false;
+                this.apiKeyErrorMessage = '';
+                return;
+            }
+
+            this.isValidating = true;
+
+            try {
+                const response = await fetch(
+                    `/api/plugins/onboarding/validate_api_key?provider=${encodeURIComponent(this.ai.provider || 'groq')}&api_key=${encodeURIComponent(apiKey)}&model_name=${encodeURIComponent(this.ai.model_name)}`
+                );
+                const data = await response.json();
+
+                if (response.ok) {
+                    this.apiKeyError = false;
+                    this.apiKeyErrorMessage = '';
+                    this.apiKeyValid = true;
+                } else {
+                    this.apiKeyError = true;
+                    this.apiKeyErrorMessage = this.t(data.detail) || this.t('Invalid API Key');
+                    this.apiKeyValid = false;
+                }
+            } catch (error) {
+                console.error('API key validation error:', error);
+                this.apiKeyError = true;
+                this.apiKeyErrorMessage = this.t('Could not validate API key');
+                this.apiKeyValid = false;
+            } finally {
+                this.isValidating = false;
+            }
+        },
         async toggleModal() {
-            this.showModal = !this.showModal;
-        const backendApi = await ensureBackendApi();
-            await backendApi.onboardingToggled(this.showModal);
+            // Only check for unsaved changes when CLOSING the modal (showModal = true -> false)
+            // Not when just switching between tabs within the modal
+            if (this.showModal && !this.viewingPluginSettings) {
+                // Closing modal while viewing main tabs - no unsaved changes to check
+                this.showModal = false;
+                const backendApi = await ensureBackendApi();
+                await backendApi.onboardingToggled(false);
+            } else if (this.showModal && this.viewingPluginSettings) {
+                // Closing modal while viewing plugin settings - check for unsaved changes
+                if (this.hasUnsavedPluginChanges()) {
+                    this.showUnsavedChangesModal = true;
+                    this.pendingNavigation = 'close-modal';
+                    return;
+                }
+                // No unsaved changes - proceed with closing
+                            this.currentTab = 'bio';
+                this.showModal = false;
+                const backendApi = await ensureBackendApi();
+                await backendApi.onboardingToggled(false);
+            } else {
+                // Opening modal
+                this.showModal = true;
+                const backendApi = await ensureBackendApi();
+                await backendApi.onboardingToggled(true);
+            }
         },
         async closeModal() {
             console.log('Closing modal');
+
             this.showModal = false
+
             const backendApi = await ensureBackendApi();
             await backendApi.onboardingToggled(false);
         },
@@ -318,6 +465,15 @@ export default {
             }
         },
         async saveSettings() { // This is for main settings (bio, prefs, ai)
+            // Check API key validation before saving
+            if (this.apiKeyError) {
+                this.saveStatus = {
+                    type: 'error',
+                    message: this.t('Please fix API key validation errors before saving.')
+                };
+                return;
+            }
+
             this.isSaving = true;
             this.saveStatus = null;
 
@@ -347,17 +503,17 @@ export default {
             if (!event.data || typeof event.data !== 'string') {
                 return false; // Let BasePluginComponent handle it
             }
-            
+
             try {
                 const data = JSON.parse(event.data);
-                console.log(data);
+                console.log("Onboarding received message:", data);
                 // Only process messages that are specifically for onboarding
                 /*
                 if (data.target !== 'onboarding' && !data.bio && !data.prefs && !data.ai && data.action !== 'show_modal') {
                     return false; // Let BasePluginComponent handle it
                 }
-                */                 
-                
+                */
+
                 if (data.type && data.type == "error"){
                     this.saveStatus = {
                         type: 'error',
@@ -380,6 +536,7 @@ export default {
                     console.warn("ONBOARDING FORCED");
                     this.showModal = true;
                 }
+                // Handle settings updates (both initial load and global settings update)
                 if (data.bio) {
                     this.bio = { ...this.bio, ...data.bio };
                 }
@@ -388,6 +545,10 @@ export default {
                 }
                 if (data.ai) {
                     this.ai = { ...this.ai, ...data.ai };
+                }
+                // Reload plugins list when settings are updated
+                if (data.bio || data.prefs || data.ai) {
+                    this.loadPlugins();
                 }
                 return true; // Message was handled
             } catch (e) {
@@ -442,14 +603,18 @@ export default {
             this.loadPluginComponent(plugin.name);
         },
         closePluginSettingsView() {
+            // Check for unsaved changes before closing
+            if (this.hasUnsavedPluginChanges()) {
+                this.showUnsavedChangesModal = true;
+                this.pendingNavigation = 'back-to-plugins';
+                return;
+            }
             this.viewingPluginSettings = false;
             this.selectedPluginComponent = null;
             this.selectedPluginForSettings = null;
-            this.currentPluginInitialSettings = {};
         },
         async loadPluginComponent(pluginName) {
             this.selectedPluginComponent = null; // Clear previous one
-            this.currentPluginInitialSettings = {};
             try {
                 console.log(`Attempting to load settings component: /plugins/${pluginName}/frontend/${pluginName}_settings.vue`);
                 // Ensure the path is correct for dynamic imports.
@@ -508,6 +673,59 @@ export default {
                     this.saveStatus = null;
                 }, 3000);
             }
+        },
+        hasUnsavedPluginChanges() {
+            // Check if the currently loaded plugin settings component has unsaved changes
+            // The component has a hasUnsavedChanges computed property from BasePluginComponent
+            // We need to access it via the component's ref
+            if (!this.viewingPluginSettings || !this.$refs.pluginSettingsComponent) {
+                return false;
+            }
+            return this.$refs.pluginSettingsComponent.hasUnsavedChanges;
+        },
+        async confirmSaveBeforeNavigation(saveChanges) {
+            // Handle the user's choice in the unsaved changes modal
+            if (saveChanges) {
+                // Save the plugin settings first
+                try {
+                    // Call the child component's save method (each plugin might name it differently)
+                    // Try common method names
+                    const comp = this.$refs.pluginSettingsComponent;
+                    if (comp) {
+                        if (typeof comp.checkBeforeUpdating === 'function') {
+                            await comp.checkBeforeUpdating();
+                        } else if (typeof comp.saveSettings === 'function') {
+                            await comp.saveSettings();
+                        }
+                    }
+                    // Wait a bit for save to complete
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                } catch (error) {
+                    console.error('Error saving before navigation:', error);
+                    this.saveStatus = { type: 'error', message: this.t('Failed to save changes.') };
+                    return; // Don't proceed if save failed
+                }
+            }
+
+            // Execute the pending navigation
+            this.showUnsavedChangesModal = false;
+
+            if (this.pendingNavigation === 'close-modal') {
+                this.showModal = false;
+                const backendApi = await ensureBackendApi();
+                await backendApi.onboardingToggled(false);
+            } else if (this.pendingNavigation === 'back-to-plugins') {
+                this.viewingPluginSettings = false;
+                this.selectedPluginComponent = null;
+                this.selectedPluginForSettings = null;
+            }
+
+            this.pendingNavigation = null;
+        }
+    },
+    beforeDestroy() {
+        if (this.validationDebounce) {
+            clearTimeout(this.validationDebounce);
         }
     }
 }
@@ -524,12 +742,11 @@ export default {
 .about-tab {
     background: #000;
     font-size: 1.2rem;
-
-    a {
-        color: #fff
-    }
-
     padding: 30px;
+}
+
+.about-tab a {
+    color: #fff;
 }
 
 .tabs {
@@ -627,6 +844,10 @@ input:checked+.slider:before {
     display: flex;
 }
 
+.ai-container {
+    display: flex;
+}
+
 .left,
 .right {
     width: 48%;
@@ -664,6 +885,27 @@ input:checked+.slider:before {
 button:disabled {
     opacity: 0.7;
     cursor: not-allowed;
+}
+
+.input-error {
+    border-color: #ff6666 !important;
+    background: #2a1818 !important;
+}
+
+.input-success {
+    border-color: #3ca23c !important;
+}
+
+.valid-icon {
+    color: #3ca23c;
+    font-size: 1.2em;
+    font-weight: bold;
+    margin-left: 8px;
+}
+
+.error-message {
+    color: #ff6666;
+    margin: 5px 0 0 0;
 }
 
 /* SETTINGS */
@@ -861,5 +1103,75 @@ a.extlink {
 .isSaving{
     cursor: wait !important;
     background: #f00;
+}
+
+/* Unsaved Changes Modal */
+.unsaved-changes-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+}
+
+.unsaved-changes-modal-content {
+    background: #fff;
+    color: #000;
+    padding: 30px;
+    border-radius: 8px;
+    max-width: 400px;
+    width: 90%;
+    text-align: center;
+}
+
+.unsaved-changes-modal-content h3 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    color: #333;
+}
+
+.unsaved-changes-modal-content p {
+    margin-bottom: 25px;
+    color: #666;
+    line-height: 1.5;
+}
+
+.unsaved-changes-modal-content .modal-actions {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+}
+
+.unsaved-changes-modal-content .btn {
+    padding: 10px 24px;
+    font-size: 1rem;
+    border-radius: 4px;
+    border: none;
+    cursor: pointer;
+    transition: background 0.2s;
+    min-width: 100px;
+}
+
+.unsaved-changes-modal-content .btn-primary {
+    background: #2196F3;
+    color: #fff;
+}
+
+.unsaved-changes-modal-content .btn-primary:hover {
+    background: #1976D2;
+}
+
+.unsaved-changes-modal-content .btn-secondary {
+    background: #e0e0e0;
+    color: #333;
+}
+
+.unsaved-changes-modal-content .btn-secondary:hover {
+    background: #d0d0d0;
 }
 </style>

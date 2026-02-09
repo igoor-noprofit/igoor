@@ -1,0 +1,9 @@
+{
+    "category": "monitoring",
+    "title": "Survey Reminder",
+    "description": "Reminds users to complete the survey about IGOOR during the testing period at Hendaye",
+    "is_free": true,
+    "requires_subscription": false,
+    "requires_internet": false,
+    "requires_db": false
+}
