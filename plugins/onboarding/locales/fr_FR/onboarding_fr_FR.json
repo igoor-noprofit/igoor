@@ -66,5 +66,14 @@
   "Low": "Faible",
   "Medium": "Moyen",
   "High": "Élevé",
-  "Higher reasoning means slower, more expensive, but usually more intelligent responses.": "Un raisonnement plus élevé signifie des réponses plus lentes, plus coûteuses, mais généralement plus intelligentes."
+  "Higher reasoning means slower, more expensive, but usually more intelligent responses.": "Un raisonnement plus élevé signifie des réponses plus lentes, plus coûteuses, mais généralement plus intelligentes.",
+  "Knowledge Base": "Base de connaissances",
+  "Speech Recognition": "Reconnaissance vocale",
+  "Daily needs": "Besoins quotidiens",
+  "Quick Access Buttons": "Boutons d'accès rapide",
+  "Add/delete documents": "Ajouter/supprimer des documents",
+  "Predictions": "Prédictions",
+  "Vocal Synthesis": "Synthèse vocale",
+  "Cloud": "Dans le cloud",
+  "Local": "En locale"
 }
