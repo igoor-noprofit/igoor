@@ -174,7 +174,7 @@
                     <!-- Plugin-Specific Settings View (replaces tab content when viewing) -->
                     <div v-if="viewingPluginSettings && selectedPluginComponent" class="pct_container">
                         <h3 class="pluginContainerTitle">
-                            <a style="cursor: pointer" @click="closePluginSettingsView">{{ currentTab === 'home' ? t("Home") : t("Plugins") }}</a> > {{ selectedPluginForSettings.title }}
+                            <a @click="goToHome" class="breadcrumb-home">{{ t("Home") }}</a> > <a @click="backToPlugins" class="breadcrumb-plugins">{{ t("Plugins") }}</a> > {{ selectedPluginForSettings.title }}
                         </h3>
                         <component ref="pluginSettingsComponent" :is="selectedPluginComponent" :initial-settings="currentPluginInitialSettings"
                             :plugin-name="selectedPluginForSettings.name" :lang="lang" :onboarding-open="showModal"
@@ -498,6 +498,12 @@ export default {
                 this.isValidating = false;
             }
         },
+        openDocumentation() {
+            // Extract language code (e.g., 'fr' from 'fr_FR', 'en' from 'en_EN')
+            const langCode = this.prefs.lang ? this.prefs.lang.split('_')[0] : 'en';
+            const docUrl = `https://igoor-noprofit.github.io/docs/${langCode}`;
+            window.open(docUrl, '_blank');
+        },
         findPlugin(pluginName) {
             for (const category of Object.values(this.pluginData)) {
                 const found = category.find(p => p.name === pluginName);
@@ -679,6 +685,16 @@ export default {
             setTimeout(() => {
                 this.showRestartAlert = false;
             }, 4000);
+        },
+        goToHome() {
+            // Navigate to Home tab
+            this.currentTab = 'home';
+            this.viewingPluginSettings = false;
+        },
+        backToPlugins() {
+            // Navigate to Plugins tab (close plugin settings view)
+            this.currentTab = 'plugins';
+            this.viewingPluginSettings = false;
         },
         showPluginSettingsView(plugin) {
             this.selectedPluginForSettings = plugin;
@@ -1185,6 +1201,30 @@ button:disabled {
 
 a.extlink {
     color: #fff;
+}
+
+.breadcrumb-home {
+    cursor: pointer;
+    color: var(--basecolor-accent-500);
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+.breadcrumb-home:hover {
+    color: var(--basecolor-accent-300);
+    text-decoration: underline;
+}
+
+.breadcrumb-plugins {
+    cursor: pointer;
+    color: var(--basecolor-accent-500);
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+.breadcrumb-plugins:hover {
+    color: var(--basecolor-accent-300);
+    text-decoration: underline;
 }
 
 .isSaving{
