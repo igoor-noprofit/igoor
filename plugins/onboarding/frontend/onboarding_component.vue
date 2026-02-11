@@ -31,17 +31,18 @@
                     <div v-if="currentTab === 'home'" class="dashboard-container">
                         <div class="dashboard-grid">
                             <div v-for="categoryItem in dashboardCategories" :key="categoryItem.category"
-                                 class="dashboard-card"
-                                 @click="showPluginSettingsView(findPlugin(categoryItem.shortcuts[0].plugin))">
+                                 class="dashboard-card">
                                 <span class="card-icon">{{ categoryItem.category === 'Knowledge Base' ? '📁' :
                                          categoryItem.category === 'PREDICTIONS' ? '📋' :
                                          categoryItem.category === 'ASR' ? '🎤' :
                                          categoryItem.category === 'TTS' ? '🔊' : '⚙️' }}</span>
-                                <span class="card-label">{{ categoryItem.category }}</span>
-                                <div v-for="shortcut in categoryItem.shortcuts" :key="shortcut.plugin" class="card-sub-shortcuts">
-                                    <span v-for="(s, idx) in shortcut" :key="shortcut.plugin + idx">
-                                        {{ s.label }}
-                                    </span>
+                                <span class="card-label">{{ t(categoryItem.category) }}</span>
+                                <div class="card-sub-shortcuts">
+                                    <button v-for="shortcut in categoryItem.shortcuts" :key="shortcut.plugin"
+                                            class="shortcut-item"
+                                            @click="showPluginSettingsView(findPlugin(shortcut.plugin))">
+                                        {{ t(shortcut.label) }}
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -309,15 +310,16 @@ export default {
                 "Knowledge Base": [
                     { label: "Add/delete documents", plugin: "rag", icon: "📁" }
                 ],
-                "PREDICTIONS": [
-                    { label: "Daily needs", plugin: "daily", icon: "📋" }
+                "Predictions": [
+                    { label: "Daily needs", plugin: "daily", icon: "📋" },
+                    { label: "Quick Access Buttons", plugin: "shortcuts", icon: "📋" },
                 ],
-                "ASR": [
+                "Speech Recognition": [
                     { label: "Whisper", plugin: "asrwhisper", icon: "🎤" },
-                    { label: "Vosk", plugin: "asrvosk", icon: "🎤" },
-                    { label: "Web Speech", plugin: "asrjs", icon: "🎤" }
+                    { label: "Local", plugin: "asrvosk", icon: "🎤" },
+                    { label: "Cloud", plugin: "asrjs", icon: "🎤" }
                 ],
-                "TTS": [
+                "Vocal Synthesis": [
                     { label: "ElevenLabs", plugin: "elevenlabstts", icon: "🔊" },
                     { label: "Speechify", plugin: "speechifytts", icon: "🔊" },
                     { label: "TTSDefault", plugin: "ttsdefault", icon: "🔊" }
@@ -1289,24 +1291,43 @@ a.extlink {
     color: #ecf0f1;
     text-align: center;
     margin-bottom: 12px;
+    text-transform: uppercase;
 }
 
 .card-sub-shortcuts {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 10px;
     width: 100%;
     text-align: left;
     padding: 12px 0;
     border-top: 1px solid rgba(255, 255, 255, 0.1);
     margin-top: auto;
-    font-size: 0.9rem;
-    color: #b8d4d6;
 }
 
-.card-sub-shortcuts span {
-    padding: 6px 10px;
+.shortcut-item {
+    padding: 12px 16px;
     background: rgba(42, 62, 80, 0.3);
-    border-radius: 6px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.95rem;
+    color: #ecf0f1;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    text-align: center;
+    border: none;
+    width: 100%;
+    height: auto !important;
 }
+
+.shortcut-item:hover {
+    background: rgba(26, 188, 156, 0.4);
+    transform: scale(1.02);
+}
+
+.shortcut-item:active {
+    transform: scale(0.98);
+}
+
+
 </style>
