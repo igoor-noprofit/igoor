@@ -32,7 +32,7 @@
                         <div class="dashboard-grid">
                             <div v-for="categoryItem in dashboardCategories" :key="categoryItem.category"
                                  class="dashboard-card">
-                                <span class="card-icon">{{ categoryItem.category === 'Context' ? '📖' :
+                                <span class="card-icon">{{ categoryItem.category === 'Context' ? '🧠' :
                                          categoryItem.category === 'Predictions' ? '🔮' :
                                          categoryItem.category === 'Speech Recognition' ? '🎤' :
                                          categoryItem.category === 'Vocal Synthesis' ? '🔊' : '⚙️' }}</span>
@@ -46,6 +46,17 @@
                                     </button>
                                 </div>
                             </div>
+                            <div class="dashboard-card">
+                                <span class="card-icon">📖</span>
+                                <span class="card-label">{{ t("Help") }}</span>
+                                <div class="card-sub-shortcuts">
+                                    <button class="shortcut-item" @click="openDocumentation()">
+                                        <span class="shortcut-icon">ℹ️</span>
+                                        <span class="shortcut-label">{{ t("View Documentation") }}</span>
+                                    </button>
+                                </div>
+                            </div>
+                            
                         </div>
                     </div>
 
@@ -583,6 +594,10 @@ export default {
                 */
 
                 if (data.type && data.type == "error"){
+                    // Auto-switch to the tab with the missing field
+                    if (data.category) {
+                        this.currentTab = data.category;
+                    }
                     this.saveStatus = {
                         type: 'error',
                        message: this.t(data.error_type || 'Error') + (data.missing_field ? " : " + this.t(data.missing_field) + " (" + this.t(data.category || '') + ")" : '')
@@ -1263,7 +1278,7 @@ a.extlink {
 }
 
 .dashboard-card {
-    background: #216776;
+    background: var(--basecolor-darkest);
     border-radius: 12px;
     padding: 25px 20px;
     display: flex;
@@ -1271,16 +1286,17 @@ a.extlink {
     align-items: center;
     justify-content: space-between;
     cursor: pointer;
-    transition: transform 0.2s ease, background 0.2s ease;
     min-height: 160px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
     gap: 15px;
 }
 
+/*
 .dashboard-card:hover {
     background: #23515b;
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
 }
+*/
 
 .card-icon {
     font-size: 2rem;
@@ -1308,7 +1324,7 @@ a.extlink {
 
 .shortcut-item {
     padding: 10px 12px;
-    background: rgba(42, 62, 80, 0.3);
+    background: var(--basecolor-accent-700) !important;
     border-radius: 8px;
     cursor: pointer;
     font-size: 0.9rem;
