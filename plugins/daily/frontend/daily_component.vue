@@ -5,7 +5,7 @@
             <div v-for="(category, index) in mainCategories" :key="index" class="options-col">
                 <h3>{{ translateCategory(category.name) }}</h3>
                 <button v-for="(item, key) in category.items" :key="key" class="btn"
-                    :class="{ 'btn-primary': item.fixed, 'btn-secondary': !item.fixed }"
+                    :class="{ 'btn-primary': item.fixed, 'btn-secondary': !item.fixed, 'btn-selected-glow': isSelected(category.name, key) }"
                     @click="selectItem(category.name, key, item)">
                     {{ translateItem(key) }}
                 </button>
@@ -23,15 +23,11 @@
             <div v-for="(category, index) in secondaryCategories" :key="index" class="options-col" v-show="hasCategoryItems(category)">
                 <h3>{{ translateCategory(category.name) }}</h3>
                 <button v-for="(item, key) in category.items" :key="key" class="btn"
-                    :class="{ 'btn-primary': item.fixed, 'btn-secondary': !item.fixed }"
+                    :class="{ 'btn-primary': item.fixed, 'btn-secondary': !item.fixed, 'btn-selected-glow': isSelected(category.name, key) }"
                     @click="selectItem(category.name, key, item)">
                     {{ translateItem(key) }}
                 </button>
             </div>
-        </div>
-
-        <div class="secondary" v-if="currentView == 'loadingAnswers'">
-            loading...
         </div>
         <div class="answers" v-if="currentView == 'answers'">
             <button class="btn btn-side btn-side-left" @click="switchToMainView"><svg class="icon icon-l">
@@ -61,7 +57,8 @@ module.exports = {
             dailyData: [],
             mainCategories: [],
             secondaryCategories: [],
-            answers: []
+            answers: [],
+            selectedItem: null
         };
     },
     mounted() {
@@ -84,6 +81,9 @@ module.exports = {
         this.checkAndSendReady();
     },
     methods: {
+        isSelected(category, key) {
+            return this.selectedItem && this.selectedItem.category === category && this.selectedItem.itemKey === key;
+        },
         hasCategoryItems(category) {
             const items = category && category.items;
             if (!items) return false;
@@ -177,15 +177,17 @@ module.exports = {
         },
         selectItem(category, item, data) {
             if (this.currentView == 'main' || this.currentView == 'secondary') {
-                this.currentView = 'loadingAnswers';
-                console.warn("ITEM SELECTED");
-
-                this.answers = [];
                 this.sendMsgToBackend({
                     action: 'generatePhrases',
                     category: category,
                     theme: item
                 });
+                this.selectedItem = { category, itemKey: item };
+
+                console.warn("ITEM SELECTED - category:", category, "item:", item, "data:", data);
+
+                this.answers = [];
+                
             }
         },
         /* Sending final phrase */
@@ -197,12 +199,14 @@ module.exports = {
             this.sendMsgToBackend(json);
             /* this.switchToMainView(); */
             this.answers = [];
+            this.selectedItem = null;
         },
         switchToSecondaryView() {
             this.currentView = 'secondary';
         },
         switchToMainView() {
             this.currentView = 'main';
+            this.selectedItem = null;
         }
     }
 };
@@ -317,11 +321,19 @@ module.exports = {
     justify-content: flex-start;
 }
 
+.options-col .btn:active {
+    background: var(--color-btn-rollover-base) !important;
+}
+
 .options-col .btn-primary {
     flex-grow: 1.15;
 }
 
 .options-col .btn-secondary {
     flex-grow: 1;
+}
+
+.options-col .btn.btn-selected-glow {
+    background-color: #ff4500 !important;
 }
 </style>
