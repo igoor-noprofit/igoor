@@ -193,6 +193,7 @@ class Conversation(Baseplugin):
         """
         Gets last 10 conversation messages containing the query_text.
         Returns a list of matching messages by datetime ASC
+        Used by autocomplete
         """
         if not query_text:
             return []
