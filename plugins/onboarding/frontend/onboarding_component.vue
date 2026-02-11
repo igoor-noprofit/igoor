@@ -54,6 +54,10 @@
                                         <span class="shortcut-icon">ℹ️</span>
                                         <span class="shortcut-label">{{ t("View Documentation") }}</span>
                                     </button>
+                                    <button class="shortcut-item" @click="giveFeedback()">
+                                        <span class="shortcut-icon"><svg xmlns="http://www.w3.org/2000/svg" width="33" height="33" viewBox="0 0 33 33" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg></span>
+                                        <span class="shortcut-label">{{ t("Give your feedback") }}</span>
+                                    </button>
                                 </div>
                             </div>
                             
@@ -503,6 +507,12 @@ export default {
             const langCode = this.prefs.lang ? this.prefs.lang.split('_')[0] : 'en';
             const docUrl = `https://igoor-noprofit.github.io/docs/${langCode}`;
             window.open(docUrl, '_blank');
+        },
+        giveFeedback() {
+            // Extract language code (e.g., 'fr' from 'fr_FR', 'en' from 'en_EN')
+            // const langCode = this.prefs.lang ? this.prefs.lang.split('_')[0] : 'en';
+            // const docUrl = `https://igoor-noprofit.github.io/docs/${langCode}`;
+            window.open('https://forms.gle/GSN17WHFEN8dbuTGA', '_blank');
         },
         findPlugin(pluginName) {
             for (const category of Object.values(this.pluginData)) {
@@ -1331,12 +1341,12 @@ a.extlink {
     gap: 15px;
 }
 
-/*
+
 .dashboard-card:hover {
-    background: #23515b;
+    background: var(--basecolor-darkest);
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
 }
-*/
+
 
 .card-icon {
     font-size: 2rem;
@@ -1378,11 +1388,11 @@ a.extlink {
     display: flex;
     align-items: center;
     gap: 10px;
+    min-height: 53px;
 }
 
 .shortcut-item:hover {
-    background: rgba(26, 188, 156, 0.4);
-    transform: scale(1.01);
+    background: var(--color-btn-rollover-base) !important;
 }
 
 .shortcut-item:active {
