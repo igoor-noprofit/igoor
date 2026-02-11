@@ -32,8 +32,8 @@
                         <div class="dashboard-grid">
                             <div v-for="categoryItem in dashboardCategories" :key="categoryItem.category"
                                  class="dashboard-card">
-                                <span class="card-icon">{{ categoryItem.category === 'Knowledge Base' ? '📁' :
-                                         categoryItem.category === 'Predictions' ? '📋' :
+                                <span class="card-icon">{{ categoryItem.category === 'Context' ? '📖' :
+                                         categoryItem.category === 'Predictions' ? '🔮' :
                                          categoryItem.category === 'Speech Recognition' ? '🎤' :
                                          categoryItem.category === 'Vocal Synthesis' ? '🔊' : '⚙️' }}</span>
                                 <span class="card-label">{{ t(categoryItem.category) }}</span>
