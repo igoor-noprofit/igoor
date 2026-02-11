@@ -13,6 +13,8 @@
                 </div>
                 <div class="tabsandpluginscontainer">
                     <ul class="tabs">
+                        <li :class="{ active: currentTab === 'home' }"
+                            @click="currentTab = 'home'; viewingPluginSettings = false;">{{ t("Home") }}</li>
                         <li :class="{ active: currentTab === 'bio' }"
                             @click="currentTab = 'bio'; viewingPluginSettings = false;">{{ t("Bio") }}</li>
                         <li :class="{ active: currentTab === 'prefs' }"
@@ -24,6 +26,22 @@
                         <li :class="{ active: currentTab === 'about' }"
                             @click="currentTab = 'about'; viewingPluginSettings = false;">{{ t("About") }}</li>
                     </ul>
+
+                    <!-- Home Dashboard -->
+                    <div v-if="currentTab === 'home'" class="dashboard-container">
+                        <div v-for="categoryItem in dashboardCategories" :key="categoryItem.category" class="dashboard-category">
+                            <h3 class="category-title">{{ categoryItem.category }}</h3>
+                            <div class="dashboard-grid">
+                                <div v-for="shortcut in categoryItem.shortcuts" :key="shortcut.plugin"
+                                     class="dashboard-card"
+                                     @click="showPluginSettingsView(findPlugin(shortcut.plugin))">
+                                    <span class="card-icon">{{ shortcut.icon }}</span>
+                                    <span class="card-label">{{ shortcut.label }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <div v-if="currentTab === 'bio'" class="bio-container">
                         <div class="bio left">
                             <div>
@@ -134,19 +152,20 @@
                             </div>
                         </div>
                     </div>
-                    <div v-if="currentTab === 'plugins'" class="pluginsContainer">
-                        <!-- View for Plugin-Specific Settings -->
-                        <div v-if="viewingPluginSettings && selectedPluginComponent" class="pct_container">
 
-                            <h3 class="pluginContainerTitle"><a style="cursor: pointer" @click="closePluginSettingsView">{{ t("Plugins") }}</a> > {{ selectedPluginForSettings.title }}</h3>
-                            <component ref="pluginSettingsComponent" :is="selectedPluginComponent" :initial-settings="currentPluginInitialSettings"
-                                :plugin-name="selectedPluginForSettings.name" :lang="lang" :onboarding-open="showModal"
-                                @save-settings="handlePluginSettingsSave" class="plugin-settings-component"></component>
-                            <!-- The save button is now expected to be WITHIN the loaded component -->
-                        </div>
+                    <!-- Plugin-Specific Settings View (replaces tab content when viewing) -->
+                    <div v-if="viewingPluginSettings && selectedPluginComponent" class="pct_container">
+                        <h3 class="pluginContainerTitle">
+                            <a style="cursor: pointer" @click="closePluginSettingsView">{{ currentTab === 'home' ? t("Home") : t("Plugins") }}</a> > {{ selectedPluginForSettings.title }}
+                        </h3>
+                        <component ref="pluginSettingsComponent" :is="selectedPluginComponent" :initial-settings="currentPluginInitialSettings"
+                            :plugin-name="selectedPluginForSettings.name" :lang="lang" :onboarding-open="showModal"
+                            @save-settings="handlePluginSettingsSave" class="plugin-settings-component"></component>
+                    </div>
 
+                    <div v-if="currentTab === 'plugins' && !viewingPluginSettings" class="pluginsContainer">
                         <!-- View for Plugin Grid -->
-                        <div v-else>
+                        <div>
                             <!-- Tab Navigation -->
                             <ul class="tabs plugins">
                                 <li v-for="category in categories" :key="category"
@@ -205,7 +224,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="save-section" v-if="currentTab !== 'plugins' || !viewingPluginSettings">
+                <div class="save-section" v-if="currentTab !== 'plugins' && !viewingPluginSettings">
                     <button @click="saveSettings" :disabled="isSaving" :class="isSaving ? 'isSaving' : ''">
                         {{ isSaving ? t('Saving...') : t('Save main settings') }}
                     </button>
@@ -280,7 +299,24 @@ export default {
             apiKeyErrorMessage: '',
             apiKeyValid: false,
             validationDebounce: null,
-            isValidating: false
+            isValidating: false,
+            dashboardShortcuts: {
+                "Knowledge Base": [
+                    { label: "Add/delete documents", plugin: "rag", icon: "📁" }
+                ],
+                "PREDICTIONS": [
+                    { label: "Daily needs", plugin: "daily", icon: "📋" }
+                ],
+                "TTS": [
+                    { label: "ElevenLabs", plugin: "elevenlabstts", icon: "🔊" },
+                    { label: "Speechify", plugin: "speechifytts", icon: "🔊" }
+                ],
+                "ASR": [
+                    { label: "Whisper", plugin: "asrwhisper", icon: "🎤" },
+                    { label: "Vosk", plugin: "asrvosk", icon: "🎤" },
+                    { label: "Web Speech", plugin: "asrjs", icon: "🎤" }
+                ]
+            }
         }
     },
     async mounted() {
@@ -343,6 +379,32 @@ export default {
         },
         donationLink() {
             return this.t('https://igoor.org/en/donate/');
+        },
+        isOnboardingComplete() {
+            const required = [
+                this.bio.name,
+                this.bio.health_state,
+                this.ai.api_key,
+                this.ai.model_name,
+                this.ai.provider,
+                this.prefs.lang
+            ];
+            return required.every(v => v && v.toString().trim() !== '');
+        },
+        filteredDashboardShortcuts() {
+            const result = {};
+            for (const [category, shortcuts] of Object.entries(this.dashboardShortcuts)) {
+                result[category] = shortcuts.filter(shortcut => {
+                    const plugin = this.findPlugin(shortcut.plugin);
+                    return plugin && plugin.active && plugin.has_settings;
+                });
+            }
+            return result;
+        },
+        dashboardCategories() {
+            return Object.entries(this.filteredDashboardShortcuts)
+                .filter(([_, shortcuts]) => shortcuts.length > 0)
+                .map(([category, shortcuts]) => ({ category, shortcuts }));
         }
     },
     watch: {
@@ -415,6 +477,13 @@ export default {
                 this.isValidating = false;
             }
         },
+        findPlugin(pluginName) {
+            for (const category of Object.values(this.pluginData)) {
+                const found = category.find(p => p.name === pluginName);
+                if (found) return found;
+            }
+            return null;
+        },
         async toggleModal() {
             // Only check for unsaved changes when CLOSING the modal (showModal = true -> false)
             // Not when just switching between tabs within the modal
@@ -436,7 +505,10 @@ export default {
                 const backendApi = await ensureBackendApi();
                 await backendApi.onboardingToggled(false);
             } else {
-                // Opening modal
+                // Opening modal - default to 'home' if onboarding complete
+                if (this.isOnboardingComplete) {
+                    this.currentTab = 'home';
+                }
                 this.showModal = true;
                 const backendApi = await ensureBackendApi();
                 await backendApi.onboardingToggled(true);
@@ -586,6 +658,10 @@ export default {
         showPluginSettingsView(plugin) {
             this.selectedPluginForSettings = plugin;
             this.viewingPluginSettings = true;
+            // Switch to plugins tab when viewing from Home or other non-plugins tabs
+            if (this.currentTab !== 'plugins') {
+                this.currentTab = 'plugins';
+            }
             this.loadPluginComponent(plugin.name);
         },
         closePluginSettingsView() {
@@ -1159,5 +1235,62 @@ a.extlink {
 
 .unsaved-changes-modal-content .btn-secondary:hover {
     background: #d0d0d0;
+}
+
+/* Dashboard Styles */
+.dashboard-container {
+    padding: 20px 0;
+}
+
+.dashboard-category {
+    margin-bottom: 30px;
+}
+
+.category-title {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: #ecf0f1;
+    margin-bottom: 15px;
+    text-transform: uppercase;
+    border-bottom: 2px solid #216776;
+    padding-bottom: 8px;
+}
+
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 15px;
+}
+
+.dashboard-card {
+    background: #216776;
+    border-radius: 12px;
+    padding: 25px 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    cursor: pointer;
+    transition: transform 0.2s ease, background 0.2s ease;
+    min-height: 120px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.dashboard-card:hover {
+    background: #23515b;
+    transform: translateY(-4px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+}
+
+.card-icon {
+    font-size: 2.5rem;
+}
+
+.card-label {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #ecf0f1;
+    text-align: center;
 }
 </style>
