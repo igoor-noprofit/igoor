@@ -231,7 +231,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="save-section" v-if="currentTab !== 'plugins' && !viewingPluginSettings">
+                <div class="save-section" v-if="!viewingPluginSettings">
                     <button @click="saveSettings" :disabled="isSaving" :class="isSaving ? 'isSaving' : ''">
                         {{ isSaving ? t('Saving...') : t('Save main settings') }}
                     </button>
@@ -308,23 +308,23 @@ export default {
             validationDebounce: null,
             isValidating: false,
             dashboardShortcuts: {
-                "Knowledge Base": [
-                    { label: "Add/delete documents", plugin: "rag", icon: "📁" }
-                ],
                 "Predictions": [
-                    { label: "Daily needs", plugin: "daily", icon: "📋" },
-                    { label: "Quick Access Buttons", plugin: "shortcuts", icon: "📋" },
-                    { label: "Weather", plugin: "meteo", icon: "🌡️" }
+                    { label: "Daily needs", plugin: "daily", icon: "🛀" },
+                    { label: "Quick Access Buttons", plugin: "shortcuts", icon: "🆘" },
+                ],
+                "Context": [
+                    { label: "Add/delete documents", plugin: "rag", icon: "📁" },
+                     { label: "Weather", plugin: "meteo", icon: "🌡️" }
                 ],
                 "Speech Recognition": [
-                    { label: "Whisper", plugin: "asrwhisper", icon: "🎤" },
-                    { label: "Local", plugin: "asrvosk", icon: "🎤" },
+                    { label: "Whisper", plugin: "asrwhisper", icon: "" },
+                    { label: "Local", plugin: "asrvosk", icon: "" },
                     { label: "Cloud", plugin: "asrjs", icon: "☁️" }
                 ],
                 "Vocal Synthesis": [
-                    { label: "ElevenLabs", plugin: "elevenlabstts", icon: "🔊" },
-                    { label: "Speechify", plugin: "speechifytts", icon: "🔊" },
-                    { label: "TTSDefault", plugin: "ttsdefault", icon: "🔊" }
+                    { label: "ElevenLabs", plugin: "elevenlabstts", icon: "" },
+                    { label: "Speechify", plugin: "speechifytts", icon: "" },
+                    { label: "Windows Voice", plugin: "ttsdefault", icon: "" }
                 ]
             }
         }
@@ -1279,7 +1279,6 @@ a.extlink {
 
 .dashboard-card:hover {
     background: #23515b;
-    transform: translateY(-4px);
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
 }
 
