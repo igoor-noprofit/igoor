@@ -97,12 +97,9 @@ To test the frontend verify if IGOOR is running in Python.
 If not: 
 /venv/scripts/Activate
 python main.py
-THEN,leverage the MCP chrome-dev-tool server for live testing the actual browser window @ http://127.0.0.1:9714/ 
-In the frontend, to go the onboarding plugin settings (and to access all the extensions) you have to click on the settings-gear top right in the header.
+THEN,leverage the Playwright MCP for browsing @ http://127.0.0.1:9714/ 
+In the frontend, you have to click on the settings-gear top right in the header to access to access all the extensions. 
 Once there,you have to click on the extensions tab,the plugin category etc.
 
-## Searching the web
-Leverage the Bright DATA MCP server for web searches
-
 ## Checking the libraries documentation
-ALWAYS use context7 mcp to access the documentation corresponding to the installed python libraries.
+ALWAYS use Context7 MCP to access the documentation corresponding to the installed python libraries.
