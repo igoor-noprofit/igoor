@@ -29,14 +29,19 @@
 
                     <!-- Home Dashboard -->
                     <div v-if="currentTab === 'home'" class="dashboard-container">
-                        <div v-for="categoryItem in dashboardCategories" :key="categoryItem.category" class="dashboard-category">
-                            <h3 class="category-title">{{ categoryItem.category }}</h3>
-                            <div class="dashboard-grid">
-                                <div v-for="shortcut in categoryItem.shortcuts" :key="shortcut.plugin"
-                                     class="dashboard-card"
-                                     @click="showPluginSettingsView(findPlugin(shortcut.plugin))">
-                                    <span class="card-icon">{{ shortcut.icon }}</span>
-                                    <span class="card-label">{{ shortcut.label }}</span>
+                        <div class="dashboard-grid">
+                            <div v-for="categoryItem in dashboardCategories" :key="categoryItem.category"
+                                 class="dashboard-card"
+                                 @click="showPluginSettingsView(findPlugin(categoryItem.shortcuts[0].plugin))">
+                                <span class="card-icon">{{ categoryItem.category === 'Knowledge Base' ? '📁' :
+                                         categoryItem.category === 'PREDICTIONS' ? '📋' :
+                                         categoryItem.category === 'ASR' ? '🎤' :
+                                         categoryItem.category === 'TTS' ? '🔊' : '⚙️' }}</span>
+                                <span class="card-label">{{ categoryItem.category }}</span>
+                                <div v-for="shortcut in categoryItem.shortcuts" :key="shortcut.plugin" class="card-sub-shortcuts">
+                                    <span v-for="(s, idx) in shortcut" :key="shortcut.plugin + idx">
+                                        {{ s.label }}
+                                    </span>
                                 </div>
                             </div>
                         </div>
@@ -307,14 +312,15 @@ export default {
                 "PREDICTIONS": [
                     { label: "Daily needs", plugin: "daily", icon: "📋" }
                 ],
-                "TTS": [
-                    { label: "ElevenLabs", plugin: "elevenlabstts", icon: "🔊" },
-                    { label: "Speechify", plugin: "speechifytts", icon: "🔊" }
-                ],
                 "ASR": [
                     { label: "Whisper", plugin: "asrwhisper", icon: "🎤" },
                     { label: "Vosk", plugin: "asrvosk", icon: "🎤" },
                     { label: "Web Speech", plugin: "asrjs", icon: "🎤" }
+                ],
+                "TTS": [
+                    { label: "ElevenLabs", plugin: "elevenlabstts", icon: "🔊" },
+                    { label: "Speechify", plugin: "speechifytts", icon: "🔊" },
+                    { label: "TTSDefault", plugin: "ttsdefault", icon: "🔊" }
                 ]
             }
         }
@@ -1242,24 +1248,14 @@ a.extlink {
     padding: 20px 0;
 }
 
-.dashboard-category {
-    margin-bottom: 30px;
-}
-
-.category-title {
-    font-size: 1.2rem;
-    font-weight: 600;
-    color: #ecf0f1;
-    margin-bottom: 15px;
-    text-transform: uppercase;
-    border-bottom: 2px solid #216776;
-    padding-bottom: 8px;
-}
-
 .dashboard-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    grid-template-columns: repeat(4, 1fr);
     gap: 15px;
+}
+
+.dashboard-category {
+    display: contents;
 }
 
 .dashboard-card {
@@ -1269,12 +1265,12 @@ a.extlink {
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
-    gap: 12px;
+    justify-content: space-between;
     cursor: pointer;
     transition: transform 0.2s ease, background 0.2s ease;
-    min-height: 120px;
+    min-height: 160px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    gap: 15px;
 }
 
 .dashboard-card:hover {
@@ -1284,13 +1280,33 @@ a.extlink {
 }
 
 .card-icon {
-    font-size: 2.5rem;
+    font-size: 2rem;
 }
 
 .card-label {
-    font-size: 1rem;
+    font-size: 1.1rem;
     font-weight: 600;
     color: #ecf0f1;
     text-align: center;
+    margin-bottom: 12px;
+}
+
+.card-sub-shortcuts {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+    text-align: left;
+    padding: 12px 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    margin-top: auto;
+    font-size: 0.9rem;
+    color: #b8d4d6;
+}
+
+.card-sub-shortcuts span {
+    padding: 6px 10px;
+    background: rgba(42, 62, 80, 0.3);
+    border-radius: 6px;
 }
 </style>
