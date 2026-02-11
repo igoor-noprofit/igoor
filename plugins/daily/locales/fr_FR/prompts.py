@@ -82,7 +82,7 @@ Sortie:
     "answers": {
         "left": [
             "Tu peux mettre la clim plus forte ?",
-            "Il fait trop chaud, tu peux régler la température ?
+            "Il fait trop chaud, tu peux régler la température ?"
         ],
         "center": [
             "Tu peux éteindre la clim ?",
@@ -100,8 +100,7 @@ Sortie:
 {
     "answers": {
         "left": [
-            "Tu peux allumer la lumière dans la chambre ?",
-            "Il fait trop chaud, tu peux régler la température ?
+            "Tu peux allumer la lumière dans la chambre ?"
         ],
         "center": [
             "Tu peux tamiser la lumière ?",
