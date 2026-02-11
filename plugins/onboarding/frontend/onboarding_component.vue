@@ -33,15 +33,16 @@
                             <div v-for="categoryItem in dashboardCategories" :key="categoryItem.category"
                                  class="dashboard-card">
                                 <span class="card-icon">{{ categoryItem.category === 'Knowledge Base' ? '📁' :
-                                         categoryItem.category === 'PREDICTIONS' ? '📋' :
-                                         categoryItem.category === 'ASR' ? '🎤' :
-                                         categoryItem.category === 'TTS' ? '🔊' : '⚙️' }}</span>
+                                         categoryItem.category === 'Predictions' ? '📋' :
+                                         categoryItem.category === 'Speech Recognition' ? '🎤' :
+                                         categoryItem.category === 'Vocal Synthesis' ? '🔊' : '⚙️' }}</span>
                                 <span class="card-label">{{ t(categoryItem.category) }}</span>
                                 <div class="card-sub-shortcuts">
                                     <button v-for="shortcut in categoryItem.shortcuts" :key="shortcut.plugin"
                                             class="shortcut-item"
                                             @click="showPluginSettingsView(findPlugin(shortcut.plugin))">
-                                        {{ t(shortcut.label) }}
+                                        <span class="shortcut-icon">{{ shortcut.icon }}</span>
+                                        <span class="shortcut-label">{{ t(shortcut.label) }}</span>
                                     </button>
                                 </div>
                             </div>
@@ -313,11 +314,12 @@ export default {
                 "Predictions": [
                     { label: "Daily needs", plugin: "daily", icon: "📋" },
                     { label: "Quick Access Buttons", plugin: "shortcuts", icon: "📋" },
+                    { label: "Weather", plugin: "meteo", icon: "🌡️" }
                 ],
                 "Speech Recognition": [
                     { label: "Whisper", plugin: "asrwhisper", icon: "🎤" },
                     { label: "Local", plugin: "asrvosk", icon: "🎤" },
-                    { label: "Cloud", plugin: "asrjs", icon: "🎤" }
+                    { label: "Cloud", plugin: "asrjs", icon: "☁️" }
                 ],
                 "Vocal Synthesis": [
                     { label: "ElevenLabs", plugin: "elevenlabstts", icon: "🔊" },
@@ -1306,27 +1308,39 @@ a.extlink {
 }
 
 .shortcut-item {
-    padding: 12px 16px;
+    padding: 10px 12px;
     background: rgba(42, 62, 80, 0.3);
     border-radius: 8px;
     cursor: pointer;
-    font-size: 0.95rem;
+    font-size: 0.9rem;
     color: #ecf0f1;
     font-weight: 500;
     transition: all 0.2s ease;
-    text-align: center;
+    text-align: left;
     border: none;
     width: 100%;
     height: auto !important;
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 
 .shortcut-item:hover {
     background: rgba(26, 188, 156, 0.4);
-    transform: scale(1.02);
+    transform: scale(1.01);
 }
 
 .shortcut-item:active {
-    transform: scale(0.98);
+    transform: scale(0.99);
+}
+
+.shortcut-icon {
+    font-size: 1.2rem;
+    flex-shrink: 0;
+}
+
+.shortcut-label {
+    flex: 1;
 }
 
 
