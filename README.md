@@ -164,7 +164,7 @@ Other models can be saved in this folder (speechbrain, fasterwhisper etc.)
 
 ## LAUNCH
 
-*EXPERIMENTAL*: You can now launch IGOOR in CLI mode (IGOOR_CLI=True in .env), which is a headless mode you can access with the browser at http://127.0.0.1:9714/ (via FastAPI).
+*EXPERIMENTAL*: You can now launch IGOOR in CLI mode (IGOOR_CLI=True in .env), which is a headless mode you can access with the browser at http://127.0.0.1:9714/ (via FastAPI). As of now this is mostly for easier debug with VueDevTools, agents etc.
 
 Default mode is inside pywebview webedge window (IGOOR_CLI=False).
 PLEASE NOTE: Opening inside pywebview AND external browser will yield unwantend sync between the two clients.
