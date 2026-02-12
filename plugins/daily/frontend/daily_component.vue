@@ -177,17 +177,12 @@ module.exports = {
         },
         selectItem(category, item, data) {
             if (this.currentView == 'main' || this.currentView == 'secondary') {
+                this.selectedItem = { category, itemKey: item };
                 this.sendMsgToBackend({
                     action: 'generatePhrases',
                     category: category,
                     theme: item
                 });
-                this.selectedItem = { category, itemKey: item };
-
-                console.warn("ITEM SELECTED - category:", category, "item:", item, "data:", data);
-
-                this.answers = [];
-                
             }
         },
         /* Sending final phrase */
@@ -244,6 +239,10 @@ module.exports = {
     /* border: 1px solid #0f0;
     /* green box */
     min-height: 0;
+}
+
+div.msg.msg-small::after {
+   right: -20px;
 }
 
 .columns {
