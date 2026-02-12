@@ -850,7 +850,7 @@ button {
 .msg:after {
   position: absolute;
   content: "";
-  right: -20px;
+  right: -1rem;
   bottom: 0;
   width: 0px;
   height: 0px;
