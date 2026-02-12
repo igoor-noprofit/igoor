@@ -86,9 +86,11 @@ class Daily(Baseplugin):
         self.prompts = self.get_my_prompts()
     
     @hookimpl
-    def abandon_conversation(self):
+    def abandon_conversation(self, cause=None):
         asyncio.create_task(self.send_switch_view_to_app(view="daily"))
-        self.send_message_to_frontend({'backhome': True})
+        # Only send backhome if not caused by daily plugin generatePhrases action
+        if cause != "daily":
+            self.send_message_to_frontend({'backhome': True,'cause': cause})
     
     async def startup_async(self):
         """Async startup tasks"""
