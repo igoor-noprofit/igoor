@@ -241,10 +241,6 @@ module.exports = {
     min-height: 0;
 }
 
-div.msg.msg-small::after {
-   right: -20px;
-}
-
 .columns {
     display: flex;
     flex-direction: row;
