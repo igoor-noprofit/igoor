@@ -254,7 +254,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="save-section" v-if="!viewingPluginSettings">
+                <div class="save-section" v-if="!viewingPluginSettings && currentTab !== 'home'">
                     <button @click="saveSettings" :disabled="isSaving" :class="isSaving ? 'isSaving' : ''">
                         {{ isSaving ? t('Saving...') : t('Save main settings') }}
                     </button>
