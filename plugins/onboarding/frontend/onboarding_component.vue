@@ -544,8 +544,9 @@ export default {
                     this.pendingNavigation = 'close-modal';
                     return;
                 }
+                this.viewingPluginSettings = false;
                 // No unsaved changes - proceed with closing
-                            this.currentTab = 'bio';
+                this.currentTab = 'home';
                 this.showModal = false;
                 const backendApi = await ensureBackendApi();
                 await backendApi.onboardingToggled(false);
