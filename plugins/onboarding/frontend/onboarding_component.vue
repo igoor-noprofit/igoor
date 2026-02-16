@@ -61,7 +61,7 @@
                                 <span class="card-label">{{ t("Help") }}</span>
                                 <div class="card-sub-shortcuts">
                                     <button class="shortcut-item" @click="openDocumentation()">
-                                        <span class="shortcut-label">{{ t("View Documentation") }}</span>
+                                        <span class="shortcut-label">{{ t("Browse Documentation") }}</span>
                                     </button>
                                     <button class="shortcut-item" @click="giveFeedback()">
                                         <span class="shortcut-label">{{ t("Give your feedback") }}</span>
@@ -332,22 +332,22 @@ export default {
             isValidating: false,
             dashboardShortcuts: {
                 "Predictions": [
-                    { label: "Daily needs", plugin: "daily", icon: "" },
-                    { label: "Quick Access Buttons", plugin: "shortcuts", icon: "" },
+                    { label: "Edit daily needs", plugin: "daily", icon: "" },
+                    { label: "Configure quick access buttons", plugin: "shortcuts", icon: "" },
                 ],
                 "Context": [
                     { label: "Add/delete documents", plugin: "rag", icon: "" },
-                     { label: "Weather", plugin: "meteo", icon: "" }
+                     { label: "Configure weather", plugin: "meteo", icon: "" }
                 ],
                 "Speech Recognition": [
-                    { label: "Whisper", plugin: "asrwhisper", icon: "" },
-                    { label: "Local", plugin: "asrvosk", icon: "" },
-                    { label: "Cloud", plugin: "asrjs", icon: "" }
+                    { label: "Configure cloud speech recognition (Whisper)", plugin: "asrwhisper", icon: "" },
+                    { label: "Configure local speech recognition", plugin: "asrvosk", icon: "" },
+                    { label: "Configure cloud speech recognition", plugin: "asrjs", icon: "" }
                 ],
                 "Vocal Synthesis": [
-                    { label: "ElevenLabs", plugin: "elevenlabstts", icon: "" },
-                    { label: "Speechify", plugin: "speechifytts", icon: "" },
-                    { label: "Windows Voice", plugin: "ttsdefault", icon: "" }
+                    { label: "Configure ElevenLabs", plugin: "elevenlabstts", icon: "" },
+                    { label: "Configure Speechify", plugin: "speechifytts", icon: "" },
+                    { label: "Configure Windows Voice", plugin: "ttsdefault", icon: "" }
                 ]
             }
         }
