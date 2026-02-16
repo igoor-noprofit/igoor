@@ -530,6 +530,7 @@ export default {
             return null;
         },
         async toggleModal() {
+            console.warn('TOGGLE MODAL');
             // Only check for unsaved changes when CLOSING the modal (showModal = true -> false)
             // Not when just switching between tabs within the modal
             if (this.showModal && !this.viewingPluginSettings) {
@@ -544,7 +545,10 @@ export default {
                     this.pendingNavigation = 'close-modal';
                     return;
                 }
-                this.viewingPluginSettings = false;
+                else{
+                    console.warn('settings to false');
+                    this.viewingPluginSettings = false;
+                }                
                 // No unsaved changes - proceed with closing
                 this.currentTab = 'home';
                 this.showModal = false;
@@ -831,13 +835,12 @@ export default {
 
             // Execute the pending navigation
             this.showUnsavedChangesModal = false;
-
+            this.viewingPluginSettings = false;
             if (this.pendingNavigation === 'close-modal') {
                 this.showModal = false;
                 const backendApi = await ensureBackendApi();
                 await backendApi.onboardingToggled(false);
             } else if (this.pendingNavigation === 'back-to-plugins') {
-                this.viewingPluginSettings = false;
                 this.selectedPluginComponent = null;
                 this.selectedPluginForSettings = null;
             }
