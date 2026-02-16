@@ -34,16 +34,16 @@
                                  class="dashboard-card">
                                 <span class="card-icon">
                                     <template v-if="categoryItem.category === 'Context'">
-                                        <i class="ph ph-book-open-text"></i>
+                                        <i class="ph-light ph-book-open-text"></i>
                                     </template>
                                     <template v-else-if="categoryItem.category === 'Predictions'">
-                                        <i class="ph ph-magic-wand"></i>
+                                        <i class="ph-light ph-magic-wand"></i>
                                     </template>
                                     <template v-else-if="categoryItem.category === 'Speech Recognition'">
-                                        <i class="ph ph-microphone"></i>
+                                        <i class="ph-light ph-microphone"></i>
                                     </template>
                                     <template v-else-if="categoryItem.category === 'Vocal Synthesis'">
-                                        <i class="ph ph-user-sound"></i>
+                                        <i class="ph-light ph-user-sound"></i>
                                     </template>                                    
                                 </span>
                                 <span class="card-label">{{ t(categoryItem.category) }}</span>
@@ -57,7 +57,7 @@
                                 </div>
                             </div>
                             <div class="dashboard-card">
-                                <span class="card-icon"><i class="ph ph-info"></i></span>
+                                <span class="card-icon"><i class="ph-light ph-info"></i></span>
                                 <span class="card-label">{{ t("Help") }}</span>
                                 <div class="card-sub-shortcuts">
                                     <button class="shortcut-item btn btn-primary" @click="openDocumentation()">
@@ -1394,7 +1394,7 @@ a.extlink {
     cursor: pointer;
     font-size: 1.1rem;
     color: #ecf0f1;
-    font-weight: 500;
+    font-weight: 400 !important;
     transition: all 0.2s ease;
     text-align: left;
     border: none;
