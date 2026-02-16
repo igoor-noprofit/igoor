@@ -1360,6 +1360,9 @@ a.extlink {
 .card-icon {
     font-size: 2rem;
 }
+.card-icon i{
+    opacity: 0.5;
+}
 
 .card-icon svg.icon-m {
     width: 2rem;
