@@ -32,10 +32,20 @@
                         <div class="dashboard-grid">
                             <div v-for="categoryItem in dashboardCategories" :key="categoryItem.category"
                                  class="dashboard-card">
-                                <span class="card-icon">{{ categoryItem.category === 'Context' ? '🧠' :
-                                         categoryItem.category === 'Predictions' ? '🔮' :
-                                         categoryItem.category === 'Speech Recognition' ? '🎤' :
-                                         categoryItem.category === 'Vocal Synthesis' ? '🔊' : '⚙️' }}</span>
+                                <span class="card-icon">
+                                    <template v-if="categoryItem.category === 'Context'">
+                                        <i class="ph ph-book-open-text"></i>
+                                    </template>
+                                    <template v-else-if="categoryItem.category === 'Predictions'">
+                                        <i class="ph ph-magic-wand"></i>
+                                    </template>
+                                    <template v-else-if="categoryItem.category === 'Speech Recognition'">
+                                        <i class="ph ph-microphone"></i>
+                                    </template>
+                                    <template v-else-if="categoryItem.category === 'Vocal Synthesis'">
+                                        <i class="ph ph-user-sound"></i>
+                                    </template>                                    
+                                </span>
                                 <span class="card-label">{{ t(categoryItem.category) }}</span>
                                 <div class="card-sub-shortcuts">
                                     <button v-for="shortcut in categoryItem.shortcuts" :key="shortcut.plugin"
@@ -47,15 +57,13 @@
                                 </div>
                             </div>
                             <div class="dashboard-card">
-                                <span class="card-icon">📖</span>
+                                <span class="card-icon"><i class="ph ph-info"></i></span>
                                 <span class="card-label">{{ t("Help") }}</span>
                                 <div class="card-sub-shortcuts">
                                     <button class="shortcut-item" @click="openDocumentation()">
-                                        <span class="shortcut-icon">ℹ️</span>
                                         <span class="shortcut-label">{{ t("View Documentation") }}</span>
                                     </button>
                                     <button class="shortcut-item" @click="giveFeedback()">
-                                        <span class="shortcut-icon"><svg xmlns="http://www.w3.org/2000/svg" width="33" height="33" viewBox="0 0 33 33" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg></span>
                                         <span class="shortcut-label">{{ t("Give your feedback") }}</span>
                                     </button>
                                 </div>
@@ -324,17 +332,17 @@ export default {
             isValidating: false,
             dashboardShortcuts: {
                 "Predictions": [
-                    { label: "Daily needs", plugin: "daily", icon: "🛀" },
-                    { label: "Quick Access Buttons", plugin: "shortcuts", icon: "🆘" },
+                    { label: "Daily needs", plugin: "daily", icon: "" },
+                    { label: "Quick Access Buttons", plugin: "shortcuts", icon: "" },
                 ],
                 "Context": [
-                    { label: "Add/delete documents", plugin: "rag", icon: "📁" },
-                     { label: "Weather", plugin: "meteo", icon: "🌡️" }
+                    { label: "Add/delete documents", plugin: "rag", icon: "" },
+                     { label: "Weather", plugin: "meteo", icon: "" }
                 ],
                 "Speech Recognition": [
                     { label: "Whisper", plugin: "asrwhisper", icon: "" },
                     { label: "Local", plugin: "asrvosk", icon: "" },
-                    { label: "Cloud", plugin: "asrjs", icon: "☁️" }
+                    { label: "Cloud", plugin: "asrjs", icon: "" }
                 ],
                 "Vocal Synthesis": [
                     { label: "ElevenLabs", plugin: "elevenlabstts", icon: "" },
@@ -1352,6 +1360,12 @@ a.extlink {
     font-size: 2rem;
 }
 
+.card-icon svg.icon-m {
+    width: 2rem;
+    height: 2rem;
+    stroke: #ffffff;
+}
+
 .card-label {
     font-size: 1.1rem;
     font-weight: 600;
@@ -1406,6 +1420,7 @@ a.extlink {
 
 .shortcut-label {
     flex: 1;
+    text-transform: none;
 }
 
 
