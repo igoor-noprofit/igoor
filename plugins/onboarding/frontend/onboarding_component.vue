@@ -49,7 +49,7 @@
                                 <span class="card-label">{{ t(categoryItem.category) }}</span>
                                 <div class="card-sub-shortcuts">
                                     <button v-for="shortcut in categoryItem.shortcuts" :key="shortcut.plugin"
-                                            class="shortcut-item"
+                                            class="shortcut-item btn btn-primary"
                                             @click="showPluginSettingsView(findPlugin(shortcut.plugin))">
                                         <span class="shortcut-icon">{{ shortcut.icon }}</span>
                                         <span class="shortcut-label">{{ t(shortcut.label) }}</span>
@@ -60,10 +60,10 @@
                                 <span class="card-icon"><i class="ph ph-info"></i></span>
                                 <span class="card-label">{{ t("Help") }}</span>
                                 <div class="card-sub-shortcuts">
-                                    <button class="shortcut-item" @click="openDocumentation()">
+                                    <button class="shortcut-item btn btn-primary" @click="openDocumentation()">
                                         <span class="shortcut-label">{{ t("Browse Documentation") }}</span>
                                     </button>
-                                    <button class="shortcut-item" @click="giveFeedback()">
+                                    <button class="shortcut-item btn btn-primary" @click="giveFeedback()">
                                         <span class="shortcut-label">{{ t("Give your feedback") }}</span>
                                     </button>
                                 </div>
@@ -1392,7 +1392,7 @@ a.extlink {
     background: var(--basecolor-accent-700) !important;
     border-radius: 8px;
     cursor: pointer;
-    font-size: 0.9rem;
+    font-size: 1.1rem;
     color: #ecf0f1;
     font-weight: 500;
     transition: all 0.2s ease;
