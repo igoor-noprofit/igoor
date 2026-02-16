@@ -332,17 +332,17 @@ export default {
             isValidating: false,
             dashboardShortcuts: {
                 "Predictions": [
-                    { label: "Edit daily needs", plugin: "daily", icon: "" },
-                    { label: "Configure quick access buttons", plugin: "shortcuts", icon: "" },
+                    { label: "Manage daily needs", plugin: "daily", icon: "" },
+                    { label: "Manage quick access buttons", plugin: "shortcuts", icon: "" },
                 ],
                 "Context": [
-                    { label: "Add/delete documents", plugin: "rag", icon: "" },
-                     { label: "Configure weather", plugin: "meteo", icon: "" }
+                    { label: "Manage documents", plugin: "rag", icon: "" },
+                    { label: "Manage weather", plugin: "meteo", icon: "" }
                 ],
                 "Speech Recognition": [
-                    { label: "Configure cloud speech recognition (Whisper)", plugin: "asrwhisper", icon: "" },
-                    { label: "Configure local speech recognition", plugin: "asrvosk", icon: "" },
-                    { label: "Configure cloud speech recognition", plugin: "asrjs", icon: "" }
+                    { label: "Configure recognition", plugin: "asrwhisper", icon: "" },
+                    { label: "Configure recognition", plugin: "asrvosk", icon: "" },
+                    { label: "Configure recognition", plugin: "asrjs", icon: "" }
                 ],
                 "Vocal Synthesis": [
                     { label: "Configure ElevenLabs", plugin: "elevenlabstts", icon: "" },
