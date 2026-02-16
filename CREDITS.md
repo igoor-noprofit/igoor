@@ -6,9 +6,11 @@ Copyright (C) 2025-2026 Carlo Giordano, Igor Novitzki and IGOOR not-for-profit o
 
 ## Authors & Contributors
 
-- Carlo Giordano
-- Igor Novitzki
+- Igor Novitzki (original concept)
+- Carlo Giordano (lead developer)
+- Piero Ciarfaglia (aka Zenoid) for the original interface
 - IGOOR not-for-profit organization (https://igoor.org)
+
 
 ## License
 
