@@ -13,6 +13,8 @@
                 </div>
                 <div class="tabsandpluginscontainer">
                     <ul class="tabs">
+                        <li :class="{ active: currentTab === 'home' }"
+                            @click="currentTab = 'home'; viewingPluginSettings = false;">{{ t("Home") }}</li>
                         <li :class="{ active: currentTab === 'bio' }"
                             @click="currentTab = 'bio'; viewingPluginSettings = false;">{{ t("Bio") }}</li>
                         <li :class="{ active: currentTab === 'prefs' }"
@@ -24,6 +26,52 @@
                         <li :class="{ active: currentTab === 'about' }"
                             @click="currentTab = 'about'; viewingPluginSettings = false;">{{ t("About") }}</li>
                     </ul>
+
+                    <!-- Home Dashboard -->
+                    <div v-if="currentTab === 'home'" class="dashboard-container">
+                        <div class="dashboard-grid">
+                            <div v-for="categoryItem in dashboardCategories" :key="categoryItem.category"
+                                 class="dashboard-card">
+                                <span class="card-icon">
+                                    <template v-if="categoryItem.category === 'Context'">
+                                        <i class="ph-light ph-book-open-text"></i>
+                                    </template>
+                                    <template v-else-if="categoryItem.category === 'Predictions'">
+                                        <i class="ph-light ph-magic-wand"></i>
+                                    </template>
+                                    <template v-else-if="categoryItem.category === 'Speech Recognition'">
+                                        <i class="ph-light ph-microphone"></i>
+                                    </template>
+                                    <template v-else-if="categoryItem.category === 'Vocal Synthesis'">
+                                        <i class="ph-light ph-user-sound"></i>
+                                    </template>                                    
+                                </span>
+                                <span class="card-label">{{ t(categoryItem.category) }}</span>
+                                <div class="card-sub-shortcuts">
+                                    <button v-for="shortcut in categoryItem.shortcuts" :key="shortcut.plugin"
+                                            class="shortcut-item btn btn-primary"
+                                            @click="showPluginSettingsView(findPlugin(shortcut.plugin))">
+                                        <span class="shortcut-icon">{{ shortcut.icon }}</span>
+                                        <span class="shortcut-label">{{ t(shortcut.label) }}</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="dashboard-card">
+                                <span class="card-icon"><i class="ph-light ph-info"></i></span>
+                                <span class="card-label">{{ t("Help") }}</span>
+                                <div class="card-sub-shortcuts">
+                                    <button class="shortcut-item btn btn-primary" @click="openDocumentation()">
+                                        <span class="shortcut-label">{{ t("Browse Documentation") }}</span>
+                                    </button>
+                                    <button class="shortcut-item btn btn-primary" @click="giveFeedback()">
+                                        <span class="shortcut-label">{{ t("Give your feedback") }}</span>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                        </div>
+                    </div>
+
                     <div v-if="currentTab === 'bio'" class="bio-container">
                         <div class="bio left">
                             <div>
@@ -134,19 +182,20 @@
                             </div>
                         </div>
                     </div>
-                    <div v-if="currentTab === 'plugins'" class="pluginsContainer">
-                        <!-- View for Plugin-Specific Settings -->
-                        <div v-if="viewingPluginSettings && selectedPluginComponent" class="pct_container">
 
-                            <h3 class="pluginContainerTitle"><a style="cursor: pointer" @click="closePluginSettingsView">{{ t("Plugins") }}</a> > {{ selectedPluginForSettings.title }}</h3>
-                            <component ref="pluginSettingsComponent" :is="selectedPluginComponent" :initial-settings="currentPluginInitialSettings"
-                                :plugin-name="selectedPluginForSettings.name" :lang="lang" :onboarding-open="showModal"
-                                @save-settings="handlePluginSettingsSave" class="plugin-settings-component"></component>
-                            <!-- The save button is now expected to be WITHIN the loaded component -->
-                        </div>
+                    <!-- Plugin-Specific Settings View (replaces tab content when viewing) -->
+                    <div v-if="viewingPluginSettings && selectedPluginComponent" class="pct_container">
+                        <h3 class="pluginContainerTitle">
+                            <a @click="goToHome" class="breadcrumb-home">{{ t("Home") }}</a> > <a @click="backToPlugins" class="breadcrumb-plugins">{{ t("Plugins") }}</a> > {{ selectedPluginForSettings.title }}
+                        </h3>
+                        <component ref="pluginSettingsComponent" :is="selectedPluginComponent" :initial-settings="currentPluginInitialSettings"
+                            :plugin-name="selectedPluginForSettings.name" :lang="lang" :onboarding-open="showModal"
+                            @save-settings="handlePluginSettingsSave" class="plugin-settings-component"></component>
+                    </div>
 
+                    <div v-if="currentTab === 'plugins' && !viewingPluginSettings" class="pluginsContainer">
                         <!-- View for Plugin Grid -->
-                        <div v-else>
+                        <div>
                             <!-- Tab Navigation -->
                             <ul class="tabs plugins">
                                 <li v-for="category in categories" :key="category"
@@ -205,7 +254,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="save-section" v-if="currentTab !== 'plugins' || !viewingPluginSettings">
+                <div class="save-section" v-if="!viewingPluginSettings && currentTab !== 'home'">
                     <button @click="saveSettings" :disabled="isSaving" :class="isSaving ? 'isSaving' : ''">
                         {{ isSaving ? t('Saving...') : t('Save main settings') }}
                     </button>
@@ -280,7 +329,27 @@ export default {
             apiKeyErrorMessage: '',
             apiKeyValid: false,
             validationDebounce: null,
-            isValidating: false
+            isValidating: false,
+            dashboardShortcuts: {
+                "Predictions": [
+                    { label: "Manage daily needs", plugin: "daily", icon: "" },
+                    { label: "Manage quick access buttons", plugin: "shortcuts", icon: "" },
+                ],
+                "Context": [
+                    { label: "Manage documents", plugin: "rag", icon: "" },
+                    { label: "Manage weather", plugin: "meteo", icon: "" }
+                ],
+                "Speech Recognition": [
+                    { label: "Configure recognition", plugin: "asrwhisper", icon: "" },
+                    { label: "Configure recognition", plugin: "asrvosk", icon: "" },
+                    { label: "Configure recognition", plugin: "asrjs", icon: "" }
+                ],
+                "Vocal Synthesis": [
+                    { label: "Configure ElevenLabs", plugin: "elevenlabstts", icon: "" },
+                    { label: "Configure Speechify", plugin: "speechifytts", icon: "" },
+                    { label: "Configure Windows Voice", plugin: "ttsdefault", icon: "" }
+                ]
+            }
         }
     },
     async mounted() {
@@ -343,6 +412,32 @@ export default {
         },
         donationLink() {
             return this.t('https://igoor.org/en/donate/');
+        },
+        isOnboardingComplete() {
+            const required = [
+                this.bio.name,
+                this.bio.health_state,
+                this.ai.api_key,
+                this.ai.model_name,
+                this.ai.provider,
+                this.prefs.lang
+            ];
+            return required.every(v => v && v.toString().trim() !== '');
+        },
+        filteredDashboardShortcuts() {
+            const result = {};
+            for (const [category, shortcuts] of Object.entries(this.dashboardShortcuts)) {
+                result[category] = shortcuts.filter(shortcut => {
+                    const plugin = this.findPlugin(shortcut.plugin);
+                    return plugin && plugin.active && plugin.has_settings;
+                });
+            }
+            return result;
+        },
+        dashboardCategories() {
+            return Object.entries(this.filteredDashboardShortcuts)
+                .filter(([_, shortcuts]) => shortcuts.length > 0)
+                .map(([category, shortcuts]) => ({ category, shortcuts }));
         }
     },
     watch: {
@@ -415,7 +510,27 @@ export default {
                 this.isValidating = false;
             }
         },
+        openDocumentation() {
+            // Extract language code (e.g., 'fr' from 'fr_FR', 'en' from 'en_EN')
+            const langCode = this.prefs.lang ? this.prefs.lang.split('_')[0] : 'en';
+            const docUrl = `https://igoor-noprofit.github.io/docs/${langCode}`;
+            window.open(docUrl, '_blank');
+        },
+        giveFeedback() {
+            // Extract language code (e.g., 'fr' from 'fr_FR', 'en' from 'en_EN')
+            // const langCode = this.prefs.lang ? this.prefs.lang.split('_')[0] : 'en';
+            // const docUrl = `https://igoor-noprofit.github.io/docs/${langCode}`;
+            window.open('https://forms.gle/GSN17WHFEN8dbuTGA', '_blank');
+        },
+        findPlugin(pluginName) {
+            for (const category of Object.values(this.pluginData)) {
+                const found = category.find(p => p.name === pluginName);
+                if (found) return found;
+            }
+            return null;
+        },
         async toggleModal() {
+            console.warn('TOGGLE MODAL');
             // Only check for unsaved changes when CLOSING the modal (showModal = true -> false)
             // Not when just switching between tabs within the modal
             if (this.showModal && !this.viewingPluginSettings) {
@@ -430,13 +545,20 @@ export default {
                     this.pendingNavigation = 'close-modal';
                     return;
                 }
+                else{
+                    console.warn('settings to false');
+                    this.viewingPluginSettings = false;
+                }                
                 // No unsaved changes - proceed with closing
-                            this.currentTab = 'bio';
+                this.currentTab = 'home';
                 this.showModal = false;
                 const backendApi = await ensureBackendApi();
                 await backendApi.onboardingToggled(false);
             } else {
-                // Opening modal
+                // Opening modal - default to 'home' if onboarding complete
+                if (this.isOnboardingComplete) {
+                    this.currentTab = 'home';
+                }
                 this.showModal = true;
                 const backendApi = await ensureBackendApi();
                 await backendApi.onboardingToggled(true);
@@ -501,6 +623,10 @@ export default {
                 */
 
                 if (data.type && data.type == "error"){
+                    // Auto-switch to the tab with the missing field
+                    if (data.category) {
+                        this.currentTab = data.category;
+                    }
                     this.saveStatus = {
                         type: 'error',
                        message: this.t(data.error_type || 'Error') + (data.missing_field ? " : " + this.t(data.missing_field) + " (" + this.t(data.category || '') + ")" : '')
@@ -583,9 +709,23 @@ export default {
                 this.showRestartAlert = false;
             }, 4000);
         },
+        goToHome() {
+            // Navigate to Home tab
+            this.currentTab = 'home';
+            this.viewingPluginSettings = false;
+        },
+        backToPlugins() {
+            // Navigate to Plugins tab (close plugin settings view)
+            this.currentTab = 'plugins';
+            this.viewingPluginSettings = false;
+        },
         showPluginSettingsView(plugin) {
             this.selectedPluginForSettings = plugin;
             this.viewingPluginSettings = true;
+            // Switch to plugins tab when viewing from Home or other non-plugins tabs
+            if (this.currentTab !== 'plugins') {
+                this.currentTab = 'plugins';
+            }
             this.loadPluginComponent(plugin.name);
         },
         closePluginSettingsView() {
@@ -695,13 +835,12 @@ export default {
 
             // Execute the pending navigation
             this.showUnsavedChangesModal = false;
-
+            this.viewingPluginSettings = false;
             if (this.pendingNavigation === 'close-modal') {
                 this.showModal = false;
                 const backendApi = await ensureBackendApi();
                 await backendApi.onboardingToggled(false);
             } else if (this.pendingNavigation === 'back-to-plugins') {
-                this.viewingPluginSettings = false;
                 this.selectedPluginComponent = null;
                 this.selectedPluginForSettings = null;
             }
@@ -1086,6 +1225,30 @@ a.extlink {
     color: #fff;
 }
 
+.breadcrumb-home {
+    cursor: pointer;
+    color: var(--basecolor-accent-500);
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+.breadcrumb-home:hover {
+    color: var(--basecolor-accent-300);
+    text-decoration: underline;
+}
+
+.breadcrumb-plugins {
+    cursor: pointer;
+    color: var(--basecolor-accent-500);
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+.breadcrumb-plugins:hover {
+    color: var(--basecolor-accent-300);
+    text-decoration: underline;
+}
+
 .isSaving{
     cursor: wait !important;
     background: #f00;
@@ -1160,4 +1323,112 @@ a.extlink {
 .unsaved-changes-modal-content .btn-secondary:hover {
     background: #d0d0d0;
 }
+
+/* Dashboard Styles */
+.dashboard-container {
+    padding: 20px 0;
+}
+
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 15px;
+}
+
+.dashboard-category {
+    display: contents;
+}
+
+.dashboard-card {
+    background: var(--basecolor-darkest);
+    border-radius: 12px;
+    padding: 25px 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    min-height: 160px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    gap: 15px;
+}
+
+
+.dashboard-card:hover {
+    background: var(--basecolor-darkest);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+}
+
+
+.card-icon {
+    font-size: 2rem;
+}
+.card-icon i{
+    opacity: 0.5;
+}
+
+.card-icon svg.icon-m {
+    width: 2rem;
+    height: 2rem;
+    stroke: #ffffff;
+}
+
+.card-label {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #ecf0f1;
+    text-align: center;
+    margin-bottom: 12px;
+    text-transform: uppercase;
+}
+
+.card-sub-shortcuts {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+    text-align: left;
+    padding: 12px 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    margin-top: auto;
+}
+
+.shortcut-item {
+    padding: 10px 12px;
+    background: var(--basecolor-accent-700) !important;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 1.1rem;
+    color: #ecf0f1;
+    font-weight: 400 !important;
+    transition: all 0.2s ease;
+    text-align: left;
+    border: none;
+    width: 100%;
+    height: auto !important;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 53px;
+}
+
+.shortcut-item:hover {
+    background: var(--color-btn-rollover-base) !important;
+}
+
+.shortcut-item:active {
+    transform: scale(0.99);
+}
+
+.shortcut-icon {
+    font-size: 1.2rem;
+    flex-shrink: 0;
+}
+
+.shortcut-label {
+    flex: 1;
+    text-transform: none;
+}
+
+
 </style>
