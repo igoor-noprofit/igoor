@@ -543,7 +543,7 @@ export default {
                 formData.append('audio_file', wavBlob, 'chunk.wav');
                 formData.append('sample_rate', '16000');
                 
-                const response = await fetch('http://127.0.0.1:9714/api/plugins/speakerid/process_audio_chunk', {
+                const response = await fetch('/api/plugins/speakerid/process_audio_chunk', {
                     method: 'POST',
                     body: formData
                 });
@@ -614,7 +614,7 @@ export default {
                 formData.append('audio_file', audioBlob, 'chunk.wav');
                 formData.append('sample_rate', this.nativeSampleRate.toString());  // Use native sample rate
                 
-                const response = await fetch('http://127.0.0.1:9714/api/plugins/speakerid/process_audio_chunk', {
+                const response = await fetch('/api/plugins/speakerid/process_audio_chunk', {
                     method: 'POST',
                     body: formData
                 });
@@ -644,7 +644,7 @@ export default {
                 formData.append('audio_file', audioBlob, 'recording.wav');
                 formData.append('sample_rate', this.nativeSampleRate.toString());  // Use native sample rate
                 
-                const response = await fetch('http://127.0.0.1:9714/api/plugins/speakerid/identify_speaker', {
+                const response = await fetch('/api/plugins/speakerid/identify_speaker', {
                     method: 'POST',
                     body: formData
                 });
@@ -677,7 +677,7 @@ export default {
             
             // Also notify backend via FastAPI endpoint
             try {
-                const response = await fetch('http://127.0.0.1:9714/api/plugins/asrjs/start_recording', {
+                const response = await fetch('/api/plugins/asrjs/start_recording', {
                     method: 'POST'
                 });
                 
@@ -714,7 +714,7 @@ export default {
             
             // Also notify backend via FastAPI endpoint
             try {
-                const response = await fetch('http://127.0.0.1:9714/api/plugins/asrjs/stop_recording', {
+                const response = await fetch('/api/plugins/asrjs/stop_recording', {
                     method: 'POST'
                 });
                 
@@ -743,7 +743,7 @@ export default {
                 const formData = new FormData();
                 formData.append('audio_file', audioBlob, 'recording.wav');
                 
-                const response = await fetch('http://127.0.0.1:9714/api/plugins/asrjs/transcribe', {
+                const response = await fetch('/api/plugins/asrjs/transcribe', {
                     method: 'POST',
                     body: formData
                 });

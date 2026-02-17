@@ -2,6 +2,7 @@ from version import __appname__, __version__, __codename__
 import json
 import os
 import asyncio
+import secrets
 from utils import resource_path, setup_logger
 
 class SettingsManager:
@@ -76,6 +77,13 @@ class SettingsManager:
     def get_health_state(self):
         bio = self.get_nested(["plugins", "onboarding", "bio"], default={})
         return bio.get("health_state")
+
+    def get_or_create_access_token(self) -> str:
+        """Return existing access token or generate a new one for LAN access."""
+        if "access_token" not in self.settings:
+            self.settings["access_token"] = secrets.token_urlsafe(32)
+            self.save_settings()
+        return self.settings["access_token"]
 
     def get_nested(self, keys, default=None):
         """Retrieve a nested value from the settings dictionary."""

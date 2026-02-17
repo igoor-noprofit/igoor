@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IGOOR - Login</title>
+    <link href="css/phosphor-2.1.1-light.css" rel="stylesheet" type="text/css" />
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: "Public Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: linear-gradient(to bottom, #2a4a51, #1a2223);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #edeee7;
+        }
+        .login-container {
+            background: #121617;
+            border-radius: 12px;
+            padding: 48px;
+            width: 100%;
+            max-width: 420px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        }
+        .logo {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+        .logo img {
+            width: 80px;
+            height: auto;
+        }
+        .logo h1 {
+            font-size: 28px;
+            font-weight: 600;
+            margin-top: 16px;
+            color: #0095c0;
+        }
+        .logo p {
+            color: #a6bfbf;
+            margin-top: 8px;
+            font-size: 14px;
+        }
+        .form-group {
+            margin-bottom: 24px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 14px;
+            color: #a6bfbf;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 16px;
+            font-size: 16px;
+            border: 2px solid #3e5e65;
+            border-radius: 8px;
+            background: #1a2223;
+            color: #edeee7;
+            transition: border-color 0.2s;
+        }
+        .form-group input:focus {
+            outline: none;
+            border-color: #0095c0;
+        }
+        .form-group input::placeholder {
+            color: #3e5e65;
+        }
+        .btn-login {
+            width: 100%;
+            padding: 16px;
+            font-size: 16px;
+            font-weight: 600;
+            color: #edeee7;
+            background: #0095c0;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .btn-login:hover {
+            background: #00a8d9;
+        }
+        .btn-login:active {
+            background: #0082a8;
+        }
+        .error {
+            background: #a8351b;
+            color: #edeee7;
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+            font-size: 14px;
+            display: none;
+        }
+        .error.show {
+            display: block;
+        }
+        .info {
+            text-align: center;
+            margin-top: 24px;
+            color: #a6bfbf;
+            font-size: 13px;
+        }
+        .info i {
+            margin-right: 6px;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="logo">
+            <img src="img/igoor_logo.png" alt="IGOOR Logo">
+            <h1>IGOOR</h1>
+            <p>Enter your access token to continue</p>
+        </div>
+        
+        <div class="error" id="error">
+            <i class="ph ph-warning-circle"></i>
+            <span id="error-text">Invalid access token</span>
+        </div>
+        
+        <form action="/api/auth/login" method="POST" id="login-form">
+            <div class="form-group">
+                <label for="token">Access Token</label>
+                <input 
+                    type="password" 
+                    id="token" 
+                    name="token" 
+                    placeholder="Paste your token here"
+                    required
+                    autocomplete="off"
+                >
+            </div>
+            <button type="submit" class="btn-login">
+                <i class="ph ph-sign-in"></i> Sign In
+            </button>
+        </form>
+        
+        <div class="info">
+            <i class="ph ph-info"></i>
+            The token can be found in the IGOOR console output or settings.json
+        </div>
+    </div>
+    
+    <script>
+        // Check for error in URL query params (from failed login redirect)
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('error') === '1') {
+            document.getElementById('error').classList.add('show');
+        }
+
+        // Handle form submission with fetch for better error handling
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const form = e.target;
+            const formData = new FormData(form);
+            const errorDiv = document.getElementById('error');
+            const errorText = document.getElementById('error-text');
+
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (response.redirected || response.ok) {
+                    // Success - redirect to home (browser followed the 303)
+                    window.location.href = '/';
+                } else if (response.status === 401) {
+                    // Invalid token
+                    errorText.textContent = 'Invalid access token';
+                    errorDiv.classList.add('show');
+                } else {
+                    // Other error
+                    errorText.textContent = 'An error occurred. Please try again.';
+                    errorDiv.classList.add('show');
+                }
+            } catch (err) {
+                errorText.textContent = 'Network error. Please check your connection.';
+                errorDiv.classList.add('show');
+            }
+        });
+    </script>
+</body>
+</html>

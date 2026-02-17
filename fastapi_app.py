@@ -4,9 +4,10 @@ import os
 from pathlib import Path
 from typing import Dict, Optional
 
-from fastapi import APIRouter, FastAPI, HTTPException, WebSocket, WebSocketDisconnect, status
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
+from fastapi import APIRouter, FastAPI, Form, HTTPException, WebSocket, WebSocketDisconnect, status
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
 from pydantic import BaseModel
+from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.staticfiles import StaticFiles
 
 from utils import (
@@ -34,6 +35,32 @@ class ChangeViewPayload(BaseModel):
 class TogglePluginPayload(BaseModel):
     active: bool
 
+
+class AuthMiddleware(BaseHTTPMiddleware):
+    """Middleware to protect all routes when LAN access is enabled."""
+    PUBLIC_PATHS = ["/login", "/health", "/css/", "/img/", "/api/auth/login"]
+
+    async def dispatch(self, request, call_next):
+        # Skip auth entirely if LAN access is disabled (localhost-only)
+        if os.getenv('IGOOR_ACCESS_FROM_OUTSIDE', 'False').lower() != 'true':
+            return await call_next(request)
+
+        # Allow public paths (login page, health check, static assets for login)
+        if any(request.url.path.startswith(p) for p in self.PUBLIC_PATHS):
+            return await call_next(request)
+
+        # Check session cookie against the stored token
+        session_token = request.cookies.get("igoor_session")
+        expected_token = SettingsManager().get_or_create_access_token()
+        if session_token == expected_token:
+            return await call_next(request)
+
+        # Not authenticated
+        if request.url.path.startswith("/api/") or request.url.path.startswith("/ws/"):
+            return JSONResponse({"error": "Unauthorized"}, status_code=401)
+        return RedirectResponse(url="/login")
+
+
 def _ensure_web_directories() -> None:
     """Ensure writable web directories exist in APPDATA."""
     get_appdata_dir(create=True)
@@ -56,6 +83,9 @@ def create_app() -> FastAPI:
     logger = setup_logger("fastapi", str(appdata_dir))
 
     app = FastAPI(title="IGOOR API", docs_url=None, redoc_url=None)
+
+    # Add authentication middleware
+    app.add_middleware(AuthMiddleware)
 
     api_router = APIRouter(prefix="/api", tags=["api"])
 
@@ -125,6 +155,30 @@ def create_app() -> FastAPI:
     async def api_get_context():
         return context_manager.get_context()
 
+    @api_router.post("/auth/login")
+    async def login(token: str = Form(...)):
+        """Authenticate with access token and set session cookie."""
+        expected = SettingsManager().get_or_create_access_token()
+        if token != expected:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        response = RedirectResponse(url="/", status_code=303)
+        response.set_cookie(
+            key="igoor_session",
+            value=token,
+            httponly=True,
+            secure=False,
+            samesite="lax",
+            max_age=86400 * 7,
+        )
+        return response
+
+    @api_router.post("/auth/logout")
+    async def logout():
+        """Clear session cookie and redirect to login."""
+        response = RedirectResponse(url="/login", status_code=303)
+        response.delete_cookie("igoor_session")
+        return response
+
     app.include_router(api_router)
 
     # Static mounts for packaged assets
@@ -132,8 +186,17 @@ def create_app() -> FastAPI:
     app.mount("/img", StaticFiles(directory=resource_path("img")), name="img")
     app.mount("/plugins", StaticFiles(directory=resource_path("plugins")), name="plugins")
     app.mount("/locales", StaticFiles(directory=resource_path("locales")), name="locales")
+
     @app.websocket("/ws/{plugin_name}")
     async def websocket_endpoint(websocket: WebSocket, plugin_name: str):
+        # Auth check when LAN access is enabled
+        if os.getenv('IGOOR_ACCESS_FROM_OUTSIDE', 'False').lower() == 'true':
+            token = websocket.cookies.get("igoor_session")
+            expected = SettingsManager().get_or_create_access_token()
+            if token != expected:
+                await websocket.close(code=1008, reason="Unauthorized")
+                return
+
         name = plugin_name.strip("/") or "app"
         await websocket_server.connect(name, websocket)
         try:
@@ -176,6 +239,11 @@ def create_app() -> FastAPI:
         path = Path(resource_path("index.html"))
         logger.debug(f"Serving index.html from {path}")
         return _file_response(path, media_type="text/html; charset=utf-8")
+
+    @app.get("/login")
+    async def login_page():
+        """Serve login page."""
+        return FileResponse(resource_path("login.html"), media_type="text/html")
 
     @app.get("/")
     async def root():

@@ -119,7 +119,7 @@ async function initializeApp() {
         this.connectAppWebSocket();
       },
       connectAppWebSocket() {
-        const socketUrl = "ws://127.0.0.1:9714/ws/app";
+        const socketUrl = `ws://${window.location.hostname}:9714/ws/app`;
         this.websocketUtil = new WebSocket(socketUrl);
 
         this.websocketUtil.onopen = () => {

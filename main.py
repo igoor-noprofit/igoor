@@ -49,9 +49,13 @@ def start_fastapi_server() -> None:
     if fastapi_server and fastapi_thread and fastapi_thread.is_alive():
         return
 
+    # Determine host based on LAN access setting
+    access_from_outside = os.getenv('IGOOR_ACCESS_FROM_OUTSIDE', 'False').lower() == 'true'
+    host = "0.0.0.0" if access_from_outside else "127.0.0.1"
+
     config = uvicorn.Config(
         fastapi_app,
-        host="127.0.0.1",
+        host=host,
         port=9714,
         log_level="info",
     )
@@ -134,8 +138,8 @@ def signal_handler(sig, frame):
 signal.signal(signal.SIGINT, signal_handler)
 
 # VARS HERE
-IGOOR_DEBUG = os.getenv('IGOOR_DEBUG', 'False') 
-IGOOR_CLI = os.getenv('IGOOR_CLI', 'False') 
+IGOOR_DEBUG = os.getenv('IGOOR_DEBUG', 'False')
+IGOOR_HEADLESS = os.getenv('IGOOR_HEADLESS', 'False')
 IGOOR_ONTOP = os.getenv('IGOOR_ONTOP', 'False') 
 IGOOR_OUTPUT_HTML = os.getenv('IGOOR_OUTPUT_HTML', 'False') 
 IGOOR_VERSION_CODENAME = __codename__
@@ -362,15 +366,22 @@ if __name__ == "__main__":
     prefs = settings.get_nested(["plugins", "onboarding", "prefs"], default={})
     lang = prefs.get("lang")
 
-    if IGOOR_CLI.lower() == 'true':
-        logger.info("IGOOR_CLI active: running headless API/WebSocket server only")
+    # Log token if LAN access is enabled
+    access_from_outside = os.getenv('IGOOR_ACCESS_FROM_OUTSIDE', 'False').lower() == 'true'
+    if access_from_outside:
+        token = settings.get_or_create_access_token()
+        logger.info(f"LAN Access enabled. Token: {token}")
+        logger.warning("Anyone with this token can access IGOOR on your network.")
+
+    if IGOOR_HEADLESS.lower() == 'true':
+        logger.info("IGOOR_HEADLESS active: running headless API/WebSocket server only")
         load_frontend_components(lang=lang)
         start_fastapi_server()
         try:
             while not shutdown_event.is_set():
                 time.sleep(1)
         except KeyboardInterrupt:
-            logger.info("Shutdown requested (CLI mode)")
+            logger.info("Shutdown requested (headless mode)")
         finally:
             stop_fastapi_server()
     else:
