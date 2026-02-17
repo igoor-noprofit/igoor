@@ -200,7 +200,6 @@ class Meteo(Baseplugin):
 
         # Update local settings cache
         self.settings['api_key'] = api_key
-        print(f"METEO: API key saved to settings: {api_key}")
 
     def update_my_settings(self, key: str, value: any):
         """Override base update to restart weather fetching when settings are saved"""
