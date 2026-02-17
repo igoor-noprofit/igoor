@@ -20,6 +20,7 @@ from utils import (
     setup_logger,
     get_appdata_dir,
     get_appdata_web_js_dir,
+    generate_self_signed_cert,
 )
 from fastapi_app import app as fastapi_app
 import uvicorn
@@ -52,12 +53,25 @@ def start_fastapi_server() -> None:
     # Determine host based on LAN access setting
     access_from_outside = os.getenv('IGOOR_ACCESS_FROM_OUTSIDE', 'False').lower() == 'true'
     host = "0.0.0.0" if access_from_outside else "127.0.0.1"
+    
+    # SSL configuration for HTTPS (required for microphone access from LAN)
+    ssl_keyfile = None
+    ssl_certfile = None
+    if access_from_outside:
+        try:
+            ssl_certfile, ssl_keyfile = generate_self_signed_cert()
+            logger.info(f"SSL certificate generated: {ssl_certfile}")
+        except Exception as e:
+            logger.warning(f"Failed to generate SSL certificate: {e}")
+            logger.warning("Microphone access from LAN will not work (requires HTTPS)")
 
     config = uvicorn.Config(
         fastapi_app,
         host=host,
         port=9714,
         log_level="info",
+        ssl_keyfile=ssl_keyfile,
+        ssl_certfile=ssl_certfile,
     )
     fastapi_server = uvicorn.Server(config)
 
@@ -372,6 +386,17 @@ if __name__ == "__main__":
         token = settings.get_or_create_access_token()
         logger.info(f"LAN Access enabled. Token: {token}")
         logger.warning("Anyone with this token can access IGOOR on your network.")
+        
+        # Get local IP for logging
+        import socket
+        try:
+            hostname = socket.gethostname()
+            local_ip = socket.gethostbyname(hostname)
+            logger.info(f"Access from LAN devices: https://{local_ip}:9714/")
+        except Exception:
+            pass
+        
+        logger.info("Your browser will show a security warning. Click 'Advanced' then 'Proceed anyway' to accept the certificate.")
 
     if IGOOR_HEADLESS.lower() == 'true':
         logger.info("IGOOR_HEADLESS active: running headless API/WebSocket server only")

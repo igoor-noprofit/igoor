@@ -12,6 +12,8 @@ def client(monkeypatch):
     async def _noop_trigger(self, *args, **kwargs):
         return None
 
+    # Ensure auth is disabled for default client tests
+    monkeypatch.setenv("IGOOR_ACCESS_FROM_OUTSIDE", "False")
     monkeypatch.setattr(PluginManager, "trigger_hook", _noop_trigger, raising=False)
 
     app = create_app()

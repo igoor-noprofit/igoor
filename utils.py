@@ -203,3 +203,112 @@ def get_appdata_web_js_dir(create: bool = True) -> str:
     if create:
         os.makedirs(path, exist_ok=True)
     return path
+
+
+def get_certs_dir(create: bool = True) -> str:
+    """Return the APPDATA certs directory for SSL certificates."""
+    path = os.path.join(get_appdata_dir(create=create), "certs")
+    if create:
+        os.makedirs(path, exist_ok=True)
+    return path
+
+
+def generate_self_signed_cert() -> tuple:
+    """
+    Generate a self-signed SSL certificate for HTTPS.
+    Returns tuple of (cert_path, key_path).
+    Certificates are stored in APPDATA/igoor/certs/
+    """
+    from datetime import datetime, timedelta
+    import socket
+    import ipaddress
+    
+    try:
+        from cryptography import x509
+        from cryptography.x509.oid import NameOID
+        from cryptography.hazmat.primitives import hashes, serialization
+        from cryptography.hazmat.primitives.asymmetric import rsa
+        from cryptography.hazmat.backends import default_backend
+    except ImportError:
+        raise ImportError(
+            "cryptography library not installed. Install with: pip install cryptography"
+        )
+    
+    certs_dir = get_certs_dir(create=True)
+    cert_path = os.path.join(certs_dir, "igoor.crt")
+    key_path = os.path.join(certs_dir, "igoor.key")
+    
+    # Check if certs already exist and are valid
+    if os.path.exists(cert_path) and os.path.exists(key_path):
+        try:
+            with open(cert_path, "rb") as f:
+                cert = x509.load_pem_x509_certificate(f.read(), default_backend())
+            # Check if cert is still valid (not expired)
+            if cert.not_valid_after_utc.replace(tzinfo=None) > datetime.utcnow():
+                return cert_path, key_path
+        except Exception:
+            pass  # Regenerate if cert is invalid
+    
+    # Get local hostname and IP for certificate
+    hostname = socket.gethostname()
+    try:
+        local_ip = socket.gethostbyname(hostname)
+    except socket.gaierror:
+        local_ip = "127.0.0.1"
+    
+    # Build list of Subject Alternative Names
+    san_list = [
+        x509.DNSName("localhost"),
+        x509.DNSName(hostname),
+        x509.IPAddress(ipaddress.IPv4Address("127.0.0.1")),
+    ]
+    # Add local IP if valid
+    try:
+        san_list.append(x509.IPAddress(ipaddress.IPv4Address(local_ip)))
+    except Exception:
+        pass  # Skip if IP is invalid
+    
+    # Generate private key
+    key = rsa.generate_private_key(
+        public_exponent=65537,
+        key_size=2048,
+        backend=default_backend()
+    )
+    
+    # Generate certificate
+    subject = issuer = x509.Name([
+        x509.NameAttribute(NameOID.COUNTRY_NAME, "US"),
+        x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, "Local"),
+        x509.NameAttribute(NameOID.LOCALITY_NAME, "Local"),
+        x509.NameAttribute(NameOID.ORGANIZATION_NAME, "IGOOR"),
+        x509.NameAttribute(NameOID.COMMON_NAME, hostname),
+    ])
+    
+    cert = (
+        x509.CertificateBuilder()
+        .subject_name(subject)
+        .issuer_name(issuer)
+        .public_key(key.public_key())
+        .serial_number(x509.random_serial_number())
+        .not_valid_before(datetime.utcnow())
+        .not_valid_after(datetime.utcnow() + timedelta(days=365))
+        .add_extension(
+            x509.SubjectAlternativeName(san_list),
+            critical=False,
+        )
+        .sign(key, hashes.SHA256(), default_backend())
+    )
+    
+    # Save certificate
+    with open(cert_path, "wb") as f:
+        f.write(cert.public_bytes(serialization.Encoding.PEM))
+    
+    # Save private key
+    with open(key_path, "wb") as f:
+        f.write(key.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.TraditionalOpenSSL,
+            encryption_algorithm=serialization.NoEncryption()
+        ))
+    
+    return cert_path, key_path

@@ -234,6 +234,30 @@ export default {
         },
 
         async $_initializeMicrophone() {
+            // Check if we're in a secure context (required for microphone access)
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                const isSecure = window.location.protocol === 'https:' || 
+                                 window.location.hostname === 'localhost' || 
+                                 window.location.hostname === '127.0.0.1';
+                
+                if (!isSecure) {
+                    this.error = {
+                        message: this.t('Microphone requires HTTPS. Access IGOOR via https://your-ip:9714/ or use localhost.')
+                    };
+                } else {
+                    this.error = {
+                        message: this.t('Microphone not available. Please check browser permissions.')
+                    };
+                }
+                this.status = 'error';
+                console.error('navigator.mediaDevices not available:', {
+                    protocol: window.location.protocol,
+                    hostname: window.location.hostname,
+                    isSecure: isSecure
+                });
+                return;
+            }
+            
             try {
                 // Request microphone permission at native frequency - no sample rate constraint
                 const stream = await navigator.mediaDevices.getUserMedia({ 
