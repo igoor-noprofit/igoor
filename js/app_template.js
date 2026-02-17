@@ -119,7 +119,9 @@ async function initializeApp() {
         this.connectAppWebSocket();
       },
       connectAppWebSocket() {
-        const socketUrl = `ws://${window.location.hostname}:9714/ws/app`;
+        // Use wss:// for HTTPS, ws:// for HTTP
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const socketUrl = `${wsProtocol}//${window.location.hostname}:9714/ws/app`;
         this.websocketUtil = new WebSocket(socketUrl);
 
         this.websocketUtil.onopen = () => {
