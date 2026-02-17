@@ -96,15 +96,15 @@
                     <span>{{ t('Uploading and ingesting documents...') }}</span>
                 </div>
                 <div v-else class="drop-zone-content">
-                    <span class="drop-zone-icon">↑</span>
+                    <i class="ph ph-file-arrow-up"></i>
                     <p class="drop-zone-text">{{ t('Drag and drop files here') }}</p>
                     <p class="drop-zone-hint">{{ t('Supported: .txt, .md, .pdf') }}</p>
                 </div>
             </div>
 
             <div class="browse-button-container">
-                <button class="btn btn-primary btn-full" @click="triggerFileInput" :disabled="isUploading">
-                    <span>📁</span>
+                <button class="btn btn-primary" @click="triggerFileInput" :disabled="isUploading">
+                    <i class="ph-light ph-folder"></i>
                     <span>{{ t('Browse Files') }}</span>
                 </button>
             </div>
@@ -288,6 +288,7 @@ export default {
     flex-wrap: wrap;
     max-height: 80vh;
     overflow: hidden;
+    padding: 10px;
 }
 
 /* Error and Success Messages */

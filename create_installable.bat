@@ -12,8 +12,9 @@ echo 1) Create only the exe file
 echo 2) Create exe file AND installer
 echo 3) Create both AND push to GitHub release
 echo 4) Push to GitHub release only (exe and installer already exist)
+echo 5) Create only the installer (skip exe build)
 echo.
-set /p BUILD_CHOICE="Enter your choice (1/2/3/4): "
+set /p BUILD_CHOICE="Enter your choice (1/2/3/4/5): "
 
 if "!BUILD_CHOICE!"=="1" (
     set "CREATE_EXE=1"
@@ -39,6 +40,12 @@ if "!BUILD_CHOICE!"=="4" (
     set "PUSH_GITHUB=1"
     goto START_BUILD
 )
+if "!BUILD_CHOICE!"=="5" (
+    set "CREATE_EXE=0"
+    set "CREATE_INSTALLER=1"
+    set "PUSH_GITHUB=0"
+    goto START_BUILD
+)
 
 echo Invalid choice, aborting...
 exit /b 1
@@ -50,6 +57,7 @@ if "!BUILD_CHOICE!"=="1" echo Creating only the exe file...
 if "!BUILD_CHOICE!"=="2" echo Creating exe file AND installer...
 if "!BUILD_CHOICE!"=="3" echo Creating exe, installer, AND pushing to GitHub release...
 if "!BUILD_CHOICE!"=="4" echo Pushing to GitHub release only (assuming exe and installer already exist)...
+if "!BUILD_CHOICE!"=="5" echo Creating only the installer (skipping exe build)...
 echo.
 
 rem Record start time (seconds since Unix epoch) using PowerShell
@@ -74,12 +82,12 @@ if !ERRORLEVEL! NEQ 0 (
 echo PyInstaller build completed successfully.
 echo.
 
-if "!CREATE_INSTALLER!"=="0" goto SKIP_INSTALLER
-
 :SKIP_BUILD
 
-if "!CREATE_EXE!"=="0" goto SKIP_INSTALLER
+if "!CREATE_INSTALLER!"=="1" goto CREATE_INSTALLER
+goto SKIP_INSTALLER
 
+:CREATE_INSTALLER
 echo Step 2: Extracting version from version.py...
 echo ----------------------------------------
 powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0get_version.ps1" > __version__.txt
@@ -149,6 +157,7 @@ if "!BUILD_CHOICE!"=="1" echo Created: Exe file only
 if "!BUILD_CHOICE!"=="2" echo Created: Exe file + Installer
 if "!BUILD_CHOICE!"=="3" echo Created: Exe file + Installer + GitHub release
 if "!BUILD_CHOICE!"=="4" echo Created: GitHub release only (exe and installer already exist)
+if "!BUILD_CHOICE!"=="5" echo Created: Installer only (exe build skipped)
 echo.
 
 if "!PUSH_GITHUB!"=="0" goto END

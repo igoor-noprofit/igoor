@@ -9,7 +9,7 @@
   "sample_rate": 48000,
   "audio_format": "PCM_16",
   "model_provider": "groq",
-  "model_name": "whisper-large-v3",
+  "model_name": "whisper-large-v3-turbo",
   "api_key": "",
   "voxtral_api_key": "",
   "allowed_model_providers": ["groq", "mistral"]

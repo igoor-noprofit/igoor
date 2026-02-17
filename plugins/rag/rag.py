@@ -12,7 +12,7 @@ import time,sys, asyncio, threading
 import numpy as np
 from typing import Union, List, Dict, Optional
 from datetime import datetime, timedelta, date
-from fastapi import APIRouter, UploadFile, HTTPException, status
+from fastapi import APIRouter, UploadFile, HTTPException, status, Response
 from typing import List
 
 # Vector store types
@@ -247,6 +247,119 @@ class Rag(Baseplugin):
 
             result = await self.db_execute("SELECT always_send FROM documents WHERE id = ?", (document_id,))
             return {"document_id": document_id, "always_send": result[0]['always_send']}
+
+        @self.router.get("/export-chunks")
+        async def export_chunks_endpoint(format: str = "json", type: str = "all"):
+            """
+            Export chunks from the database in JSON or TXT format.
+            
+            Query Parameters:
+                format: 'json' (default) or 'txt'
+                type: 'ingested', 'long_term', 'short_term', or 'all' (default)
+            """
+            try:
+                # Validate format parameter
+                if format not in ["json", "txt"]:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Invalid format '{format}'. Must be 'json' or 'txt'."
+                    )
+                
+                # Validate type parameter and convert to store types
+                type_mapping = {
+                    "ingested": [INGESTED],
+                    "long_term": [LONG_TERM],
+                    "short_term": [SHORT_TERM],
+                    "all": [INGESTED, LONG_TERM, SHORT_TERM]
+                }
+                
+                if type not in type_mapping:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Invalid type '{type}'. Must be 'ingested', 'long_term', 'short_term', or 'all'."
+                    )
+                
+                store_types = type_mapping[type]
+                result = await self.export_chunks(store_types=store_types, format=format)
+                
+                # Return appropriate response based on format
+                if format == "json":
+                    return Response(content=json.dumps(result, indent=2), media_type="application/json")
+                else:
+                    return Response(content=result, media_type="text/plain")
+                    
+            except Exception as e:
+                self.logger.error(f"Error exporting chunks: {e}")
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Error exporting chunks: {str(e)}"
+                )
+
+    async def export_chunks(self, store_types: list = None, format: str = "json") -> Union[dict, str]:
+        """
+        Export chunks from the database in JSON or TXT format.
+        
+        Args:
+            store_types: List of store types to export (INGESTED, LONG_TERM, SHORT_TERM).
+                       If None, exports all types.
+            format: Export format, either 'json' or 'txt'.
+            
+        Returns:
+            JSON object or TXT string containing chunk content and timestamps.
+        """
+        if store_types is None:
+            store_types = [INGESTED, LONG_TERM, SHORT_TERM]
+        
+        # Prepare type name mapping for output
+        type_names = {
+            INGESTED: "ingested",
+            LONG_TERM: "long_term",
+            SHORT_TERM: "short_term"
+        }
+        
+        if format == "json":
+            result = {}
+            
+            for store_type in store_types:
+                # Query chunks for this type
+                chunks = await self.db_execute(
+                    "SELECT content, created_at FROM chunks WHERE type = ? ORDER BY created_at ASC",
+                    (store_type,)
+                )
+                
+                # Format chunks for JSON output
+                formatted_chunks = []
+                for chunk in chunks:
+                    formatted_chunks.append({
+                        "content": chunk['content'],
+                        "created_at": chunk['created_at']
+                    })
+                
+                result[type_names[store_type]] = formatted_chunks
+            
+            return result
+            
+        elif format == "txt":
+            result_lines = []
+            
+            for store_type in store_types:
+                # Query chunks for this type
+                chunks = await self.db_execute(
+                    "SELECT content, created_at FROM chunks WHERE type = ? ORDER BY created_at ASC",
+                    (store_type,)
+                )
+                
+                if chunks:
+                    result_lines.append(f"=== {type_names[store_type].upper()} ({store_type}) ===")
+                    for chunk in chunks:
+                        created_at = chunk['created_at']
+                        content = chunk['content']
+                        result_lines.append(f"[{created_at}] {content}")
+                    result_lines.append("")  # Empty line between types
+            
+            return "\n".join(result_lines)
+        else:
+            raise ValueError(f"Invalid format '{format}'. Must be 'json' or 'txt'.")
 
     def create_folders(self):
         """Create all necessary folders for the plugin"""

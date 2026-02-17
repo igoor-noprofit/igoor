@@ -153,7 +153,6 @@ class Flow(Baseplugin):
             # self.logger.info(f"FILTERED RESULTS: {filtered_results}")
             actual_filtered_results = normalize_filter_by_timeframe_result(filtered_results)
 
-        # Continue with the rest of your function
         del dynamic_context["conversation"]
         system_prompt = self.prompts.get("flow", {}).get("system")
         pm = PromptManager(template=self.prompts.get("flow", {}).get("usr"))
@@ -193,23 +192,6 @@ class Flow(Baseplugin):
             print(f"Unexpected error in asr_msg: {str(e)}")
             self.send_error_to_frontend("llm_error",e)
         
-    '''
-    async def reorder_rag(self, chunk_ids:dict,preflow_dict:dict):
-        """Reorders the RAG context based on the given chunk IDs.
-            For each store type in chunk_ids, retrieves the chunks based on the given IDs from the sqlite db,
-            along with their timestamps. Then uses preflow_dict to filter the chunks based on their timestamps and sort them             
-            from the oldest to the newest.
-            Args:
-                chunk_ids (dict): A dictionary where the keys are store types (0, 1, or 2) and the values are lists of chunk IDs.
-                preflow_dict (dict): A dictionary containing the preflow result.
-        """
-        for store_type, ids in chunk_ids.items():
-            # Retrieve chunks from sqlite db based on chunk_ids
-            chunks = await self.pm.trigger_hook(hook_name="get_chunks_by_ids", chunk_ids=ids, store_type=store_type)
-            # Filter chunks based on timestamps
-        return False
-    '''
-        
     async def preflow(self,conversation:str) -> dict:
         start_time = time.time()
         """Performs a first LLM call to create or update conversation topic and to know WHICH memory to search"""
@@ -230,12 +212,12 @@ class Flow(Baseplugin):
                 return preflow
                 
             preflow_dict = preflow.dict()
+            end_time = time.time()
+            print(f"PREFLOW time taken for processing: {end_time - start_time} seconds")
             if preflow_dict.get("theme"):
                 return preflow_dict
             else:
                 return False
-            end_time = time.time()
-            print(f"PREFLOW time taken for processing: {end_time - start_time} seconds")
         except Exception as e:
             print(f"Unexpected error in preflow: {str(e)}")
             self.send_error_to_frontend("llm_error",e)
