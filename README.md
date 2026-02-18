@@ -6,7 +6,7 @@ IGOOR is an open-source and free (GPLv3) conversational application based on AI.
 
 Take a look at the [IGOOR website](https://igoor.org/en) for further infos about our core principles, values and software roadmap.
 
-IGOOR has been developed in partnership with [ARSLA website](https://www.arsla.org/).
+IGOOR has been developed in partnership with [ARSLA](https://www.arsla.org/).
 
 Also please take a look at the [IGOOR docs](https://igoor-noprofit.github.io/docs/). Documentation is ongoing. 
 
