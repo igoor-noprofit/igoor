@@ -4,7 +4,7 @@
     "title": "Default Text-to-speech",
     "description": "Fallback TTS using Windows OS voices",
     "layout": {
-        "part": "topbar",
+        "part": "hidden",
         "order": 0
     },
     "is_free": true,

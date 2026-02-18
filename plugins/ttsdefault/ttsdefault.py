@@ -5,6 +5,8 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 import asyncio
 import win32com.client
+import os
+import json
 
 
 class SetVoicePayload(BaseModel):
@@ -154,8 +156,45 @@ class Ttsdefault(Baseplugin):
 
     async def run_speak_func(self, message):
         await self.pm.trigger_hook(hook_name="pause_asr")
-        success = await self.speak_func(message)
+        
+        # Check if we're in LAN access mode - send to frontend for client-side playback
+        access_from_outside = os.getenv('IGOOR_ACCESS_FROM_OUTSIDE', 'False').lower() == 'true'
+        
+        if access_from_outside:
+            # Send to frontend for client-side Web Speech API playback
+            self.logger.info("LAN mode: sending TTS to frontend for client playback")
+            success = await self.speak_to_frontend(message)
+        else:
+            # Use local SAPI
+            success = await self.speak_func(message)
+        
         await self.pm.trigger_hook(hook_name="restart_asr")
+
+    async def speak_to_frontend(self, message):
+        """Send speak command to frontend for client-side Web Speech API playback"""
+        self.logger.info("SPEAK TO FRONTEND:" + message)
+        try:
+            # Get settings for the frontend
+            settings = self.get_my_settings()
+            voice_id = settings.get("voice_id", 0)
+            rate = settings.get("rate", 1.0)
+            pitch = settings.get("pitch", 1.0)
+            volume = settings.get("volume", 1.0)
+            
+            # Send message to frontend
+            tts_message = {
+                "action": "speak",
+                "message": message,
+                "voice_id": voice_id,
+                "rate": rate,
+                "pitch": pitch,
+                "volume": volume
+            }
+            self.send_message_to_frontend(tts_message)
+            return True
+        except Exception as e:
+            self.logger.error(f"Error sending TTS to frontend: {e}")
+            return False
 
     async def speak_func(self, message):
         self.logger.info("SPEAK FUNC:" + message)

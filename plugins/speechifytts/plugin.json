@@ -3,7 +3,7 @@
     "title": "Speechify",
     "description": "TTS using cloud service Speechify for standard cloned voice",
     "layout": {
-        "part": "topbar",
+        "part": "hidden",
         "order": 0
     },
     "is_free": false,

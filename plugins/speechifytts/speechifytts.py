@@ -12,6 +12,11 @@ from pydub.playback import play
 import io
 import base64
 import json
+import uuid
+from fastapi import APIRouter, HTTPException, Response
+
+# Global audio cache for client-side playback
+_audio_cache = {}
 '''
 Language	Code
 English	en
@@ -25,6 +30,7 @@ Portuguese (Portugal)	pt-PT
 class Speechifytts(Baseplugin):
     def __init__(self, plugin_name, pm):
         self.pm = pm
+        self.router = None
         super().__init__(plugin_name,pm)
         self._ensure_lang_code()
 
@@ -38,9 +44,32 @@ class Speechifytts(Baseplugin):
             code = lang.replace('_', '-')
         self.lang_code = code
         return code
+
+    def _ensure_router(self):
+        """Initialize FastAPI router for plugin endpoints"""
+        if self.router is not None:
+            return
+        self.router = APIRouter(prefix="/api/plugins/speechifytts", tags=["speechifytts"])
+
+        @self.router.get("/audio/{audio_id}")
+        async def get_audio(audio_id: str):
+            """Retrieve audio by ID for client-side playback"""
+            global _audio_cache
+            audio_bytes = _audio_cache.pop(audio_id, None)
+            if not audio_bytes:
+                raise HTTPException(status_code=404, detail="Audio not found or expired")
+            
+            # Speechify returns WAV format
+            content_type = "audio/wav"
+            return Response(content=audio_bytes, media_type=content_type)
                 
     @hookimpl
     def startup(self):
+        self._ensure_router()
+        # Register router with the main FastAPI app if available
+        if hasattr(self, 'pm') and hasattr(self.pm, 'fastapi_app'):
+            self.pm.fastapi_app.include_router(self.router)
+        
         # https://docs.sws.speechify.com/docs/features/language-support#beta-languages
         self.supported_lang = ['en', 'fr-FR', 'de-DE', 'es-ES', 'pt-BR', 'pt-PT']
         self.settings = self.get_my_settings()
@@ -341,6 +370,7 @@ class Speechifytts(Baseplugin):
         return ssml.strip()
 
     async def call_speechify(self,input,voice_id,language,model="simba-multilingual"):
+        global _audio_cache
         response = self.client.tts.audio.speech(
             input=input,  # Use SSML instead of plain text
             voice_id=voice_id,
@@ -356,11 +386,6 @@ class Speechifytts(Baseplugin):
             audio_bytes = base64.b64decode(response.audio_data)
             print(f"Received {len(audio_bytes)} bytes of audio data. Decoding...")
 
-            '''
-            debug_path = os.path.join(self.plugin_folder, "debug_speechify_output.wav")
-            with open(debug_path, "wb") as f:
-                f.write(audio_bytes)
-            '''
             # 2. Decode the audio bytes using pydub
             audio_file_like = io.BytesIO(audio_bytes)
             try:
@@ -382,18 +407,42 @@ class Speechifytts(Baseplugin):
 
             print("Decoding complete. Preparing for playback...")
 
-            # 3. Play the audio using pydub playback
-            print("Playing audio...")
-            await self.pm.trigger_hook(hook_name="pause_asr")
-
-            def play_audio():
-                play(audio_segment)
-
-            await asyncio.to_thread(play_audio)
-            self.run_restart_asr()
-            print("Playback finished.")
+            # Check if we're in LAN access mode - send to frontend for client-side playback
+            access_from_outside = os.getenv('IGOOR_ACCESS_FROM_OUTSIDE', 'False').lower() == 'true'
             
-            return True
+            if access_from_outside:
+                # Export audio to WAV bytes and cache for client retrieval
+                wav_buffer = io.BytesIO()
+                audio_segment.export(wav_buffer, format="wav")
+                wav_bytes = wav_buffer.getvalue()
+                
+                audio_id = str(uuid.uuid4())
+                _audio_cache[audio_id] = wav_bytes
+                
+                self.logger.info(f"LAN mode: sending audio to frontend, id={audio_id}, size={len(wav_bytes)} bytes")
+                
+                # Send message to frontend to play audio
+                audio_url = f"/api/plugins/speechifytts/audio/{audio_id}"
+                self.send_message_to_frontend({
+                    "action": "play_audio",
+                    "audio_url": audio_url
+                })
+                await self.pm.trigger_hook(hook_name="pause_asr")
+                print("Audio URL sent to frontend.")
+                return True
+            else:
+                # Local mode: play directly on server
+                print("Playing audio...")
+                await self.pm.trigger_hook(hook_name="pause_asr")
+
+                def play_audio():
+                    play(audio_segment)
+
+                await asyncio.to_thread(play_audio)
+                self.run_restart_asr()
+                print("Playback finished.")
+                
+                return True
 
 
     async def speak_func(self, message):

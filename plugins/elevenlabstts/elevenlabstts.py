@@ -7,7 +7,12 @@ from typing import Any, Dict
 from settings_manager import SettingsManager
 import asyncio
 import json
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Response
+import uuid
+import os
+
+# Global audio cache for client-side playback
+_audio_cache = {}
 
 class Elevenlabstts(Baseplugin):
     def __init__(self, plugin_name, pm):
@@ -105,6 +110,18 @@ class Elevenlabstts(Baseplugin):
                 }
             except Exception as e:
                 raise HTTPException(status_code=400, detail=f"Failed to test voice: {str(e)}")
+
+        @self.router.get("/audio/{audio_id}")
+        async def get_audio(audio_id: str):
+            """Retrieve audio by ID for client-side playback"""
+            global _audio_cache
+            audio_bytes = _audio_cache.pop(audio_id, None)
+            if not audio_bytes:
+                raise HTTPException(status_code=404, detail="Audio not found or expired")
+            
+            # Determine content type based on output format setting
+            content_type = "audio/mpeg"  # Default to MP3
+            return Response(content=audio_bytes, media_type=content_type)
                 
     @hookimpl
     def startup(self):
@@ -332,6 +349,7 @@ class Elevenlabstts(Baseplugin):
             await self.call_fallback(message=message)
 
     async def speak_func(self, message):
+        global _audio_cache
         print("SPEAK FUNC:" + message)
         try:
             # Ensure settings are initialized
@@ -392,8 +410,30 @@ class Elevenlabstts(Baseplugin):
 
                 # Generate audio
                 audio = self.client.text_to_speech.convert(**request_params)
-                await self.pm.trigger_hook(hook_name="pause_asr")
-                play(audio)
+                
+                # Check if we're in LAN access mode - send to frontend for client-side playback
+                access_from_outside = os.getenv('IGOOR_ACCESS_FROM_OUTSIDE', 'False').lower() == 'true'
+                
+                if access_from_outside:
+                    # Convert audio generator to bytes and cache for client retrieval
+                    audio_bytes = b''.join(audio)
+                    audio_id = str(uuid.uuid4())
+                    _audio_cache[audio_id] = audio_bytes
+                    
+                    self.logger.info(f"LAN mode: sending audio to frontend, id={audio_id}, size={len(audio_bytes)} bytes")
+                    
+                    # Send message to frontend to play audio
+                    audio_url = f"/api/plugins/elevenlabstts/audio/{audio_id}"
+                    self.send_message_to_frontend({
+                        "action": "play_audio",
+                        "audio_url": audio_url
+                    })
+                    await self.pm.trigger_hook(hook_name="pause_asr")
+                else:
+                    # Local mode: play directly on server
+                    await self.pm.trigger_hook(hook_name="pause_asr")
+                    play(audio)
+                    
             except Exception as inner_e:
                 print(f"Error generating audio data: {inner_e}")
                 await self.call_fallback(message=message)
