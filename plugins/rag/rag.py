@@ -563,15 +563,12 @@ class Rag(Baseplugin):
             # --- Database Document Insertion ---
             document_id = None # Initialize
             try:
-                await self.db_execute(
+                result = await self.db_execute(
                     "INSERT INTO documents (title, filename, created_at) VALUES (?, ?, datetime('now'))",
                     (title, file_name)
                 )
-                result = await self.db_execute(
-                    "SELECT id FROM documents WHERE filename = ? ORDER BY id DESC LIMIT 1", # Ensure latest if duplicates somehow exist
-                    (file_name,)
-                )
-                document_id = result[0]['id'] if result else None
+                # Get ID atomically from the same connection
+                document_id = result[0]['lastrowid'] if result else None
                 if document_id is None:
                     self.logger.error(f"Failed to get document ID for {file_name} after insertion, skipping")
                     continue
