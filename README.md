@@ -103,10 +103,6 @@ C:/Users/YourUsername/AppData/Roaming/igoor/
 
 The folder contains a settings.json and a plugins data folder, called "plugins".
 
-### NOTES ABOUT PLUGINS
-
-Plugins are currently de/activated by using settings.
-
 #### AUTOMATIC SPEECH RECOGNITION WITH VOSK
 
 Vosk is a local ASR (Automatic Speech Recognition) plugin.
