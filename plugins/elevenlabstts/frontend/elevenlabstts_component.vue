@@ -42,15 +42,21 @@ module.exports = {
         async $_handlePlayAudio(audioUrl) {
             console.log('ElevenLabs: Playing audio from', audioUrl);
             try {
-                // Use window.TTSPlayer (loaded globally)
-                if (window.TTSPlayer) {
-                    await window.TTSPlayer.play(audioUrl);
-                } else {
-                    console.error('TTSPlayer not available on window');
-                    // Fallback to direct Audio API
-                    const audio = new Audio(audioUrl);
-                    await audio.play();
-                }
+                // Play audio and wait for it to finish
+                const audio = new Audio(audioUrl);
+                
+                // Create a promise that resolves when audio ends
+                const playbackPromise = new Promise((resolve, reject) => {
+                    audio.onended = () => resolve();
+                    audio.onerror = (e) => reject(new Error(`Audio error: ${e.type}`));
+                });
+                
+                // Start playback
+                await audio.play();
+                
+                // Wait for playback to complete
+                await playbackPromise;
+                
                 // Notify backend that playback is complete
                 this.sendMsgToBackend({ action: 'playback_complete' });
             } catch (error) {

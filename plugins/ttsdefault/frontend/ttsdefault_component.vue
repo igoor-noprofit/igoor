@@ -5,7 +5,6 @@
 
 <script>
 import BasePluginComponent from '/js/BasePluginComponent.js';
-import TTSClient from '/js/TTSClient.js';
 
 module.exports = {
     name: "ttsdefault",
@@ -17,34 +16,31 @@ module.exports = {
         };
     },
     created() {
-        // Initialize TTSClient
-        TTSClient.init();
+        // Load voices from Web Speech API
+        this.loadVoices();
         
-        // Set up callbacks
-        TTSClient.onVoicesLoaded = (voices) => {
-            this.voices = voices;
-            console.log('TTSClient voices loaded:', voices.length);
-        };
-        
-        TTSClient.onSpeakStart = () => {
-            // Notify backend that speech started
-            this.sendMsgToBackend({ action: 'speech_started' });
-        };
-        
-        TTSClient.onSpeakEnd = () => {
-            // Notify backend that speech ended
-            this.sendMsgToBackend({ action: 'speech_ended' });
-        };
-        
-        TTSClient.onSpeakError = (error) => {
-            console.error('TTSClient error:', error);
-            this.sendMsgToBackend({ action: 'speech_error', error: error });
-        };
-        
-        // Load initial voices
-        this.voices = TTSClient.getVoices();
+        // Some browsers load voices asynchronously
+        if (typeof speechSynthesis !== 'undefined' && speechSynthesis.onvoiceschanged !== undefined) {
+            speechSynthesis.onvoiceschanged = () => {
+                this.loadVoices();
+            };
+        }
     },
     methods: {
+        loadVoices() {
+            if (typeof speechSynthesis === 'undefined') {
+                console.warn('Web Speech API not supported');
+                return;
+            }
+            const browserVoices = speechSynthesis.getVoices();
+            this.voices = browserVoices.map((voice, index) => ({
+                id: index,
+                name: voice.name,
+                lang: voice.lang
+            }));
+            console.log('Loaded', this.voices.length, 'voices');
+        },
+        
         handleIncomingMessage(event) {
             // Let base component handle common messages first
             const handled = BasePluginComponent.methods.handleIncomingMessage.call(this, event);
@@ -58,15 +54,6 @@ module.exports = {
                 // Handle TTS speak action from backend
                 if (data.action === 'speak') {
                     this.$_handleSpeak(data);
-                    return true;
-                }
-                
-                // Handle voice list request
-                if (data.action === 'get_voices') {
-                    this.sendMsgToBackend({
-                        action: 'voices_list',
-                        voices: this.voices
-                    });
                     return true;
                 }
                 
@@ -84,38 +71,56 @@ module.exports = {
             const pitch = data.pitch || 1.0;
             const volume = data.volume || 1.0;
             
-            console.log('TTSClient speaking:', message, { voiceId, rate, pitch, volume });
+            console.log('Web Speech API speaking:', message, { voiceId, rate, pitch, volume });
             
-            // Set voice if specified
-            if (voiceId !== this.currentVoiceId) {
-                TTSClient.setVoice(voiceId);
-                this.currentVoiceId = voiceId;
+            if (typeof speechSynthesis === 'undefined') {
+                console.error('Web Speech API not supported');
+                this.sendMsgToBackend({ action: 'playback_failed', error: 'Web Speech API not supported' });
+                return;
             }
             
             try {
-                await TTSClient.speak(message, { rate, pitch, volume, voiceId });
+                // Cancel any ongoing speech
+                speechSynthesis.cancel();
+                
+                const utterance = new SpeechSynthesisUtterance(message);
+                
+                // Set voice if available
+                const browserVoices = speechSynthesis.getVoices();
+                if (browserVoices[voiceId]) {
+                    utterance.voice = browserVoices[voiceId];
+                }
+                
+                // Set speech parameters
+                utterance.rate = rate;
+                utterance.pitch = pitch;
+                utterance.volume = volume;
+                
+                // Create a promise that resolves when speech ends
+                const speechPromise = new Promise((resolve, reject) => {
+                    utterance.onend = () => resolve();
+                    utterance.onerror = (e) => reject(new Error(`Speech error: ${e.error}`));
+                });
+                
+                // Start speech
+                speechSynthesis.speak(utterance);
+                
+                // Wait for speech to complete
+                await speechPromise;
+                
+                // Notify backend that speech is complete
+                this.sendMsgToBackend({ action: 'playback_complete' });
+                
             } catch (error) {
-                console.error('TTSClient speak error:', error);
-                // Notify backend of error so it can try fallback
-                this.sendMsgToBackend({ action: 'speak_failed', error: error.message });
+                console.error('Web Speech API error:', error);
+                this.sendMsgToBackend({ action: 'playback_failed', error: error.message });
             }
         },
         
-        $_setVoice(voiceId) {
-            TTSClient.setVoice(voiceId);
-            this.currentVoiceId = voiceId;
-        },
-        
         $_stop() {
-            TTSClient.stop();
-        },
-        
-        $_pause() {
-            TTSClient.pause();
-        },
-        
-        $_resume() {
-            TTSClient.resume();
+            if (typeof speechSynthesis !== 'undefined') {
+                speechSynthesis.cancel();
+            }
         }
     }
 };

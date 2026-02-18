@@ -175,6 +175,47 @@ class Elevenlabstts(Baseplugin):
             self.logger.error(f"Error occurred while creating Elevenlabs client : {e}")
             return False
     
+    def process_incoming_message(self, message):
+        """Handle messages from frontend (playback_complete, playback_failed)"""
+        try:
+            data = message
+            # Decode bytes if needed
+            if isinstance(message, (bytes, bytearray)):
+                try:
+                    data = message.decode('utf-8')
+                except Exception:
+                    pass
+            
+            # Parse JSON string
+            if isinstance(data, str):
+                try:
+                    data = json.loads(data)
+                except Exception:
+                    return
+            
+            # Handle actions
+            if isinstance(data, dict) and 'action' in data:
+                action = data.get('action')
+                
+                if action == 'playback_complete':
+                    # Frontend finished playing audio in LAN mode - restart ASR
+                    self.logger.info("ElevenLabs: Audio playback complete, restarting ASR")
+                    self.run_restart_asr()
+                    return
+                    
+                elif action == 'playback_failed':
+                    # Frontend failed to play audio - restart ASR and log error
+                    error_msg = data.get('error', 'Unknown error')
+                    self.logger.error(f"ElevenLabs: Audio playback failed: {error_msg}")
+                    self.run_restart_asr()
+                    return
+            
+            # Fall back to base handler for other messages
+            super().process_incoming_message(message)
+            
+        except Exception as e:
+            self.logger.error(f"Error processing incoming message: {e}")
+    
     '''
     @hookimpl
     def register_fastapi_routes(self):
@@ -231,6 +272,17 @@ class Elevenlabstts(Baseplugin):
                 test_message = data.get("message", "Hello, how are you doing? I feel better today!")
                 # Use current settings for test
                 self._test_speak(test_message, data)
+                
+            elif action == "playback_complete":
+                # Frontend finished playing audio in LAN mode - restart ASR
+                self.logger.info("ElevenLabs: Audio playback complete, restarting ASR")
+                self.run_restart_asr()
+                
+            elif action == "playback_failed":
+                # Frontend failed to play audio in LAN mode - restart ASR and log error
+                error_msg = data.get('error', 'Unknown error')
+                self.logger.error(f"ElevenLabs: Audio playback failed: {error_msg}")
+                self.run_restart_asr()
                 
         except Exception as e:
             print(f"Error handling websocket message: {e}")

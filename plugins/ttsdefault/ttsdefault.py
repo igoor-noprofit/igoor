@@ -119,6 +119,47 @@ class Ttsdefault(Baseplugin):
                 self.speaker.Voice = self.speaker.GetVoices().Item(0)
                 return False   
     
+    def process_incoming_message(self, message):
+        """Handle messages from frontend (playback_complete, playback_failed for LAN mode)"""
+        try:
+            data = message
+            # Decode bytes if needed
+            if isinstance(message, (bytes, bytearray)):
+                try:
+                    data = message.decode('utf-8')
+                except Exception:
+                    pass
+            
+            # Parse JSON string
+            if isinstance(data, str):
+                try:
+                    data = json.loads(data)
+                except Exception:
+                    return
+            
+            # Handle actions
+            if isinstance(data, dict) and 'action' in data:
+                action = data.get('action')
+                
+                if action == 'playback_complete':
+                    # Frontend finished speaking in LAN mode - restart ASR
+                    self.logger.info("TTSDefault: Web Speech playback complete, restarting ASR")
+                    self.run_restart_asr()
+                    return
+                    
+                elif action == 'playback_failed' or action == 'speak_failed':
+                    # Frontend failed to speak - restart ASR and log error
+                    error_msg = data.get('error', 'Unknown error')
+                    self.logger.error(f"TTSDefault: Web Speech playback failed: {error_msg}")
+                    self.run_restart_asr()
+                    return
+            
+            # Fall back to base handler for other messages
+            super().process_incoming_message(message)
+            
+        except Exception as e:
+            self.logger.error(f"Error processing incoming message: {e}")
+    
     '''
     @hookimpl
     def test_speak(self, message, **kwargs):
