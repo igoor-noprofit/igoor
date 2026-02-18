@@ -3,12 +3,14 @@
         <div class="bio left">
             <!-- API Key -->
             <div class="form-label">{{ t('API Key used to authenticate with the TTS provider') }}</div>
-            <div class="form-input">
-                <input type="password" v-model="formData.api_key" :class="{ 'input-error': apiKeyError }"
+            <div class="form-input" style="display: flex; align-items: center; gap: 8px;">
+                <input type="password" v-model="formData.api_key"
+                       :class="{ 'input-error': apiKeyError, 'input-success': apiKeyValid }"
                     placeholder="ex. 93acd-...-...-...-fe1" />
+                <span v-if="apiKeyValid" class="valid-icon">✓</span>
             </div>
             <div class="form-note" :style="{ color: apiKeyError ? '#ff6666' : undefined }">
-                {{ apiKeyError ? t('API Key is required') : '' }}
+                {{ apiKeyError ? (apiKeyErrorMessage || t('API Key is required')) : '' }}
             </div>
 
             <!-- Voice Selection -->
@@ -53,10 +55,6 @@
             <div class="form-note" :style="{ color: voiceIdError ? '#ff6666' : undefined }">
                 {{ voiceIdError ? t('Voice ID is required') : '' }}
             </div>
-            <!--select v-model="sex">
-                <option value="male">{{ t("Male") }}</option>
-                <option value="female">{{ t("Female") }}</option>
-            </select-->
             <!-- voice_id hidden -->
             <input type="hidden" v-model="formData.voice_id" />
             <!-- model_id hidden -->
@@ -192,6 +190,8 @@ export default {
             },
             originalSettings: null,
             apiKeyError: false,
+            apiKeyErrorMessage: '',
+            apiKeyValid: false,
             voiceIdError: false,
             // Pitch config
             pitchRange: { min: -83, max: 100 },
@@ -279,11 +279,16 @@ export default {
             deep: true
         },
         'formData.api_key': {
-            handler(newVal, oldVal) {
+            async handler(newVal, oldVal) {
                 if (!this.apiKeyInitialized) return;
                 const trimmedNew = (newVal || '').trim();
                 const trimmedOld = (oldVal || '').trim();
                 if (trimmedNew === trimmedOld) return;
+
+                // Clear errors when API key changes
+                this.apiKeyError = false;
+                this.apiKeyErrorMessage = '';
+                this.apiKeyValid = false;
 
                 if (!trimmedNew) {
                     this.voiceList = [];
@@ -291,10 +296,7 @@ export default {
                     return;
                 }
 
-                this.sendMsgToBackend({
-                    action: 'get_voice_list',
-                    api_key: trimmedNew
-                }, 'speechifytts');
+                await this.loadVoiceListFromRest();
             }
         }
     },
@@ -344,6 +346,70 @@ export default {
                 this.pitchValue = this.formData.pitch;
                 this.rateValue = this.formData.rate;
                 this.volumeValue = this.formData.volume;
+                // Clear validation states
+                this.apiKeyError = false;
+                this.apiKeyErrorMessage = '';
+                this.apiKeyValid = false;
+                this.voiceIdError = false;
+            }
+        },
+        async loadVoiceListFromRest() {
+            // Clear any previous error
+            this.apiKeyError = false;
+            this.apiKeyErrorMessage = '';
+
+            if (!this.formData.api_key || !this.formData.api_key.trim()) {
+                console.log('Cannot load voices: API key missing');
+                return;
+            }
+
+            console.log('Loading Speechify voices via REST API...');
+            try {
+                const params = {
+                    api_key: this.formData.api_key.trim()
+                };
+                console.log('Fetching Speechify voices using callPluginRestEndpoint with params');
+
+                const data = await this.callPluginRestEndpoint('speechifytts', 'get_voices', params);
+                console.log('Speechify voice list response:', data);
+
+                // Handle response structure
+                if (data.voices && Array.isArray(data.voices)) {
+                    this.voiceList = data.voices;
+                    this.apiKeyValid = true;
+                    console.log(`Loaded ${this.voiceList.length} Speechify voices via REST API`);
+                } else if (Array.isArray(data)) {
+                    this.voiceList = data;
+                    this.apiKeyValid = true;
+                    console.log(`Loaded ${this.voiceList.length} Speechify voices via REST API`);
+                } else {
+                    console.error('Unexpected voice list format:', data);
+                    this.voiceList = [];
+                }
+            } catch (err) {
+                console.error('Error loading Speechify voices via REST:', err);
+                this.voiceList = [];
+                this.apiKeyError = true;
+                this.apiKeyValid = false;
+
+                // Extract error message from response
+                if (err.response && err.response.data) {
+                    const errorData = err.response.data;
+                    if (errorData.detail) {
+                        if (typeof errorData.detail === 'string') {
+                            this.apiKeyErrorMessage = errorData.detail;
+                        } else if (errorData.detail.message) {
+                            this.apiKeyErrorMessage = errorData.detail.message;
+                        }
+                    } else if (errorData.message) {
+                        this.apiKeyErrorMessage = errorData.message;
+                    }
+                }
+
+                // Fallback message if we couldn't extract a specific one
+                if (!this.apiKeyErrorMessage) {
+                    this.apiKeyErrorMessage = this.t('Failed to validate API key. Please check your key and try again.');
+                }
             }
         },
         async testVoice() {
@@ -351,7 +417,7 @@ export default {
             this.formData.rate = Math.round(this.rateValue);
             this.formData.volume = Math.round(this.volumeValue);
             let msg = this.t('Hello, how are you doing? I feel better today!')
-            let testData = this.formData;
+            let testData = { ...this.formData };
             testData['action'] = 'test_speak';
             testData['message'] = msg;
             console.warn("TEST SPEAK DATA", testData);
@@ -363,6 +429,7 @@ export default {
         },
         async checkBeforeUpdating() {
             this.apiKeyError = !this.formData.api_key || !this.formData.api_key.trim();
+            this.apiKeyErrorMessage = '';
             this.voiceIdError = !this.formData.voice_id || !this.formData.voice_id.trim();
             if (this.apiKeyError || this.voiceIdError) return;
 
@@ -378,6 +445,11 @@ export default {
                 this.saveStatus = { type: 'success', message: this.t('Settings saved') };
                 // refresh original snapshot so hasChanges becomes false
                 this.originalSettings = JSON.parse(JSON.stringify(this.formData));
+
+                // Load voice list when API key is available and voice list is empty
+                if (this.formData.api_key && this.formData.api_key.trim() && this.voiceList.length === 0) {
+                    await this.loadVoiceListFromRest();
+                }
             } catch (err) {
                 console.error('Error saving settings', err);
                 this.saveStatus = { type: 'error', message: this.t('Failed to save settings') };
@@ -409,6 +481,15 @@ export default {
             }
 
             return false;
+        }
+    },
+    async created() {
+        await this.loadTranslations();
+        
+        // Load voice list if API key is already available from initial settings
+        if (this.initialSettings?.api_key && this.initialSettings.api_key.trim()) {
+            console.log('Loading Speechify voices during component creation...');
+            await this.loadVoiceListFromRest();
         }
     }
 };
@@ -442,7 +523,8 @@ export default {
 
 select,
 input[type="text"],
-input[type="number"] {
+input[type="number"],
+input[type="password"] {
     background: #222;
     color: #fff;
     border: 1px solid #444;
@@ -474,6 +556,17 @@ button:hover {
 .input-error {
     border-color: #ff6666;
     background: #2a1818;
+}
+
+.input-success {
+    border-color: #3ca23c !important;
+}
+
+.valid-icon {
+    color: #3ca23c;
+    font-size: 1.2em;
+    font-weight: bold;
+    margin-left: 8px;
 }
 
 /* SSML card */

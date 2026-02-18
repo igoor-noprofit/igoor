@@ -51,6 +51,22 @@ class Speechifytts(Baseplugin):
             return
         self.router = APIRouter(prefix="/api/plugins/speechifytts", tags=["speechifytts"])
 
+        @self.router.get("/get_voices")
+        async def get_voices(api_key: str):
+            """Get list of available voices for an API key (validates API key)"""
+            try:
+                voice_list = self.get_voices_list(api_key_override=api_key)
+                if not voice_list:
+                    # If empty, it could be an invalid API key or no voices found
+                    raise HTTPException(status_code=400, detail="Failed to retrieve voices. Please check your API key.")
+                
+                return {"voices": voice_list, "count": len(voice_list)}
+            except HTTPException:
+                raise
+            except Exception as e:
+                self.logger.error(f"Failed to get voices: {e}")
+                raise HTTPException(status_code=400, detail=f"Failed to validate API key: {str(e)}")
+
         @self.router.get("/audio/{audio_id}")
         async def get_audio(audio_id: str):
             """Retrieve audio by ID for client-side playback"""
@@ -322,6 +338,17 @@ class Speechifytts(Baseplugin):
                         response["error"] = "voice_list_empty"
                     self.send_message_to_frontend(response, plugin_name='speechifyttsSettings')
                     return voice_list
+                elif data.get('action', '') == 'playback_complete':
+                    # Frontend finished playing audio in LAN mode - restart ASR
+                    self.logger.info("Speechify: Audio playback complete, restarting ASR")
+                    self.run_restart_asr()
+                    return
+                elif data.get('action', '') == 'playback_failed':
+                    # Frontend failed to play audio in LAN mode - restart ASR and log error
+                    error_msg = data.get('error', 'Unknown error')
+                    self.logger.error(f"Speechify: Audio playback failed: {error_msg}")
+                    self.run_restart_asr()
+                    return
             # fallback to base behaviour
             super().process_incoming_message(message)
         except Exception as e:  
