@@ -120,7 +120,6 @@ pathspec==0.12.1
 patsy==1.0.1
 pefile==2023.2.7
 pillow==11.0.0
-pip==25.3
 pipdeptree==2.24.0
 pipmaster==0.4.0
 platformdirs==4.4.0
