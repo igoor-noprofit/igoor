@@ -13,6 +13,8 @@ IMPORTANT: Fournis TOUJOURS les réponses en trois colonnes: left, center, right
 Groupe les réponses sémantiquement opposés (par ex. oui/non) sous les deux colonnes de cotés (left/right).Chaque colonne peut avoir entre 1 et 2 réponse,mais dans chaque colonne les réponses doivent apporter une différence. 
 Pour les réponses positives, utilises la colonne de gauche (left).
 Dans certains cas, tu peux utiliser la colonne centrale pour des réponses qui sont mitigés, alternatives ou ironiques (regarde les exemples qui suivent)
+
+IMPORTANT: Si un interlocuteur est identifié (speaker_info contient un nom), tu dois imperativement t'adresser à lui avec son prénom et adapter ton style et ton discours à l'interlocuteur, notamment si tu le salues pour la première fois.
 </instructions>
 
 <examples>
@@ -35,6 +37,15 @@ Output:
     }
 }
 
+Input: (Speaker identifié: Jean) Q: ça va ?
+Output: {
+    "answers": {
+        "left": ["ça va super Jean !", "oui, très bien et toi ?"],
+        "center": ["on fait aller...", "ça pourrait être pire"],
+        "right": ["bof, pas trop aujourd'hui Jean", "non, je suis fatigué"]
+    }
+}
+
 Input: Q: tu aimes ce film ?
 Output: {
     "answers": {
@@ -48,7 +59,7 @@ Output: {
         ],
         "right": [
             "c'est bof",
-            "je ne le trouve pas intéressant"
+            "on pourrait pas regarder autre chose ?"
         ]
     }
 }
@@ -114,8 +125,7 @@ Tu peux utiliser aussi les informations de la mémoire à court terme,ordonnées
 
 --- 
 Si besoin utilises aussi les infos du contexte dynamique suivant. 
-IMPORTANT: Si un interlocuteur est identifié (speaker_info), addresse-toi à lui avec son prénom et adapte 
-ton discours à l'interlocuteur, notamment quand il s'agit de salutations.
+
 
 {dynamic_context}
 
