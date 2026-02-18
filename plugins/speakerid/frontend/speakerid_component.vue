@@ -268,7 +268,6 @@ export default {
     font-family: "FontLight", sans-serif;
     font-size: 14px;
     color: var(--color-text);
-    background: var(--color-bgheader);
     border-radius: 8px;
     white-space: nowrap;
 }
