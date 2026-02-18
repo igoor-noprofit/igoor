@@ -200,10 +200,14 @@ class DatabaseManager:
         conn = self._get_connection()
         cursor = conn.cursor()
         cursor.execute(query, params)
-        if query.strip().upper().startswith(('SELECT', 'PRAGMA')):
+        query_upper = query.strip().upper()
+        if query_upper.startswith(('SELECT', 'PRAGMA')):
             rows = cursor.fetchall()
             return [dict(row) for row in rows]
         conn.commit()
+        # Return lastrowid for INSERT operations to support atomic ID retrieval
+        if query_upper.startswith('INSERT'):
+            return [{"lastrowid": cursor.lastrowid}]
         return None
 
     def __del__(self):

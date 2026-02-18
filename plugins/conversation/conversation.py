@@ -177,10 +177,9 @@ class Conversation(Baseplugin):
             (current_time, False)
         )
         
-        # Get the ID of the newly created thread
-        thread_data = await self.db_execute("SELECT last_insert_rowid() as id")
-        if thread_data and len(thread_data) > 0:
-            self.current_thread_id = thread_data[0]['id']
+        # Get the ID from the INSERT result (returned atomically from same connection)
+        if result and len(result) > 0 and 'lastrowid' in result[0]:
+            self.current_thread_id = result[0]['lastrowid']
             self.logger.info(f"Created new conversation with ID: {self.current_thread_id}")
 
     @hookimpl
