@@ -189,6 +189,7 @@ spacy==3.8.4
 speechify-api==1.2.0
 srsly==2.5.1
 srt==3.5.3
+starlette>=0.41.0
 statsmodels==0.14.4
 sympy==1.14.0
 tenacity==9.0.0
