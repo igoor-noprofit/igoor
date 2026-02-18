@@ -1,6 +1,6 @@
 import os
-# MUST be set BEFORE importing speechbrain
-os.environ['SPEECHBRAIN_CACHE_STRATEGY'] = 'COPY'
+# Removed SPEECHBRAIN_CACHE_STRATEGY to avoid WinError 1314 on Windows
+# when copying symlinks from HuggingFace cache. Model will load directly from cache.
 
 import pickle
 import numpy as np
