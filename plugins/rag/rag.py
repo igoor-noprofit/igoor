@@ -1099,7 +1099,8 @@ class Rag(Baseplugin):
             docstore_ids_to_retrieve (list): A list of docstore_id strings to filter by.
             
         """
-        if preflow_dict is None:
+        # Handle None or non-dict types (e.g., bool returned from other hooks)
+        if preflow_dict is None or not isinstance(preflow_dict, dict):
             preflow_dict = {}
         results_by_type = {INGESTED: [], LONG_TERM: [], SHORT_TERM: []} # Initialize for all types
 
