@@ -29,19 +29,11 @@ class SpeakerIdentificationSystem:
         self.embeddings_file = embeddings_file
         self.model_name = model_name
         self.plugin_dir = plugin_dir
-        
-        if plugin_dir is not None:
-                model_save_dir = os.path.join(plugin_dir, "pretrained_models", "spkrec-ecapa-voxceleb")
-        else:
-            plugin_dir = os.path.dirname(os.path.dirname(__file__))
-            model_save_dir = os.path.join(plugin_dir, "pretrained_models", "spkrec-ecapa-voxceleb")
 
-        # Load the SpeechBrain model
+        # Load the SpeechBrain model from HuggingFace cache (no savedir to avoid symlink issues on Windows)
         print("Loading speaker recognition model...")
         self.classifier = SpeakerRecognition.from_hparams(
             source=model_name,
-            # Use passed plugin_dir or calculate from file if not provided
-            savedir=model_save_dir,
             run_opts={"device": "cpu"}
         )
         
