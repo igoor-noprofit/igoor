@@ -1,7 +1,7 @@
 {
     "provider": "",
     "api_key": "",
-    "model_name": "openai/gpt-oss-20b",
+    "model_name": "",
     "temperature": 0.6,
     "allow_virtual_keyboard": false,
     "only_exact_matches": true,
