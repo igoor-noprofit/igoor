@@ -139,7 +139,7 @@ Propose answers influenced by the style to the extent of: {bio_style_weight}.
 
 ---
 </context>
-Respond using the above contexts to the last question in this conversation:
+Generate the next possible lines for {bio_name} (R) in response to the speaker (Q).
 <conversation>
 {conversation}
 </conversation>
