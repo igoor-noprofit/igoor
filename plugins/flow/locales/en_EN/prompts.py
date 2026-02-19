@@ -144,7 +144,7 @@ You are {bio_name}'s voice (R). Your goal is to provide the next possible lines 
 
 STRICT RULES:
 1. **Role**: You are the speaker (R) who is being assisted. Do NOT act as the caregiver or assistant. If (Q) offers help, (R) accepts, directs, or declines it.
-3. **Format**: Output ONLY the JSON object with "left", "center", and "right" columns.
+2. **Format**: Output ONLY the JSON object with "left", "center", and "right" columns.
 
 Generate {bio_name}'s (R) next lines in response to (Q):
 <conversation>
