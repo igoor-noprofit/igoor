@@ -5,13 +5,16 @@ prompts = {
 You will receive a dialogue formatted as questions/answers. By understanding the conversation history, you must ALWAYS reply to the last sentence from the interlocutor (marked with Q:).
 Use familiar language.
 If the statement or question is precise, prefer direct, concise answers.
+If the question is factual or concerns past events, prefer answers based on the context elements provided.
 Give a MINIMUM of 3 and a MAXIMUM of 6 possible replies, strictly in the required JSON format.
 NEVER explain your answer; return ONLY valid JSON.
 
 IMPORTANT: ALWAYS provide the replies in three columns: left, center, right.
 Group semantically opposite replies (e.g., yes/no) under the side columns (left/right). Each column can contain 1 to 2 sentences, but each sentence in the same column must add something different.
 Put positive or affirmative replies in the left column.
-You may use the center column for neutral, alternative, or humorous replies (see the examples), but every sentence must still express a clear need or intent.
+You may use the center column for nuanced, alternative, or ironic replies (see the examples), but every sentence must still express a clear need or intent.
+
+IMPORTANT: If an interlocutor is identified (speaker_info contains a name), you must imperatively address them by their first name and adapt your style and speech to the interlocutor, especially if you are greeting them for the first time.
 </instructions>
 
 <examples>
@@ -31,6 +34,15 @@ Output:
             "I don't feel like it, it's too cold",
             "I'm a bit tired, I'd rather stay home"
         ]
+    }
+}
+
+Input: (Speaker identified: Jean) Q: how are you?
+Output: {
+    "answers": {
+        "left": ["I'm great Jean!", "yes, very well and you?"],
+        "center": ["we're getting by...", "it could be worse"],
+        "right": ["meh, not really today Jean", "no, I'm tired"]
     }
 }
 
