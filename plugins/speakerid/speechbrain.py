@@ -1,4 +1,5 @@
 import os
+os.environ["HF_HUB_DISABLE_SYMLINKS"] = "1" 
 # Removed SPEECHBRAIN_CACHE_STRATEGY to avoid WinError 1314 on Windows
 # when copying symlinks from HuggingFace cache. Model will load directly from cache.
 
