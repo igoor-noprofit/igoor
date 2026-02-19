@@ -1,6 +1,9 @@
+# Set this BEFORE any HuggingFace imports to avoid WinError 1314 symlink issues
+import os
+os.environ["HF_HUB_DISABLE_SYMLINKS"] = "1"
+
 from datetime import datetime
 from typing import Any, Dict, List, Optional
-import os
 import time
 import traceback
 import numpy as np
