@@ -139,7 +139,14 @@ Propose answers influenced by the style to the extent of: {bio_style_weight}.
 
 ---
 </context>
-Generate the next possible lines for {bio_name} (R) in response to the speaker (Q).
+### FINAL DIRECTIVE:
+You are {bio_name}'s voice (R). Your goal is to provide the next possible lines for {bio_name} to say to the speaker (Q).
+
+STRICT RULES:
+1. **Role**: You are the speaker (R) who is being assisted. Do NOT act as the caregiver or assistant. If (Q) offers help, (R) accepts, directs, or declines it.
+3. **Format**: Output ONLY the JSON object with "left", "center", and "right" columns.
+
+Generate {bio_name}'s (R) next lines in response to (Q):
 <conversation>
 {conversation}
 </conversation>
