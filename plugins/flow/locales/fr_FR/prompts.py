@@ -128,7 +128,8 @@ Propose des réponses influencés par le style dans la mesure de: {bio_style_wei
 
 ---
 </context>
-Réponds en utilisant aussi les contextes ci-dessus à la dernière question de cette conversation: 
+Génère les prochaines repliques possibles de {bio_name} (R) en réaction à la phrase de l'interlocuteur (Q).
+
 <conversation>
 {conversation}
 </conversation>
