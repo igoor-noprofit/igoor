@@ -1,8 +1,4 @@
 import os
-# Disable symlinks in HuggingFace to avoid WinError 1314 on Windows
-os.environ["HF_HUB_DISABLE_SYMLINKS"] = "1"
-# Ensure HF cache is in user's home directory (not a restricted location)
-os.environ["HF_HOME"] = os.path.join(os.path.expanduser("~"), ".cache", "huggingface")
 
 import pickle
 import numpy as np
@@ -21,8 +17,8 @@ from array import array
 # Suppress warnings
 warnings.filterwarnings('ignore')
 
-# Now import classifier
-from speechbrain.pretrained.interfaces import SpeakerRecognition
+# SpeechBrain 1.0+ uses new import path
+from speechbrain.inference.speaker import SpeakerRecognition
 
 class SpeakerIdentificationSystem:
     def __init__(self, voices_dir="./voices", embeddings_file="speaker_embeddings.pkl", model_name="speechbrain/spkrec-ecapa-voxceleb", plugin_dir=None):
@@ -31,18 +27,10 @@ class SpeakerIdentificationSystem:
         self.model_name = model_name
         self.plugin_dir = plugin_dir
 
-        # Determine savedir - must be in user-writable location (AppData) to avoid symlink permission issues
-        if plugin_dir is not None:
-            model_save_dir = os.path.join(plugin_dir, "pretrained_models", "spkrec-ecapa-voxceleb")
-        else:
-            # Fallback to current directory (may cause permission issues on some systems)
-            model_save_dir = os.path.join(os.path.dirname(__file__), "pretrained_models", "spkrec-ecapa-voxceleb")
-
-        # Load the SpeechBrain model
-        print(f"Loading speaker recognition model to: {model_save_dir}")
+        # Load the SpeechBrain model - savedir is optional in 1.0+, uses HF cache directly
+        print("Loading speaker recognition model...")
         self.classifier = SpeakerRecognition.from_hparams(
             source=model_name,
-            savedir=model_save_dir,  # Must specify savedir to avoid defaulting to restricted directories
             run_opts={"device": "cpu"}
         )
         

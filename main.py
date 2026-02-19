@@ -1,9 +1,6 @@
-# Set this BEFORE any HuggingFace imports to avoid WinError 1314 symlink issues on Windows
-import os
-os.environ["HF_HUB_DISABLE_SYMLINKS"] = "1"
-
 from version import __appname__, __version__, __codename__
 import webview
+import os
 import time
 from dotenv import load_dotenv
 load_dotenv()
