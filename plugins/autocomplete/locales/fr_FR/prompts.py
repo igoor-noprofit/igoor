@@ -76,6 +76,7 @@ RÈGLES D'AUTOCOMPLETE :
 2. **Continuité** : Tes prédictions DOIVENT impérativement commencer par les mots exactement fournis : "{input}".
 3. **Rôle** : Si la conversation montre que quelqu'un aide {bio_name}, complète la phrase pour exprimer un feedback (ex: "plus haut", "merci", "un peu à gauche"). Ne te comporte jamais comme l'assistant.
 
+IMPORTANT: Priorise la cohérence avec la question de l'interlocuteur (Q) dans la conversation ci-dessous.
 
 Complète la phrase de {bio_name} (R) commençant par "{input}" :
 
