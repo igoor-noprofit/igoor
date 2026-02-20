@@ -81,18 +81,19 @@ class Baseplugin:
         translations_path = os.path.join(self._app_plugin_folder, 'locales', self.lang, self.plugin_name + "_" + self.lang + ".json")
         return self.load_translation_file(translations_path)
     
-    # Example: load prompts from a .py file
+    # Load prompts from a YAML file
     def get_my_prompts(self) -> dict:
+        import yaml
+        prompts_path = os.path.join(self._app_plugin_folder, 'locales', self.lang, 'prompts.yaml')
         try:
-            import importlib.util
-            prompts_path = os.path.join(self._app_plugin_folder, 'locales', self.lang, 'prompts.py')
-            spec = importlib.util.spec_from_file_location("prompts", prompts_path)
-            prompts_module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(prompts_module)
-        except (FileNotFoundError, ImportError) as e:
+            with open(prompts_path, 'r', encoding='utf-8') as f:
+                return yaml.safe_load(f) or {}
+        except FileNotFoundError:
+            self.logger.warning(f"Prompts file not found: {prompts_path}")
+            return {}
+        except Exception as e:
             self.logger.error(f"Error loading prompts from {prompts_path}: {e}")
             return {}
-        return prompts_module.prompts
     
     def load_translation_file(self,translation_file_path):
         if not os.path.exists(translation_file_path):
