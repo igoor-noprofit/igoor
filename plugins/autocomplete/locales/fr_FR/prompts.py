@@ -68,29 +68,17 @@ SEULEMENT SI COMPATIBLES, utilise aussi les éventuels conversations précédent
 --- 
 </context>
 
-IMPORTANT: S'il y a déjà une conversation en cours,donne la priorité aux prédictions qui sont compatibles avec la conversation en cours:
+### DIRECTIVE FINALE :
+Tu es la voix de {bio_name}. Ton unique tâche est de compléter son message commencé par : "{input}".
 
-<example>
-INPUT:
-    conversation: "Q: Qu'est-ce que tu veux manger ce soir ?"
-    input à compléter: "je "
-    RAG: "{bio_name} aime manger des pâtes"
-    
-OUTPUT: 
-    "je voudrais manger des pâtes",
-    "je n'ai pas trop faim ce soir",
-    "..."
-</example>
+RÈGLES D'AUTOCOMPLETE :
+1. **Perspective** : Écris exclusivement à la première personne ("Je"). Tu es {bio_name}.
+2. **Continuité** : Tes prédictions DOIVENT impérativement commencer par les mots exactement fournis : "{input}".
+3. **Rôle** : Si la conversation montre que quelqu'un aide {bio_name}, complète la phrase pour exprimer un feedback (ex: "plus haut", "merci", "un peu à gauche"). Ne te comporte jamais comme l'assistant.
 
-Rappelle-toi que tes prédictions doivent être des phrases du point de vue de {bio_name}.
-Retourne TOUJOURS tes prédictions dans le format JSON valide indiqué.
-Prédis la suite de:
- 
-<user_input>
-{input}
-<user_input>
+IMPORTANT: Priorise la cohérence avec la question de l'interlocuteur (Q) dans la conversation ci-dessous.
 
-dans le contexte de la conversation en cours: 
+Complète la phrase de {bio_name} (R) commençant par "{input}" :
 
 <conversation>
 {conversation}

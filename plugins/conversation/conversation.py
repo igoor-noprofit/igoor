@@ -177,16 +177,27 @@ class Conversation(Baseplugin):
             (current_time, False)
         )
         
-        # Get the ID of the newly created thread
-        thread_data = await self.db_execute("SELECT last_insert_rowid() as id")
-        if thread_data and len(thread_data) > 0:
-            self.current_thread_id = thread_data[0]['id']
+        # Get the ID from the INSERT result (returned atomically from same connection)
+        if result and len(result) > 0 and 'lastrowid' in result[0]:
+            self.current_thread_id = result[0]['lastrowid']
             self.logger.info(f"Created new conversation with ID: {self.current_thread_id}")
 
     @hookimpl
     async def set_conversation_topic(self, topic):
         self.logger.info(f"Setting conversation topic to: {topic}")
         self.topic = topic
+
+    @hookimpl
+    async def update_conversation_topic(self, topic: str, conversation_id: int):
+        """
+        Update conversation topic in database directly.
+        Used by memory plugin to set topic after conversation analysis.
+        """
+        self.logger.info(f"Updating conversation {conversation_id} topic to: {topic}")
+        await self.db_execute(
+            "UPDATE threads SET topic = ? WHERE id = ?",
+            (topic, conversation_id)
+        )
 
     @hookimpl
     async def get_conversation_msgs_containing(self, query_text: str):
@@ -235,10 +246,10 @@ class Conversation(Baseplugin):
         if self.current_thread_id is not None:
             current_time = self._get_current_timestamp()
             await self.db_execute(
-                "UPDATE threads SET end_time = ?, cause = ?, topic = ?, content = ? WHERE id = ?",
-                (current_time, cause, self.topic, txt, self.current_thread_id)
+                "UPDATE threads SET end_time = ?, cause = ?, content = ? WHERE id = ?",
+                (current_time, cause, txt, self.current_thread_id)
             )
-            self.logger.info(f"Abandoned conversation {self.current_thread_id} with end time and topic {self.topic}")
+            self.logger.info(f"Abandoned conversation {self.current_thread_id} with end time")
         
         # Reset conversation state after triggering the hook
         last_thread=self.thread

@@ -4,5 +4,5 @@
     "model_name": "",
     "temperature": 0.0,
     "review": true,
-    "clean_after_days": 14
+    "clean_after_days": 21
 }
