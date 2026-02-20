@@ -65,6 +65,11 @@ SEULEMENT SI COMPATIBLES, utilise aussi les éventuels conversations précédent
 
 {past_conversations_msgs}
 
+---
+
+Conversations précédentes pour le contexte:
+
+{last_conversations}
 --- 
 </context>
 

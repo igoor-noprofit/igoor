@@ -64,6 +64,11 @@ ONLY IF COMPATIBLE, also use any previous conversations:
 
 {past_conversations_msgs}
 
+---
+
+Previous conversations for context:
+
+{last_conversations}
 --- 
 </context>
 

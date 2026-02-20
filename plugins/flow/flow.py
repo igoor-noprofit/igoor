@@ -156,6 +156,11 @@ class Flow(Baseplugin):
         actual_filtered_results = normalize_filter_by_timeframe_result(filtered_results)
 
         del dynamic_context["conversation"]
+        
+        # Get last conversations for additional context
+        last_conversations_result = await self.pm.trigger_hook(hook_name="get_last_conversations")
+        last_conversations = last_conversations_result[0] if last_conversations_result and last_conversations_result[0] else ""
+        
         system_prompt = self.prompts.get("flow", {}).get("system")
         pm = PromptManager(template=self.prompts.get("flow", {}).get("usr"))
         
@@ -170,7 +175,8 @@ class Flow(Baseplugin):
             short_term='\n'.join(actual_filtered_results.get(2, [])), # Use actual_filtered_results
             dynamic_context=dynamic_context, 
             conversation=conversation,
-            log_folder=self.plugin_folder
+            log_folder=self.plugin_folder,
+            last_conversations=last_conversations
         )
         
         print(f"FINAL PROMPT : {prompt}")

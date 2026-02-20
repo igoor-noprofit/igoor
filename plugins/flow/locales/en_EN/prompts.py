@@ -138,6 +138,9 @@ Take into consideration the expressive style of {bio_name}:
 Propose answers influenced by the style to the extent of: {bio_style_weight}.
 
 ---
+Previous conversations:
+
+{last_conversations}
 </context>
 ### FINAL DIRECTIVE:
 You are {bio_name}'s voice (R). Your goal is to provide the next possible lines for {bio_name} to say to the speaker (Q).
