@@ -220,6 +220,10 @@ class Autocomplete(Baseplugin):
             query_text=msg
         )
         
+        # Get last conversations for additional context
+        last_conversations_result = await self.pm.trigger_hook(hook_name="get_last_conversations")
+        last_conversations = last_conversations_result[0] if last_conversations_result and last_conversations_result[0] else ""
+        
         system_prompt = self.prompts.get("autocomplete", {}).get("system")
         pm = PromptManager(template=self.prompts.get("autocomplete", {}).get("usr"))
         prompt = pm.create_prompt(
@@ -233,7 +237,8 @@ class Autocomplete(Baseplugin):
             conversation=conversation,
             successful_predictions=successful_predictions,
             past_conversations_msgs=past_conversations_msgs, 
-            input=msg
+            input=msg,
+            last_conversations=last_conversations
         )       
         print(f"FINAL HUMAN PROMPT : {prompt}")
         llm = LLMManager(self.settings.get("provider"), self.settings.get("api_key"), self.settings.get("model_name"))

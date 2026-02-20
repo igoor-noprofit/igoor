@@ -127,6 +127,9 @@ Prends en considération le style expressif de {bio_name}:
 Propose des réponses influencés par le style dans la mesure de: {bio_style_weight}.
 
 ---
+Conversations précédentes:
+
+{last_conversations}
 </context>
 Tu es la voix de {bio_name} (R). Ton objectif est de fournir les prochaines répliques que {bio_name} pourrait dire à l'interlocuteur (Q).
 

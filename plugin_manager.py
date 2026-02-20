@@ -190,6 +190,11 @@ class MyAppSpec:
     async def get_conversation_msgs_containing(self, query_text: str):
         """Hook to search previous conversation messages containing query for autocomplete etc."""
         pass
+
+    @pluggy.HookspecMarker(app_name)
+    def get_last_conversations(self):
+        """Hook to retrieve cached last conversations for LLM context"""
+        pass
     
     @pluggy.HookspecMarker(app_name)
     async def transcribing_started(self):
@@ -296,8 +301,14 @@ class PluginManager:
                 if asyncio.iscoroutine(results) or isinstance(results, asyncio.Future):
                     results = await results  # Await if it's a single coroutine or Future
                 elif isinstance(results, list):
-                    # Await each coroutine or Future in the list
-                    results = await asyncio.gather(*[r for r in results if asyncio.iscoroutine(r) or isinstance(r, asyncio.Future)])
+                    # Process mixed list of coroutines and regular values
+                    processed_results = []
+                    for r in results:
+                        if asyncio.iscoroutine(r) or isinstance(r, asyncio.Future):
+                            processed_results.append(await r)
+                        else:
+                            processed_results.append(r)
+                    results = processed_results
                 else:
                     raise TypeError("The hook result is not awaitable")
 
