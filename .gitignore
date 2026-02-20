@@ -10,7 +10,7 @@ __pycache__/
 *$py.class
 
 .github_token.txt
-
+test_elevenlabstts.py
 # C extensions
 *.so
 

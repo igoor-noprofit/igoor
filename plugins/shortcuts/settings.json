@@ -1,5 +1,5 @@
 {
-    "help_mode": "speak",
+    "help_mode": "sound",
     "alert_repetitions": 3,
     "alert_interval": 15
 }

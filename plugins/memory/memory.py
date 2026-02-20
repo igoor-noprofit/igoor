@@ -100,7 +100,16 @@ class Memory(Baseplugin):
             if has_error:
                 self.logger.error(f"Error getting memories: {memories}")
                 return memories
-            
+
+            # Set conversation topic from memory analysis
+            if conversation_id is not None and hasattr(memories, 'theme') and memories.theme:
+                self.logger.info(f"Updating conversation {conversation_id} topic from memory: {memories.theme}")
+                await self.pm.trigger_hook(
+                    hook_name="update_conversation_topic",
+                    topic=memories.theme,
+                    conversation_id=conversation_id
+                )
+
             # Process each memory
             if hasattr(memories, 'facts') and memories.facts:
                 for memory in memories.facts:

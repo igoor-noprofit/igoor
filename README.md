@@ -6,7 +6,7 @@ IGOOR is an open-source and free (GPLv3) conversational application based on AI.
 
 Take a look at the [IGOOR website](https://igoor.org/en) for further infos about our core principles, values and software roadmap.
 
-IGOOR has been developed in partnership with [ARSLA website](https://www.arsla.org/).
+IGOOR has been developed in partnership with [ARSLA](https://www.arsla.org/).
 
 Also please take a look at the [IGOOR docs](https://igoor-noprofit.github.io/docs/). Documentation is ongoing. 
 
@@ -103,42 +103,6 @@ C:/Users/YourUsername/AppData/Roaming/igoor/
 
 The folder contains a settings.json and a plugins data folder, called "plugins".
 
-### NOTES ABOUT PLUGINS
-
-Plugins are currently de/activated by using settings.
-
-#### AUTOMATIC SPEECH RECOGNITION WITH VOSK
-
-Vosk is a local ASR (Automatic Speech Recognition) plugin.
-It automatically downloads a model from this page in the user's language (default "fr"): 
-
-https://alphacephei.com/vosk/models
-
-And places it in 
-
-IGOOR_FOLDER/plugins/asrvosk/models/language/model_size
-
-Language and model size are set in the global settings file, example:
-
-```
-other plugins...
-"asrvosk": {
-    "lang": "fr_FR",
-    "wakeword": "Igor",
-    "model_size": "small",
-    "continuous": false,
-    "min_confidence": 0.7
-}
-...other plugins
-```
-
-In this case the final path is :
-
-IGOOR_FOLDER/plugins/asrvosk/models/language/model_size
-
-NOTE: Because of its high WER compared to Whisper and Voxtral, we recommend using Vosk only if audio privacy is paramount.
-
-VOSK will be probably deprecated in favor of a local fasterwhisper model.
 
 ### Static Knowledge Base from patient documents (RAG, RetrievalAugmentedGeneration)
 
@@ -183,11 +147,45 @@ igoor.bat
 
 to open a on-top window, without debug console (powershell window will open and then disappear in the system bar).
 
+#### AUTOMATIC SPEECH RECOGNITION WITH VOSK
+
+Vosk is a local ASR (Automatic Speech Recognition) plugin.
+It automatically downloads a model from this page in the user's language (default "fr"): 
+
+https://alphacephei.com/vosk/models
+
+And places it in 
+
+IGOOR_FOLDER/plugins/asrvosk/models/language/model_size
+
+Language and model size are set in the global settings file, example:
+
+```
+other plugins...
+"asrvosk": {
+    "lang": "fr_FR",
+    "wakeword": "Igor",
+    "model_size": "small",
+    "continuous": false,
+    "min_confidence": 0.7
+}
+...other plugins
+```
+
+In this case the final path is :
+
+IGOOR_FOLDER/plugins/asrvosk/models/language/model_size
+
+NOTE: Because of its high WER compared to Whisper and Voxtral, we recommend using Vosk only if audio privacy is paramount.
+
+VOSK will be probably deprecated in favor of a local fasterwhisper model.
+
+
 ## CREATE AN EXECUTABLE
 
 ### REQUIREMENTS 
 
-First of all, upgrade pyinstaller: 
+First of all, upgrade pyinstaller in your venv:
 
 ```
 pip install --upgrade pyinstaller
@@ -212,35 +210,30 @@ from PyInstaller.utils.hooks import copy_metadata
 datas = copy_metadata('webrtcvad-wheels')
 ```
 
-### CREATE THE EXECUTABLE
+### CREATE THE EXECUTABLE / INNOSETUP 
 
 In powershell (VS Code terminal):
 
 ```
 venv\scripts\Activate
-.\create_exe.bat
+.\create_installable.bat
 ```
 
-This takes around 8/10 minutes.
-Or you can do the fast version without cleaning all dirs:
+It will ask you :
 
-```
-venv\scripts\Activate
-.\create_exe_fast.bat
-```
+========================================
+IGOOR Build Menu
+========================================
 
-This takes around 5/7 minutes.
+1) Create only the exe file
+2) Create exe file AND installer
+3) Create both AND push to GitHub release
+4) Push to GitHub release only (exe and installer already exist)
+    THIS ONE IS REQUIRES github token
+5) Create only the installer (skip exe build)
 
 In a CMD window, launch /dist/igoor/igoor.exe 
 (so you can see the logs if there's any error)
-
-### CREATE THE INNOSETUP INSTALLER
-(adapt the script to your local path)
-
-```
-venv\scripts\Activate
-.\create_installable.bat
-```
 
 ## IGOOR LOGS
 Daily logs are in:
@@ -269,9 +262,6 @@ For each LLM, check if the language is supported too.
 For TTS, check if the external model supports the language (Eleven Labs, Speechify etc.)
 
 ### PLUGINS
-
-### RAG
-The better embedding model for a specific language mus
 
 ### ASR KNOWN BUGS
 New languages may require new filters to be applied (see known issues 1).

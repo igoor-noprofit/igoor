@@ -102,23 +102,23 @@ class Flow(Baseplugin):
         # Remove the conversation attribute from dynamic context
         conversation = dynamic_context.get("conversation")
         
-        # PREFLOW HERE
-        preflow_dict = await self.preflow(conversation)
+        # Check if preflow is enabled
+        preflow_enabled = self.settings.get("preflow_enabled", False)
         
-        asyncio.create_task(self.pm.trigger_hook(hook_name="set_conversation_topic",topic=preflow_dict.get("theme")))
-        # Initialize context
-        context = ""
-        
-        if not preflow_dict:
-            # If preflow fails, query all store types
-            context = self.pm.trigger_hook(
-                hook_name="query_rag", 
-                query_text=conversation, 
-                store_types=[0,1,2], 
-                return_chunk_ids=False
-            )
+        if preflow_enabled:
+            # PREFLOW HERE
+            preflow_dict = await self.preflow(conversation)
+            # Set conversation topic from preflow
+            if preflow_dict and preflow_dict.get("theme"):
+                asyncio.create_task(self.pm.trigger_hook(hook_name="set_conversation_topic",topic=preflow_dict.get("theme")))
         else:
-            # Determine which store types to query based on m_type
+            # PREFLOW DISABLED: Use defaults
+            preflow_dict = {}
+            # NOTE: Conversation topic will be set later by memory plugin's after_conversation_end
+        
+        # Determine store types
+        if preflow_enabled and preflow_dict:
+            # Determine which store types to query based on m_type from preflow
             store_types = []
             
             if "short" in preflow_dict.get("m_type", []):
@@ -134,24 +134,26 @@ class Flow(Baseplugin):
                 self.logger.warning("No specific memory types found in preflow_dict, querying all store types.")
                 store_types = [0, 1, 2]  # Query all store types
             
-            self.logger.info(f"SEARCH MEMORY types according to preflow: {store_types}")  # Log the store types being queried    
+            self.logger.info(f"SEARCH MEMORY types according to preflow: {store_types}")  # Log the store types being queried
+        else:
+            # If preflow disabled or failed, query all store types
+            store_types = [0, 1, 2]
                 
-            # Make a single call to query_rag_async with all needed store types
-            chunk_ids = await self.pm.trigger_hook(
-                hook_name="query_rag", 
-                # query_text=preflow_dict.get("theme"),
-                query_text=conversation, 
-                store_types=store_types, 
-                return_chunk_ids=True
-            )
-            # self.logger.info(f"Chunk IDs: {chunk_ids}") 
-            filtered_results = await self.pm.trigger_hook(
-                hook_name="filter_by_timeframe", 
-                preflow_dict=preflow_dict,
-                docstore_ids_by_type=chunk_ids
-            )
-            # self.logger.info(f"FILTERED RESULTS: {filtered_results}")
-            actual_filtered_results = normalize_filter_by_timeframe_result(filtered_results)
+        # Make a single call to query_rag_async with all needed store types
+        chunk_ids = await self.pm.trigger_hook(
+            hook_name="query_rag", 
+            query_text=conversation, 
+            store_types=store_types, 
+            return_chunk_ids=True
+        )
+        # self.logger.info(f"Chunk IDs: {chunk_ids}") 
+        filtered_results = await self.pm.trigger_hook(
+            hook_name="filter_by_timeframe", 
+            preflow_dict=preflow_dict,
+            docstore_ids_by_type=chunk_ids
+        )
+        # self.logger.info(f"FILTERED RESULTS: {filtered_results}")
+        actual_filtered_results = normalize_filter_by_timeframe_result(filtered_results)
 
         del dynamic_context["conversation"]
         system_prompt = self.prompts.get("flow", {}).get("system")
