@@ -8,6 +8,8 @@ from settings_manager import SettingsManager
 import asyncio
 import json
 from fastapi import APIRouter, HTTPException
+import sounddevice as sd
+import numpy as np
 
 class Elevenlabstts(Baseplugin):
     def __init__(self, plugin_name, pm):
@@ -157,6 +159,31 @@ class Elevenlabstts(Baseplugin):
         except Exception as e:
             self.logger.error(f"Error occurred while creating Elevenlabs client : {e}")
             return False
+
+    def _play_audio(self, audio_data, output_format):
+        """Play audio data, handling both PCM and encoded formats"""
+        if output_format.startswith("pcm_"):
+            # Extract sample rate from format (e.g., "pcm_16000" -> 16000)
+            try:
+                sample_rate = int(output_format.split("_")[1])
+            except (IndexError, ValueError):
+                sample_rate = 16000  # Default fallback
+            
+            # ElevenLabs API returns a generator, need to consume it
+            if isinstance(audio_data, bytes):
+                audio_bytes = audio_data
+            else:
+                audio_bytes = b''.join(audio_data)
+            
+            # Convert bytes to numpy int16 array for sounddevice
+            audio_array = np.frombuffer(audio_bytes, dtype=np.int16)
+            
+            # Play raw PCM with explicit parameters
+            sd.play(audio_array, samplerate=sample_rate)
+            sd.wait()  # Block until playback is complete
+        else:
+            # Use elevenlabs play() for MP3 and other encoded formats
+            play(audio_data)
     
     '''
     @hookimpl
@@ -294,8 +321,8 @@ class Elevenlabstts(Baseplugin):
             
             audio_data = client.text_to_speech.convert(**request_params)
             
-            # Use the already imported elevenlabs_play function
-            play(audio_data)
+            # Use the helper method to play audio (handles both PCM and encoded formats)
+            self._play_audio(audio_data, request_params.get("output_format", "mp3_44100_128"))
             
         except Exception as e:
             print(f"Error in test speak: {e}")
@@ -393,7 +420,7 @@ class Elevenlabstts(Baseplugin):
                 # Generate audio
                 audio = self.client.text_to_speech.convert(**request_params)
                 await self.pm.trigger_hook(hook_name="pause_asr")
-                play(audio)
+                self._play_audio(audio, request_params.get("output_format", "mp3_44100_128"))
             except Exception as inner_e:
                 print(f"Error generating audio data: {inner_e}")
                 await self.call_fallback(message=message)
