@@ -200,9 +200,10 @@ module.exports = {
                 // Prediction already includes leading space if needed
                 this.userInput += completion;
                 this.shortPredictions = [];
-                // Restore focus and trigger new short prediction
+                // Restore focus
                 this.$_focusInput();
-                this.$_fetchShortPredictions();
+                // Trigger full sentence prediction (LLM)
+                this.predictFullSentence(this.userInput);
             }
         },
         $_handleKeydown(event) {
