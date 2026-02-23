@@ -75,6 +75,7 @@ class Autocomplete(Baseplugin):
                     asyncio.create_task(self.pm.trigger_hook(hook_name="reset_conversation_timeout"))
                     input_value = message_dict.get("msg")
                     if input_value:
+                        asyncio.create_task(self.send_switch_view_to_app("autocomplete")) 
                         asyncio.create_task(self.predict(input_value))
                     else:
                         print("Input key is present but empty.")
@@ -253,6 +254,7 @@ class Autocomplete(Baseplugin):
                 "completions": answers_dict.get("answers")
             }
             self.send_message_to_frontend(json.dumps(response), "flow") 
+            self.send_message_to_frontend(json.dumps(response), "autocomplete") 
         else:
             print("NO PREDICTIONS RECEIVED")
         end_time = time.time()

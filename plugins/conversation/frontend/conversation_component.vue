@@ -1,5 +1,5 @@
 <template>
-    <div class="conversation-plugin" v-if="appview !== 'autocomplete' && appview !== 'onboarding'"
+    <div class="conversation-plugin" v-if="appview !== 'onboarding'"
         :class="{ 'expanded': isExpanded }">
         <div class="scrollableConv" ref="scrollableConv">
             <div v-for="(message, index) in thread" :key="index" v-show="message.msg != ''">
