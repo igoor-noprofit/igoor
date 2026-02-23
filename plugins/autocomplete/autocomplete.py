@@ -6,12 +6,19 @@ from prompt_manager import PromptManager
 from context_manager import context_manager
 from settings_manager import SettingsManager
 from llm_manager import LLMManager
-import asyncio,json,time
+from fastapi import APIRouter
 from pydantic import BaseModel
-from typing import List, Dict
+from typing import List, Dict, Optional
+import asyncio,json,time,re
 import numpy as np
 from utils import normalize_filter_by_timeframe_result
 
+
+class ShortPredictionsRequest(BaseModel):
+    input: str
+
+class ShortPredictionsResponse(BaseModel):
+    predictions: List[str]
 
 class Autocomplete(Baseplugin):  
     def __init__(self, plugin_name,pm):
@@ -26,12 +33,28 @@ class Autocomplete(Baseplugin):
         self.is_loaded = True
         self.only_exact_matches = self.settings.get("only_exact_matches", False)
         self.allow_virtual_keyboard = self.settings.get("allow_virtual_keyboard", False)
+        self.router = None
         print(f"ONLY EXACT MATCHES: {self.only_exact_matches}")
     
     @hookimpl
     def startup(self):
         print("AUTOCOMPLETE STARTUP")
         self.debug_db_status()
+        self._ensure_router()
+        if hasattr(self, 'pm') and hasattr(self.pm, 'fastapi_app'):
+            self.pm.fastapi_app.include_router(self.router)
+    
+    def _ensure_router(self):
+        """Initialize FastAPI router with endpoints"""
+        if self.router is not None:
+            return
+        
+        self.router = APIRouter(prefix="/api/plugins/autocomplete", tags=["autocomplete"])
+        
+        @self.router.post("/short-predictions", response_model=ShortPredictionsResponse)
+        async def get_short_predictions_endpoint(request: ShortPredictionsRequest):
+            """Get short (2-word) predictions for inline autocomplete"""
+            return await self.get_short_predictions(request.input)
         
     @hookimpl
     def abandon_conversation(self):
@@ -168,6 +191,106 @@ class Autocomplete(Baseplugin):
         except Exception as e:
             self.logger.error(f"Error getting top predictions: {e}")
             return []
+    
+    async def get_short_predictions(self, input_text: str) -> ShortPredictionsResponse:
+        """
+        Get short (2-word) predictions for inline autocomplete.
+        Searches predictions table and conversation messages.
+        Returns predictions with the already-typed portion removed.
+        """
+        predictions = {}  # Use dict to track hits for ordering: {prediction: hits}
+        
+        if not input_text or len(input_text.strip()) < 2:
+            return ShortPredictionsResponse(predictions=[])
+        
+        input_lower = input_text.lower().strip()
+        
+        try:
+            # 1. Search predictions table - search in both input AND completion fields with %query%
+            if self.db:
+                pred_results = await self.db_execute(
+                    "SELECT input, completion, hits FROM predictions WHERE input LIKE ? OR completion LIKE ? ORDER BY hits DESC LIMIT 20",
+                    (f"%{input_lower}%", f"%{input_lower}%")
+                )
+                
+                if pred_results:
+                    for row in pred_results:
+                        completion = row.get('completion', '')
+                        hits = row.get('hits', 0)
+                        # Extract short prediction from completion
+                        short_pred = self._extract_short_prediction(input_text, completion)
+                        if short_pred:
+                            # Keep the one with highest hits
+                            if short_pred not in predictions or predictions[short_pred] < hits:
+                                predictions[short_pred] = hits
+            
+            # 2. Search conversation messages via hook
+            conversation_msgs = await self.pm.trigger_hook(
+                hook_name="get_conversation_msgs_containing",
+                query_text=input_lower
+            )
+            
+            if conversation_msgs:
+                # Parse messages and extract predictions (lower priority than stored predictions)
+                for msg_line in conversation_msgs.split('\n'):
+                    if '\t' in msg_line:
+                        # Format: "datetime\tmessage"
+                        parts = msg_line.split('\t', 1)
+                        if len(parts) > 1:
+                            msg_text = parts[1]
+                            short_pred = self._extract_short_prediction(input_text, msg_text)
+                            if short_pred and short_pred not in predictions:
+                                predictions[short_pred] = 0  # Lower priority for conversation matches
+            
+        except Exception as e:
+            self.logger.error(f"Error getting short predictions: {e}")
+        
+        # Sort by hits DESC and return top 2
+        sorted_predictions = sorted(predictions.keys(), key=lambda p: predictions[p], reverse=True)
+        return ShortPredictionsResponse(predictions=sorted_predictions[:2])
+    
+    def _extract_short_prediction(self, input_text: str, full_text: str) -> Optional[str]:
+        """
+        Extract the continuation of input_text from full_text.
+        Returns the next 2-3 words (excluding the already-typed portion).
+        Preserves leading space if present in the original text.
+        """
+        if not full_text or not input_text:
+            return None
+        
+        input_lower = input_text.lower().strip()
+        full_lower = full_text.lower().strip()
+        
+        # Find where the input matches in the full text
+        idx = full_lower.find(input_lower)
+        if idx == -1:
+            return None
+        
+        # Get the portion after the input (preserve leading space if present)
+        continuation = full_text[idx + len(input_text):]
+        
+        if not continuation or not continuation.strip():
+            return None
+        
+        # Check if there was a leading space
+        has_leading_space = continuation.startswith(' ')
+        continuation = continuation.strip()
+        
+        # Extract first 2-3 words
+        words = continuation.split()[:3]
+        if not words:
+            return None
+        
+        result = ' '.join(words)
+        
+        # Only return if it starts with a letter (avoid punctuation at start)
+        if result and result[0].isalpha():
+            # Prepend space if original had one
+            if has_leading_space:
+                result = ' ' + result
+            return result
+        
+        return None
     
     async def format_successful_predictions(self, input_text: str):
         """Format top predictions for inclusion in the prompt"""
