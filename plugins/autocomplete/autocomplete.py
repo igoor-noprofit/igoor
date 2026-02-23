@@ -225,22 +225,35 @@ class Autocomplete(Baseplugin):
                                 predictions[short_pred] = hits
             
             # 2. Search conversation messages via hook
-            conversation_msgs = await self.pm.trigger_hook(
+            conversation_msgs_result = await self.pm.trigger_hook(
                 hook_name="get_conversation_msgs_containing",
                 query_text=input_lower
             )
             
-            if conversation_msgs:
-                # Parse messages and extract predictions (lower priority than stored predictions)
-                for msg_line in conversation_msgs.split('\n'):
-                    if '\t' in msg_line:
-                        # Format: "datetime\tmessage"
-                        parts = msg_line.split('\t', 1)
-                        if len(parts) > 1:
-                            msg_text = parts[1]
-                            short_pred = self._extract_short_prediction(input_text, msg_text)
-                            if short_pred and short_pred not in predictions:
-                                predictions[short_pred] = 0  # Lower priority for conversation matches
+            if conversation_msgs_result:
+                # trigger_hook returns a list of results; extract the actual content
+                conversation_msgs = None
+                if isinstance(conversation_msgs_result, list) and len(conversation_msgs_result) > 0:
+                    conversation_msgs = conversation_msgs_result[0]
+                elif isinstance(conversation_msgs_result, str):
+                    conversation_msgs = conversation_msgs_result
+                
+                if conversation_msgs:
+                    # Ensure we have a string before splitting
+                    if isinstance(conversation_msgs, list):
+                        # Handle if it's still a list - join or skip
+                        conversation_msgs = '\n'.join(str(m) for m in conversation_msgs if m)
+                    
+                    if isinstance(conversation_msgs, str) and conversation_msgs:
+                        # Parse messages (format: "datetime\tmessage" per line)
+                        for msg_line in conversation_msgs.split('\n'):
+                            if '\t' in msg_line:
+                                parts = msg_line.split('\t', 1)
+                                if len(parts) > 1:
+                                    msg_text = parts[1]
+                                    short_pred = self._extract_short_prediction(input_text, msg_text)
+                                    if short_pred and short_pred not in predictions:
+                                        predictions[short_pred] = 0  # Lower priority for conversation matches
             
         except Exception as e:
             self.logger.error(f"Error getting short predictions: {e}")
