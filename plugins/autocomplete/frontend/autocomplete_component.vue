@@ -17,15 +17,24 @@
             </div>
 
             <!-- Input and suggestions -->
-             <input v-else type="text" class="input-container" v-model="userInput" autocomplete="off" spellcheck="true" name="autocomplete"
-                    :placeholder="t('say something...')" ref="autocompleteInput" :disabled="isLoading || error" @focus="$_showKeyboard">
-           
-                <!--button class="btn paste-btn" @click="$_pasteFromClipboard"
-                    :disabled="isLoading || error" title="Coller">
-                    <svg class="icon icon-l">
-                        <use xlink:href="img/svgdefs.svg#icon-paste"></use>
-                    </svg>
-                </button-->
+            <div v-else class="input-container" ref="autocompleteInput" 
+                 @click="$_focusInput" 
+                 @focus="$_showKeyboard" 
+                 @keydown="$_handleKeydown"
+                 tabindex="0">
+                <span class="typed-text">{{ userInput }}</span><span class="cursor">|</span>
+                <button v-if="shortPredictions.length > 0" 
+                        class="inline-prediction" 
+                        @click.stop="$_applyPrediction(0)">
+                    {{ shortPredictions[0].trimStart() }}
+                </button>
+                <button v-if="shortPredictions.length > 1" 
+                        class="inline-prediction" 
+                        @click.stop="$_applyPrediction(1)">
+                    {{ shortPredictions[1].trimStart() }}
+                </button>
+                <span v-if="!userInput && shortPredictions.length === 0" class="placeholder">{{ t('say something...') }}</span>
+            </div>
 
         </div>
 
@@ -105,7 +114,9 @@ module.exports = {
             retryCount: 0,
             maxRetries: 3,
             showKeyboard: false,
-            allowVirtualKeyboard: false
+            allowVirtualKeyboard: false,
+            shortPredictions: [],
+            shortPredictionTimeout: null
         }
     },
     async mounted() {
@@ -146,12 +157,56 @@ module.exports = {
             this.$_reset();
         },
         $_focusInput() {
-            this.$refs.autocompleteInput.focus();
+            if (this.$refs.autocompleteInput) {
+                this.$refs.autocompleteInput.focus();
+            }
         },
         $_reset() {
             this.wordSuggestions = [];
             this.userInput = '';
+            this.shortPredictions = [];
             this.$_hideKeyboard();
+        },
+        async $_fetchShortPredictions() {
+            if (!this.userInput || this.userInput.trim().length < 2) {
+                this.shortPredictions = [];
+                return;
+            }
+            
+            try {
+                const response = await this.callPluginRestEndpoint('autocomplete', 'short-predictions', {
+                    method: 'POST',
+                    data: { input: this.userInput }
+                });
+                this.shortPredictions = response.predictions || [];
+            } catch (e) {
+                console.error('Error fetching short predictions:', e);
+                this.shortPredictions = [];
+            }
+        },
+        $_applyPrediction(index) {
+            if (this.shortPredictions[index]) {
+                // Prediction already includes leading space if needed
+                this.userInput += this.shortPredictions[index] + ' ';
+                this.shortPredictions = [];
+                // Restore focus and trigger new short prediction
+                this.$_focusInput();
+                this.$_fetchShortPredictions();
+            }
+        },
+        $_handleKeydown(event) {
+            // Handle keyboard input for the div-based input field
+            if (event.key === 'Backspace') {
+                this.userInput = this.userInput.slice(0, -1);
+                event.preventDefault();
+            } else if (event.key.length === 1 && !event.ctrlKey && !event.metaKey) {
+                // Regular character input
+                this.userInput += event.key;
+                event.preventDefault();
+            } else if (event.key === 'Enter') {
+                this.$_speakInput();
+                event.preventDefault();
+            }
         },
         async loadDictionary() {
             this.isLoading = true;
@@ -263,6 +318,21 @@ module.exports = {
             } else {
                 this.wordSuggestions = [];
             }
+            
+            // Short predictions with debouncing
+            if (this.shortPredictionTimeout) {
+                clearTimeout(this.shortPredictionTimeout);
+            }
+            
+            // Fetch short predictions if input is long enough
+            if (newInput && newInput.trim().length >= 2) {
+                this.shortPredictionTimeout = setTimeout(() => {
+                    this.$_fetchShortPredictions();
+                }, 150);
+            } else {
+                this.shortPredictions = [];
+            }
+            
             // Full sentence prediction when space is added
             if (newInput.endsWith(' ') && !oldInput.endsWith(' ')) {
                 // Clear any pending timeout
@@ -353,8 +423,55 @@ button {
 }
 .input-container{
     height: 100%;
+    display: flex;
+    align-items: center;
+    background: white;
+    border-radius: 8px;
+    padding: 0 12px;
+    min-height: 48px;
+    cursor: text;
+    outline: none;
+}
+.input-container:focus {
+    box-shadow: 0 0 0 2px #0095c0;
 }
 .input-container input{
     height: 100% !important;
+}
+.typed-text {
+    color: #333;
+    white-space: pre;
+}
+.cursor {
+    color: #0095c0;
+    animation: blink 1s infinite;
+    font-weight: bold;
+}
+@keyframes blink {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0; }
+}
+.placeholder {
+    color: #999;
+    font-style: italic;
+}
+.inline-prediction {
+    background: #216776;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 14px;
+    margin-left: 8px;
+    font-size: 1em;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+.inline-prediction:hover {
+    background: #0095c0;
+    transform: scale(1.02);
+}
+.inline-prediction:active {
+    background: #23515b;
 }
 </style>
