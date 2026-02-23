@@ -17,16 +17,16 @@
             </div>
 
             <!-- Input and suggestions -->
-            <div v-else class="input-container">
+             <input v-else type="text" class="input-container" v-model="userInput" autocomplete="off" spellcheck="true" name="autocomplete"
+                    :placeholder="t('say something...')" ref="autocompleteInput" :disabled="isLoading || error" @focus="$_showKeyboard">
+           
                 <!--button class="btn paste-btn" @click="$_pasteFromClipboard"
                     :disabled="isLoading || error" title="Coller">
                     <svg class="icon icon-l">
                         <use xlink:href="img/svgdefs.svg#icon-paste"></use>
                     </svg>
                 </button-->
-                <input type="text" v-model="userInput" autocomplete="off" spellcheck="true" name="autocomplete"
-                    placeholder="say something" ref="autocompleteInput" :disabled="isLoading || error" @focus="$_showKeyboard">
-            </div>
+
         </div>
 
       
