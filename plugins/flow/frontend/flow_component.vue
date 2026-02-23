@@ -126,7 +126,7 @@ module.exports = {
 <style scoped>
 .flow.container {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     height: 100%;
     flex: 1 1 auto;
 }

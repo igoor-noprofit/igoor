@@ -1,6 +1,6 @@
 <template>
-    <div class="autocomplete plugin" v-show="appview == 'autocomplete'">
-        <button class="btn btn-side btn-side-left" @click="$_deleteText()" :disabled="!userInput.trim()"> 
+    <div class="autocomplete plugin">
+        <button class="btn btn-side btn-side-left" @click="$_deleteText()" v-show="userInput.trim()"> 
             <svg class="icon icon-l">
                 <use xlink:href="/img/svgdefs.svg#icon-close" />
             </svg>
@@ -25,13 +25,13 @@
                     </svg>
                 </button-->
                 <input type="text" v-model="userInput" autocomplete="off" spellcheck="true" name="autocomplete"
-                    placeholder="" ref="autocompleteInput" :disabled="isLoading || error" @focus="$_showKeyboard">
+                    placeholder="say something" ref="autocompleteInput" :disabled="isLoading || error" @focus="$_showKeyboard">
             </div>
         </div>
 
       
         <button @click="$_speakInput()" class="btn btn-side btn-side-right speak"
-            :disabled="isLoading || error || !userInput.trim()">
+            v-show="isLoading || error || userInput.trim()">
             <svg class="icon icon-l">
                 <use xlink:href="img/svgdefs.svg#icon-talk"></use>
             </svg>
@@ -39,7 +39,7 @@
         </button>
     </div>
     <!------------------------------ VIRTUAL KEYBOARD ------------------------>
-    <div class="keyboard" v-show="showKeyboard && appview == 'autocomplete'">
+    <div class="keyboard" v-show="showKeyboard">
         <button class="btn btn-side btn-side-left btn-side-hilite" @click="$_deleteLastWord" style="color: white;">
             <svg class="icon icon-l" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
                 <g fill="none" stroke="#ffffff">
@@ -256,16 +256,6 @@ module.exports = {
         }
     },
     watch: {
-        appview(newView, oldView) {
-            console.log('oldView ' + oldView + ' newView ' + newView);
-            if (oldView != 'autocomplete' && newView == 'autocomplete') {
-                this.$_reset();
-                this.$_showKeyboard();
-                this.$nextTick(() => {
-                    this.$_focusInput();  // Focus input after Vue has updated the DOM
-                });
-            }
-        },
         userInput(newInput, oldInput) {
             // Word suggestions
             if (newInput && !this.isLoading && !this.error) {
@@ -280,10 +270,7 @@ module.exports = {
                     clearTimeout(this.predictionTimeout);
                 }
 
-                // Set new timeout for prediction
-                this.predictionTimeout = setTimeout(() => {
-                    this.predictFullSentence(newInput);
-                }, 500); // Wait 500ms after space to predict
+                this.predictFullSentence(newInput);
             }
         }
     }
@@ -324,12 +311,21 @@ module.exports = {
 }
 
 .autocomplete.plugin {
-    width: 100%; 
+    height: 10vh;
 }
 
+.answers{
+    border: 1px solid #0ff;
+}
 .answers .msg {
     margin-bottom: 10px;
 }
+
+.btn-side{
+    position: relative;
+    height: auto !important;
+}
+
 
 .btn-side-left:disabled {
     opacity: 1;
@@ -356,11 +352,10 @@ button {
     cursor: pointer;
 }
 .input-container{
-    height: 50%;
+    height: 100%;
 }
 .input-container input{
     height: 100% !important;
-    min-height: 50px;
     border: 1px solid #999 !important;
 }
 </style>

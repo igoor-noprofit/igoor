@@ -430,6 +430,7 @@ footer.shrink {
 }
 .flow-plugin .abandon {
   position: relative;
+  align-self: stretch;
   text-transform: uppercase;
   width: 120px;
   z-index: 0;
