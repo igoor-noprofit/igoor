@@ -429,8 +429,7 @@ footer.shrink {
   justify-content: center;
 }
 .flow-plugin .abandon {
-  margin-top: 20vh;
-  /* margin-bottom: 42vh; */
+  position: relative;
   text-transform: uppercase;
   width: 120px;
   z-index: 0;
