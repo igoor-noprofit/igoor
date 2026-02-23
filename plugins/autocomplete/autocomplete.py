@@ -63,6 +63,11 @@ class Autocomplete(Baseplugin):
     @hookimpl
     def restart_asr(self):
         self.clear_input()
+    
+    @hookimpl
+    def speak(self, message):
+        """Clear autocomplete input when a phrase is spoken"""
+        self.clear_input()
         
     def clear_input(self):
         self.send_message_to_frontend({"action":"clear"})
