@@ -186,8 +186,19 @@ module.exports = {
         },
         $_applyPrediction(index) {
             if (this.shortPredictions[index]) {
+                const prediction = this.shortPredictions[index];
+                // Store the input and completion before updating userInput
+                const inputText = this.userInput;
+                const completion = prediction + ' ';
+                console.log('Storing prediction:', inputText, '->', completion);
+                // Send to backend to store the prediction
+                this.sendMsgToBackend({
+                    action: "prediction_selected",
+                    input: inputText,
+                    completion: completion
+                });
                 // Prediction already includes leading space if needed
-                this.userInput += this.shortPredictions[index] + ' ';
+                this.userInput += completion;
                 this.shortPredictions = [];
                 // Restore focus and trigger new short prediction
                 this.$_focusInput();
@@ -324,23 +335,32 @@ module.exports = {
                 clearTimeout(this.shortPredictionTimeout);
             }
             
+            const isSpaceAdded = newInput.endsWith(' ') && !oldInput.endsWith(' ');
+            
             // Fetch short predictions if input is long enough
             if (newInput && newInput.trim().length >= 2) {
-                this.shortPredictionTimeout = setTimeout(() => {
+                if (isSpaceAdded) {
+                    // Immediate fetch when space is added (faster, local)
                     this.$_fetchShortPredictions();
-                }, 150);
+                } else {
+                    // Debounce during rapid typing
+                    this.shortPredictionTimeout = setTimeout(() => {
+                        this.$_fetchShortPredictions();
+                    }, 150);
+                }
             } else {
                 this.shortPredictions = [];
             }
             
-            // Full sentence prediction when space is added
-            if (newInput.endsWith(' ') && !oldInput.endsWith(' ')) {
-                // Clear any pending timeout
+            // Full sentence prediction when space is added (LLM, slower)
+            // Delay slightly to let short predictions render first
+            if (isSpaceAdded) {
                 if (this.predictionTimeout) {
                     clearTimeout(this.predictionTimeout);
                 }
-
-                this.predictFullSentence(newInput);
+                this.predictionTimeout = setTimeout(() => {
+                    this.predictFullSentence(newInput);
+                }, 100);
             }
         }
     }
@@ -432,6 +452,7 @@ button {
     cursor: text;
     outline: none;
     color: #fff;
+    background-color: #28373b;
 }
 .input-container:focus {
     box-shadow: 0 0 0 2px #0095c0;
