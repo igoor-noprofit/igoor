@@ -266,7 +266,8 @@ footer.shrink {
   background: #28373b;
   color: #fff;
   font-size: 1.3rem;
-  width: 33vw;
+  width: 100%;
+  text-align: center;
 }
 .autocomplete.plugin .speak {
   height: 20vh;
