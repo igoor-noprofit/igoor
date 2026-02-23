@@ -261,7 +261,6 @@ footer.shrink {
   display: flex;
 }
 .autocomplete.plugin .autocomplete_input input[name="autocomplete"] {
-  border-radius: 10px;
   border: none;
   background: #28373b;
   color: #fff;
