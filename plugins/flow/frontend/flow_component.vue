@@ -19,11 +19,6 @@
                         {{ msg }}
                     </div>
                 </div>
-                <!--a class="autocompletelauncher msg msg-small" @click="$_showAutocomplete()"
-                    v-show="appview != 'autocomplete'">
-                    <img src="/img/icons/src/keyboard.svg" />
-                    <img src="/img/icons/src/more.svg" />
-                </a-->
             </div>
         </div>
 

@@ -247,22 +247,21 @@ footer.shrink {
   display: flex;
   flex-direction: row;
   width: 100%;
-  min-height: 50px;
   height: auto;
+  justify-content: space-between;
 }
 .autocomplete.plugin .btn-side-left {
   height: 20vh;
   width: 120px;
 }
 .autocomplete.plugin .autocomplete_input {
+  width: 100%;
   justify-content: center;
   align-items: center;
   display: flex;
-  width: 90%;
 }
 .autocomplete.plugin .autocomplete_input input[name="autocomplete"] {
   border-radius: 10px;
-  height: 50px;
   border: none;
   background: #28373b;
   color: #fff;
