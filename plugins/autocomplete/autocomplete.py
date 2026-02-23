@@ -254,7 +254,6 @@ class Autocomplete(Baseplugin):
                 "completions": answers_dict.get("answers")
             }
             self.send_message_to_frontend(json.dumps(response), "flow") 
-            self.send_message_to_frontend(json.dumps(response), "autocomplete") 
         else:
             print("NO PREDICTIONS RECEIVED")
         end_time = time.time()
