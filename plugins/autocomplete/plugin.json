@@ -3,15 +3,12 @@
     "title": "Autocomplete",
     "description": "Autocomplete based on LLM",
     "layout": {
-        "part": "header",
-        "order": 2
+        "part": "after_header",
+        "order": 100
     },
     "is_free": true,
     "requires_subscription": true,
     "requires_internet": true,
-    "depends_on": [
-        "autocompletelauncher"
-    ],
     "requires_db": true,
     "db_tables": {
         "predictions": {
