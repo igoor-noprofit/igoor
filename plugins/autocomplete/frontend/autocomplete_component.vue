@@ -19,10 +19,11 @@
             <!-- Input and suggestions -->
             <div v-else class="input-container" ref="autocompleteInput" 
                  @click="$_focusInput" 
-                 @focus="$_showKeyboard" 
+                 @focus="$_onFocus" 
+                 @blur="$_onBlur"
                  @keydown="$_handleKeydown"
                  tabindex="0">
-                <span class="typed-text">{{ userInput }}</span><span class="cursor">|</span>
+                <span class="typed-text">{{ userInput }}</span><span class="cursor" v-if="isFocused">|</span>
                 <button v-if="shortPredictions.length > 0" 
                         class="inline-prediction" 
                         @click.stop="$_applyPrediction(0)">
@@ -116,7 +117,8 @@ module.exports = {
             showKeyboard: false,
             allowVirtualKeyboard: false,
             shortPredictions: [],
-            shortPredictionTimeout: null
+            shortPredictionTimeout: null,
+            isFocused: false
         }
     },
     async mounted() {
@@ -145,6 +147,12 @@ module.exports = {
         },
         $_hideKeyboard() {
             this.showKeyboard = false;  // Changed from isInputFocused
+        },
+        $_onFocus() {
+            this.isFocused = true;
+        },
+        $_onBlur() {
+            this.isFocused = false;
         },
         $_deleteText(){
             this.$_reset();
