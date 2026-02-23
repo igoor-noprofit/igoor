@@ -385,7 +385,7 @@ class Autocomplete(Baseplugin):
         print(f"FINAL HUMAN PROMPT : {prompt}")
         llm = LLMManager(self.settings.get("provider"), self.settings.get("api_key"), self.settings.get("model_name"))
         llm.set_json_schema(Answers)
-        answers = llm.invoke(system_prompt,prompt)
+        answers = llm.invoke(system_prompt,prompt, reasoning_effort=self.settings.get("reasoning_effort"))
         print(f"TYPE = {type(answers)}, ANSWERS: {answers}")
         answers_dict = answers.dict()
         if answers_dict.get("answers"):
