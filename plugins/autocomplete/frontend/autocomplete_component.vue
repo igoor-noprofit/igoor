@@ -423,14 +423,15 @@ button {
 }
 .input-container{
     height: 100%;
+    width: 100%;
     display: flex;
+    justify-content: center;
     align-items: center;
-    background: white;
-    border-radius: 8px;
     padding: 0 12px;
     min-height: 48px;
     cursor: text;
     outline: none;
+    color: #fff;
 }
 .input-container:focus {
     box-shadow: 0 0 0 2px #0095c0;
@@ -439,7 +440,7 @@ button {
     height: 100% !important;
 }
 .typed-text {
-    color: #333;
+    color: #fff;
     white-space: pre;
 }
 .cursor {
