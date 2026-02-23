@@ -285,20 +285,19 @@ footer {
   display: flex;
   flex-direction: row;
   width: 100%;
-  min-height: 50px;
   height: auto;
+  justify-content: space-between;
   .btn-side-left {
     height: @header_height;
     width: @btn-left-width;
   }
   .autocomplete_input {
+    width: 100%;
     justify-content: center;
     align-items: center;
     display: flex;
-    width: 90%;
     input[name="autocomplete"] {
       .rounded;
-      height: 50px;
       border: none;
       background: @conversation_bg;
       color: #fff;

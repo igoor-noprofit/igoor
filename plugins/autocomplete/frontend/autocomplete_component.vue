@@ -1,6 +1,6 @@
 <template>
     <div class="autocomplete plugin">
-        <button class="btn btn-side btn-side-left" @click="$_deleteText()" v-show="userInput.trim()"> 
+        <button class="btn btn-side btn-side-left" @click="$_deleteText()" :disabled="!userInput.trim()"> 
             <svg class="icon icon-l">
                 <use xlink:href="/img/svgdefs.svg#icon-close" />
             </svg>
@@ -31,7 +31,7 @@
 
       
         <button @click="$_speakInput()" class="btn btn-side btn-side-right speak"
-            v-show="isLoading || error || userInput.trim()">
+            :disabled="isLoading || error || !userInput.trim()">
             <svg class="icon icon-l">
                 <use xlink:href="img/svgdefs.svg#icon-talk"></use>
             </svg>
@@ -356,6 +356,5 @@ button {
 }
 .input-container input{
     height: 100% !important;
-    border: 1px solid #999 !important;
 }
 </style>
