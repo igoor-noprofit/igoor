@@ -25,12 +25,12 @@
                  tabindex="0">
                 <span class="typed-text">{{ userInput }}</span><span class="cursor" v-if="isFocused">|</span>
                 <button v-if="shortPredictions.length > 0" 
-                        class="inline-prediction" 
+                        class="inline-prediction btn btn-primary" 
                         @click.stop="$_applyPrediction(0)">
                     {{ shortPredictions[0].trimStart() }}
                 </button>
                 <button v-if="shortPredictions.length > 1" 
-                        class="inline-prediction" 
+                        class="inline-prediction btn btn-primary" 
                         @click.stop="$_applyPrediction(1)">
                     {{ shortPredictions[1].trimStart() }}
                 </button>
@@ -479,9 +479,6 @@ button {
     color: #fff;
     background-color: #28373b;
 }
-.input-container:focus {
-    box-shadow: 0 0 0 2px #0095c0;
-}
 .input-container input{
     height: 100% !important;
 }
@@ -503,7 +500,6 @@ button {
     font-style: italic;
 }
 .inline-prediction {
-    background: #216776;
     color: white;
     border: none;
     border-radius: 6px;
