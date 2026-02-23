@@ -263,6 +263,22 @@ module.exports = {
             }
             return "Erreur de chargement du dictionnaire. Veuillez réessayer.";
         },
+        handleIncomingMessage(event) {
+            // First let base component handle common cases
+            const handled = BasePluginComponent.methods.handleIncomingMessage.call(this, event);
+            if (handled) return true;
+            
+            try {
+                const data = JSON.parse(event.data);
+                if (data.action === 'clear') {
+                    this.$_reset();
+                    return true;
+                }
+            } catch (e) {
+                console.warn("Error parsing message in autocomplete:", e);
+            }
+            return false;
+        },
 
         predictWords(input) {
             if (!input || !this.prefixDictionary) return [];
