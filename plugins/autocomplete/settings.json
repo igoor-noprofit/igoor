@@ -6,5 +6,6 @@
     "temperature": 0.6,
     "allow_virtual_keyboard": false,
     "only_exact_matches": true,
-    "show_delete_button": false
+    "show_delete_button": false,
+    "short_prediction_words": 1
 }
