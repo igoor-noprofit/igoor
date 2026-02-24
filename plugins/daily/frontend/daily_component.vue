@@ -290,32 +290,25 @@ module.exports = {
     flex: 1 1 auto;
     align-items: stretch;
     min-height: 0;
-    height: 100%;
     position: relative;
 }
 
 .options.secondary {
-    border: 1px solid #0f0;
     padding: 0;
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
 }
 
 .options.container {
-    border: 1px solid #00f !important;
-    padding: 1rem !important;
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+    padding: 1rem;
     display: flex;
     flex-direction: row;
-}
-
-
-/*
-.options.secondary {
-    padding-left: 120px;
-    padding-right: 1rem;
-}
-*/
-
-.answers {
-    border: 1px solid #f00;
+    align-items: stretch;
+    border: 1px solid #0f0;
 }
 
 .btn-side-left {
