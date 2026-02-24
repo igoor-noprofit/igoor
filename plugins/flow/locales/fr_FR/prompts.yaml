@@ -116,7 +116,7 @@ flow:
     IMPORTANT: Si un interlocuteur est identifié (speaker_info), addresse-toi à lui avec son prénom et adapte 
     ton discours à l'interlocuteur, notamment quand il s'agit de salutations.
 
-    {dynamic_contex
+    {dynamic_context}
     ---
     Prends en considération le style expressif de {bio_name}:
 
