@@ -457,9 +457,7 @@ footer.shrink {
   align-items: center;
 }
 .view-autocomplete.answers .row.columns {
-  width: 75%;
-  flex-direction: column;
-  gap: 15px;
+  flex-direction: row;
 }
 .view-autocomplete.answers .row.columns .left,
 .view-autocomplete.answers .row.columns .center,

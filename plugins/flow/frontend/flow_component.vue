@@ -131,13 +131,11 @@ module.exports = {
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
-    /* border: 1px solid #0f0;
+    border: 1px solid #0f0;
+    overflow: hidden;
+    padding: 1rem;
     /* green box */
     min-height: 0;
-    /* prevents overflow issues */
-    width: calc(100% - 120px);
-    margin-left: 120px;
-    margin-top: 1rem;
 }
 
 .columns {

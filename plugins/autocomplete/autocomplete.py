@@ -33,6 +33,7 @@ class Autocomplete(Baseplugin):
         self.is_loaded = True
         self.only_exact_matches = self.settings.get("only_exact_matches", False)
         self.allow_virtual_keyboard = self.settings.get("allow_virtual_keyboard", False)
+        self.short_prediction_words = self.settings.get("short_prediction_words", 3)
         self.router = None
         print(f"ONLY EXACT MATCHES: {self.only_exact_matches}")
     
@@ -223,7 +224,7 @@ class Autocomplete(Baseplugin):
                         completion = row.get('completion', '')
                         hits = row.get('hits', 0)
                         # Extract short prediction from completion
-                        short_pred = self._extract_short_prediction(input_text, completion)
+                        short_pred = self._extract_short_prediction(input_text, completion, self.short_prediction_words)
                         if short_pred:
                             # Keep the one with highest hits
                             if short_pred not in predictions or predictions[short_pred] < hits:
@@ -256,7 +257,7 @@ class Autocomplete(Baseplugin):
                                 parts = msg_line.split('\t', 1)
                                 if len(parts) > 1:
                                     msg_text = parts[1]
-                                    short_pred = self._extract_short_prediction(input_text, msg_text)
+                                    short_pred = self._extract_short_prediction(input_text, msg_text, self.short_prediction_words)
                                     if short_pred and short_pred not in predictions:
                                         predictions[short_pred] = 0  # Lower priority for conversation matches
             
@@ -267,10 +268,10 @@ class Autocomplete(Baseplugin):
         sorted_predictions = sorted(predictions.keys(), key=lambda p: predictions[p], reverse=True)
         return ShortPredictionsResponse(predictions=sorted_predictions[:2])
     
-    def _extract_short_prediction(self, input_text: str, full_text: str) -> Optional[str]:
+    def _extract_short_prediction(self, input_text: str, full_text: str, word_count: int = 3) -> Optional[str]:
         """
         Extract the continuation of input_text from full_text.
-        Returns the next 2-3 words (excluding the already-typed portion).
+        Returns the next N words (excluding the already-typed portion).
         Preserves leading space if present in the original text.
         """
         if not full_text or not input_text:
@@ -294,8 +295,8 @@ class Autocomplete(Baseplugin):
         has_leading_space = continuation.startswith(' ')
         continuation = continuation.strip()
         
-        # Extract first 2-3 words
-        words = continuation.split()[:3]
+        # Extract first N words
+        words = continuation.split()[:word_count]
         if not words:
             return None
         
