@@ -35,6 +35,17 @@
      <symbol id="icon-minimize" viewBox="0 0 40 40">
       <path d="M30 20H10" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
     </symbol>
+    <symbol id="icon-stop" viewBox="0 0 40 40">
+      <path d="M13.3 21.7v-12.5a2.5 2.5 0 0 1 5 0v10.8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M18.3 9.2v-3.4a2.5 2.5 0 1 1 5 0v14.2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M23.3 9.2a2.5 2.5 0 0 1 5 0v10.8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M28.3 12.5a2.5 2.5 0 0 1 5 0v14.2a10 10 0 0 1-10 10h-3.3h.3a10 10 0 0 1-8.4-4.5 50 50 0 0 1-.3-.5c-.5-.8-2.3-4-5.5-9.5a2.5 2.5 0 0 1 .9-3.4 3.1 3.1 0 0 1 3.8.5l2.4 2.4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="icon-repeat" viewBox="0 0 40 40">
+      <path d="M25 32.5c-3.9 1.2-8.3 1-12.2-.9l-7.8 1.7 2.2-6.5c-3.9-5.7-2.4-13.1 3.5-17.3 5.9-4.2 14.3-3.8 19.7.8 2.7 2.3 4.3 5.4 4.6 8.6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M31.7 36.7v.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M31.7 31.7a3.3 3.3 0 0 0 1.5-6.3 3.3 3.3 0 0 0-4 .8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
 
   </defs>
 </svg>
