@@ -24,15 +24,11 @@
                  @keydown="$_handleKeydown"
                  tabindex="0">
                 <span class="typed-text">{{ userInput }}</span><span class="cursor" v-if="isFocused">|</span>
-                <button v-if="shortPredictions.length > 0" 
+                <button v-for="(pred, idx) in shortPredictions" 
+                        :key="idx"
                         class="inline-prediction btn btn-primary" 
-                        @click.stop="$_applyPrediction(0)">
-                    {{ shortPredictions[0].trimStart() }}
-                </button>
-                <button v-if="shortPredictions.length > 1" 
-                        class="inline-prediction btn btn-primary" 
-                        @click.stop="$_applyPrediction(1)">
-                    {{ shortPredictions[1].trimStart() }}
+                        @click.stop="$_applyPrediction(idx)">
+                    {{ pred.trimStart() }}
                 </button>
                 <span v-if="!userInput && shortPredictions.length === 0" class="placeholder">{{ t('say something...') }}</span>
             </div>
@@ -503,7 +499,7 @@ button {
     color: white;
     border: none;
     border-radius: 6px;
-    padding: 8px 14px;
+    padding: 14px;
     margin-left: 8px;
     font-size: 1em;
     font-weight: 500;
