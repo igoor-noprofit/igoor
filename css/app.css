@@ -387,10 +387,6 @@ footer.shrink {
 .column {
   padding: 20px 30px !important;
 }
-.column.center {
-  border-left: 1px solid #ddd !important;
-  border-right: 1px solid #ddd !important;
-}
 .column .answers .msg {
   margin-bottom: 2.2vh !important;
 }
@@ -866,6 +862,7 @@ button {
 }
 .msg.msg-small {
   font-size: 1.1rem;
+  width: 100%;
 }
 /*                      SHORTCUTS
 ------------------------------------------------------------------------- */
