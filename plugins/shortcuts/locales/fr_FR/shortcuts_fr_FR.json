@@ -3,7 +3,7 @@
     "Minimize": "Réduire",
     "Drink": "Boire",
     "Toilet": "Toilette",
-    "Just a sec": "Parole",
+    "Just a sec": "Attends",
     "Yes": "Oui",
     "No": "Non",
     "Thanks": "Merci",
@@ -22,5 +22,7 @@
     "Number of repetitions (0 = forever)": "Nombre de répétitions (0 = toujours)",
     "Frequency interval (seconds)": "Intervalle de fréquence (secondes)",
     "Test sound": "Tester le son",
-    "0 means repeat forever": "0 signifie répéter indéfiniment"
+    "0 means repeat forever": "0 signifie répéter indéfiniment",
+    "Can you repeat for the AI?": "Est-ce que tu peux répéter pour l'IA ?",
+    "Repeat": "Répéter"
 }

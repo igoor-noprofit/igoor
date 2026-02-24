@@ -1,6 +1,6 @@
 <template>
     <div class="shortcuts shortcuts-plugin" v-show="appview != 'onboarding'" :class="{ 'shrink': shrink }">
-        <button class="btn btn-shortcut" @click="$_minimise()">
+        <button class="btn btn-shortcut minimize" @click="$_minimise()">
             <img src="img/minimize.svg">
             <h3 v-show="!shrink">{{ t('Minimize window') }}</h3>
             <h3 v-show="shrink">{{ t('Minimize') }}</h3>
@@ -9,7 +9,7 @@
             v-for="(button, index) in shortcutButtons"
             :key="button.key"
             class="btn btn-shortcut"
-            :class="{ 'btn-hilite': button.highlight, 'sos-pulsing': button.key === 'help' && isAlertPlaying }"
+            :class="{ 'btn-hilite': button.highlight, 'sos-pulsing': button.key === 'help' && isAlertPlaying }" 
             @click="$_handleShortcut(button, index)"
         >
             <svg class="icon icon-l">
@@ -69,7 +69,7 @@ export default {
                 },
                 {
                     key: 'parole',
-                    icon: 'icon-talk',
+                    icon: 'icon-stop',
                     label: this.t('Just a sec'),
                     random: true,
                     highlight: false
@@ -95,6 +95,14 @@ export default {
                     icon: 'icon-thankyou',
                     label: this.t('Thanks'),
                     msg: this.t('Thanks'),
+                    random: false,
+                    highlight: false
+                },
+                {
+                    key: 'repeat',
+                    icon: 'icon-repeat',
+                    label: this.t('Repeat'),
+                    msg: this.t('Can you repeat for the AI?'),
                     random: false,
                     highlight: false
                 },
@@ -404,5 +412,8 @@ export default {
     /* Slightly increased top margin */
     font-size: 0.8em;
     white-space: nowrap;
+}
+.minimize{
+    background: #3e5e65;
 }
 </style>
