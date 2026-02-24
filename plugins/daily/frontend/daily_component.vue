@@ -20,14 +20,18 @@
             <button class="btn btn-side btn-side-left" @click="switchToMainView"><svg class="icon icon-l">
                     <use xlink:href="/img/svgdefs.svg#icon-chevron_left" />
                 </svg></button>
-            <div v-for="(category, index) in secondaryCategories" :key="index" class="options-col" v-show="hasCategoryItems(category)">
-                <h3>{{ translateCategory(category.name) }}</h3>
-                <button v-for="(item, key) in category.items" :key="key" class="btn"
-                    :class="{ 'btn-primary': item.fixed, 'btn-secondary': !item.fixed, 'btn-selected-glow': isSelected(category.name, key) }"
-                    @click="selectItem(category.name, key, item)">
-                    {{ translateItem(key) }}
-                </button>
+            <div class="options container">
+                <div v-for="(category, index) in secondaryCategories" :key="index" class="options-col"
+                    v-show="hasCategoryItems(category)">
+                    <h3>{{ translateCategory(category.name) }}</h3>
+                    <button v-for="(item, key) in category.items" :key="key" class="btn"
+                        :class="{ 'btn-primary': item.fixed, 'btn-secondary': !item.fixed, 'btn-selected-glow': isSelected(category.name, key) }"
+                        @click="selectItem(category.name, key, item)">
+                        {{ translateItem(key) }}
+                    </button>
+                </div>
             </div>
+
         </div>
         <div class="answers" v-if="currentView == 'answers'">
             <button class="btn btn-side btn-side-left" @click="switchToMainView"><svg class="icon icon-l">
@@ -231,14 +235,17 @@ module.exports = {
     justify-content: center;
 }
 
+
 .answers {
     flex: 1 1 0;
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     justify-content: flex-start;
     /* border: 1px solid #0f0;
     /* green box */
     min-height: 0;
+    padding-left: 0;
+
 }
 
 .columns {
@@ -251,6 +258,7 @@ module.exports = {
 
 .column {
     flex: 1;
+    min-width: 0;
     display: flex;
     flex-direction: column;
     padding: 20px;
@@ -286,9 +294,33 @@ module.exports = {
     position: relative;
 }
 
-.options.secondary,
+.options.secondary {
+    border: 1px solid #0f0;
+    padding: 0;
+}
+
+.options.container {
+    border: 1px solid #00f !important;
+    padding: 1rem !important;
+    display: flex;
+    flex-direction: row;
+}
+
+
+/*
+.options.secondary {
+    padding-left: 120px;
+    padding-right: 1rem;
+}
+*/
+
 .answers {
-    padding-left: 5rem;
+    border: 1px solid #f00;
+}
+
+.btn-side-left {
+    width: 120px;
+    position: relative;
 }
 
 .answers .msg {
