@@ -14,6 +14,11 @@
         <div class="answers" :class="`view-${appview}`">
             <div class="row columns">
                 <div v-for="col in ['left', 'center', 'right']" :key="col" :class="['column', col]">
+                    <div v-if="appview !== 'autocomplete'" class="column-mood-icon">
+                        <svg class="icon icon-m">
+                            <use :xlink:href="'/img/svgdefs.svg#' + moodIcons[col]"></use>
+                        </svg>
+                    </div>
                     <div v-for="(msg, idx) in answers[col]" :key="col + '-' + idx" class="msg-row">
                         <div :class="['msg', 'msg-small', { editing: editingKey === col + '-' + idx }]"
                             :contenteditable="editingKey === col + '-' + idx"
@@ -51,6 +56,15 @@ module.exports = {
             waitingai: true,
             currentInput: "",
             editingKey: null
+        }
+    },
+    computed: {
+        moodIcons() {
+            return {
+                left: 'icon-sun-high',
+                center: 'icon-cloud',
+                right: 'icon-cloud-rain'
+            };
         }
     },
     methods: {
@@ -177,7 +191,6 @@ module.exports = {
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
-    border: 1px solid #0f0;
     overflow: hidden;
     padding: 1rem;
     /* green box */
@@ -201,6 +214,18 @@ module.exports = {
 
 .answers .msg {
     margin-bottom: 0;
+}
+
+.column-mood-icon {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 1.2vh;
+    opacity: 0.45;
+}
+.column-mood-icon .icon {
+    stroke: currentColor;
+    fill: none;
+    color: var(--color-text, #fff);
 }
 
 .answers .msg-row {
