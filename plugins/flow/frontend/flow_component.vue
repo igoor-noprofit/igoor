@@ -14,7 +14,7 @@
         <div class="answers" :class="`view-${appview}`">
             <div class="row columns">
                 <div v-for="col in ['left', 'center', 'right']" :key="col" :class="['column', col]">
-                    <div v-if="appview !== 'autocomplete'" class="column-mood-icon">
+                    <div v-if="appview !== 'autocomplete' && answers[col].length > 0" class="column-mood-icon">
                         <svg class="icon icon-m">
                             <use :xlink:href="'/img/svgdefs.svg#' + moodIcons[col]"></use>
                         </svg>
@@ -27,9 +27,9 @@
                             @keydown.enter.prevent="$_speakEdited(col, idx)">
                             {{ msg }}
                         </div>
-                        <button class="btn-edit" @click.stop="$_toggleEdit(col, idx)"
+                        <button class="btn-edit rounded" @click.stop="$_toggleEdit(col, idx)"
                             :title="editingKey === col + '-' + idx ? t('Speak edited phrase') : t('Edit phrase')">
-                            <svg class="icon icon-s">
+                            <svg class="icon icon-m">
                                 <use xlink:href="/img/svgdefs.svg#icon-pencil"></use>
                             </svg>
                         </button>
@@ -239,10 +239,9 @@ module.exports = {
 .btn-edit {
     flex-shrink: 0;
     background: transparent;
-    border: none;
+    border: 1px solid rgba(255, 255, 255, 0.25);
     cursor: pointer;
-    padding: 0.25rem;
-    border-radius: 0.25rem;
+    padding: 0.4rem;
     opacity: 0.4;
     transition: opacity 0.2s;
 }
