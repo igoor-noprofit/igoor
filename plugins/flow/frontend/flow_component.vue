@@ -227,14 +227,6 @@ module.exports = {
     color: var(--color-text, #fff);
 }
 
-.answers .msg-row {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: 1rem;
-    margin-bottom: 2.2vh;
-}
-
 .btn-edit {
     flex-shrink: 0;
     background: transparent;

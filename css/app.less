@@ -179,7 +179,7 @@ footer {
   z-index: 1;
   padding: 0;
   transition: all 0.3s ease;
-  
+
   &.shrink {
     max-height: 70px;
     z-index: 100;
@@ -202,9 +202,9 @@ footer {
     margin-right: 10px;
   }
 }
-.pluginContainerTitle{
-  background:#fff;
-  margin:0;
+.pluginContainerTitle {
+  background: #fff;
+  margin: 0;
   padding: 4px;
   display: inline-block;
   color: @phrase_button_bg;
@@ -231,15 +231,15 @@ footer {
 }
 
 .error-banner {
-    background: #b00020;
-    color: #fff;
-    padding: 6px 10px;
-    border-radius: 4px;
-    font-size: 14px;
-    height: 100%;
-    justify-content: flex-end;
-    align-items: center;
-    display: flex;
+  background: #b00020;
+  color: #fff;
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 14px;
+  height: 100%;
+  justify-content: flex-end;
+  align-items: center;
+  display: flex;
 }
 /**************** ASRVOSK *******************/
 .asrvosk-plugin {
@@ -492,24 +492,34 @@ footer {
     }
   }
 }
-.answers .msg {
-  cursor: pointer;
+.answers {
+  .msg {
+    cursor: pointer;
+  }
+  .msg-row {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 2.2vh;
+  }
+  .icon-m {
+    width: 2.5rem;
+    height: 2.5rem;
+  }
 }
-.answers .icon-m{
-  width: 2.5rem;
-  height: 2.5rem;
-}
-.view-autocomplete.answers{
- 
+.view-autocomplete.answers {
   align-items: center;
 
-  .row.columns{
+  .row.columns {
     flex-direction: row;
-    .left,.center,.right{
+    .left,
+    .center,
+    .right {
       width: auto;
       padding: 0 !important;
     }
-    .center{
+    .center {
       border-left: none !important;
       border-right: none !important;
     }
@@ -709,7 +719,6 @@ h3 {
   letter-spacing: 0.125rem;
 }
 
-
 /*                      TYPOGRAPHY: LABELS
 ------------------------------------------------------------------------- */
 .label-primary,
@@ -793,11 +802,10 @@ button {
 }
 
 .btn-secondary {
-  
   padding: 0.75rem 1rem;
 }
 
-.pluginsContainer .btn-secondary{
+.pluginsContainer .btn-secondary {
   background-color: var(--color-btn-secondary) !important;
 }
 
@@ -990,7 +998,8 @@ button {
     var(--color-bgoverlay-0),
     var(--color-bgoverlay-1)
   );
-  box-shadow: 0rem -0.25rem 1rem 0rem rgba(0, 0, 0, 0.5),
+  box-shadow:
+    0rem -0.25rem 1rem 0rem rgba(0, 0, 0, 0.5),
     inset 0rem 0.0625rem 0.125rem 0rem rgba(255, 255, 255, 0.15);
 }
 
