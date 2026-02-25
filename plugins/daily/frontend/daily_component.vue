@@ -39,6 +39,11 @@
                 </svg></button>
             <div class="row columns">
                 <div v-for="col in ['left', 'center', 'right']" :key="col" :class="['column', col]">
+                    <div v-if="answers[col] && answers[col].length > 0" class="column-mood-icon">
+                        <svg class="icon icon-m">
+                            <use :xlink:href="'/img/svgdefs.svg#' + moodIcons[col]"></use>
+                        </svg>
+                    </div>
                     <div v-for="(msg, idx) in answers[col]" :key="col + '-' + idx" class="msg-row">
                         <div :class="['msg', 'msg-small', { editing: editingKey === col + '-' + idx }]"
                             :contenteditable="editingKey === col + '-' + idx" :ref="'msg-' + col + '-' + idx"
@@ -74,6 +79,15 @@ module.exports = {
             selectedItem: null,
             editingKey: null
         };
+    },
+    computed: {
+        moodIcons() {
+            return {
+                left: 'icon-sun-high',
+                center: 'icon-cloud',
+                right: 'icon-cloud-rain'
+            };
+        }
     },
     mounted() {
         console.log('DAILY MOUNTED');
@@ -292,7 +306,6 @@ module.exports = {
     display: flex;
     flex-direction: row;
     gap: 30px;
-    border: 1px solid #0f0;
 }
 
 .column {
@@ -343,6 +356,19 @@ module.exports = {
 
 .msg[contenteditable="true"] {
     outline-offset: 4px;
+}
+
+.column-mood-icon {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 1.2vh;
+    opacity: 0.45;
+}
+
+.column-mood-icon .icon {
+    stroke: currentColor;
+    fill: none;
+    color: var(--color-text, #fff);
 }
 
 .answers .columns {
