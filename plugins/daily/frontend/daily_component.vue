@@ -39,9 +39,18 @@
                 </svg></button>
             <div class="row columns">
                 <div v-for="col in ['left', 'center', 'right']" :key="col" :class="['column', col]">
-                    <div v-for="(msg, idx) in answers[col]" :key="col + '-' + idx" class="msg msg-small"
-                        @click="$_chooseAnswer(msg, idx, col)">
-                        {{ msg }}
+                    <div v-for="(msg, idx) in answers[col]" :key="col + '-' + idx" class="msg-row">
+                        <div :class="['msg', 'msg-small', { editing: editingKey === col + '-' + idx }]"
+                            :contenteditable="editingKey === col + '-' + idx" :ref="'msg-' + col + '-' + idx"
+                            @click="$_chooseAnswer(msg, idx, col)" @keydown.enter.prevent="$_speakEdited(col, idx)">
+                            {{ msg }}
+                        </div>
+                        <button class="btn-edit rounded" @click.stop="$_toggleEdit(col, idx)"
+                            :title="editingKey === col + '-' + idx ? t('Speak edited phrase') : t('Edit phrase')">
+                            <svg class="icon icon-m">
+                                <use xlink:href="/img/svgdefs.svg#icon-pencil"></use>
+                            </svg>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -62,7 +71,8 @@ module.exports = {
             mainCategories: [],
             secondaryCategories: [],
             answers: [],
-            selectedItem: null
+            selectedItem: null,
+            editingKey: null
         };
     },
     mounted() {
@@ -190,7 +200,8 @@ module.exports = {
             }
         },
         /* Sending final phrase */
-        async $_chooseAnswer(msg, index) {
+        async $_chooseAnswer(msg, idx, col) {
+            if (this.editingKey === col + '-' + idx) return;
             let text = msg;
             const json = { action: "speak", msg: text };
             console.log("sending JSON");
@@ -199,6 +210,35 @@ module.exports = {
             /* this.switchToMainView(); */
             this.answers = [];
             this.selectedItem = null;
+            this.editingKey = null;
+        },
+        $_toggleEdit(col, idx) {
+            const key = col + '-' + idx;
+            if (this.editingKey === key) {
+                this.$_speakEdited(col, idx);
+            } else {
+                this.editingKey = key;
+                this.$nextTick(() => {
+                    const refKey = 'msg-' + key;
+                    const el = this.$refs[refKey];
+                    if (el) {
+                        const target = Array.isArray(el) ? el[0] : el;
+                        target.focus();
+                    }
+                });
+            }
+        },
+        $_speakEdited(col, idx) {
+            const refKey = 'msg-' + col + '-' + idx;
+            const el = this.$refs[refKey];
+            const target = el ? (Array.isArray(el) ? el[0] : el) : null;
+            const editedText = target ? target.innerText.trim() : '';
+            if (editedText) {
+                this.answers[col].splice(idx, 1);
+                const json = { action: "speak", msg: editedText };
+                this.sendMsgToBackend(json);
+            }
+            this.editingKey = null;
         },
         switchToSecondaryView() {
             this.currentView = 'secondary';
@@ -252,8 +292,7 @@ module.exports = {
     display: flex;
     flex-direction: row;
     gap: 30px;
-    height: 100%;
-    width: 100%;
+    border: 1px solid #0f0;
 }
 
 .column {
@@ -265,7 +304,51 @@ module.exports = {
 }
 
 .answers .msg {
+    margin-bottom: 0;
+}
+
+.answers .msg-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 1rem;
     margin-bottom: 2.2vh;
+}
+
+.btn-edit {
+    flex-shrink: 0;
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    cursor: pointer;
+    padding: 0.4rem;
+    opacity: 0.4;
+    transition: opacity 0.2s;
+}
+
+.btn-edit:hover {
+    opacity: 1;
+}
+
+.btn-edit .icon {
+    display: block;
+    stroke: currentColor;
+    fill: none;
+    color: var(--color-text, #fff);
+}
+
+.msg.editing {
+    outline: 1px dashed rgba(255, 255, 255, 0.5);
+    cursor: text;
+}
+
+.msg[contenteditable="true"] {
+    outline-offset: 4px;
+}
+
+.answers .columns {
+    flex: 1 1 auto;
+    min-width: 0;
+    width: auto;
 }
 
 .main {
@@ -308,7 +391,6 @@ module.exports = {
     display: flex;
     flex-direction: row;
     align-items: stretch;
-    border: 1px solid #0f0;
 }
 
 .btn-side-left {
