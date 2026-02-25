@@ -247,6 +247,7 @@ class Flow(Baseplugin):
             asyncio.run(self.asr_msg(query))
 
 class Answers(BaseModel):
+    model_config = {"extra": "forbid"}  # Required for Groq strict mode
     answers: Dict[str, List[str]]
 
 class TimeframeType(str, Enum):
@@ -265,6 +266,7 @@ class MType(str, Enum):
     LONG = "long"
 
 class Timeframe(BaseModel):
+    model_config = {"extra": "forbid"}  # Required for Groq strict mode
     type: TimeframeType = Field(description="absolute for specific dates, relative for references like 'yesterday'")
     reference: str = Field(description="the original time reference from the query")
     start_date: str = Field(pattern=r"^$|^\d{4}-\d{2}-\d{2}$", description="YYYY-MM-DD format or empty")
@@ -273,6 +275,7 @@ class Timeframe(BaseModel):
     period: Period = Field(description="period of the day")
 
 class ConversationModel(BaseModel):
+    model_config = {"extra": "forbid"}  # Required for Groq strict mode
     theme: str = Field(description="the subject of the conversation")
     m_type: List[MType] = Field(description="short or long or both")
     timeframe: Timeframe = Field(description="timeframe for the query")

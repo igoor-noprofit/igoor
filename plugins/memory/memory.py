@@ -304,15 +304,18 @@ class Memory(Baseplugin):
 # Pydantic
 # MEMORY TEMPLATE
 class Fact(BaseModel):
+    model_config = {"extra": "forbid"}  # Required for Groq strict mode
     fact: str
     type: str
 
 class DataModel(BaseModel):
+    model_config = {"extra": "forbid"}  # Required for Groq strict mode
     theme: str
     tags: List[str]
     facts: List[Fact]
-    
+
 # MEMORY REVIEWER TEMPLATE
 class ValidationResponse(BaseModel):
+    model_config = {"extra": "forbid"}  # Required for Groq strict mode
     valid: bool
     reason: str
