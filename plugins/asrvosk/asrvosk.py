@@ -15,10 +15,16 @@ class Asrvosk(Baseplugin):
     def __init__(self, plugin_name, pm):
         self.pm = pm
         self.is_paused = False
-        self.recording = False  # Initialize recording state
-        self.is_loaded = False  # Make sure this is initialized
-        self.wakeword_detected = False  # Initialize wakeword state
+        self.recording = False
+        self.is_loaded = False
+        self.wakeword_detected = False
         super().__init__(plugin_name, pm)
+
+    def clean_text(self, text):
+        text = text.replace('\u200b', '')
+        text = text.replace('\ufeff', '')
+        text = text.replace('\u00a0', ' ')
+        return text
         
     @hookimpl
     def startup(self):
@@ -184,6 +190,7 @@ class Asrvosk(Baseplugin):
             raise
     
     async def handle_wake_word(self,following_text):
+        following_text = self.clean_text(following_text)
         print(f"Wake word detected! Text: '{following_text}'")
         await self.pm.trigger_hook(hook_name="add_msg_to_conversation", msg=following_text, author="def",msg_input="asrvosk")
         await self.pm.trigger_hook(hook_name="asr_msg", msg="Q: " + following_text)

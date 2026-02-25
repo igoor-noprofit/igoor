@@ -502,19 +502,21 @@ class Asrwhisper(Baseplugin):
         
     def clean_whisper_silence(self, text):
         print(f"Transcribed text: {text}")
-        """Remove known silence artifacts from Whisper output."""
         SILENCE_STRINGS = [
             "Sous-titrage ST' 501",
             "Sous-titrage Société Radio-Canada"
         ]
         for s in SILENCE_STRINGS:
-            # Remove at start
             if text.strip().startswith(s):
                 text = text.strip()[len(s):].strip()
-            # Remove at end
             if text.strip().endswith(s):
                 text = text.strip()[:-len(s)].strip()
             print(f"Cleaned text: {text}")
+        
+        text = text.replace('\u200b', '')
+        text = text.replace('\ufeff', '')
+        text = text.replace('\u00a0', ' ')
+        
         if text == "." or text == " ." or not text:
             return ""
         return text
