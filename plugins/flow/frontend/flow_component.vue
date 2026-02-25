@@ -21,10 +21,8 @@
                     </div>
                     <div v-for="(msg, idx) in answers[col]" :key="col + '-' + idx" class="msg-row">
                         <div :class="['msg', 'msg-small', { editing: editingKey === col + '-' + idx }]"
-                            :contenteditable="editingKey === col + '-' + idx"
-                            :ref="'msg-' + col + '-' + idx"
-                            @click="$_chooseAnswer(msg, idx, col)"
-                            @keydown.enter.prevent="$_speakEdited(col, idx)">
+                            :contenteditable="editingKey === col + '-' + idx" :ref="'msg-' + col + '-' + idx"
+                            @click="$_chooseAnswer(msg, idx, col)" @keydown.enter.prevent="$_speakEdited(col, idx)">
                             {{ msg }}
                         </div>
                         <button class="btn-edit rounded" @click.stop="$_toggleEdit(col, idx)"
@@ -222,6 +220,7 @@ module.exports = {
     margin-bottom: 1.2vh;
     opacity: 0.45;
 }
+
 .column-mood-icon .icon {
     stroke: currentColor;
     fill: none;
@@ -232,7 +231,7 @@ module.exports = {
     display: flex;
     flex-direction: row;
     align-items: center;
-    gap: 0.4rem;
+    gap: 1rem;
     margin-bottom: 2.2vh;
 }
 
@@ -245,9 +244,11 @@ module.exports = {
     opacity: 0.4;
     transition: opacity 0.2s;
 }
+
 .btn-edit:hover {
     opacity: 1;
 }
+
 .btn-edit .icon {
     display: block;
     stroke: currentColor;
@@ -259,6 +260,7 @@ module.exports = {
     outline: 1px dashed rgba(255, 255, 255, 0.5);
     cursor: text;
 }
+
 .msg[contenteditable="true"] {
     outline-offset: 4px;
 }
@@ -272,7 +274,8 @@ module.exports = {
     width: 100px;
     min-height: 40px;
 }
-.autocompletelauncher img{
+
+.autocompletelauncher img {
     filter: invert(1)
 }
 </style>
