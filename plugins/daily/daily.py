@@ -206,4 +206,5 @@ class Daily(Baseplugin):
         print(f"Flow plugin received new status: {status}")
 
 class Answers(BaseModel):
+    model_config = {"extra": "forbid"}  # Required for Groq strict mode
     answers: Dict[str, List[str]]

@@ -420,4 +420,5 @@ class Autocomplete(Baseplugin):
             self.logger.error(f"Error in store_autocomplete_prediction: {e}")
 
 class Answers(BaseModel):
+    model_config = {"extra": "forbid"}  # Required for Groq strict mode (adds additionalProperties: false)
     answers: List[str]
