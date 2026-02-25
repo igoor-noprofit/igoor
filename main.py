@@ -25,6 +25,11 @@ from fastapi_app import app as fastapi_app
 import uvicorn
 from idle_detector import IdleDetector
 
+if sys.stdout.encoding != 'utf-8':
+    sys.stdout.reconfigure(encoding='utf-8')
+if sys.stderr.encoding != 'utf-8':
+    sys.stderr.reconfigure(encoding='utf-8')
+
 appdata_dir = get_appdata_dir(create=True)
 logger = setup_logger('main', appdata_dir)
 context_manager = ContextManager()
