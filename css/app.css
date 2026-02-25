@@ -449,6 +449,13 @@ footer.shrink {
 .answers .msg {
   cursor: pointer;
 }
+.answers .msg-row {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 2.2vh;
+}
 .answers .icon-m {
   width: 2.5rem;
   height: 2.5rem;
