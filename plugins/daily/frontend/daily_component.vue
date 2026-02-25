@@ -323,8 +323,8 @@ module.exports = {
 .answers .msg-row {
     display: flex;
     flex-direction: row;
-    align-items: center;
-    gap: 1rem;
+    align-items: flex-start;
+    gap: 1.3rem;
     margin-bottom: 2.2vh;
 }
 
@@ -422,10 +422,6 @@ module.exports = {
 .btn-side-left {
     width: 120px;
     position: relative;
-}
-
-.answers .msg {
-    margin-bottom: 10px;
 }
 
 .options .btn {
