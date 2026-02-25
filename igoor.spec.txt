@@ -95,13 +95,13 @@ exe = EXE(
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
-    console=True,
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon="img/logo_ig_lxL_icon.ico"
+    icon="img/logo_ig_lxL_icon.ico",
+    console=False
 )
 
 coll = COLLECT(
