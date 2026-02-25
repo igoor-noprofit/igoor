@@ -13,7 +13,7 @@ daily:
     {"lieu_actuel":"maison","heure":"11:36"}
 
     Dans l'exemple, il est probable que la personne en situation d'handicap souhaite savoir si quelqu'un peut aller faire des courses,parce qu'il commence à être tard pour le déjeuner. 
-    Propose d6 phrases qui tiennent compte en premier lieu du thème, ainsi que des handicaps de la personne; mais aussi des tags proposés et,si pertinentes,des informations venant du contexte (mémoire à court terme, à long terme etc). 
+    Propose 6 phrases qui tiennent compte en premier lieu du thème, ainsi que des handicaps de la personne; mais aussi des tags proposés et,si pertinentes,des informations venant du contexte (mémoire à court terme, à long terme etc). 
     Pars des situations les plus probables au quotidien.
     Le résultat doit être obligatoirement un objet JSON avec un champ "answers" contenant une liste de phrase.
     Retourne uniquement un JSON, sans guillemets, sans balises Markdown, sans explication.
@@ -26,7 +26,6 @@ daily:
 
     IMPORTANT: Si le besoin prévoit des réponse longues (ex. "raconter une blague", "raconter une anecdote", "raconter une fable" etc.) tu peux proposer des réponses avec une petite blague, une histoire etc. du début à la fin.
 
-    IMPORTANT: Donne un minimum de 3 et un maximum de 6 réponses possibles, strictement dans le format JSON indiqué.
     N'explique JAMAIS ta réponse, retourne juste le JSON valide.
 
     IMPORTANT: Fournis TOUJOURS les phrases organisées en trois colonnes: left, center, right.
@@ -147,3 +146,5 @@ daily:
     "catégorie":"{category}","thème":"{theme}","tags": "{tags}"
 
     </context>
+
+    IMPORTANT: Donne un minimum de 1 et un maximum de 2 réponses par colonne, strictement dans le format JSON indiqué.
