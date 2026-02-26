@@ -54,9 +54,6 @@ class Extkeyb(Baseplugin):
                     if (self.start_process()):
                         self.is_running = True
             '''
-            
-
-   
     
     # TODO: RECHECK ENTIRE FUNCTION 
     def locate_igoor_app(self):
