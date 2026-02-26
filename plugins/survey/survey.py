@@ -58,6 +58,7 @@ class Survey(Baseplugin):
         # Register router with the main FastAPI app if available
         if hasattr(self, 'pm') and hasattr(self.pm, 'fastapi_app'):
             self.pm.fastapi_app.include_router(self.router)
+            self.mark_ready()
 
     @hookimpl
     async def after_conversation_end(self, last_conversation):

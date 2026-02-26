@@ -37,6 +37,7 @@ class Weather(Baseplugin):
             print("Missing required METEO settings: lat_home and or lng_home.")
             return
         self.schedule_weather_updates()
+        self.mark_ready()
         
         # Use a separate thread to handle the sleep and async call
         def delayed_weather():

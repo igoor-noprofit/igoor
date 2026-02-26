@@ -145,6 +145,7 @@ class Elevenlabstts(Baseplugin):
             try:
                 self.client = self.createClient(self.api_key)
                 self.is_loaded = True
+                self.mark_ready()
                 return True
             except Exception as e:
                 self.logger.error(f"Error occurred while creating Elevenlabs client : {e}")

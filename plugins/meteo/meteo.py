@@ -104,12 +104,10 @@ class Meteo(Baseplugin):
 
     @hookimpl
     def startup(self):
-        print("METEO IS STARTING UP")
         self._ensure_router()
         # Register router with the main FastAPI app if available
         if hasattr(self, 'pm') and hasattr(self.pm, 'fastapi_app'):
             self.pm.fastapi_app.include_router(self.router)
-
         self.settings = self.get_my_settings()
         print("METEO settings", self.settings)
         self.geoloc = self.get_geoloc()
@@ -124,6 +122,7 @@ class Meteo(Baseplugin):
             print("Missing required METEO settings: api_key, lat_home, or lng_home.")
             return
         self.schedule_meteo_updates()
+        self.mark_ready()
         
         # Use a separate thread to handle the sleep and async call
         def delayed_meteo():

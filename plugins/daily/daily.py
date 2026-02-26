@@ -38,13 +38,13 @@ class Daily(Baseplugin):
                     return True
             except FileNotFoundError:
                 print ("ERROR DAILY JSON NOT FOUND")
-            
         else: 
             self.daily_data = self.settings 
     
     @hookimpl
     def startup(self):
         self.load_daily_data()
+        self.mark_ready()
         
     @hookimpl
     def onboarding_toggled(self,is_onboarding):

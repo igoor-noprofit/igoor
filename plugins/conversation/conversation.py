@@ -318,6 +318,7 @@ class Conversation(Baseplugin):
                 self.logger.info(f"Loaded {len(conversations)} conversations into cache")
         except Exception as e:
             self.logger.error(f"Error loading last conversations cache: {e}")
+        self.mark_ready()
 
     def _format_conversations_xml(self, conversations: list) -> str:
         """Format list of conversations as XML string for LLM prompts"""
