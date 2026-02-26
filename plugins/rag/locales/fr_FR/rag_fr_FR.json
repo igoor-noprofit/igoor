@@ -22,5 +22,7 @@
     "Document will only be sent based on relevance": "Le document ne sera envoyé que s'il est pertinent",
     "Failed to update document setting": "Échec de la mise à jour du paramètre",
     "Search documents...": "Rechercher des documents...",
-    "No matching documents": "Aucun document correspondant"
+    "No matching documents": "Aucun document correspondant",
+    "Loading the model, you will be able to upload documents in a few seconds": "Chargement du modèle, vous pourrez téléverser des documents dans quelques secondes",
+    "Plugin is not ready yet. Please wait for the model to finish loading.": "Le plugin n'est pas encore prêt. Veuillez attendre que le modèle finisse de charger."
 }

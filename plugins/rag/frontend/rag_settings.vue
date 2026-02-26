@@ -19,6 +19,11 @@
             <span>{{ successMessage }}</span>
         </div>
 
+        <div v-if="isPluginLoading" class="loading-plugin-message">
+            <span>⏳</span>
+            <span>{{ t('Loading the model, you will be able to upload documents in a few seconds') }}</span>
+        </div>
+
         <!-- Left Column: Document List -->
         <div class="rag-left">
             <div class="documents-header">
@@ -86,7 +91,7 @@
 
             <div
                 class="drop-zone"
-                :class="{ 'drop-zone--active': isDragOver, 'drop-zone--disabled': isUploading }"
+                :class="{ 'drop-zone--active': isDragOver, 'drop-zone--disabled': !canUploadDocuments }"
                 @dragover.prevent="handleDragOver"
                 @dragleave.prevent="handleDragLeave"
                 @drop.prevent="handleDrop"
@@ -103,7 +108,7 @@
             </div>
 
             <div class="browse-button-container">
-                <button class="btn btn-primary" @click="triggerFileInput" :disabled="isUploading">
+                <button class="btn btn-primary" @click="triggerFileInput" :disabled="!canUploadDocuments">
                     <i class="ph-light ph-folder"></i>
                     <span>{{ t('Browse Files') }}</span>
                 </button>
@@ -126,7 +131,10 @@ export default {
             isUploading: false,
             isDragOver: false,
             errorMessage: '',
-            successMessage: ''
+            successMessage: '',
+            isPluginReady: false,
+            isPluginLoading: true,
+            statusCheckInterval: null
         };
     },
     computed: {
@@ -138,10 +146,26 @@ export default {
             return this.documents.filter(doc =>
                 doc.title.toLowerCase().includes(searchLower)
             );
+        },
+        canUploadDocuments() {
+            return this.isPluginReady && !this.isUploading;
         }
     },
     mounted() {
         this.loadDocuments();
+        this.checkPluginStatus();
+        this.statusCheckInterval = setInterval(() => {
+            if (!this.isPluginReady) {
+                this.checkPluginStatus();
+            } else {
+                clearInterval(this.statusCheckInterval);
+            }
+        }, 2000);
+    },
+    beforeUnmount() {
+        if (this.statusCheckInterval) {
+            clearInterval(this.statusCheckInterval);
+        }
     },
     methods: {
         async loadDocuments() {
@@ -161,6 +185,18 @@ export default {
 
         refreshDocuments() {
             this.loadDocuments();
+        },
+
+        async checkPluginStatus() {
+            try {
+                const response = await this.callPluginRestEndpoint('rag', 'status');
+                if (response && response.ready !== undefined) {
+                    this.isPluginReady = response.ready;
+                    this.isPluginLoading = !response.ready;
+                }
+            } catch (error) {
+                console.error('Error checking plugin status:', error);
+            }
         },
 
         triggerFileInput() {
@@ -192,6 +228,11 @@ export default {
         },
 
         async uploadFiles(files) {
+            if (!this.isPluginReady) {
+                this.errorMessage = this.t('Plugin is not ready yet. Please wait for the model to finish loading.');
+                return;
+            }
+
             this.isUploading = true;
             this.errorMessage = '';
             this.successMessage = '';
@@ -310,6 +351,18 @@ export default {
 
 .success-message {
     background: #27ae60;
+    color: #fff;
+}
+
+.loading-plugin-message {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 20px;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    background: #f39c12;
     color: #fff;
 }
 
