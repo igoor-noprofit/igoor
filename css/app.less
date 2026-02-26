@@ -113,6 +113,35 @@ body {
     padding-right: 1rem; /* Add some padding from the right edge */
   }
 
+  .boot-progress {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    max-width: 260px;
+    transition: opacity 0.4s ease;
+  }
+  .boot-progress--fade {
+    opacity: 0;
+  }
+  .boot-progress__label {
+    color: #ccc;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+  .boot-progress__bar {
+    width: 160px;
+    height: 6px;
+    background: #333;
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .boot-progress__fill {
+    height: 100%;
+    background: @accent_100;
+    width: 0%;
+    transition: width 0.3s ease;
+  }
+
   .topbar-center {
     padding: 0 1rem; /* Add some padding around the logo */
     display: flex;

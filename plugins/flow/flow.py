@@ -33,7 +33,7 @@ class Flow(Baseplugin):
     
     @hookimpl
     def startup(self):
-        print("FLOW STARTUP")
+        self.mark_ready()
     
     @hookimpl
     def gui_ready(self):

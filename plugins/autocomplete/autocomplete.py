@@ -44,6 +44,7 @@ class Autocomplete(Baseplugin):
         self._ensure_router()
         if hasattr(self, 'pm') and hasattr(self.pm, 'fastapi_app'):
             self.pm.fastapi_app.include_router(self.router)
+        self.mark_ready()
     
     def _ensure_router(self):
         """Initialize FastAPI router with endpoints"""

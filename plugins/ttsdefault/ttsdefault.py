@@ -112,6 +112,7 @@ class Ttsdefault(Baseplugin):
         if self.is_loaded:
             try:
                 self.speaker.Voice = self.speaker.GetVoices().Item(self.voice_id)
+                self.mark_ready()
             except Exception as e:
                 print(f"Error occurred while setting voice to : {self.voice_id}")
                 self.speaker.Voice = self.speaker.GetVoices().Item(0)

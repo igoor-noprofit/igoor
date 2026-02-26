@@ -185,6 +185,7 @@ class Asrvosk(Baseplugin):
             elapsed_time = time.time() - start_time
             self.logger.info(f"Model loaded successfully in {elapsed_time:.2f} seconds")
             self.is_loaded = True
+            self.mark_ready()
         except Exception as e:
             self.logger.error(f"Error loading model: {str(e)}", exc_info=True)
             raise

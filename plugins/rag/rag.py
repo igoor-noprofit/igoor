@@ -137,6 +137,7 @@ class Rag(Baseplugin):
         
         # Signal that loading is complete
         self.is_loaded = True
+        self.mark_ready()
         self.loading_event.set()
         self.logger.info("RAG plugin initialization complete")
         await self.pm.trigger_hook(hook_name="rag_loaded")

@@ -17,7 +17,6 @@ class Extkeyb(Baseplugin):
         self.is_igoor_maximized = True
         self.keyb_type = self.settings.get("keyb_type","osk")
         self.logger.info(f"Using external keyboard type {self.keyb_type}")
-        self.ready = False
         # TABTIP on modern WINDOWS
         if (self.keyb_type == "tabtip"):
             self.app_exe = "TabTip.exe"
@@ -26,7 +25,7 @@ class Extkeyb(Baseplugin):
                 self.logger.error(f"TabTip external keyboard not found at {self.app_path}")
                 # COULD USE OSK HERE INSTEAD for older Windows versions
                 # path C:\\Windows\\System32\\osk.exe
-            self.ready = True
+            self.mark_ready()
         # IGOOR OWN EXTERNAL KEYBOARD
         elif (self.keyb_type == "igoor"):
             self.app_exe = "IGOOR_OSK.exe"
@@ -34,13 +33,13 @@ class Extkeyb(Baseplugin):
                 self.conn_host = self.settings.get("conn_host", "127.0.0.1")
                 self.conn_port = self.settings.get("conn_port", 8765)
                 self.socket = None
-                self.ready = True
+                self.mark_ready()
             else:
                 self.logger.error("IGOOR external keyboard not found")
         elif (self.keyb_type == "osk"):
             self.app_exe = "osk.exe"
             self.app_path = os.path.join("C:\\Windows\\System32\\",self.app_exe)
-            self.ready = True
+            self.mark_ready()
         else:
             self.logger.error(f"Unknown keyboard type {self.keyb_type}")
         if (self.ready):

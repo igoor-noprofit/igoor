@@ -12,6 +12,7 @@ from db_manager import DatabaseManager
 class Baseplugin:
     def __init__(self, plugin_name="baseplugin", pm=None):
         self.is_loaded = False
+        self.ready = False
         print ("__init__ plugin : " + plugin_name)
         self.plugin_name = plugin_name
         
@@ -58,7 +59,8 @@ class Baseplugin:
         plugin_folder = os.path.abspath(os.path.join(this_dir, '..'))
         self._app_plugin_folder = os.path.join(plugin_folder, self.plugin_name)
         print(f"PLUGIN ROOT = {self._app_plugin_folder}")
-        
+    def mark_ready(self):
+        self.ready = True
         
     @hookimpl
     def get_frontend_components(self):
