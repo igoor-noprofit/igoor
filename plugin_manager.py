@@ -334,14 +334,31 @@ class PluginManager:
         """Check if a plugin is active based on settings.json"""
         settings = self.settings_manager.get_settings()
         plugins_activation = settings.get("plugins_activation", {})
-        
+
         # If plugin isn't in settings.json yet, get default from plugin.json (for migration)
         if plugin_name not in plugins_activation:
             default_active = self.all_plugins.get(plugin_name, {}).get("active", False)
             self._set_plugin_active_status(plugin_name, default_active)
             return default_active
-            
+
         return plugins_activation.get(plugin_name, False)
+
+    def is_platform_compatible(self, plugin_name: str) -> bool:
+        """Check if plugin is compatible with current platform"""
+        platforms = self.all_plugins.get(plugin_name, {}).get("platforms")
+        if platforms is None:
+            return True  # No restriction specified, universal compatibility
+
+        current_platform = platform.system()
+        self.logger.debug(f"Checking platform compatibility for '{plugin_name}': current platform is {current_platform}, required platforms: {platforms}")
+
+        if current_platform == "Windows":
+            return "win32" in platforms
+        elif current_platform == "Darwin":
+            return "darwin" in platforms
+        elif current_platform == "Linux":
+            return "linux" in platforms
+        return False
 
 
     '''
