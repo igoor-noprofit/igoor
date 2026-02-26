@@ -1,12 +1,10 @@
 from plugins.baseplugin.baseplugin import Baseplugin
+from plugins.baseplugin.baseplugin import Baseplugin
 from plugin_manager import hookimpl
 import json,socket,os,time
 import psutil
 import subprocess
 import win32gui, win32con
-from pywinauto import Application
-from pywinauto.application import ProcessNotFoundError
-from pywinauto.findwindows import ElementNotFoundError
 
 
 class Extkeyb(Baseplugin):
@@ -139,7 +137,8 @@ class Extkeyb(Baseplugin):
         if (self.keyb_type == "igoor"):
             self.send_command('show')   
         elif (self.keyb_type == "osk"):
-            self.start_process()
+            if (not self.is_app_running()):
+                self.start_process()
         elif (self.keyb_type == "tabtip"):
             if (self.show_tabtip()):
                 return True
@@ -190,8 +189,12 @@ class Extkeyb(Baseplugin):
             print("No need to hide, virtual keyboard already hidden")
     
     def close_osk(self):
+        import pywinauto
+        from pywinauto.application import ProcessNotFoundError
+        from pywinauto.findwindows import ElementNotFoundError
+        
         try:
-            app = Application(backend="uia").connect(path=self.app_exe, timeout=2)
+            app = pywinauto.Application(backend="uia").connect(path=self.app_exe, timeout=2)
             window = app.window(class_name="OSKMainClass")
             window.close()
             window.wait_not_visible(timeout=3)
