@@ -22,10 +22,9 @@
                 class="boot-progress"
                 v-if="bootProgressVisible"
                 :class="{ 'boot-progress--fade': bootProgressFaded }"
-                style="display:flex;align-items:center;gap:8px;max-width:260px;position:relative;cursor:pointer;"
+                style="display:flex;align-items:center;gap:8px;max-width:200px;position:relative;cursor:pointer;"
                 @click="toggleBootNotReady"
             >
-                <div class="boot-progress__label" style="color:#ccc;font-size:12px;white-space:nowrap;">{{ bootProgressText }}</div>
                 <div class="boot-progress__bar" style="width:160px;height:6px;background:#333;border-radius:4px;overflow:hidden;">
                     <div class="boot-progress__fill" :style="{ width: bootProgressPercent + '%', height: '100%', background: '#0095c0' }"></div>
                 </div>
