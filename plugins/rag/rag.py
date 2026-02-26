@@ -167,6 +167,10 @@ class Rag(Baseplugin):
             results = await self.db_execute("SELECT id, title, filename, always_send, created_at FROM documents ORDER BY created_at DESC")
             return results or []
 
+        @self.router.get("/status")
+        async def get_status():
+            return {"ready": self.ready}
+
         @self.router.post("/documents")
         async def upload_documents(files: List[UploadFile]):
             new_files = []
