@@ -110,12 +110,6 @@ async function initializeApp() {
         const percent = Math.round((this.bootReady / this.bootTotal) * 100);
         return Math.min(100, Math.max(0, percent));
       },
-      bootProgressText() {
-        if (!this.bootTotal) {
-          return "Preparing";
-        }
-        return `Preparing ${this.bootReady}/${this.bootTotal}`;
-      },
       bootNotReadyList() {
         if (!Array.isArray(this.bootNotReady)) {
           return [];
