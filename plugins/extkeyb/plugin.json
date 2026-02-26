@@ -11,5 +11,6 @@
     "requires_internet": true,
     "depends_on": [
         "autocomplete"
-    ]
+    ],
+    "platforms": ["win32"]
 }
