@@ -30,7 +30,7 @@
     "asrwhisper": false,
     "autocomplete": true,
     "autocompletelauncher": true,
-    "bugreport": true,
+    "bugreport": false,
     "clock": true,
     "conversation": true,
     "daily": true,
