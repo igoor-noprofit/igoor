@@ -29,10 +29,10 @@ charset-normalizer==3.4.0
 ci-info==0.3.0
 click==8.1.7
 cloudpathlib==0.20.0
-clr-loader==0.2.6
+clr-loader==0.2.6 ; sys_platform == 'win32'
 colorama==0.4.6
 coloredlogs==15.0.1
-comtypes==1.4.12
+comtypes==1.4.12 ; sys_platform == 'win32'
 confection==0.1.5
 configobj==5.0.9
 configparser==7.1.0
@@ -151,13 +151,13 @@ python-Levenshtein==0.26.0
 python-multipart==0.0.22
 python-dateutil==2.9.0.post0
 python-dotenv==1.1.1
-pythonnet==3.0.4
+pythonnet==3.0.4 ; sys_platform == 'win32'
 pytz==2024.2
 pywebview==5.3
-pywin32-ctypes==0.2.3
-pywin32==308
-pywinauto==0.6.9
-pywinusb==0.4.2
+pywin32-ctypes==0.2.3 ; sys_platform == 'win32'
+pywin32==308 ; sys_platform == 'win32'
+pywinauto==0.6.9 ; sys_platform == 'win32'
+pywinusb==0.4.2 ; sys_platform == 'win32'
 pywttr-models==2.0.1
 pyxnat==1.6.2
 pyyaml-env-tag==1.1
@@ -213,7 +213,7 @@ watchdog==6.0.0
 weasel==0.4.1
 webrtcvad-wheels==2.0.14
 websockets==13.1
-winrt-runtime==3.2.1
+winrt-runtime==3.2.1 ; sys_platform == 'win32'
 wrapt==1.17.2
 xmltodict==0.14.2
 yarl==1.16.0
