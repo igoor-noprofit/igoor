@@ -146,9 +146,11 @@ module.exports = {
         },
         $_onFocus() {
             this.isFocused = true;
+            this.sendMsgToBackend({action: "input_focused"});
         },
         $_onBlur() {
             this.isFocused = false;
+            this.sendMsgToBackend({action: "input_blurred"});
         },
         $_deleteText(){
             this.$_reset();

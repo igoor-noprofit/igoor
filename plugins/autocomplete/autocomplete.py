@@ -101,11 +101,15 @@ class Autocomplete(Baseplugin):
                     completion = message_dict.get("completion")
                     if input_text and completion:
                         asyncio.create_task(self.store_successful_prediction(input_text, completion))
+                elif action == "input_focused":
+                    asyncio.create_task(self.pm.trigger_hook(hook_name="show_virtual_keyboard"))
+                elif action == "input_blurred":
+                    asyncio.create_task(self.pm.trigger_hook(hook_name="hide_virtual_keyboard"))
                 elif message_dict.get("msg"):
                     asyncio.create_task(self.pm.trigger_hook(hook_name="reset_conversation_timeout"))
                     input_value = message_dict.get("msg")
                     if input_value:
-                        asyncio.create_task(self.send_switch_view_to_app("autocomplete")) 
+                        asyncio.create_task(self.send_switch_view_to_app("autocomplete"))
                         asyncio.create_task(self.predict(input_value))
                     else:
                         print("Input key is present but empty.")
