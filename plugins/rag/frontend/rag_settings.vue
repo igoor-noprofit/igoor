@@ -19,11 +19,6 @@
             <span>{{ successMessage }}</span>
         </div>
 
-        <div v-if="isPluginLoading" class="loading-plugin-message">
-            <span>⏳</span>
-            <span>{{ t('Loading the model, you will be able to upload documents in a few seconds') }}</span>
-        </div>
-
         <!-- Left Column: Document List -->
         <div class="rag-left">
             <div class="documents-header">
@@ -96,7 +91,11 @@
                 @dragleave.prevent="handleDragLeave"
                 @drop.prevent="handleDrop"
             >
-                <div v-if="isUploading" class="upload-status">
+                <div v-if="isPluginLoading" class="upload-status">
+                    <div class="spinner"></div>
+                    <span>{{ t('Loading the model, you will be able to upload documents in a few minutes') }}</span>
+                </div>
+                <div v-else-if="isUploading" class="upload-status">
                     <div class="spinner"></div>
                     <span>{{ t('Uploading and ingesting documents...') }}</span>
                 </div>
@@ -351,18 +350,6 @@ export default {
 
 .success-message {
     background: #27ae60;
-    color: #fff;
-}
-
-.loading-plugin-message {
-    width: 100%;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 16px 20px;
-    border-radius: 8px;
-    margin-bottom: 12px;
-    background: #f39c12;
     color: #fff;
 }
 

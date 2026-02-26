@@ -23,6 +23,6 @@
     "Failed to update document setting": "Échec de la mise à jour du paramètre",
     "Search documents...": "Rechercher des documents...",
     "No matching documents": "Aucun document correspondant",
-    "Loading the model, you will be able to upload documents in a few seconds": "Chargement du modèle, vous pourrez téléverser des documents dans quelques secondes",
+    "Loading the model, you will be able to upload documents in a few minutes": "Chargement du modèle, vous pourrez téléverser des documents dans quelques minutes",
     "Plugin is not ready yet. Please wait for the model to finish loading.": "Le plugin n'est pas encore prêt. Veuillez attendre que le modèle finisse de charger."
 }
