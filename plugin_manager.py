@@ -355,6 +355,11 @@ class PluginManager:
                 plugin_path = os.path.join(self.plugin_folder, plugin_name)
                 is_active = self.is_active(plugin_name)
                 self.logger.info (f": {plugin_path}")
+                try:
+                    # Update splash/loading status while starting up
+                    self.status_manager.set_status(f"Loading plugin {plugin_name}")
+                except Exception:
+                    pass
                 # Check if the plugin should be activated or excluded based on the lists
                 if plugin_name in active_list:
                     self.logger.info(f"Plugin '{plugin_name}' is in the active_list, overriding is_active to True.")
@@ -388,6 +393,10 @@ class PluginManager:
                 print("Excluded baseplugin")
         
         self.logger.info(f"ACTIVATED PLUGINS LIST: {self.activated_plugins}")
+        try:
+            self.status_manager.set_status("Starting plugins…")
+        except Exception:
+            pass
         self.startup_plugins()
 
 
