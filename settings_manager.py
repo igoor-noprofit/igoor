@@ -2,6 +2,9 @@ from version import __appname__, __version__, __codename__
 import json
 import os
 import asyncio
+import shutil
+import glob
+from datetime import datetime
 from utils import resource_path, setup_logger
 
 class SettingsManager:
@@ -35,6 +38,7 @@ class SettingsManager:
         self.default_settings_file = default_settings_path
         self.ensure_settings_file_exists()
         self.settings = self.load_settings()
+        self.create_backup()
 
     def ensure_settings_file_exists(self):
         """Create settings.json from default if it doesn't exist"""
@@ -90,24 +94,73 @@ class SettingsManager:
         # print(f"Final data: {data}")  # Debugging line
         return data
 
+    def create_backup(self):
+        """Create timestamped backup of settings.json, keeping only 5 most recent."""
+        if not os.path.exists(self.settings_file):
+            return
+
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        backup_file = f"{self.settings_file}.backup.{timestamp}"
+
+        try:
+            shutil.copy2(self.settings_file, backup_file)
+            self.logger.info(f"Created settings backup: {backup_file}")
+        except Exception as e:
+            self.logger.error(f"Error creating settings backup: {e}")
+
+        try:
+            backups = sorted(glob.glob(f"{self.settings_file}.backup.*"), reverse=True)
+            for old_backup in backups[5:]:
+                os.remove(old_backup)
+                self.logger.info(f"Removed old backup: {old_backup}")
+        except Exception as e:
+            self.logger.error(f"Error cleaning up old backups: {e}")
+
     def load_settings(self):
-        """Load settings from the JSON file."""
-        if os.path.exists(self.settings_file):
+        """Load settings with fallback: main file -> most recent backup -> defaults."""
+        if not os.path.exists(self.settings_file):
+            self.logger.warning(f"Settings file not found at {self.settings_file}. Using default settings.")
+            with open(self.default_settings_file, 'r', encoding='utf-8') as f:
+                self.settings = json.load(f)
+            self.save_settings()
+            return self.settings
+
+        # Try main settings file
+        try:
             with open(self.settings_file, 'r', encoding='utf-8') as f:
                 self.settings = json.load(f)
-        else:
-            print(f"Settings file not found at {self.settings_file}. Using default settings.")
-            self.settings = {
-                "user": {
-                    "lang": "fr_FR",
-                    "locale": "fr_FR.UTF-8"
-                },
-                "plugins": {},
-                "plugins_activation": {}
-            }
-            self.save_settings()
-        
-        return self.settings  # Make sure to return the settings
+            return self.settings
+        except (json.JSONDecodeError, IOError) as e:
+            self.logger.warning(f"Main settings file corrupted: {e}")
+
+        # Try most recent backup
+        backups = sorted(glob.glob(f"{self.settings_file}.backup.*"), reverse=True)
+        for backup_file in backups:
+            try:
+                with open(backup_file, 'r', encoding='utf-8') as f:
+                    self.settings = json.load(f)
+                self.logger.warning(f"Loaded from backup: {backup_file}")
+                # Restore corrupted file from backup
+                shutil.copy2(backup_file, self.settings_file)
+                return self.settings
+            except (json.JSONDecodeError, IOError):
+                continue
+
+        # Fallback to default settings - preserve corrupted file first
+        self.logger.error("All backups corrupted or missing. Using default settings.")
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        corrupted_backup = f"{self.settings_file}.corrupted.{timestamp}"
+        try:
+            shutil.copy2(self.settings_file, corrupted_backup)
+            self.logger.info(f"Preserved corrupted settings file: {corrupted_backup}")
+        except Exception as e:
+            self.logger.error(f"Error preserving corrupted file: {e}")
+
+        # Load defaults and overwrite settings.json
+        with open(self.default_settings_file, 'r', encoding='utf-8') as f:
+            self.settings = json.load(f)
+        self.save_settings()
+        return self.settings
 
     def get_settings(self):
         """Return all settings (alias for get_all_settings)."""
