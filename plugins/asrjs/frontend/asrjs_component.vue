@@ -912,6 +912,8 @@ export default {
     display: flex;
     justify-content: center;
     align-items: center;
+    width: 120px;
+    flex: 0 0 auto;
 }
 
 .mic img {

@@ -437,6 +437,10 @@ module.exports = {
 .btn-side{
     position: relative;
     height: auto !important;
+    min-width: 120px;
+    max-width: 120px;
+    width: 120px;
+    flex-shrink: 0;
 }
 
 
