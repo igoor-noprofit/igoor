@@ -234,20 +234,24 @@ class Conversation(Baseplugin):
         if (not self.conversation_is_open):
             self.logger.info("Abandon conversation called, but conversation is not open")
             return
+
+        # IMPORTANT: Send view change immediately to ensure UI updates before any processing
+        await self.send_switch_view_to_app("daily")
+
         txt = await self.get_conversation(format="txt")
-        
+
         # Log the thread_id before creating the dictionary
         if (cause is None):
             cause = "timeout"
-        
+
         last_conversation = {
-            "thread": self.thread, 
-            "txt": txt, 
+            "thread": self.thread,
+            "txt": txt,
             "cause": cause,
             "topic": self.topic,
-            "thread_id": self.current_thread_id  
+            "thread_id": self.current_thread_id
         }
-        
+
         if self.current_thread_id is not None:
             current_time = self._get_current_timestamp()
             await self.db_execute(
@@ -255,17 +259,17 @@ class Conversation(Baseplugin):
                 (current_time, cause, txt, self.current_thread_id)
             )
             self.logger.info(f"Abandoned conversation {self.current_thread_id} with end time")
-            
+
             # Update last conversations cache
             if txt and self.current_start_time:
                 new_conv = self._format_single_conversation_xml(self.current_start_time, txt)
                 self._prepend_to_cache(new_conv)
-        
+
         # Reset conversation state after triggering the hook
         last_thread=self.thread
         last_topic=self.topic
         last_current_thread_id=self.current_thread_id
-        
+
         self.thread = []
         self.topic = ""
         self.current_thread_id = None
@@ -274,8 +278,7 @@ class Conversation(Baseplugin):
         self.send_message_to_frontend({"action": "abandon_conversation"})
         self.conversation_is_open = False
         self.cancel_timeout()
-        await self.send_switch_view_to_app("daily")
-        
+
         # Create a separate task with explicit kwargs
         asyncio.create_task(
             self.pm.trigger_hook(
