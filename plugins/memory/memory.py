@@ -225,18 +225,22 @@ class Memory(Baseplugin):
             # Get RAG context
             rag = await self.query_rag_async(memory.fact)
             # self.logger.info(f"RAG context received: {rag}")
-            
+
             # Convert Pydantic Fact object to dict
             memory_dict = {
                 "fact": memory.fact,
                 "type": memory.type
             }
-            
+
+            # Escape newlines in RAG context to ensure valid JSON structure
+            # Replace literal newlines with a placeholder character to avoid JSON parsing issues
+            rag_escaped = rag.replace('\n', ' | ')
+
             # Create the memory review package
             memory_to_be_checked = {
                 "conversation": conversation,
                 "memory": memory_dict,
-                "rag": rag
+                "rag": rag_escaped
             }
             
             # Set up prompts
