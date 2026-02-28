@@ -2,7 +2,7 @@ from version import __appname__, __version__, __codename__
 import json
 import os
 import asyncio
-from utils import resource_path, setup_logger
+from utils import resource_path, setup_logger, get_appdata_dir
 
 class SettingsManager:
     _instance = None
@@ -21,8 +21,8 @@ class SettingsManager:
             return
         self._initialized = True
         
-        self.logger = setup_logger('sm', os.path.join(os.getenv('APPDATA'), __appname__))
-        self.settings_file = os.path.join(os.getenv('APPDATA'), __appname__, 'settings.json')
+        self.logger = setup_logger('sm', get_appdata_dir(create=True))
+        self.settings_file = os.path.join(get_appdata_dir(create=True), 'settings.json')
         start_lang = os.getenv('IGOOR_START_LANG', 'en_EN')
         locale_settings_path = os.path.join('locales', start_lang, 'default_settings.json')
         default_settings_path = resource_path(locale_settings_path)

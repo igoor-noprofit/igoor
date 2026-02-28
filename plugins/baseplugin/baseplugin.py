@@ -4,7 +4,7 @@ from status_manager import StatusManager
 from plugin_manager import hookimpl, PluginManager
 from websocket_server import websocket_server
 import os,json,asyncio
-from utils import resource_path
+from utils import resource_path, get_appdata_dir
 from llm_manager import LLMManager
 from utils import setup_logger
 from db_manager import DatabaseManager
@@ -18,7 +18,7 @@ class Baseplugin:
         
         self.logger = setup_logger(
             f'plugins.{plugin_name}', 
-            os.path.join(os.getenv('APPDATA'), __appname__),
+            get_appdata_dir(create=True),
             separate_plugin_log=False
         )
         
@@ -45,7 +45,7 @@ class Baseplugin:
         # self.pm = pm
         # Construct the plugin folder path
         self.app_name = __appname__  # Get the application name from the environment variable
-        self.appdata_path = os.getenv('APPDATA')  # Get the APPDATA path from the environment variable
+        self.appdata_path = get_appdata_dir(create=True)  # Get the APPDATA path from the environment variable
         self.plugin_folder = os.path.join(self.appdata_path, self.app_name, 'plugins', plugin_name)
         # Create the directory if it doesn't exist
         if not os.path.exists(self.plugin_folder):

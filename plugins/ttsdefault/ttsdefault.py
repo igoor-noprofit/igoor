@@ -4,7 +4,13 @@ from settings_manager import SettingsManager
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 import asyncio
-import win32com.client
+import sys
+
+try:
+    import win32com.client
+    WINDOWS_AVAILABLE = True
+except ImportError:
+    WINDOWS_AVAILABLE = False
 
 
 class SetVoicePayload(BaseModel):
@@ -14,6 +20,17 @@ class SetVoicePayload(BaseModel):
 class Ttsdefault(Baseplugin):
     def __init__(self, plugin_name, pm):
         self.pm = pm
+        
+        # Skip loading on non-Windows systems
+        if not WINDOWS_AVAILABLE:
+            # Set is_loaded before super().__init__ to indicate plugin shouldn't be used
+            self.is_loaded = False
+            self.router = None
+            # Still call super().__init__ to set up logger, but plugin won't function
+            super().__init__(plugin_name, pm)
+            self.logger.info("Windows SAPI not available on this platform, skipping TTS Default plugin")
+            return
+            
         self.router = None
         super().__init__(plugin_name, pm)
         self.settings = self.get_my_settings()
@@ -118,15 +135,6 @@ class Ttsdefault(Baseplugin):
                 self.speaker.Voice = self.speaker.GetVoices().Item(0)
                 return False   
     
-    '''
-    @hookimpl
-    def test_speak(self, message, **kwargs):
-        self.get_my_settings()
-        voice_id = kwargs.get('voice_id', self.voice_id)
-        print(f"TEST SPEAK with pitch={pitch}, rate={rate}, volume={volume}")
-        self.speak(message)
-    '''
-        
     @hookimpl
     def speak(self, message):
         if self.is_loaded and not self.fallback_only:

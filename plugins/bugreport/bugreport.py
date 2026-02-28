@@ -24,7 +24,7 @@ class Bugreport(Baseplugin):
         if not hasattr(self, 'plugin_folder') or not self.plugin_folder:
             # Assuming plugin_manager or some config holds the base path
             # This might need adjustment based on your actual structure
-            base_plugin_dir = os.path.join(os.getenv('APPDATA'), __appname__, 'plugins')
+            base_plugin_dir = os.path.join(get_appdata_dir(create=True), 'plugins')
             self.plugin_folder = os.path.join(base_plugin_dir, self.__class__.__name__.lower())
             self.logger.info(f"Plugin folder explicitly set to: {self.plugin_folder}")
 

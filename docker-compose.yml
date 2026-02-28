@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  igoor:
+    build: .
+    container_name: igoor
+    ports:
+      - "9714:9714"
+    volumes:
+      - igoor-data:/home/igoor/.igoor
+      # Map local source for development (optional)
+      # - .:/app
+    restart: unless-stopped
+    environment:
+      - PYTHONUNBUFFERED=1
+      # Uncomment for debug mode
+      # - IGOOR_DEBUG=True
+    # For camera/audio access (uncomment if needed):
+    # devices:
+    #   - /dev/video0:/dev/video0
+    #   - /dev/snd:/dev/snd
+
+volumes:
+  igoor-data:
+    driver: local

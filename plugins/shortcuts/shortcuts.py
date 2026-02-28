@@ -18,7 +18,7 @@ async def get_alert_sound():
     """Serve the alerte.wav audio file"""
     try:
         # Get path to the copied alerte.wav file
-        appdata_path = os.getenv('APPDATA')
+        appdata_path = get_appdata_dir(create=True)
         app_name = __import__('version').__appname__
         alert_file_path = os.path.join(appdata_path, app_name, 'web', 'alerte.wav')
         
@@ -26,7 +26,7 @@ async def get_alert_sound():
             return FileResponse(alert_file_path, media_type="audio/wav")
         else:
             # Try fallback to original plugin location
-            from utils import resource_path
+            from utils import resource_path, get_appdata_dir
             fallback_path = resource_path('plugins/shortcuts/alerte.wav')
             if os.path.exists(fallback_path):
                 return FileResponse(fallback_path, media_type="audio/wav")
@@ -90,7 +90,7 @@ class Shortcuts(Baseplugin):
             source_path = os.path.join(self._app_plugin_folder, 'alerte.wav')
             
             # Get APPDATA path and construct /web folder path
-            appdata_path = os.getenv('APPDATA')
+            appdata_path = get_appdata_dir(create=True)
             app_name = __import__('version').__appname__
             web_folder = os.path.join(appdata_path, app_name, 'web')
             

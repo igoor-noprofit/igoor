@@ -6,7 +6,7 @@ import json
 import threading
 from pathlib import Path
 from typing import Dict, Optional, List, Any, Union
-from utils import setup_logger
+from utils import setup_logger, get_appdata_dir
 
 class DatabaseManager:
     _instance = None
@@ -24,10 +24,10 @@ class DatabaseManager:
                 return
                 
             # Setup logger
-            self.logger = setup_logger('db_manager', os.path.join(os.getenv('APPDATA'), __appname__))
+            self.logger = setup_logger('db_manager', get_appdata_dir(create=True))
             
             # Create database file in the app's data directory
-            app_data_path = os.path.join(os.getenv('APPDATA'), __appname__)
+            app_data_path = get_appdata_dir(create=True)
             self.db_path = Path(app_data_path) / "database" / "igoor.db"
             self.db_path.parent.mkdir(parents=True, exist_ok=True)
             

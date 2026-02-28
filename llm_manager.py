@@ -3,13 +3,13 @@ import langchain
 langchain.debug = True  # Enable debug mode for LangChain
 import os, time
 from settings_manager import SettingsManager
-from utils import setup_logger, setup_jsonl_logger
+from utils import setup_logger, get_appdata_dir, setup_jsonl_logger
 
 
 class LLMManager:
     def __init__(self, provider, api_key, model_name, **kwargs):
         # Setup logger
-        self.logger = setup_logger('llm_manager', os.path.join(os.getenv('APPDATA'), __appname__))
+        self.logger = setup_logger('llm_manager', get_appdata_dir(create=True))
         
         self.global_settings = SettingsManager()
         ai = self.global_settings.get_nested(["plugins", "onboarding", "ai"], default={})
@@ -31,7 +31,7 @@ class LLMManager:
         self.chat_instance = self._create_chat()
         self.json_schema = False
         # Setup dedicated logger for LLM invocations
-        self.invocation_logger = setup_jsonl_logger('llm_invocations', os.path.join(os.getenv('APPDATA'), __appname__))
+        self.invocation_logger = setup_jsonl_logger('llm_invocations', get_appdata_dir(create=True))
 
     def _create_chat(self):
         if self.provider == "groq":

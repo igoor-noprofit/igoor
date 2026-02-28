@@ -6,7 +6,7 @@ from langchain_community.document_loaders import TextLoader
 import pymupdf4llm
 from langchain_community.vectorstores import FAISS
 from langchain_text_splitters import CharacterTextSplitter
-from langchain.schema import Document  # Ensure all documents are of this type
+from langchain_core.documents import Document  # Ensure all documents are of this type
 from langchain_community.embeddings import HuggingFaceBgeEmbeddings
 import time,sys, asyncio, threading
 import numpy as np

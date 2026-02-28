@@ -11,14 +11,14 @@ from dotenv import load_dotenv
 load_dotenv()
 from typing import Any
 from status_manager import StatusManager
-from utils import resource_path, setup_logger
+from utils import resource_path, setup_logger, get_appdata_dir
 from websocket_server import websocket_server
 
 IGOOR_DEBUG = os.getenv('IGOOR_DEBUG', 'False') 
 app_name = __appname__
 hookspec = pluggy.HookspecMarker(app_name)
 hookimpl = pluggy.HookimplMarker(app_name)
-logger = setup_logger('pm', os.path.join(os.getenv('APPDATA'), app_name))
+logger = setup_logger('pm', get_appdata_dir(create=True))
 
 class MyAppSpec:
     '''
