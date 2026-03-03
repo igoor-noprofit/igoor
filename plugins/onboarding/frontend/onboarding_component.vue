@@ -542,42 +542,12 @@ export default {
             try {
                 const api = await window.ensureBackendApi();
                 
-                // Construct URL with query parameters
+                // In pywebview, programmatic downloads don't work.
+                // Use window.open() to let pywebview handle the download.
                 const baseUrl = api.isBridgeAvailable ? window.location.origin : 'http://localhost:9714';
-                const url = `${baseUrl}/api/data/export?include_rag=true`;
+                const exportUrl = `${baseUrl}/api/data/export?include_rag=true`;
                 
-                const response = await fetch(url);
-                
-                if (!response.ok) {
-                    throw new Error('Export failed');
-                }
-                
-                // Create blob from response
-                const blob = await response.blob();
-                
-                // Create a download link
-                const downloadUrl = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = downloadUrl;
-                a.style.display = 'none';
-                
-                // Use filename from Content-Disposition header
-                const contentDisposition = response.headers.get('Content-Disposition');
-                const filename = contentDisposition
-                    ? contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/)[1]
-                    : 'igoor_export.zip';
-                
-                a.download = filename;
-                document.body.appendChild(a);
-                
-                // Trigger download in a way that works in all browsers
-                setTimeout(() => a.click(), 100);
-                
-                // Cleanup
-                setTimeout(() => {
-                    document.body.removeChild(a);
-                    window.URL.revokeObjectURL(downloadUrl);
-                }, 200);
+                window.open(exportUrl, '_blank');
             } catch (error) {
                 console.error('Export error:', error);
                 alert(this.t('Failed to export data. Please try again.'));
