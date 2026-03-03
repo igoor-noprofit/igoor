@@ -1,36 +1,15 @@
-FROM python:3.13-slim
+FROM python:3.10-slim
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
 ENV DEBIAN_FRONTEND=noninteractive
+ENV IGOOR_CLI=True
 
-# Install system dependencies for audio and Qt webview
+# Install minimal system dependencies
 RUN apt-get update && apt-get install -y \
-    libxcb-cursor0 \
-    libxcb-xinerama0 \
-    libxcb-xkbcommon0 \
-    libxcb-icccm4 \
-    libxcb-image0 \
-    libxcb-keysyms1 \
-    libxcb-randr0 \
-    libxcb-render-util0 \
-    libxcb-shape0 \
-    libxcb-sync1 \
-    libxcb-xfixes0 \
-    libxcb-xrender0 \
-    libxkbcommon-x11-0 \
-    portaudio19-dev \
-    python3-dev \
     gcc \
-    pkg-config \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install Wayland support (alternative to X11)
-RUN apt-get update && apt-get install -y \
-    libwayland-client0 \
-    libwayland-cursor0 \
-    libwayland-egl1 \
-    libwayland-server0 \
+    python3-dev \
+    portaudio19-dev \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
