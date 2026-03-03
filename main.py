@@ -157,7 +157,6 @@ signal.signal(signal.SIGINT, signal_handler)
 IGOOR_DEBUG = os.getenv('IGOOR_DEBUG', 'False') 
 IGOOR_CLI = os.getenv('IGOOR_CLI', 'False') 
 IGOOR_ONTOP = os.getenv('IGOOR_ONTOP', 'False') 
-IGOOR_OUTPUT_HTML = os.getenv('IGOOR_OUTPUT_HTML', 'False') 
 IGOOR_VERSION_CODENAME = __codename__
 IGOOR_VERSION=__version__
 
@@ -428,8 +427,6 @@ if __name__ == "__main__":
         except Exception:
             pass
         final_html = load_frontend_components(lang=lang)
-        if (IGOOR_OUTPUT_HTML.lower() == 'true'):
-            print(final_html)
         # Finalize splash
         try:
             from status_manager import StatusManager

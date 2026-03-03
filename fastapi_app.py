@@ -5,7 +5,7 @@ import tempfile
 from pathlib import Path
 from typing import Dict, Optional
 
-from fastapi import APIRouter, FastAPI, HTTPException, UploadFile, WebSocket, WebSocketDisconnect, status
+from fastapi import APIRouter, FastAPI, HTTPException, UploadFile, WebSocket, WebSocketDisconnect, status, Query
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from pydantic import BaseModel
 from starlette.staticfiles import StaticFiles
@@ -127,8 +127,8 @@ def create_app() -> FastAPI:
     async def api_get_context():
         return context_manager.get_context()
 
-    @api_router.post("/data/export")
-    async def api_export_data(include_rag: bool = True):
+    @api_router.get("/data/export")
+    async def api_export_data(include_rag: bool = Query(True)):
         """Export user data (settings, database, RAG plugin data) to a ZIP file."""
         try:
             data_manager = DataManager()
@@ -149,7 +149,6 @@ def create_app() -> FastAPI:
     @api_router.post("/data/import")
     async def api_import_data(file: UploadFile, overwrite_settings: bool = False):
         """Import user data from a ZIP file."""
-        from fastapi import UploadFile
         try:
             data_manager = DataManager()
             

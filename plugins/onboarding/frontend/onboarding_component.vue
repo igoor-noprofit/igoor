@@ -68,6 +68,19 @@
                                     </button>
                                 </div>
                             </div>
+                            <div class="dashboard-card">
+                                <span class="card-icon"><i class="ph-light ph-database"></i></span>
+                                <span class="card-label">{{ t("Data Management") }}</span>
+                                <div class="card-sub-shortcuts">
+                                    <button class="shortcut-item btn btn-primary" @click="exportUserData" :disabled="isExporting">
+                                        <span class="shortcut-label">{{ isExporting ? t('Exporting...') : t('Export Data') }}</span>
+                                    </button>
+                                    <input type="file" ref="importFileInput" accept=".zip" @change="importUserData" style="display: none;">
+                                    <button class="shortcut-item btn btn-primary" @click="$refs.importFileInput.click()" :disabled="isImporting">
+                                        <span class="shortcut-label">{{ isImporting ? t('Importing...') : t('Import Data') }}</span>
+                                    </button>
+                                </div>
+                            </div>
                             
                         </div>
                     </div>
@@ -320,6 +333,8 @@ export default {
             showRestartAlert: false,
             selectedPluginForSettings: null, // Holds the plugin object whose settings are being viewed/edited
             selectedPluginComponent: null,   // Holds the dynamically loaded settings component for a plugin
+            isExporting: false,
+            isImporting: false,
             currentPluginInitialSettings: {}, // Holds initial settings to pass as prop
             viewingPluginSettings: false,     // Controls visibility of plugin-specific settings view
             showUnsavedChangesModal: false,  // Controls visibility of unsaved changes confirmation modal
@@ -521,6 +536,106 @@ export default {
             // const langCode = this.prefs.lang ? this.prefs.lang.split('_')[0] : 'en';
             // const docUrl = `https://igoor-noprofit.github.io/docs/${langCode}`;
             window.open('https://forms.gle/GSN17WHFEN8dbuTGA', '_blank');
+        },
+        async exportUserData() {
+            this.isExporting = true;
+            try {
+                const api = await window.ensureBackendApi();
+                
+                // Construct URL with query parameters
+                const baseUrl = api.isBridgeAvailable ? window.location.origin : 'http://localhost:9714';
+                const url = `${baseUrl}/api/data/export?include_rag=true`;
+                
+                const response = await fetch(url);
+                
+                if (!response.ok) {
+                    throw new Error('Export failed');
+                }
+                
+                // Create blob from response
+                const blob = await response.blob();
+                
+                // Create a download link
+                const downloadUrl = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = downloadUrl;
+                a.style.display = 'none';
+                
+                // Use filename from Content-Disposition header
+                const contentDisposition = response.headers.get('Content-Disposition');
+                const filename = contentDisposition
+                    ? contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/)[1]
+                    : 'igoor_export.zip';
+                
+                a.download = filename;
+                document.body.appendChild(a);
+                
+                // Trigger download in a way that works in all browsers
+                setTimeout(() => a.click(), 100);
+                
+                // Cleanup
+                setTimeout(() => {
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(downloadUrl);
+                }, 200);
+            } catch (error) {
+                console.error('Export error:', error);
+                alert(this.t('Failed to export data. Please try again.'));
+            } finally {
+                this.isExporting = false;
+            }
+        },
+        async importUserData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            this.isImporting = true;
+            
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('overwrite_settings', 'false');
+                
+                const api = await window.ensureBackendApi();
+                const response = await fetch('/api/data/import', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok || !data.success) {
+                    throw new Error(data.message || 'Import failed');
+                }
+                
+                let message = this.t('Data imported successfully!');
+                
+                if (data.warnings && data.warnings.length > 0) {
+                    message += '\n\n' + this.t('Warnings:') + '\n' + data.warnings.join('\n');
+                }
+                
+                if (data.version_info) {
+                    const versionText = this.t('Imported from version') + `: ${data.version_info.igoor_version}\n` + 
+                                      this.t('Export date') + `: ${data.version_info.export_timestamp}`;
+                    message += '\n\n' + versionText;
+                }
+                
+                alert(message);
+                
+                // Reset the file input
+                this.$refs.importFileInput.value = '';
+                
+                // Reload settings to get updated data
+                if (api && typeof api.triggerHook === 'function') {
+                    await api.triggerHook('global_settings_updated');
+                }
+                
+            } catch (error) {
+                console.error('Import error:', error);
+                alert(this.t('Failed to import data. Please try again.') + '\n' + error.message);
+            } finally {
+                this.isImporting = false;
+            }
         },
         findPlugin(pluginName) {
             for (const category of Object.values(this.pluginData)) {
