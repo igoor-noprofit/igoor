@@ -210,6 +210,16 @@ class DatabaseManager:
             return [{"lastrowid": cursor.lastrowid}]
         return None
 
+    def close_all_connections(self):
+        """Explicitly close all database connections"""
+        with self._lock:
+            for thread_id, conn in list(self.connections.items()):
+                try:
+                    conn.close()
+                except:
+                    pass
+            self.connections.clear()
+
     def __del__(self):
         """Clean up database connections"""
         with self._lock:
