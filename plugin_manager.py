@@ -244,6 +244,16 @@ class MyAppSpec:
     async def clean_short_term_memory(self, clean_after_days:int):        
         pass
     
+    @pluggy.HookspecMarker(app_name)
+    async def data_imported(self, backup_path: str = None):
+        """
+        Hook for plugins to react when user data is imported.
+        
+        Args:
+            backup_path (str): Path to the backup created during import.
+        """
+        pass
+    
     '''
         ************ AUTOCOMPLETE **************
     '''
