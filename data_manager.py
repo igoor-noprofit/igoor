@@ -297,6 +297,15 @@ class DataManager:
                 
                 self.logger.info("Import completed successfully")
                 
+                # Import hook - let plugins know data was imported
+                try:
+                    from plugin_manager import PluginManager
+                    pm = PluginManager()
+                    asyncio.run(pm.trigger_hook("data_imported", backup_path=backup_path))
+                    self.logger.info("Triggered data_imported hook")
+                except Exception as e:
+                    self.logger.warning(f"Could not trigger data_imported hook: {e}")
+                
                 return {
                     "success": True,
                     "message": "Import completed successfully",
