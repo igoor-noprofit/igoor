@@ -4,10 +4,12 @@ import json
 import zipfile
 import tempfile
 import shutil
+import time
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, List, Optional, Union
 from utils import get_appdata_dir, setup_logger, resource_path
+from db_manager import DatabaseManager
 
 
 class DataManager:
@@ -263,10 +265,28 @@ class DataManager:
                 # Restore database folder
                 import_db_path = temp_path / "database"
                 if import_db_path.exists():
-                    if os.path.exists(current_db_folder):
-                        shutil.rmtree(current_db_folder)
-                    shutil.copytree(import_db_path, current_db_folder)
-                    self.logger.info("Database folder restored")
+                    # Close all database connections before replacing database
+                    try:
+                        db_manager = DatabaseManager()
+                        db_manager.close_all_connections()
+                        self.logger.info("Database connections closed")
+                    except Exception as e:
+                        self.logger.warning(f"Could not close database connections: {e}")
+                    
+                    # Small delay to ensure all file handles are released
+                    import time
+                    time.sleep(0.5)
+                    
+                    # Now it's safe to replace the database folder
+                    try:
+                        if os.path.exists(current_db_folder):
+                            shutil.rmtree(current_db_folder)
+                        shutil.copytree(import_db_path, current_db_folder)
+                        self.logger.info("Database folder restored")
+                    except OSError as e:
+                        # Handle file in use errors specifically
+                        self.logger.error(f"Failed to restore database: {e}")
+                        raise Exception(f"Database file is in use. Please restart IGOOR and try again.") from e
                 
                 # Restore RAG folder
                 if imported_rag_path.exists():
