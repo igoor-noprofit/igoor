@@ -181,6 +181,12 @@ NOTE: Because of its high WER compared to Whisper and Voxtral, we recommend usin
 
 VOSK will be probably deprecated in favor of a local fasterwhisper model.
 
+# PYWEBVIEW: cache problems after updating version
+If you have problems with cache but only in Pywebview window (as opposed to localhost:9714), delete this folder :
+
+```
+C:\Users\<user_name>\AppData\Roaming\pywebview\EBWebView
+```
 
 ## CREATE AN EXECUTABLE
 
