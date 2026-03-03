@@ -76,7 +76,7 @@
                                         <span class="shortcut-label">{{ isExporting ? t('Exporting...') : t('Export Data') }}</span>
                                     </button>
                                     <input type="file" ref="importFileInput" accept=".zip" @change="importUserData" style="display: none;">
-                                    <button class="shortcut-item btn btn-primary" @click="$refs.importFileInput.click()" :disabled="isImporting">
+                                    <button class="shortcut-item btn btn-primary warning" @click="$refs.importFileInput.click()" :disabled="isImporting">
                                         <span class="shortcut-label">{{ isImporting ? t('Importing...') : t('Import Data') }}</span>
                                     </button>
                                 </div>
@@ -1308,6 +1308,10 @@ button:disabled {
 
 a.extlink {
     color: #fff;
+}
+
+.btn-primary.warning{
+    background-color: var(--basecolor-warning-500) !important;
 }
 
 .breadcrumb-home {
