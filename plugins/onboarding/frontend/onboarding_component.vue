@@ -1327,12 +1327,17 @@ a.extlink {
 /* Dashboard Styles */
 .dashboard-container {
     padding: 20px 0;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
 }
 
 .dashboard-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: repeat(auto-fill, 1fr);
     gap: 15px;
+    height: 100%;
 }
 
 .dashboard-category {
@@ -1348,7 +1353,7 @@ a.extlink {
     align-items: center;
     justify-content: space-between;
     cursor: pointer;
-    min-height: 160px;
+    min-height: unset;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
     gap: 15px;
 }
