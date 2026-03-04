@@ -83,6 +83,34 @@ body {
   padding-right: 1rem;
   /* Add some padding from the right edge */
 }
+#topbar .boot-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 260px;
+  transition: opacity 0.4s ease;
+}
+#topbar .boot-progress--fade {
+  opacity: 0;
+}
+#topbar .boot-progress__label {
+  color: #ccc;
+  font-size: 12px;
+  white-space: nowrap;
+}
+#topbar .boot-progress__bar {
+  width: 160px;
+  height: 6px;
+  background: #333;
+  border-radius: 4px;
+  overflow: hidden;
+}
+#topbar .boot-progress__fill {
+  height: 100%;
+  background: #0095c0;
+  width: 0%;
+  transition: width 0.3s ease;
+}
 #topbar .topbar-center {
   padding: 0 1rem;
   /* Add some padding around the logo */
@@ -430,9 +458,6 @@ footer.shrink {
   width: 120px;
   z-index: 0;
   box-shadow: 0rem 0.125rem 0.375rem 0rem rgba(0, 0, 0, 0.4);
-}
-.flow-plugin .abandon.expanded {
-  margin-top: 50vh;
 }
 .flow-plugin input {
   color: #fff;
