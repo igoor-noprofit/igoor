@@ -209,7 +209,7 @@ module.exports = {
 .msg {
     background-color: #2F535B !important;
     align-self: flex-end; /* Right side by default */
-    max-width: 70%;
+    max-width: 40%;
     position: relative;
 }
 
