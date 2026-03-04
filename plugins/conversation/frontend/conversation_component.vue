@@ -170,12 +170,17 @@ module.exports = {
         }
     },
     watch: {
-        thread() {
+        thread(newThread, oldThread) {
             console.log("thread has changed");
             this.$nextTick(() => {
                 this.scrollToBottom();
                 this.checkScrollableOverflow();
             });
+
+            if (newThread.length === 0 && oldThread && oldThread.length > 0) {
+                this.isExpanded = false;
+                this.$root.toggleHeaderExpansion(false);
+            }
         },
         appview(newView) {
             if (newView === 'autocomplete') {
