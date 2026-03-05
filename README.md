@@ -1,5 +1,7 @@
 <img src="img/logo_fb.png" alt="logo IGOOR" witdh="600">
 
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+
 # IGOOR
 
 **IGOOR is an open-source and free (GPLv3) conversational application based on AI, designed to provide people with ALS/MND diseases a smooth and natural means of communication.** 
