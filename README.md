@@ -5,7 +5,7 @@
 **IGOOR is an open-source and free (GPLv3) conversational application based on AI, designed to provide people with ALS/MND diseases a smooth and natural means of communication.** 
 Its interface makes it easy-to-use also via eye-tracking device.
 
-<img src="./img/logo_fb.png" alt="logo IGOOR" width="600">
+<img src="./img/logo_fb.png" alt="logo IGOOR" width="400">
 
 Take a look at the [IGOOR website](https://igoor.org/en) for further infos about our core principles, values and software roadmap.
 
