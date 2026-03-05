@@ -1,4 +1,4 @@
-![Image](img/logo_fb.png)
+<img src="img/logo_fb.png">
 
 # IGOOR
 
