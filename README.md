@@ -2,20 +2,28 @@
 
 # IGOOR
 
-**IGOOR is an open-source and free (GPLv3) conversational application based on AI, Designed to provide people with ALS/MND diseases a smooth and natural means of communication.** 
+**IGOOR is an open-source and free (GPLv3) conversational application based on AI, designed to provide people with ALS/MND diseases a smooth and natural means of communication.** 
 Its interface makes it easy-to-use also via eye-tracking device.
 
 Take a look at the [IGOOR website](https://igoor.org/en) for further infos about our core principles, values and software roadmap.
 
 IGOOR has been developed in partnership with [ARSLA](https://www.arsla.org/).
 
-Also please take a look at the [IGOOR docs](https://igoor-noprofit.github.io/docs/). Documentation is ongoing. 
+
+## DOCUMENTATION
+
+Documentation is ongoing. We strive to keep it up to date with latest functionalities.
+
+English : [IGOOR docs](https://igoor-noprofit.github.io/docs/)
+French : [Documentation IGOOR](https://igoor-noprofit.github.io/docs/fr/)
 
 ## REQUIREMENTS
 
-### OS 
-
-**Microsoft Windows. Tested on Windows 10 and 11.**
+- Windows 10/11 (PC or tablet)
+- Minimum resolution: 1280,960
+- Recommended resolution: 1920x1080 or more
+- Internet connection (preferably optic fiber or ADSL)
+- A Groq API key
 
 ### Microsoft © Edge WebView2 Runtime
 
@@ -25,12 +33,13 @@ You can download it here:
 
 https://developer.microsoft.com/en-us/microsoft-edge/webview2?form=MA13LH#download
 
-NOTE: IGOOR installers sistematically include the runtime.
+**NOTE: IGOOR installers sistematically include the runtime. 
+Download latest executable from :
+
+https://github.com/igoor-noprofit/igoor/releases/download/latest/IGOOR.exe
+**
+
 Microsoft Edge WebView2 Runtime is © Microsoft Corporation.
-
-### INTERNET CONNECTION
-
-While we are working on a fully local, offline-first version, as of now the software only works with a working Internet connection.
 
 ### AI INFERENCE PROVIDER
 
@@ -50,12 +59,11 @@ The embedding model from HuggingFace currently requires 1.15Gb on disk.
 
 The app should take less than 3Gb.
 
-### FFMPEG (TO BE VERIFIED)
+### FFMPEG
 
 As of now, TTS plugin for Speechify requires ffmpeg, and that the path to ffmpeg\bin folder be included in the system PATH environment variable.
 
-NOTE: Complete IGOOR installers include ffmpeg and automatically set the env variable.
-
+**NOTE: IGOOR installers include ffmpeg and automatically set the env variable.**
 
 ### PYTHON
 
@@ -92,7 +100,6 @@ Rename environment variables:
 rename .env-example .env
 ```
 
-
 ## USER'S DATA FOLDER
 
 User's data folder is automatically created inside userAppDataFolder (on Windows is usually C:/Users/YourUsername/AppData/).
@@ -104,18 +111,6 @@ C:/Users/YourUsername/AppData/Roaming/igoor/
 
 The folder contains a settings.json and a plugins data folder, called "plugins".
 
-
-### Static Knowledge Base from patient documents (RAG, RetrievalAugmentedGeneration)
-
-Documents in IGOOR_FOLDER/plugins/rag/medias/ are scanned by the RAG plugin.
-
-Allowed formats:
-.pdf
-.txt
-.md
-
-If the index folder (IGOOR_FOLDER/plugins/rag/faiss_index) does not exist, but the medias folder do exist and it's not empty, at startup the plugin will create or update the index by ingesting all the (new) documents in the medias folder.
-
 ### EMBEDDING MODELS FOR RAG
 
 Embedding models for RAG are downloaded automatically in their folders.
@@ -125,14 +120,14 @@ On Win, this is at:
 C:\Users\YourUsername\.cache\huggingface\hub
 ```
 
-Other models can be saved in this folder (speechbrain, fasterwhisper etc.)
+Other models can be saved in this folder.
 
 ## LAUNCH
 
 *EXPERIMENTAL*: You can now launch IGOOR in CLI mode (IGOOR_CLI=True in .env), which is a headless mode you can access with the browser at http://127.0.0.1:9714/ (via FastAPI). As of now this is mostly for easier debug with VueDevTools, agents etc.
 
 Default mode is inside pywebview webedge window (IGOOR_CLI=False).
-PLEASE NOTE: Opening inside pywebview AND external browser will yield unwantend sync between the two clients.
+PLEASE NOTE: Opening inside both pywebview AND external browser will yield unwantend sync between the two clients.
 
 ```
 python main.py
@@ -178,8 +173,7 @@ In this case the final path is :
 IGOOR_FOLDER/plugins/asrvosk/models/language/model_size
 
 NOTE: Because of its high WER compared to Whisper and Voxtral, we recommend using Vosk only if audio privacy is paramount.
-
-VOSK will be probably deprecated in favor of a local fasterwhisper model.
+VOSK will be probably deprecated in favor of another ASR model.
 
 # PYWEBVIEW: cache problems after updating version
 If you have problems with cache but only in Pywebview window (as opposed to localhost:9714), delete this folder :
@@ -226,11 +220,7 @@ venv\scripts\Activate
 .\create_installable.bat
 ```
 
-It will ask you :
-
-========================================
-IGOOR Build Menu
-========================================
+It will ask you if you want to:
 
 1) Create only the exe file
 2) Create exe file AND installer
