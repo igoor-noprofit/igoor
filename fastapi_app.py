@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import os
+import tempfile
 from pathlib import Path
 from typing import Dict, Optional
 
-from fastapi import APIRouter, FastAPI, HTTPException, WebSocket, WebSocketDisconnect, status
+from fastapi import APIRouter, FastAPI, HTTPException, UploadFile, WebSocket, WebSocketDisconnect, status, Query
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from pydantic import BaseModel
 from starlette.staticfiles import StaticFiles
@@ -20,6 +21,7 @@ from websocket_server import websocket_server
 from plugin_manager import PluginManager
 from settings_manager import SettingsManager
 from context_manager import context_manager
+from data_manager import DataManager
 
 
 class UpdateSettingsPayload(BaseModel):
@@ -124,6 +126,62 @@ def create_app() -> FastAPI:
     @api_router.get("/context")
     async def api_get_context():
         return context_manager.get_context()
+
+    @api_router.get("/data/export")
+    async def api_export_data(include_rag: bool = Query(True)):
+        """Export user data (settings, database, RAG plugin data) to a ZIP file."""
+        try:
+            data_manager = DataManager()
+            result = data_manager.export_user_data(include_rag=include_rag)
+            
+            if not result.get("success"):
+                raise HTTPException(status_code=500, detail=result.get("message"))
+            
+            zip_path = result.get("file_path")
+            return FileResponse(
+                zip_path,
+                media_type="application/zip",
+                filename=os.path.basename(zip_path)
+            )
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    @api_router.post("/data/import")
+    async def api_import_data(file: UploadFile, overwrite_settings: bool = False):
+        """Import user data from a ZIP file."""
+        try:
+            data_manager = DataManager()
+            
+            # Save uploaded file to temp location
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".zip") as temp_file:
+                content = await file.read()
+                temp_file.write(content)
+                temp_file_path = temp_file.name
+            
+            try:
+                result = data_manager.import_user_data(temp_file_path, overwrite_settings=overwrite_settings)
+                
+                if not result.get("success"):
+                    raise HTTPException(status_code=500, detail=result.get("message"))
+                
+                # Reload settings to notify all plugins
+                settings_manager.load_and_notify(plugin_manager)
+                
+                return {
+                    "success": True,
+                    "message": result.get("message"),
+                    "warnings": result.get("warnings", []),
+                    "version_info": result.get("version_info")
+                }
+            finally:
+                # Clean up temp file
+                if os.path.exists(temp_file_path):
+                    os.unlink(temp_file_path)
+                    
+        except HTTPException:
+            raise
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
 
     app.include_router(api_router)
 

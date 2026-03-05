@@ -84,5 +84,17 @@
   "Browse Documentation": "Voir la documentation",
   "Give your feedback": "Donner votre avis",
   "Help": "Aide",
-  "Configure cloud speech recognition (Whisper)": "Configurer la reconnaissance vocale dans le cloud (Whisper)"
+  "Configure cloud speech recognition (Whisper)": "Configurer la reconnaissance vocale dans le cloud (Whisper)",
+  "Data Management": "Gestion des données",
+  "Export Data": "Exporter les données",
+  "Import Data": "Importer les données",
+  "Exporting...": "Exportation en cours...",
+  "Importing...": "Importation en cours...",
+  "Data exported successfully!": "Données exportées avec succès !",
+  "Data imported successfully!": "Données importées avec succès !",
+  "Failed to export data. Please try again.": "Échec de l'exportation des données. Veuillez réessayer.",
+  "Failed to import data. Please try again.": "Échec de l'importation des données. Veuillez réessayer.",
+  "Warnings:": "Avertissements :",
+  "Imported from version:": "Importé depuis la version :",
+  "Export date:": "Date d'export :"
 }

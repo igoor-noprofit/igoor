@@ -1,5 +1,5 @@
 <template>
-    <div class="autocomplete plugin" v-show="appview == 'autocomplete'">
+    <div class="autocomplete plugin">
         <button class="btn btn-side btn-side-left" @click="$_deleteText()" :disabled="!userInput.trim()"> 
             <svg class="icon icon-l">
                 <use xlink:href="/img/svgdefs.svg#icon-close" />
@@ -17,16 +17,22 @@
             </div>
 
             <!-- Input and suggestions -->
-            <div v-else class="input-container">
-                <!--button class="btn paste-btn" @click="$_pasteFromClipboard"
-                    :disabled="isLoading || error" title="Coller">
-                    <svg class="icon icon-l">
-                        <use xlink:href="img/svgdefs.svg#icon-paste"></use>
-                    </svg>
-                </button-->
-                <input type="text" v-model="userInput" autocomplete="off" spellcheck="true" name="autocomplete"
-                    placeholder="" ref="autocompleteInput" :disabled="isLoading || error" @focus="$_showKeyboard">
+            <div v-else class="input-container" ref="autocompleteInput" 
+                 @click="$_focusInput" 
+                 @focus="$_onFocus" 
+                 @blur="$_onBlur"
+                 @keydown="$_handleKeydown"
+                 tabindex="0">
+                <span class="typed-text">{{ userInput }}</span><span class="cursor" v-if="isFocused">|</span>
+                <button v-for="(pred, idx) in shortPredictions" 
+                        :key="idx"
+                        class="inline-prediction btn btn-primary" 
+                        @click.stop="$_applyPrediction(idx)">
+                    {{ pred.trimStart() }}
+                </button>
+                <span v-if="!userInput && shortPredictions.length === 0" class="placeholder">{{ t('say something...') }}</span>
             </div>
+
         </div>
 
       
@@ -39,7 +45,7 @@
         </button>
     </div>
     <!------------------------------ VIRTUAL KEYBOARD ------------------------>
-    <div class="keyboard" v-show="showKeyboard && appview == 'autocomplete'">
+    <div class="keyboard" v-show="showKeyboard">
         <button class="btn btn-side btn-side-left btn-side-hilite" @click="$_deleteLastWord" style="color: white;">
             <svg class="icon icon-l" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
                 <g fill="none" stroke="#ffffff">
@@ -105,7 +111,10 @@ module.exports = {
             retryCount: 0,
             maxRetries: 3,
             showKeyboard: false,
-            allowVirtualKeyboard: false
+            allowVirtualKeyboard: false,
+            shortPredictions: [],
+            shortPredictionTimeout: null,
+            isFocused: false
         }
     },
     async mounted() {
@@ -135,6 +144,14 @@ module.exports = {
         $_hideKeyboard() {
             this.showKeyboard = false;  // Changed from isInputFocused
         },
+        $_onFocus() {
+            this.isFocused = true;
+            this.sendMsgToBackend({action: "input_focused"});
+        },
+        $_onBlur() {
+            this.isFocused = false;
+            this.sendMsgToBackend({action: "input_blurred"});
+        },
         $_deleteText(){
             this.$_reset();
             this.$_focusInput();
@@ -146,12 +163,68 @@ module.exports = {
             this.$_reset();
         },
         $_focusInput() {
-            this.$refs.autocompleteInput.focus();
+            if (this.$refs.autocompleteInput) {
+                this.$refs.autocompleteInput.focus();
+            }
         },
         $_reset() {
             this.wordSuggestions = [];
             this.userInput = '';
+            this.shortPredictions = [];
             this.$_hideKeyboard();
+        },
+        async $_fetchShortPredictions() {
+            if (!this.userInput || this.userInput.trim().length < 2) {
+                this.shortPredictions = [];
+                return;
+            }
+            
+            try {
+                const response = await this.callPluginRestEndpoint('autocomplete', 'short-predictions', {
+                    method: 'POST',
+                    data: { input: this.userInput }
+                });
+                this.shortPredictions = response.predictions || [];
+            } catch (e) {
+                console.error('Error fetching short predictions:', e);
+                this.shortPredictions = [];
+            }
+        },
+        $_applyPrediction(index) {
+            if (this.shortPredictions[index]) {
+                const prediction = this.shortPredictions[index];
+                // Store the input and completion before updating userInput
+                const inputText = this.userInput;
+                const completion = prediction + ' ';
+                console.log('Storing prediction:', inputText, '->', completion);
+                // Send to backend to store the prediction
+                this.sendMsgToBackend({
+                    action: "prediction_selected",
+                    input: inputText,
+                    completion: completion
+                });
+                // Prediction already includes leading space if needed
+                this.userInput += completion;
+                this.shortPredictions = [];
+                // Restore focus
+                this.$_focusInput();
+                // Trigger full sentence prediction (LLM)
+                this.predictFullSentence(this.userInput);
+            }
+        },
+        $_handleKeydown(event) {
+            // Handle keyboard input for the div-based input field
+            if (event.key === 'Backspace') {
+                this.userInput = this.userInput.slice(0, -1);
+                event.preventDefault();
+            } else if (event.key.length === 1 && !event.ctrlKey && !event.metaKey) {
+                // Regular character input
+                this.userInput += event.key;
+                event.preventDefault();
+            } else if (event.key === 'Enter') {
+                this.$_speakInput();
+                event.preventDefault();
+            }
         },
         async loadDictionary() {
             this.isLoading = true;
@@ -195,6 +268,22 @@ module.exports = {
                 return "Erreur de chargement du dictionnaire. Format invalide.";
             }
             return "Erreur de chargement du dictionnaire. Veuillez réessayer.";
+        },
+        handleIncomingMessage(event) {
+            // First let base component handle common cases
+            const handled = BasePluginComponent.methods.handleIncomingMessage.call(this, event);
+            if (handled) return true;
+            
+            try {
+                const data = JSON.parse(event.data);
+                if (data.action === 'clear') {
+                    this.$_reset();
+                    return true;
+                }
+            } catch (e) {
+                console.warn("Error parsing message in autocomplete:", e);
+            }
+            return false;
         },
 
         predictWords(input) {
@@ -256,16 +345,6 @@ module.exports = {
         }
     },
     watch: {
-        appview(newView, oldView) {
-            console.log('oldView ' + oldView + ' newView ' + newView);
-            if (oldView != 'autocomplete' && newView == 'autocomplete') {
-                this.$_reset();
-                this.$_showKeyboard();
-                this.$nextTick(() => {
-                    this.$_focusInput();  // Focus input after Vue has updated the DOM
-                });
-            }
-        },
         userInput(newInput, oldInput) {
             // Word suggestions
             if (newInput && !this.isLoading && !this.error) {
@@ -273,17 +352,38 @@ module.exports = {
             } else {
                 this.wordSuggestions = [];
             }
-            // Full sentence prediction when space is added
-            if (newInput.endsWith(' ') && !oldInput.endsWith(' ')) {
-                // Clear any pending timeout
+            
+            // Short predictions with debouncing
+            if (this.shortPredictionTimeout) {
+                clearTimeout(this.shortPredictionTimeout);
+            }
+            
+            const isSpaceAdded = newInput.endsWith(' ') && !oldInput.endsWith(' ');
+            
+            // Fetch short predictions if input is long enough
+            if (newInput && newInput.trim().length >= 2) {
+                if (isSpaceAdded) {
+                    // Immediate fetch when space is added (faster, local)
+                    this.$_fetchShortPredictions();
+                } else {
+                    // Debounce during rapid typing
+                    this.shortPredictionTimeout = setTimeout(() => {
+                        this.$_fetchShortPredictions();
+                    }, 150);
+                }
+            } else {
+                this.shortPredictions = [];
+            }
+            
+            // Full sentence prediction when space is added (LLM, slower)
+            // Delay slightly to let short predictions render first
+            if (isSpaceAdded) {
                 if (this.predictionTimeout) {
                     clearTimeout(this.predictionTimeout);
                 }
-
-                // Set new timeout for prediction
                 this.predictionTimeout = setTimeout(() => {
                     this.predictFullSentence(newInput);
-                }, 500); // Wait 500ms after space to predict
+                }, 100);
             }
         }
     }
@@ -324,12 +424,25 @@ module.exports = {
 }
 
 .autocomplete.plugin {
-    width: 100%; 
+    height: 10vh;
 }
 
+.answers{
+    border: 1px solid #0ff;
+}
 .answers .msg {
     margin-bottom: 10px;
 }
+
+.btn-side{
+    position: relative;
+    height: auto !important;
+    min-width: 120px;
+    max-width: 120px;
+    width: 120px;
+    flex-shrink: 0;
+}
+
 
 .btn-side-left:disabled {
     opacity: 1;
@@ -356,11 +469,54 @@ button {
     cursor: pointer;
 }
 .input-container{
-    height: 50%;
+    height: 100%;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 0 12px;
+    min-height: 48px;
+    cursor: text;
+    outline: none;
+    color: #fff;
+    background-color: #28373b;
 }
 .input-container input{
     height: 100% !important;
-    min-height: 50px;
-    border: 1px solid #999 !important;
+}
+.typed-text {
+    color: #fff;
+    white-space: pre;
+}
+.cursor {
+    color: #0095c0;
+    animation: blink 1s infinite;
+    font-weight: bold;
+}
+@keyframes blink {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0; }
+}
+.placeholder {
+    color: #999;
+    font-style: italic;
+}
+.inline-prediction {
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 14px;
+    margin-left: 8px;
+    font-size: 1em;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+.inline-prediction:hover {
+    background: #0095c0;
+    transform: scale(1.02);
+}
+.inline-prediction:active {
+    background: #23515b;
 }
 </style>

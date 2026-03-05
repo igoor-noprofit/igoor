@@ -32,6 +32,7 @@ class Ramcpu(Baseplugin):
             }
         }
         self.send_message_to_frontend(initial_settings)
+        self.mark_ready()
 
     @hookimpl
     def gui_ready(self):

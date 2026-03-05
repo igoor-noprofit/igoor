@@ -72,13 +72,15 @@ class LLMManager:
         """Returns a chat instance with tools explicitly disabled."""
         return self.chat_instance.bind(tool_choice="none")
     
-    def invoke(self, system_prompt, prompt, retries=3):
+    def invoke(self, system_prompt, prompt, retries=3, reasoning_effort=None):
         import json
         attempt = 0
         last_exception = None
         while attempt < retries:
             try:
                 reasoning_log_content = ""  # Initialize reasoning_log_content
+                # GPT-OSS models use include_reasoning, not reasoning_format
+                is_gpt_oss = self.model_name in ["openai/gpt-oss-120b", "openai/gpt-oss-20b"]
                 if self.provider == "groq" and self.json_schema and hasattr(self, "schema_model"):
                     # Import Groq SDK at runtime
                     from groq import Groq
@@ -89,12 +91,10 @@ class LLMManager:
                         {"role": "user", "content": prompt}
                     ]
                     schema = self.schema_model
-                    if self.model_name in ["openai/gpt-oss-120b", "openai/gpt-oss-20b"]:
-                        reasoning_format = "parsed"
-                    else:
-                        reasoning_format = None
 
-                    if self.model_name == "llama-3.3-70b-versatile":
+                    if self.model_name == "llama-3.3-70b-versatile" or is_gpt_oss:
+                        # Use json_object mode - more compatible with reasoning models
+                        # GPT-OSS reasoning + json_schema doesn't work reliably
                         response_format={
                             "type": "json_object"
                         }
@@ -113,14 +113,15 @@ class LLMManager:
                         "temperature": self.temperature,
                         "response_format": response_format
                     }
-                    if reasoning_format is not None:
-                        call_args["reasoning_format"] = reasoning_format
-                        call_args["reasoning_effort"] = self.reasoning_effort
+                    # Note: GPT-OSS reasoning + JSON schema mode doesn't work reliably
+                    # If user wants reasoning, they should use a non-reasoning model or accept JSON mode without schema
                     response = client.chat.completions.create(**call_args)
                     raw_content = response.choices[0].message.content
-                    if reasoning_format == "parsed":
+                    if is_gpt_oss and hasattr(response.choices[0].message, 'reasoning') and response.choices[0].message.reasoning:
                         reasoning_log_content = response.choices[0].message.reasoning
-                        print (f"REASONING: {response.choices[0].message.reasoning}") 
+                        print(f"REASONING: {response.choices[0].message.reasoning}")
+                    if not raw_content:
+                        raise ValueError("Model returned empty content") 
                     print("Groq raw model output:", raw_content)
                     raw_result = json.loads(raw_content or "{}")
                     result = schema.model_validate(raw_result)
@@ -150,6 +151,9 @@ class LLMManager:
                     "sys": system_prompt[:80],
                     "usr": prompt
                 }
+                # Add reasoning_effort if used (GPT-OSS models)
+                if is_gpt_oss:
+                    log_data["re"] = reasoning_effort if reasoning_effort is not None else self.reasoning_effort
                 # Add reasoning_log_content if it's not empty
                 if reasoning_log_content:
                     log_data["reason"] = reasoning_log_content
@@ -182,6 +186,17 @@ class LLMManager:
                         wait_time = int(minutes) * 60 + float(seconds)
 
                     self.logger.warning(f"Rate limit reached. Suggested wait time: {wait_time} seconds")
+                    # Log the error to JSONL
+                    self.invocation_logger.info({
+                        "p": self.provider,
+                        "m": self.model_name,
+                        "t": self.temperature,
+                        "sys": system_prompt[:80],
+                        "usr": prompt,
+                        "error": True,
+                        "err_type": "RateLimitError",
+                        "wait_time": wait_time
+                    })
                     return {
                         "error": True,
                         "type": "RateLimitError",
@@ -197,6 +212,17 @@ class LLMManager:
                     time.sleep(delay)
                 else:
                     self.logger.error("Max retries reached.")
+                    # Log the error to JSONL
+                    self.invocation_logger.info({
+                        "p": self.provider,
+                        "m": self.model_name,
+                        "t": self.temperature,
+                        "sys": system_prompt[:80],
+                        "usr": prompt,
+                        "error": True,
+                        "err_type": type(last_exception).__name__,
+                        "err_msg": error_message[:200]
+                    })
                     return {
                         "error": True,
                         "message": error_message,

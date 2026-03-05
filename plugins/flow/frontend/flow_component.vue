@@ -14,16 +14,25 @@
         <div class="answers" :class="`view-${appview}`">
             <div class="row columns">
                 <div v-for="col in ['left', 'center', 'right']" :key="col" :class="['column', col]">
-                    <div v-for="(msg, idx) in answers[col]" :key="col + '-' + idx" class="msg msg-small"
-                        @click="$_chooseAnswer(msg, idx, col)">
-                        {{ msg }}
+                    <div v-if="appview !== 'autocomplete' && answers[col].length > 0" class="column-mood-icon">
+                        <svg class="icon icon-m">
+                            <use :xlink:href="'/img/svgdefs.svg#' + moodIcons[col]"></use>
+                        </svg>
+                    </div>
+                    <div v-for="(msg, idx) in answers[col]" :key="col + '-' + idx" class="msg-row">
+                        <div :class="['msg', 'msg-small', { editing: editingKey === col + '-' + idx }]"
+                            :contenteditable="editingKey === col + '-' + idx" :ref="'msg-' + col + '-' + idx"
+                            @click="$_chooseAnswer(msg, idx, col)" @keydown.enter.prevent="$_speakEdited(col, idx)">
+                            {{ msg }}
+                        </div>
+                        <button class="btn-edit rounded" @click.stop="$_toggleEdit(col, idx)"
+                            :title="editingKey === col + '-' + idx ? t('Speak edited phrase') : t('Edit phrase')">
+                            <svg class="icon icon-m">
+                                <use xlink:href="/img/svgdefs.svg#icon-pencil"></use>
+                            </svg>
+                        </button>
                     </div>
                 </div>
-                <!--a class="autocompletelauncher msg msg-small" @click="$_showAutocomplete()"
-                    v-show="appview != 'autocomplete'">
-                    <img src="/img/icons/src/keyboard.svg" />
-                    <img src="/img/icons/src/more.svg" />
-                </a-->
             </div>
         </div>
 
@@ -43,7 +52,17 @@ module.exports = {
             answersRaw: [],
             answers: { left: [], center: [], right: [] },
             waitingai: true,
-            currentInput: ""
+            currentInput: "",
+            editingKey: null
+        }
+    },
+    computed: {
+        moodIcons() {
+            return {
+                left: 'icon-sun-high',
+                center: 'icon-cloud',
+                right: 'icon-cloud-rain'
+            };
         }
     },
     methods: {
@@ -61,6 +80,7 @@ module.exports = {
             this.answersRaw = [];
             this.answers = { left: [], center: [], right: [] };
             this.currentInput = "";
+            this.editingKey = null;
         },
         handleIncomingMessage(event) {
             const handled = BasePluginComponent.methods.handleIncomingMessage.call(this, event);
@@ -105,16 +125,49 @@ module.exports = {
                         this.currentInput = "";
                     }
                     this.selectedCard = null;
+                    this.editingKey = null;
                 }
             } catch (e) {
                 console.warn("Error parsing JSON in FLOW component");
             }
         },
         async $_chooseAnswer(msg, idx, col) {
+            // Don't speak if the user is currently editing this phrase
+            if (this.editingKey === col + '-' + idx) return;
             // Remove the selected answer from the column
             this.answers[col].splice(idx, 1);
             const json = { action: "speak", msg: msg };
             this.sendMsgToBackend(json);
+        },
+        $_toggleEdit(col, idx) {
+            const key = col + '-' + idx;
+            if (this.editingKey === key) {
+                // Currently editing → speak the edited text
+                this.$_speakEdited(col, idx);
+            } else {
+                // Enter edit mode
+                this.editingKey = key;
+                this.$nextTick(() => {
+                    const refKey = 'msg-' + key;
+                    const el = this.$refs[refKey];
+                    if (el) {
+                        const target = Array.isArray(el) ? el[0] : el;
+                        target.focus();
+                    }
+                });
+            }
+        },
+        $_speakEdited(col, idx) {
+            const refKey = 'msg-' + col + '-' + idx;
+            const el = this.$refs[refKey];
+            const target = el ? (Array.isArray(el) ? el[0] : el) : null;
+            const editedText = target ? target.innerText.trim() : '';
+            if (editedText) {
+                this.answers[col].splice(idx, 1);
+                const json = { action: "speak", msg: editedText };
+                this.sendMsgToBackend(json);
+            }
+            this.editingKey = null;
         },
         $_showAutocomplete() {
             this.$emit('show-autocomplete');
@@ -126,8 +179,9 @@ module.exports = {
 <style scoped>
 .flow.container {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     height: 100%;
+    flex: 1 1 auto;
 }
 
 .answers {
@@ -135,13 +189,10 @@ module.exports = {
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
-    /* border: 1px solid #0f0;
+    overflow: hidden;
+    padding: 1rem;
     /* green box */
     min-height: 0;
-    /* prevents overflow issues */
-    width: calc(100% - 120px);
-    margin-left: 120px;
-    margin-top: 1rem;
 }
 
 .columns {
@@ -160,7 +211,50 @@ module.exports = {
 }
 
 .answers .msg {
-    margin-bottom: 2.2vh;
+    margin-bottom: 0;
+}
+
+.column-mood-icon {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 1.2vh;
+    opacity: 0.45;
+}
+
+.column-mood-icon .icon {
+    stroke: currentColor;
+    fill: none;
+    color: var(--color-text, #fff);
+}
+
+.btn-edit {
+    flex-shrink: 0;
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    cursor: pointer;
+    padding: 0.4rem;
+    opacity: 0.4;
+    transition: opacity 0.2s;
+}
+
+.btn-edit:hover {
+    opacity: 1;
+}
+
+.btn-edit .icon {
+    display: block;
+    stroke: currentColor;
+    fill: none;
+    color: var(--color-text, #fff);
+}
+
+.msg.editing {
+    outline: 1px dashed rgba(255, 255, 255, 0.5);
+    cursor: text;
+}
+
+.msg[contenteditable="true"] {
+    outline-offset: 4px;
 }
 
 .autocompletelauncher {
@@ -172,7 +266,8 @@ module.exports = {
     width: 100px;
     min-height: 40px;
 }
-.autocompletelauncher img{
+
+.autocompletelauncher img {
     filter: invert(1)
 }
 </style>

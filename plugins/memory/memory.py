@@ -29,6 +29,7 @@ class Memory(Baseplugin):
         loop = asyncio.get_event_loop()
         try:
             loop = asyncio.get_event_loop()
+            self.mark_ready()
         except RuntimeError:
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
@@ -224,18 +225,22 @@ class Memory(Baseplugin):
             # Get RAG context
             rag = await self.query_rag_async(memory.fact)
             # self.logger.info(f"RAG context received: {rag}")
-            
+
             # Convert Pydantic Fact object to dict
             memory_dict = {
                 "fact": memory.fact,
                 "type": memory.type
             }
-            
+
+            # Escape newlines in RAG context to ensure valid JSON structure
+            # Replace literal newlines with a placeholder character to avoid JSON parsing issues
+            rag_escaped = rag.replace('\n', ' | ')
+
             # Create the memory review package
             memory_to_be_checked = {
                 "conversation": conversation,
                 "memory": memory_dict,
-                "rag": rag
+                "rag": rag_escaped
             }
             
             # Set up prompts
@@ -304,15 +309,18 @@ class Memory(Baseplugin):
 # Pydantic
 # MEMORY TEMPLATE
 class Fact(BaseModel):
+    model_config = {"extra": "forbid"}  # Required for Groq strict mode
     fact: str
     type: str
 
 class DataModel(BaseModel):
+    model_config = {"extra": "forbid"}  # Required for Groq strict mode
     theme: str
     tags: List[str]
     facts: List[Fact]
-    
+
 # MEMORY REVIEWER TEMPLATE
 class ValidationResponse(BaseModel):
+    model_config = {"extra": "forbid"}  # Required for Groq strict mode
     valid: bool
     reason: str

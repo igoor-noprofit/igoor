@@ -148,6 +148,7 @@ class Asrjs(Baseplugin):
                 
                 # Mark as loaded
                 self.is_loaded = True
+                self.mark_ready()
                 # Removed: asyncio.create_task(self.send_status("ready"))
                 # This was causing the "no running event loop" error and is redundant
                 # as monitor_loading handles sending the "ready" status.
@@ -164,6 +165,7 @@ class Asrjs(Baseplugin):
             self.model=self.settings.get("model_name", "voxtral-mini-latest")
             
         self.is_loaded=True
+        self.mark_ready()
     
     async def handle_wake_word(self,following_text):
         print(f"Wake word detected! Text: '{following_text}'")
@@ -438,7 +440,6 @@ class Asrjs(Baseplugin):
     
     def clean_whisper_silence(self, text):
         print(f"Transcribed text: {text}")
-        """Remove known silence artifacts from Whisper output."""
         SILENCE_STRINGS = [
             "Sous-titrage ST' 501",
             "Sous-titrage Société Radio-Canada"
@@ -451,6 +452,11 @@ class Asrjs(Baseplugin):
             if text.strip().endswith(s):
                 text = text.strip()[:-len(s)].strip()
             print(f"Cleaned text: {text}")
+        
+        text = text.replace('\u200b', '')
+        text = text.replace('\ufeff', '')
+        text = text.replace('\u00a0', ' ')
+        
         if text == "." or text == " ." or not text:
             return ""
         return text

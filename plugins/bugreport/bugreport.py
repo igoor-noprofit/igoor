@@ -19,6 +19,7 @@ class Bugreport(Baseplugin):
     @hookimpl
     def startup(self):
         self.is_loaded = True
+        self.mark_ready()
         # Ensure plugin_folder is set correctly if not done in base class
         if not hasattr(self, 'plugin_folder') or not self.plugin_folder:
             # Assuming plugin_manager or some config holds the base path

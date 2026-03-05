@@ -25,6 +25,11 @@ from fastapi_app import app as fastapi_app
 import uvicorn
 from idle_detector import IdleDetector
 
+if sys.stdout.encoding != 'utf-8':
+    sys.stdout.reconfigure(encoding='utf-8')
+if sys.stderr.encoding != 'utf-8':
+    sys.stderr.reconfigure(encoding='utf-8')
+
 appdata_dir = get_appdata_dir(create=True)
 logger = setup_logger('main', appdata_dir)
 context_manager = ContextManager()
@@ -89,25 +94,27 @@ def show_splash_screen(image_path):
     """Create a simple splash screen with a logo."""
     splash_root = tk.Tk()
     splash_root.overrideredirect(True)  # Remove window borders
-    
+
     # Get screen dimensions
     screen_width = splash_root.winfo_screenwidth()
     screen_height = splash_root.winfo_screenheight()
-    
+
     # Set window dimensions
-    window_width = 500
-    window_height = 200
-    
+    window_width = 520
+    window_height = 260
+
     # Calculate center position
     x = (screen_width - window_width) // 2
     y = (screen_height - window_height) // 2
-    
+
     splash_root.geometry(f'{window_width}x{window_height}+{x}+{y}')
-    
+
     # Configure grid weight to enable centering
     splash_root.grid_rowconfigure(0, weight=1)
+    splash_root.grid_rowconfigure(1, weight=0)
+    splash_root.grid_rowconfigure(2, weight=0)
     splash_root.grid_columnconfigure(0, weight=1)
-    
+
     # Load your logo/image
     splash_image = tk.PhotoImage(file=resource_path(image_path))
     splash_label = tk.Label(splash_root, image=splash_image, bg='white')
@@ -118,12 +125,25 @@ def show_splash_screen(image_path):
     version_label = tk.Label(splash_root, text=version_text, bg='white', fg='#444', font=("Arial", 14, "bold"))
     version_label.grid(row=1, column=0, pady=(10, 0))
 
+    # Add single-line status label under the version
+    status_label = tk.Label(
+        splash_root,
+        text="",
+        bg='white',
+        fg='#666',
+        font=("Arial", 11),
+        anchor='center'
+    )
+    status_label.grid(row=2, column=0, pady=(6, 10), sticky='ew')
+
     # Configure window background
     splash_root.configure(bg='white')
-    
+
     # Display splash screen
     splash_root.update()
-    return splash_root
+    # Keep a reference so the image is not garbage-collected
+    splash_root._splash_image_ref = splash_image
+    return splash_root, status_label
 
 
 def signal_handler(sig, frame):
@@ -137,7 +157,6 @@ signal.signal(signal.SIGINT, signal_handler)
 IGOOR_DEBUG = os.getenv('IGOOR_DEBUG', 'False') 
 IGOOR_CLI = os.getenv('IGOOR_CLI', 'False') 
 IGOOR_ONTOP = os.getenv('IGOOR_ONTOP', 'False') 
-IGOOR_OUTPUT_HTML = os.getenv('IGOOR_OUTPUT_HTML', 'False') 
 IGOOR_VERSION_CODENAME = __codename__
 IGOOR_VERSION=__version__
 
@@ -375,10 +394,45 @@ if __name__ == "__main__":
             stop_fastapi_server()
     else:
         start_fastapi_server()
-        splash_screen = show_splash_screen('img/igoor_logo.png')
+        splash_root, status_label = show_splash_screen('img/igoor_logo.png')
+
+        # Wire StatusManager to update splash status line
+        try:
+            from status_manager import StatusManager
+
+            class TkSplashObserver:
+                def __init__(self, root, label):
+                    self.root = root
+                    self.label = label
+
+                def update_status(self, status: str):
+                    try:
+                        self.label.config(text=str(status)[:120])
+                        # Ensure UI refresh during synchronous startup
+                        self.root.update_idletasks()
+                    except Exception:
+                        pass
+
+            _splash_observer = TkSplashObserver(splash_root, status_label)
+            StatusManager().register_observer(_splash_observer)
+            # Initial hint
+            StatusManager().set_status("Starting services…")
+        except Exception as e:
+            logger.error(f"Failed wiring splash status observer: {e}")
+
+        # Inform about next step
+        try:
+            from status_manager import StatusManager
+            StatusManager().set_status("Building interface…")
+        except Exception:
+            pass
         final_html = load_frontend_components(lang=lang)
-        if (IGOOR_OUTPUT_HTML.lower() == 'true'):
-            print(final_html)
-        splash_screen.destroy()
+        # Finalize splash
+        try:
+            from status_manager import StatusManager
+            StatusManager().set_status("Launching window…")
+        except Exception:
+            pass
+        splash_root.destroy()
         start_webview()
 

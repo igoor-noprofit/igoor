@@ -1,12 +1,10 @@
 from plugins.baseplugin.baseplugin import Baseplugin
+from plugins.baseplugin.baseplugin import Baseplugin
 from plugin_manager import hookimpl
 import json,socket,os,time
 import psutil
 import subprocess
 import win32gui, win32con
-from pywinauto import Application
-from pywinauto.application import ProcessNotFoundError
-from pywinauto.findwindows import ElementNotFoundError
 
 
 class Extkeyb(Baseplugin):
@@ -17,7 +15,6 @@ class Extkeyb(Baseplugin):
         self.is_igoor_maximized = True
         self.keyb_type = self.settings.get("keyb_type","osk")
         self.logger.info(f"Using external keyboard type {self.keyb_type}")
-        self.ready = False
         # TABTIP on modern WINDOWS
         if (self.keyb_type == "tabtip"):
             self.app_exe = "TabTip.exe"
@@ -26,7 +23,7 @@ class Extkeyb(Baseplugin):
                 self.logger.error(f"TabTip external keyboard not found at {self.app_path}")
                 # COULD USE OSK HERE INSTEAD for older Windows versions
                 # path C:\\Windows\\System32\\osk.exe
-            self.ready = True
+            self.mark_ready()
         # IGOOR OWN EXTERNAL KEYBOARD
         elif (self.keyb_type == "igoor"):
             self.app_exe = "IGOOR_OSK.exe"
@@ -34,13 +31,13 @@ class Extkeyb(Baseplugin):
                 self.conn_host = self.settings.get("conn_host", "127.0.0.1")
                 self.conn_port = self.settings.get("conn_port", 8765)
                 self.socket = None
-                self.ready = True
+                self.mark_ready()
             else:
                 self.logger.error("IGOOR external keyboard not found")
         elif (self.keyb_type == "osk"):
             self.app_exe = "osk.exe"
             self.app_path = os.path.join("C:\\Windows\\System32\\",self.app_exe)
-            self.ready = True
+            self.mark_ready()
         else:
             self.logger.error(f"Unknown keyboard type {self.keyb_type}")
         if (self.ready):
@@ -55,9 +52,6 @@ class Extkeyb(Baseplugin):
                     if (self.start_process()):
                         self.is_running = True
             '''
-            
-
-   
     
     # TODO: RECHECK ENTIRE FUNCTION 
     def locate_igoor_app(self):
@@ -144,7 +138,8 @@ class Extkeyb(Baseplugin):
         if (self.keyb_type == "igoor"):
             self.send_command('show')   
         elif (self.keyb_type == "osk"):
-            self.start_process()
+            if (not self.is_app_running()):
+                self.start_process()
         elif (self.keyb_type == "tabtip"):
             if (self.show_tabtip()):
                 return True
@@ -195,8 +190,12 @@ class Extkeyb(Baseplugin):
             print("No need to hide, virtual keyboard already hidden")
     
     def close_osk(self):
+        import pywinauto
+        from pywinauto.application import ProcessNotFoundError
+        from pywinauto.findwindows import ElementNotFoundError
+        
         try:
-            app = Application(backend="uia").connect(path=self.app_exe, timeout=2)
+            app = pywinauto.Application(backend="uia").connect(path=self.app_exe, timeout=2)
             window = app.window(class_name="OSKMainClass")
             window.close()
             window.wait_not_visible(timeout=3)

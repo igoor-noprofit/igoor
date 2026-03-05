@@ -1,6 +1,8 @@
 from version import __appname__, __version__, __codename__
 import importlib.util
 import os, sys, asyncio
+import threading
+import time
 import json
 import traceback
 import pluggy
@@ -10,6 +12,7 @@ load_dotenv()
 from typing import Any
 from status_manager import StatusManager
 from utils import resource_path, setup_logger
+from websocket_server import websocket_server
 
 IGOOR_DEBUG = os.getenv('IGOOR_DEBUG', 'False') 
 app_name = __appname__
@@ -190,6 +193,11 @@ class MyAppSpec:
     async def get_conversation_msgs_containing(self, query_text: str):
         """Hook to search previous conversation messages containing query for autocomplete etc."""
         pass
+
+    @pluggy.HookspecMarker(app_name)
+    def get_last_conversations(self):
+        """Hook to retrieve cached last conversations for LLM context"""
+        pass
     
     @pluggy.HookspecMarker(app_name)
     async def transcribing_started(self):
@@ -236,6 +244,16 @@ class MyAppSpec:
     async def clean_short_term_memory(self, clean_after_days:int):        
         pass
     
+    @pluggy.HookspecMarker(app_name)
+    async def data_imported(self, backup_path: str = None):
+        """
+        Hook for plugins to react when user data is imported.
+        
+        Args:
+            backup_path (str): Path to the backup created during import.
+        """
+        pass
+    
     '''
         ************ AUTOCOMPLETE **************
     '''
@@ -274,6 +292,10 @@ class PluginManager:
         self.plugins = []
         self.plugin_manager = pluggy.PluginManager(app_name)
         self.plugin_manager.add_hookspecs(MyAppSpec)
+        self._boot_progress_thread = None
+        self._boot_progress_stop = threading.Event()
+        self._boot_progress_started_at = None
+        self._boot_progress_total = 0
 
         # Load global settings
         self.settings_manager = SettingsManager()
@@ -296,8 +318,14 @@ class PluginManager:
                 if asyncio.iscoroutine(results) or isinstance(results, asyncio.Future):
                     results = await results  # Await if it's a single coroutine or Future
                 elif isinstance(results, list):
-                    # Await each coroutine or Future in the list
-                    results = await asyncio.gather(*[r for r in results if asyncio.iscoroutine(r) or isinstance(r, asyncio.Future)])
+                    # Process mixed list of coroutines and regular values
+                    processed_results = []
+                    for r in results:
+                        if asyncio.iscoroutine(r) or isinstance(r, asyncio.Future):
+                            processed_results.append(await r)
+                        else:
+                            processed_results.append(r)
+                    results = processed_results
                 else:
                     raise TypeError("The hook result is not awaitable")
 
@@ -344,6 +372,11 @@ class PluginManager:
                 plugin_path = os.path.join(self.plugin_folder, plugin_name)
                 is_active = self.is_active(plugin_name)
                 self.logger.info (f": {plugin_path}")
+                try:
+                    # Update splash/loading status while starting up
+                    self.status_manager.set_status(f"Loading plugin {plugin_name}")
+                except Exception:
+                    pass
                 # Check if the plugin should be activated or excluded based on the lists
                 if plugin_name in active_list:
                     self.logger.info(f"Plugin '{plugin_name}' is in the active_list, overriding is_active to True.")
@@ -377,7 +410,12 @@ class PluginManager:
                 print("Excluded baseplugin")
         
         self.logger.info(f"ACTIVATED PLUGINS LIST: {self.activated_plugins}")
+        try:
+            self.status_manager.set_status("Starting plugins…")
+        except Exception:
+            pass
         self.startup_plugins()
+        self._start_boot_progress_monitor()
 
 
     def get_all_plugins(self):
@@ -461,6 +499,48 @@ class PluginManager:
         """Calls the startup method on all registered plugins."""
         self.plugin_manager.hook.startup()
 
+    def _start_boot_progress_monitor(self):
+        if self._boot_progress_thread and self._boot_progress_thread.is_alive():
+            return
+        self._boot_progress_stop.clear()
+        self._boot_progress_started_at = time.time()
+        self._boot_progress_total = len(self.activated_plugins)
+
+        def run():
+            while not self._boot_progress_stop.is_set():
+                total = self._boot_progress_total
+                ready_plugins = [plugin for plugin in self.plugins if getattr(plugin, "ready", False)]
+                not_ready_plugins = [
+                    getattr(plugin, "plugin_name", plugin.__class__.__name__)
+                    for plugin in self.plugins
+                    if not getattr(plugin, "ready", False)
+                ]
+                ready = len(ready_plugins)
+                if total > 0:
+                    payload = {
+                        "type": "boot_progress",
+                        "ready": ready,
+                        "total": total,
+                        "not_ready": not_ready_plugins,
+                    }
+                    try:
+                        websocket_server.send_message("app", json.dumps(payload))
+                    except Exception:
+                        pass
+                    try:
+                        self.status_manager.set_status(f"Ready {ready}/{total}")
+                    except Exception:
+                        pass
+                if total > 0 and ready >= total:
+                    self._boot_progress_stop.set()
+                    break
+                if time.time() - self._boot_progress_started_at >= 600:
+                    self._boot_progress_stop.set()
+                    break
+                time.sleep(1)
+
+        self._boot_progress_thread = threading.Thread(target=run, daemon=True)
+        self._boot_progress_thread.start()
         
     def get_plugin_manager(self):
         return self

@@ -89,12 +89,34 @@ async function initializeApp() {
         pywebviewready: false,
         lang: "{{LANG}}",
         footerShrink: false,
+        bootReady: 0,
+        bootTotal: 0,
+        bootProgressVisible: false,
+        bootProgressFaded: false,
+        bootProgressHideTimer: null,
+        bootNotReady: [],
+        bootNotReadyVisible: false,
       };
     },
     components: {
       //** JS_COMPONENTS */
     },
     template: appTemplate,
+    computed: {
+      bootProgressPercent() {
+        if (!this.bootTotal) {
+          return 0;
+        }
+        const percent = Math.round((this.bootReady / this.bootTotal) * 100);
+        return Math.min(100, Math.max(0, percent));
+      },
+      bootNotReadyList() {
+        if (!Array.isArray(this.bootNotReady)) {
+          return [];
+        }
+        return this.bootNotReady.slice().sort();
+      },
+    },
     async mounted() {
       console.warn("APP MOUNTED");
       const backendApi = await backendApiPromise;
@@ -130,6 +152,10 @@ async function initializeApp() {
           console.log("APP received message on websocket:", event.data);
           try {
             const message = JSON.parse(event.data);
+            if (message.type === "boot_progress") {
+              this.updateBootProgress(message);
+              return;
+            }
             if (message.backend === "addmsg") {
               this.changeView("flow");
             }
@@ -199,6 +225,42 @@ async function initializeApp() {
       },
       handleFooterShrink(shrink) {
         this.footerShrink = shrink;
+      },
+      toggleBootNotReady() {
+        if (!this.bootProgressVisible) {
+          return;
+        }
+        this.bootNotReadyVisible = !this.bootNotReadyVisible;
+      },
+      updateBootProgress(message) {
+        const total = Number(message.total || 0);
+        const ready = Number(message.ready || 0);
+        const notReady = Array.isArray(message.not_ready) ? message.not_ready : [];
+        if (!total) {
+          return;
+        }
+        this.bootTotal = total;
+        this.bootReady = Math.min(total, Math.max(0, ready));
+        this.bootNotReady = notReady;
+        if (!this.bootProgressVisible) {
+          this.bootProgressVisible = true;
+          this.bootProgressFaded = false;
+        }
+        if (!this.bootProgressHideTimer) {
+          this.bootProgressHideTimer = setTimeout(() => {
+            this.bootProgressFaded = true;
+            setTimeout(() => {
+              this.bootProgressVisible = false;
+            }, 800);
+          }, 600000);
+        }
+        if (this.bootReady >= this.bootTotal) {
+          this.bootProgressFaded = true;
+          this.bootNotReadyVisible = false;
+          setTimeout(() => {
+            this.bootProgressVisible = false;
+          }, 1200);
+        }
       },
     },
   });

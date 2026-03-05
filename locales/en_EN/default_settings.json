@@ -18,8 +18,8 @@
       "ai": {
         "provider": "groq",
         "api_key": "",
-        "model_name": "openai/gpt-oss-120b",
-        "temperature": 0.5,
+        "model_name": "openai/gpt-oss-20b",
+        "temperature": 0.7,
         "reasoning_effort": "low"
       }
     }
@@ -30,7 +30,7 @@
     "asrwhisper": false,
     "autocomplete": true,
     "autocompletelauncher": true,
-    "bugreport": true,
+    "bugreport": false,
     "clock": true,
     "conversation": true,
     "daily": true,

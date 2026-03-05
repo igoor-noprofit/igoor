@@ -178,6 +178,7 @@ class Asrwhisper(Baseplugin):
                 
                 # Mark as loaded
                 self.is_loaded = True
+                self.mark_ready()
                 # Removed: asyncio.create_task(self.send_status("ready"))
                 # This was causing the "no running event loop" error and is redundant
                 # as monitor_loading handles sending the "ready" status.
@@ -203,6 +204,7 @@ class Asrwhisper(Baseplugin):
         self.temp_audio_file = os.path.join(self.plugin_folder, "temp_audio.wav")
         
         self.is_loaded=True
+        self.mark_ready()
     
     async def handle_wake_word(self,following_text):
         print(f"Wake word detected! Text: '{following_text}'")
@@ -502,19 +504,21 @@ class Asrwhisper(Baseplugin):
         
     def clean_whisper_silence(self, text):
         print(f"Transcribed text: {text}")
-        """Remove known silence artifacts from Whisper output."""
         SILENCE_STRINGS = [
             "Sous-titrage ST' 501",
             "Sous-titrage Société Radio-Canada"
         ]
         for s in SILENCE_STRINGS:
-            # Remove at start
             if text.strip().startswith(s):
                 text = text.strip()[len(s):].strip()
-            # Remove at end
             if text.strip().endswith(s):
                 text = text.strip()[:-len(s)].strip()
             print(f"Cleaned text: {text}")
+        
+        text = text.replace('\u200b', '')
+        text = text.replace('\ufeff', '')
+        text = text.replace('\u00a0', ' ')
+        
         if text == "." or text == " ." or not text:
             return ""
         return text
