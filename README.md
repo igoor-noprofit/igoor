@@ -1,4 +1,4 @@
-<img src="img/logo_fb.png">
+<img src="img/logo_fb.png" alt="logo IGOOR" witdh="600">
 
 # IGOOR
 
