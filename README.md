@@ -1,11 +1,11 @@
-<img src="img/logo_fb.png" alt="logo IGOOR" witdh="600">
-
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
 # IGOOR
 
 **IGOOR is an open-source and free (GPLv3) conversational application based on AI, designed to provide people with ALS/MND diseases a smooth and natural means of communication.** 
 Its interface makes it easy-to-use also via eye-tracking device.
+
+<img src="./img/logo_fb.png" alt="logo IGOOR" width="600">
 
 Take a look at the [IGOOR website](https://igoor.org/en) for further infos about our core principles, values and software roadmap.
 
@@ -16,15 +16,15 @@ IGOOR has been developed in partnership with [ARSLA](https://www.arsla.org/).
 
 Documentation is ongoing. We strive to keep it up to date with latest functionalities.
 
-English : [IGOOR docs](https://igoor-noprofit.github.io/docs/)
-French : [Documentation IGOOR](https://igoor-noprofit.github.io/docs/fr/)
+- English : [IGOOR docs](https://igoor-noprofit.github.io/docs/)
+- French : [Documentation IGOOR](https://igoor-noprofit.github.io/docs/fr/)
 
 ## REQUIREMENTS
 
-- Windows 10/11 (PC or tablet)
+- **Windows 10/11** (PC or tablet)
 - Minimum resolution: 1280,960
 - Recommended resolution: 1920x1080 or more
-- Internet connection (preferably optic fiber or ADSL)
+- **Internet connection (preferably optic fiber or ADSL)**
 - A Groq API key
 
 ### Microsoft © Edge WebView2 Runtime
@@ -52,6 +52,8 @@ https://console.groq.com/login
 
 For production use, you will need a developer tier self-serve (Pay per Token) access, 
 or you'll rapidly incur in rate limits errors.
+
+We plan on supporting other providers soon, as well as local models.
 
 ### DISK SPACE
 
@@ -131,20 +133,6 @@ Other models can be saved in this folder.
 Default mode is inside pywebview webedge window (IGOOR_CLI=False).
 PLEASE NOTE: Opening inside both pywebview AND external browser will yield unwantend sync between the two clients.
 
-```
-python main.py
-```
-
-This launches in a resizable window, with the browser's debug console opened and the python CLI visible.
-
-Use:
-
-```
-igoor.bat
-```
-
-to open a on-top window, without debug console (powershell window will open and then disappear in the system bar).
-
 #### AUTOMATIC SPEECH RECOGNITION WITH VOSK
 
 Vosk is a local ASR (Automatic Speech Recognition) plugin.
@@ -178,7 +166,7 @@ NOTE: Because of its high WER compared to Whisper and Voxtral, we recommend usin
 VOSK will be probably deprecated in favor of another ASR model.
 
 # PYWEBVIEW: cache problems after updating version
-If you have problems with cache but only in Pywebview window (as opposed to localhost:9714), delete this folder :
+After updating, if you have problems with cache, but only in Pywebview window (as opposed to localhost:9714), delete this folder to delete Pywebview cache:
 
 ```
 C:\Users\<user_name>\AppData\Roaming\pywebview\EBWebView
