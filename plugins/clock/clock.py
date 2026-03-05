@@ -12,6 +12,7 @@ class Clock(Baseplugin):
         self.pm = pm
         super().__init__(plugin_name,pm)
         self.is_loaded = True
+        self.mark_ready()
         
     @hookimpl
     def startup(self):

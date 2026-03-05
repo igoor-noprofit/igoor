@@ -61,6 +61,7 @@ class Shortcuts(Baseplugin):
         if hasattr(self.pm, 'fastapi_app') and self.pm.fastapi_app:
             self.pm.fastapi_app.include_router(self.router)
             self.logger.info("Registered shortcuts API routes")
+            self.mark_ready()
         else:
             self.logger.warning("FastAPI app not available; shortcuts endpoints not registered")
         

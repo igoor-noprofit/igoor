@@ -96,10 +96,6 @@ marshmallow==3.23.0
 matplotlib==3.10.0
 mdurl==0.1.2
 mergedeep==1.3.4
-mkdocs-get-deps==0.2.0
-mkdocs-material-extensions==1.3.1
-mkdocs-material==9.6.20
-mkdocs==1.6.1
 mpmath==1.3.0
 multidict==6.1.0
 murmurhash==1.0.12
@@ -173,7 +169,6 @@ scikit-learn>=1.6.1
 scipy>=1.15.1
 seaborn==0.13.2
 sentence-transformers==3.2.1
-setuptools==63.2.0
 shellingham==1.5.4
 simplejson==3.19.3
 six==1.16.0
@@ -199,7 +194,7 @@ tokenizers==0.20.1
 torch==2.8.0
 tqdm>=4.67.1
 traits==6.3.2
-transformers==4.46.0
+transformers==4.46.3
 typer==0.15.1
 typing-extensions==4.12.2
 typing-inspect==0.9.0

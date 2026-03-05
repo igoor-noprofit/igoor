@@ -84,6 +84,7 @@ class Onboarding(Baseplugin):
         if mandatory_check:
             print("ONBOARDING COMPLETED!")
             self.onboarding_completed = True
+        self.mark_ready()
         
     def check_mandatory_fields(self, settings_json):
         """

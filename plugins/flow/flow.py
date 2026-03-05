@@ -33,7 +33,7 @@ class Flow(Baseplugin):
     
     @hookimpl
     def startup(self):
-        print("FLOW STARTUP")
+        self.mark_ready()
     
     @hookimpl
     def gui_ready(self):
@@ -156,6 +156,11 @@ class Flow(Baseplugin):
         actual_filtered_results = normalize_filter_by_timeframe_result(filtered_results)
 
         del dynamic_context["conversation"]
+        
+        # Get last conversations for additional context
+        last_conversations_result = await self.pm.trigger_hook(hook_name="get_last_conversations")
+        last_conversations = last_conversations_result[0] if last_conversations_result and last_conversations_result[0] else ""
+        
         system_prompt = self.prompts.get("flow", {}).get("system")
         pm = PromptManager(template=self.prompts.get("flow", {}).get("usr"))
         
@@ -170,7 +175,8 @@ class Flow(Baseplugin):
             short_term='\n'.join(actual_filtered_results.get(2, [])), # Use actual_filtered_results
             dynamic_context=dynamic_context, 
             conversation=conversation,
-            log_folder=self.plugin_folder
+            log_folder=self.plugin_folder,
+            last_conversations=last_conversations
         )
         
         print(f"FINAL PROMPT : {prompt}")
@@ -241,6 +247,7 @@ class Flow(Baseplugin):
             asyncio.run(self.asr_msg(query))
 
 class Answers(BaseModel):
+    model_config = {"extra": "forbid"}  # Required for Groq strict mode
     answers: Dict[str, List[str]]
 
 class TimeframeType(str, Enum):
@@ -259,6 +266,7 @@ class MType(str, Enum):
     LONG = "long"
 
 class Timeframe(BaseModel):
+    model_config = {"extra": "forbid"}  # Required for Groq strict mode
     type: TimeframeType = Field(description="absolute for specific dates, relative for references like 'yesterday'")
     reference: str = Field(description="the original time reference from the query")
     start_date: str = Field(pattern=r"^$|^\d{4}-\d{2}-\d{2}$", description="YYYY-MM-DD format or empty")
@@ -267,6 +275,7 @@ class Timeframe(BaseModel):
     period: Period = Field(description="period of the day")
 
 class ConversationModel(BaseModel):
+    model_config = {"extra": "forbid"}  # Required for Groq strict mode
     theme: str = Field(description="the subject of the conversation")
     m_type: List[MType] = Field(description="short or long or both")
     timeframe: Timeframe = Field(description="timeframe for the query")

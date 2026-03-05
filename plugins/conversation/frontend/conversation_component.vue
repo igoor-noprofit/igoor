@@ -1,5 +1,5 @@
 <template>
-    <div class="conversation-plugin" v-if="appview !== 'autocomplete' && appview !== 'onboarding'"
+    <div class="conversation-plugin" v-if="appview !== 'onboarding'"
         :class="{ 'expanded': isExpanded }">
         <div class="scrollableConv" ref="scrollableConv">
             <div v-for="(message, index) in thread" :key="index" v-show="message.msg != ''">
@@ -170,12 +170,17 @@ module.exports = {
         }
     },
     watch: {
-        thread() {
+        thread(newThread, oldThread) {
             console.log("thread has changed");
             this.$nextTick(() => {
                 this.scrollToBottom();
                 this.checkScrollableOverflow();
             });
+
+            if (newThread.length === 0 && oldThread && oldThread.length > 0) {
+                this.isExpanded = false;
+                this.$root.toggleHeaderExpansion(false);
+            }
         },
         appview(newView) {
             if (newView === 'autocomplete') {
@@ -209,7 +214,7 @@ module.exports = {
 .msg {
     background-color: #2F535B !important;
     align-self: flex-end; /* Right side by default */
-    max-width: 70%;
+    max-width: 40%;
     position: relative;
 }
 

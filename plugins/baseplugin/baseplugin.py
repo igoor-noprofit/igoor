@@ -12,6 +12,7 @@ from db_manager import DatabaseManager
 class Baseplugin:
     def __init__(self, plugin_name="baseplugin", pm=None):
         self.is_loaded = False
+        self.ready = False
         print ("__init__ plugin : " + plugin_name)
         self.plugin_name = plugin_name
         
@@ -58,7 +59,8 @@ class Baseplugin:
         plugin_folder = os.path.abspath(os.path.join(this_dir, '..'))
         self._app_plugin_folder = os.path.join(plugin_folder, self.plugin_name)
         print(f"PLUGIN ROOT = {self._app_plugin_folder}")
-        
+    def mark_ready(self):
+        self.ready = True
         
     @hookimpl
     def get_frontend_components(self):
@@ -81,18 +83,19 @@ class Baseplugin:
         translations_path = os.path.join(self._app_plugin_folder, 'locales', self.lang, self.plugin_name + "_" + self.lang + ".json")
         return self.load_translation_file(translations_path)
     
-    # Example: load prompts from a .py file
+    # Load prompts from a YAML file
     def get_my_prompts(self) -> dict:
+        import yaml
+        prompts_path = os.path.join(self._app_plugin_folder, 'locales', self.lang, 'prompts.yaml')
         try:
-            import importlib.util
-            prompts_path = os.path.join(self._app_plugin_folder, 'locales', self.lang, 'prompts.py')
-            spec = importlib.util.spec_from_file_location("prompts", prompts_path)
-            prompts_module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(prompts_module)
-        except (FileNotFoundError, ImportError) as e:
+            with open(prompts_path, 'r', encoding='utf-8') as f:
+                return yaml.safe_load(f) or {}
+        except FileNotFoundError:
+            self.logger.warning(f"Prompts file not found: {prompts_path}")
+            return {}
+        except Exception as e:
             self.logger.error(f"Error loading prompts from {prompts_path}: {e}")
             return {}
-        return prompts_module.prompts
     
     def load_translation_file(self,translation_file_path):
         if not os.path.exists(translation_file_path):

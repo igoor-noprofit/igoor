@@ -113,6 +113,35 @@ body {
     padding-right: 1rem; /* Add some padding from the right edge */
   }
 
+  .boot-progress {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    max-width: 260px;
+    transition: opacity 0.4s ease;
+  }
+  .boot-progress--fade {
+    opacity: 0;
+  }
+  .boot-progress__label {
+    color: #ccc;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+  .boot-progress__bar {
+    width: 160px;
+    height: 6px;
+    background: #333;
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .boot-progress__fill {
+    height: 100%;
+    background: @accent_100;
+    width: 0%;
+    transition: width 0.3s ease;
+  }
+
   .topbar-center {
     padding: 0 1rem; /* Add some padding around the logo */
     display: flex;
@@ -179,7 +208,7 @@ footer {
   z-index: 1;
   padding: 0;
   transition: all 0.3s ease;
-  
+
   &.shrink {
     max-height: 70px;
     z-index: 100;
@@ -202,9 +231,9 @@ footer {
     margin-right: 10px;
   }
 }
-.pluginContainerTitle{
-  background:#fff;
-  margin:0;
+.pluginContainerTitle {
+  background: #fff;
+  margin: 0;
   padding: 4px;
   display: inline-block;
   color: @phrase_button_bg;
@@ -231,15 +260,15 @@ footer {
 }
 
 .error-banner {
-    background: #b00020;
-    color: #fff;
-    padding: 6px 10px;
-    border-radius: 4px;
-    font-size: 14px;
-    height: 100%;
-    justify-content: flex-end;
-    align-items: center;
-    display: flex;
+  background: #b00020;
+  color: #fff;
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 14px;
+  height: 100%;
+  justify-content: flex-end;
+  align-items: center;
+  display: flex;
 }
 /**************** ASRVOSK *******************/
 .asrvosk-plugin {
@@ -285,25 +314,24 @@ footer {
   display: flex;
   flex-direction: row;
   width: 100%;
-  min-height: 50px;
   height: auto;
+  justify-content: space-between;
   .btn-side-left {
     height: @header_height;
     width: @btn-left-width;
   }
   .autocomplete_input {
+    width: 100%;
     justify-content: center;
     align-items: center;
     display: flex;
-    width: 90%;
     input[name="autocomplete"] {
-      .rounded;
-      height: 50px;
       border: none;
       background: @conversation_bg;
       color: #fff;
       font-size: 1.3rem;
-      width: 33vw;
+      width: 100%;
+      text-align: center;
     }
   }
   .speak {
@@ -429,10 +457,6 @@ footer {
 }
 .column {
   padding: 20px 30px !important;
-  &.center {
-    border-left: 1px solid #ddd !important;
-    border-right: 1px solid #ddd !important;
-  }
   .answers .msg {
     margin-bottom: 2.2vh !important;
   }
@@ -465,6 +489,7 @@ footer {
 }
 
 .flow-plugin {
+  // border: 1px solid #f00;
   justify-content: center;
   .abandon,
   .answers {
@@ -472,13 +497,13 @@ footer {
     justify-content: center;
   }
   .abandon {
-    margin-top: @header_height;
-    /* margin-bottom: 42vh; */
+    position: relative;
+    align-self: stretch;
     text-transform: uppercase;
     width: @btn-left-width;
     z-index: 0;
     &.expanded {
-      margin-top: @expanded_header_height;
+      // margin-top: @expanded_header_height;
     }
     box-shadow: 0rem 0.125rem 0.375rem 0rem rgba(0, 0, 0, 0.4);
   }
@@ -496,23 +521,34 @@ footer {
     }
   }
 }
-.answers .msg {
-  cursor: pointer;
+.answers {
+  .msg {
+    cursor: pointer;
+  }
+  .msg-row {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 2.2vh;
+  }
+  .icon-m {
+    width: 2.5rem;
+    height: 2.5rem;
+  }
 }
-.view-autocomplete.answers{
- 
+.view-autocomplete.answers {
   align-items: center;
 
-  .row.columns{
-    
-    width: 75%;
-    flex-direction: column;
-    gap: 15px;
-    .left,.center,.right{
+  .row.columns {
+    flex-direction: row;
+    .left,
+    .center,
+    .right {
       width: auto;
       padding: 0 !important;
     }
-    .center{
+    .center {
       border-left: none !important;
       border-right: none !important;
     }
@@ -712,7 +748,6 @@ h3 {
   letter-spacing: 0.125rem;
 }
 
-
 /*                      TYPOGRAPHY: LABELS
 ------------------------------------------------------------------------- */
 .label-primary,
@@ -796,11 +831,10 @@ button {
 }
 
 .btn-secondary {
-  
   padding: 0.75rem 1rem;
 }
 
-.pluginsContainer .btn-secondary{
+.pluginsContainer .btn-secondary {
   background-color: var(--color-btn-secondary) !important;
 }
 
@@ -957,6 +991,7 @@ button {
 }
 .msg.msg-small {
   font-size: 1.1rem;
+  width: 100%;
 }
 
 /*                      SHORTCUTS
@@ -992,7 +1027,8 @@ button {
     var(--color-bgoverlay-0),
     var(--color-bgoverlay-1)
   );
-  box-shadow: 0rem -0.25rem 1rem 0rem rgba(0, 0, 0, 0.5),
+  box-shadow:
+    0rem -0.25rem 1rem 0rem rgba(0, 0, 0, 0.5),
     inset 0rem 0.0625rem 0.125rem 0rem rgba(255, 255, 255, 0.15);
 }
 

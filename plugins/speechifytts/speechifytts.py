@@ -61,6 +61,7 @@ class Speechifytts(Baseplugin):
                 self.client = Speechify(token=self.api_key)
                 self.is_loaded = True
                 self.get_voices_list() # Pre-fetch voices list to validate API key and voice ID
+                self.mark_ready()
                 return True
             except Exception as e:
                 self.logger.error(f"Error occurred while creating Speechify client : {e}")

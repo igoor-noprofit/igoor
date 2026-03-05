@@ -16,7 +16,7 @@ test_elevenlabstts.py
 
 # Factory AI Droid
 AI/
-.factory/
+.factory/docs
 
 # Distribution / packaging
 .Python

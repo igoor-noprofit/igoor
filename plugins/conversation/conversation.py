@@ -17,6 +17,10 @@ class Conversation(Baseplugin):
         self.topic=""
         self.current_thread_id = None
         self.router = None
+        # Cache for last N conversations (formatted as XML string)
+        self.last_conversations_cache = ""
+        self.last_conversations_count = self.settings.get("last_conversations_count", 20)
+        self.current_start_time = None  # Track start time of current conversation
 
     def _ensure_router(self):
         """Initialize FastAPI router for plugin endpoints"""
@@ -172,6 +176,7 @@ class Conversation(Baseplugin):
         
         # Create a new conversation in the database
         current_time = self._get_current_timestamp()
+        self.current_start_time = current_time  # Track for cache
         result = await self.db_execute(
             "INSERT INTO threads (start_time, is_processed) VALUES (?, ?)",
             (current_time, False)
@@ -229,20 +234,24 @@ class Conversation(Baseplugin):
         if (not self.conversation_is_open):
             self.logger.info("Abandon conversation called, but conversation is not open")
             return
+
+        # IMPORTANT: Send view change immediately to ensure UI updates before any processing
+        await self.send_switch_view_to_app("daily")
+
         txt = await self.get_conversation(format="txt")
-        
+
         # Log the thread_id before creating the dictionary
         if (cause is None):
             cause = "timeout"
-        
+
         last_conversation = {
-            "thread": self.thread, 
-            "txt": txt, 
+            "thread": self.thread,
+            "txt": txt,
             "cause": cause,
             "topic": self.topic,
-            "thread_id": self.current_thread_id  
+            "thread_id": self.current_thread_id
         }
-        
+
         if self.current_thread_id is not None:
             current_time = self._get_current_timestamp()
             await self.db_execute(
@@ -250,21 +259,26 @@ class Conversation(Baseplugin):
                 (current_time, cause, txt, self.current_thread_id)
             )
             self.logger.info(f"Abandoned conversation {self.current_thread_id} with end time")
-        
+
+            # Update last conversations cache
+            if txt and self.current_start_time:
+                new_conv = self._format_single_conversation_xml(self.current_start_time, txt)
+                self._prepend_to_cache(new_conv)
+
         # Reset conversation state after triggering the hook
         last_thread=self.thread
         last_topic=self.topic
         last_current_thread_id=self.current_thread_id
-        
+
         self.thread = []
         self.topic = ""
         self.current_thread_id = None
+        self.current_start_time = None
         context_manager.update_context("conversation", "")
         self.send_message_to_frontend({"action": "abandon_conversation"})
         self.conversation_is_open = False
         self.cancel_timeout()
-        await self.send_switch_view_to_app("daily")
-        
+
         # Create a separate task with explicit kwargs
         asyncio.create_task(
             self.pm.trigger_hook(
@@ -285,6 +299,91 @@ class Conversation(Baseplugin):
         # Register router with the main FastAPI app if available
         if hasattr(self, 'pm') and hasattr(self.pm, 'fastapi_app'):
             self.pm.fastapi_app.include_router(self.router)
+
+    @hookimpl
+    async def gui_ready(self):
+        """Load last conversations cache from database when GUI is ready"""
+        await self._load_last_conversations_cache()
+
+    async def _load_last_conversations_cache(self):
+        """Load last N conversations from database into cache at startup"""
+        try:
+            sql = """
+                SELECT start_time, content FROM threads 
+                WHERE content IS NOT NULL AND content != '' 
+                ORDER BY start_time DESC LIMIT ?
+            """
+            results = await self.db_execute(sql, (self.last_conversations_count,))
+            if results:
+                # Reverse to get chronological order (oldest first)
+                conversations = list(reversed(results))
+                self.last_conversations_cache = self._format_conversations_xml(conversations)
+                self.logger.info(f"Loaded {len(conversations)} conversations into cache")
+        except Exception as e:
+            self.logger.error(f"Error loading last conversations cache: {e}")
+        self.mark_ready()
+
+    def _format_conversations_xml(self, conversations: list) -> str:
+        """Format list of conversations as XML string for LLM prompts"""
+        if not conversations:
+            return ""
+        
+        lines = ["<last_conversations>"]
+        for conv in conversations:
+            # Truncate ISO timestamp to remove milliseconds (e.g., 2025-05-07T12:17:48.692972 -> 2025-05-07T12:17:48)
+            start_time = conv.get('start_time', '')
+            if '.' in start_time:
+                start_time = start_time.split('.')[0]
+            
+            lines.append(start_time)
+            lines.append(conv.get('content', ''))
+            lines.append("---")
+        
+        lines.append("</last_conversations>")
+        return "\n".join(lines)
+
+    def _format_single_conversation_xml(self, start_time: str, content: str) -> str:
+        """Format a single conversation for prepending to cache"""
+        # Truncate ISO timestamp to remove milliseconds
+        if '.' in start_time:
+            start_time = start_time.split('.')[0]
+        return f"{start_time}\n{content}\n---"
+
+    def _prepend_to_cache(self, new_conv: str):
+        """Prepend a new conversation to the cache and trim to max count"""
+        if not self.last_conversations_cache:
+            self.last_conversations_cache = f"<last_conversations>\n{new_conv}\n</last_conversations>"
+            return
+        
+        # Extract existing conversations (remove tags)
+        cache_content = self.last_conversations_cache
+        cache_content = cache_content.replace("<last_conversations>\n", "").replace("\n</last_conversations>", "")
+        
+        # Prepend new conversation
+        updated = f"<last_conversations>\n{new_conv}\n{cache_content}"
+        
+        # Count conversations and trim if needed (each conversation ends with ---)
+        conv_parts = updated.split("---")
+        # Remove last empty part if exists
+        if conv_parts and not conv_parts[-1].strip():
+            conv_parts = conv_parts[:-1]
+        
+        # Keep only last N conversations (from the end since new ones are at start)
+        if len(conv_parts) > self.last_conversations_count:
+            # Keep the first N conversation blocks (newest ones are first after prepending)
+            conv_parts = conv_parts[:self.last_conversations_count]
+            # Each part needs --- appended except we need proper structure
+            # Rebuild properly: each conversation is date\ncontent followed by ---
+            updated = "<last_conversations>\n" + "---\n".join(conv_parts) + "\n---\n</last_conversations>"
+        else:
+            updated = updated.rstrip() + "\n</last_conversations>"
+        
+        self.last_conversations_cache = updated
+
+    @hookimpl
+    def get_last_conversations(self) -> str:
+        """Return cached last conversations as XML string"""
+        return self.last_conversations_cache
 
     @hookimpl
     async def transcribing_started(self):

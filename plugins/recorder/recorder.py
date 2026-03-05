@@ -80,6 +80,7 @@ class Recorder(Baseplugin):
             self.logger.warning("FastAPI app not available; recorder endpoints not registered")
 
         self.is_loaded = True
+        self.mark_ready()
 
     def _register_routes(self):
         @self.router.post("/audio")

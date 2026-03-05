@@ -20,14 +20,18 @@
             <button class="btn btn-side btn-side-left" @click="switchToMainView"><svg class="icon icon-l">
                     <use xlink:href="/img/svgdefs.svg#icon-chevron_left" />
                 </svg></button>
-            <div v-for="(category, index) in secondaryCategories" :key="index" class="options-col" v-show="hasCategoryItems(category)">
-                <h3>{{ translateCategory(category.name) }}</h3>
-                <button v-for="(item, key) in category.items" :key="key" class="btn"
-                    :class="{ 'btn-primary': item.fixed, 'btn-secondary': !item.fixed, 'btn-selected-glow': isSelected(category.name, key) }"
-                    @click="selectItem(category.name, key, item)">
-                    {{ translateItem(key) }}
-                </button>
+            <div class="options container">
+                <div v-for="(category, index) in secondaryCategories" :key="index" class="options-col"
+                    v-show="hasCategoryItems(category)">
+                    <h3>{{ translateCategory(category.name) }}</h3>
+                    <button v-for="(item, key) in category.items" :key="key" class="btn"
+                        :class="{ 'btn-primary': item.fixed, 'btn-secondary': !item.fixed, 'btn-selected-glow': isSelected(category.name, key) }"
+                        @click="selectItem(category.name, key, item)">
+                        {{ translateItem(key) }}
+                    </button>
+                </div>
             </div>
+
         </div>
         <div class="answers" v-if="currentView == 'answers'">
             <button class="btn btn-side btn-side-left" @click="switchToMainView"><svg class="icon icon-l">
@@ -35,9 +39,23 @@
                 </svg></button>
             <div class="row columns">
                 <div v-for="col in ['left', 'center', 'right']" :key="col" :class="['column', col]">
-                    <div v-for="(msg, idx) in answers[col]" :key="col + '-' + idx" class="msg msg-small"
-                        @click="$_chooseAnswer(msg, idx, col)">
-                        {{ msg }}
+                    <div v-if="answers[col] && answers[col].length > 0" class="column-mood-icon">
+                        <svg class="icon icon-m">
+                            <use :xlink:href="'/img/svgdefs.svg#' + moodIcons[col]"></use>
+                        </svg>
+                    </div>
+                    <div v-for="(msg, idx) in answers[col]" :key="col + '-' + idx" class="msg-row">
+                        <div :class="['msg', 'msg-small', { editing: editingKey === col + '-' + idx }]"
+                            :contenteditable="editingKey === col + '-' + idx" :ref="'msg-' + col + '-' + idx"
+                            @click="$_chooseAnswer(msg, idx, col)" @keydown.enter.prevent="$_speakEdited(col, idx)">
+                            {{ msg }}
+                        </div>
+                        <button class="btn-edit rounded" @click.stop="$_toggleEdit(col, idx)"
+                            :title="editingKey === col + '-' + idx ? t('Speak edited phrase') : t('Edit phrase')">
+                            <svg class="icon icon-m">
+                                <use xlink:href="/img/svgdefs.svg#icon-pencil"></use>
+                            </svg>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -58,8 +76,18 @@ module.exports = {
             mainCategories: [],
             secondaryCategories: [],
             answers: [],
-            selectedItem: null
+            selectedItem: null,
+            editingKey: null
         };
+    },
+    computed: {
+        moodIcons() {
+            return {
+                left: 'icon-sun-high',
+                center: 'icon-cloud',
+                right: 'icon-cloud-rain'
+            };
+        }
     },
     mounted() {
         console.log('DAILY MOUNTED');
@@ -186,7 +214,8 @@ module.exports = {
             }
         },
         /* Sending final phrase */
-        async $_chooseAnswer(msg, index) {
+        async $_chooseAnswer(msg, idx, col) {
+            if (this.editingKey === col + '-' + idx) return;
             let text = msg;
             const json = { action: "speak", msg: text };
             console.log("sending JSON");
@@ -195,6 +224,35 @@ module.exports = {
             /* this.switchToMainView(); */
             this.answers = [];
             this.selectedItem = null;
+            this.editingKey = null;
+        },
+        $_toggleEdit(col, idx) {
+            const key = col + '-' + idx;
+            if (this.editingKey === key) {
+                this.$_speakEdited(col, idx);
+            } else {
+                this.editingKey = key;
+                this.$nextTick(() => {
+                    const refKey = 'msg-' + key;
+                    const el = this.$refs[refKey];
+                    if (el) {
+                        const target = Array.isArray(el) ? el[0] : el;
+                        target.focus();
+                    }
+                });
+            }
+        },
+        $_speakEdited(col, idx) {
+            const refKey = 'msg-' + col + '-' + idx;
+            const el = this.$refs[refKey];
+            const target = el ? (Array.isArray(el) ? el[0] : el) : null;
+            const editedText = target ? target.innerText.trim() : '';
+            if (editedText) {
+                this.answers[col].splice(idx, 1);
+                const json = { action: "speak", msg: editedText };
+                this.sendMsgToBackend(json);
+            }
+            this.editingKey = null;
         },
         switchToSecondaryView() {
             this.currentView = 'secondary';
@@ -231,33 +289,92 @@ module.exports = {
     justify-content: center;
 }
 
+
 .answers {
     flex: 1 1 0;
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     justify-content: flex-start;
     /* border: 1px solid #0f0;
     /* green box */
     min-height: 0;
+    padding-left: 0;
+
 }
 
 .columns {
     display: flex;
     flex-direction: row;
     gap: 30px;
-    height: 100%;
-    width: 100%;
 }
 
 .column {
     flex: 1;
+    min-width: 0;
     display: flex;
     flex-direction: column;
     padding: 20px;
 }
 
 .answers .msg {
+    margin-bottom: 0;
+}
+
+.answers .msg-row {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 1.3rem;
     margin-bottom: 2.2vh;
+}
+
+.btn-edit {
+    flex-shrink: 0;
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    cursor: pointer;
+    padding: 0.4rem;
+    opacity: 0.4;
+    transition: opacity 0.2s;
+}
+
+.btn-edit:hover {
+    opacity: 1;
+}
+
+.btn-edit .icon {
+    display: block;
+    stroke: currentColor;
+    fill: none;
+    color: var(--color-text, #fff);
+}
+
+.msg.editing {
+    outline: 1px dashed rgba(255, 255, 255, 0.5);
+    cursor: text;
+}
+
+.msg[contenteditable="true"] {
+    outline-offset: 4px;
+}
+
+.column-mood-icon {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 1.2vh;
+    opacity: 0.45;
+}
+
+.column-mood-icon .icon {
+    stroke: currentColor;
+    fill: none;
+    color: var(--color-text, #fff);
+}
+
+.answers .columns {
+    flex: 1 1 auto;
+    min-width: 0;
+    width: auto;
 }
 
 .main {
@@ -282,17 +399,29 @@ module.exports = {
     flex: 1 1 auto;
     align-items: stretch;
     min-height: 0;
-    height: 100%;
     position: relative;
 }
 
-.options.secondary,
-.answers {
-    padding-left: 5rem;
+.options.secondary {
+    padding: 0;
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
 }
 
-.answers .msg {
-    margin-bottom: 10px;
+.options.container {
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+    padding: 1rem;
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+}
+
+.btn-side-left {
+    width: 120px;
+    position: relative;
 }
 
 .options .btn {

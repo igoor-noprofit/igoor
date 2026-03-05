@@ -137,6 +137,7 @@ class Rag(Baseplugin):
         
         # Signal that loading is complete
         self.is_loaded = True
+        self.mark_ready()
         self.loading_event.set()
         self.logger.info("RAG plugin initialization complete")
         await self.pm.trigger_hook(hook_name="rag_loaded")
@@ -165,6 +166,10 @@ class Rag(Baseplugin):
         async def get_documents():
             results = await self.db_execute("SELECT id, title, filename, always_send, created_at FROM documents ORDER BY created_at DESC")
             return results or []
+
+        @self.router.get("/status")
+        async def get_status():
+            return {"ready": self.ready}
 
         @self.router.post("/documents")
         async def upload_documents(files: List[UploadFile]):
@@ -1420,6 +1425,65 @@ class Rag(Baseplugin):
             # self.logger.error(traceback.format_exc())
             # Return whatever was processed so far, or an empty list
             return processed_results if processed_results else []
+    
+    @hookimpl
+    async def data_imported(self, backup_path: str = None):
+        """
+        Called when user data is imported. Reload FAISS indexes.
+        
+        Args:
+            backup_path (str): Path to the backup created during import.
+        """
+        self.logger.info(f"Data import detected, reloading FAISS indexes (backup: {backup_path})")
+        
+        if not self.is_loaded:
+            self.logger.warning("RAG plugin not loaded yet, skipping index reload")
+            return
+        
+        try:
+            # Reload all indexes
+            for store_type in [INGESTED, LONG_TERM, SHORT_TERM]:
+                folder_name = self.index_folder_names[store_type]
+                folder_path = os.path.join(self.plugin_folder, folder_name)
+                
+                # Check if folder exists
+                if os.path.exists(folder_path) and not self.is_folder_empty(folder_name):
+                    self.logger.info(f"Reloading {folder_name} index from {folder_path}")
+                    
+                    # Mark as not loaded so it will be reloaded
+                    self.index_loaded[store_type] = False
+                    self.vector_stores[store_type] = None
+            
+            # Reload all indexes asynchronously
+            await self.load_all_indexes()
+            
+            self.logger.info("FAISS indexes reloaded successfully")
+        except Exception as e:
+            self.logger.error(f"Failed to reload FAISS indexes: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    def is_folder_empty(self, folder_name: str) -> bool:
+        """
+        Check if a subfolder is empty.
+        
+        Args:
+            folder_name (str): Name of the subfolder (e.g., 'ingested', 'long', 'short')
+        
+        Returns:
+            bool: True if folder is empty or doesn't exist, False otherwise
+        """
+        folder_path = os.path.join(self.plugin_folder, folder_name)
+        
+        if not os.path.exists(folder_path):
+            return True
+        
+        try:
+            items = os.listdir(folder_path)
+            return len(items) == 0
+        except Exception as e:
+            self.logger.error(f"Error checking if folder {folder_name} is empty: {e}")
+            return True
     
     '''
         
