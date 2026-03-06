@@ -190,7 +190,7 @@ set "GITHUB_TOKEN=!GITHUB_TOKEN: =!"
 echo GitHub token found.
 
 rem Set paths
-set "INSTALLER_PATH=C:\TMP\IGOOR\DEV\INNOSETUP\RELEASES\!__version!\IGOOR-!__version!-Install-Complete.exe"
+set "INSTALLER_PATH=C:\TMP\IGOOR\DEV\INNOSETUP\RELEASES\!__version!\IGOOR.exe"
 set "RELEASE_TAG=v!__version!"
 set "GITHUB_API=https://api.github.com/repos/igoor-noprofit/igoor"
 
@@ -265,7 +265,7 @@ echo Release !RELEASE_TAG! created successfully.
 rem Step 4.4: Upload Installer
 :UPLOAD_INSTALLER
 echo Uploading installer...
-set "INSTALLER_FILENAME=IGOOR-!__version!-Install-Complete.exe"
+set "INSTALLER_FILENAME=IGOOR.exe"
 
 rem Get the upload URL for the release
 curl -s -H "Authorization: token !GITHUB_TOKEN!" "!GITHUB_API!/releases/tags/!RELEASE_TAG!" > __release_info__.txt
