@@ -19,7 +19,7 @@ class Ttsdefault(Baseplugin):
         self.settings = self.get_my_settings()
         # Initialize SAPI
         self.fallback_only = self.settings.get("fallback_only", False)
-        self.voice_id = self.settings.get("voice_id")
+        self.voice_id = self.settings.get("voice_id", 0)
         try:
             self.speaker = win32com.client.Dispatch("SAPI.SpVoice")
             voices = self.speaker.GetVoices()
