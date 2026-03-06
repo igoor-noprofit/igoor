@@ -22,7 +22,7 @@ Please refer to the [`README.md`](./README.md) for detailed setup instructions, 
 
 ### 1. Branch Protection
 
-* The `main` branch is **protected**.
+* The `master` branch is **protected**.
 * You cannot push directly to it.
 * All contributions must come via **feature branches** and **pull requests (PRs)**.
 
@@ -37,14 +37,14 @@ Please refer to the [`README.md`](./README.md) for detailed setup instructions, 
 3. **Commit** with a clear, descriptive message:
 
    ```
-   git commit -m "Add Vosk plugin improvements for French language"
+   git commit -m "Improved ASR plugin"
    ```
 4. **Push your branch**:
 
    ```bash
    git push origin feature/your-feature-name
    ```
-5. **Open a Pull Request (PR)** to `main`.
+5. **Open a Pull Request (PR)** to `master`.
 
 ---
 
@@ -88,7 +88,7 @@ If your contribution affects plugin behavior, include:
 
 ## 📘 Contribution Review
 
-All pull requests will be reviewed by **Carlo Giordano**, the project maintainer.
+All pull requests will be reviewed by the project maintainer at IGOOR association.
 
 A PR may be:
 

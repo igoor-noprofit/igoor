@@ -7,14 +7,14 @@ Its interface makes it easy-to-use also via eye-tracking device.
 
 <img src="./img/logo_fb.png" alt="logo IGOOR" width="400">
 
-Take a look at the [IGOOR website](https://igoor.org/en) for further infos about our core principles, values and software roadmap.
+Take a look at the <a href="https://igoor.org/en">IGOOR website</a> for further infos about our core principles, values and software roadmap.
 
-IGOOR has been developed in partnership with [ARSLA](https://www.arsla.org/).
+IGOOR has been developed in partnership with <a href="https://www.arsla.org/">ARSLA</a>.
 
 
 ## DOCUMENTATION
 
-Documentation is ongoing. We strive to keep it up to date with latest functionalities.
+Documentation is ongoing. We strive to keep it up to date with latest functionalities, and to translate tutorials from French.
 
 - English : [IGOOR docs](https://igoor-noprofit.github.io/docs/)
 - French : [Documentation IGOOR](https://igoor-noprofit.github.io/docs/fr/)
