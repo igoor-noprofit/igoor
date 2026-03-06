@@ -35,11 +35,11 @@ You can download it here:
 
 https://developer.microsoft.com/en-us/microsoft-edge/webview2?form=MA13LH#download
 
-**NOTE: IGOOR installers sistematically include the runtime. 
-Download latest executable from :
+**NOTE: IGOOR installers sistematically include the runtime.**
+Download latest executable from:
 
 https://github.com/igoor-noprofit/igoor/releases/download/latest/IGOOR.exe
-**
+
 
 Microsoft Edge WebView2 Runtime is © Microsoft Corporation.
 
