@@ -22,6 +22,7 @@
                  @focus="$_onFocus" 
                  @blur="$_onBlur"
                  @keydown="$_handleKeydown"
+                 @paste="$_handlePaste"
                  tabindex="0">
                 <span class="typed-text">{{ userInput }}</span><span class="cursor" v-if="isFocused">|</span>
                 <button v-for="(pred, idx) in shortPredictions" 
@@ -224,6 +225,19 @@ module.exports = {
             } else if (event.key === 'Enter') {
                 this.$_speakInput();
                 event.preventDefault();
+            }
+        },
+        async $_handlePaste(event) {
+            event.preventDefault();
+            try {
+                const text = await navigator.clipboard.readText();
+                if (text) {
+                    this.userInput += (this.userInput && !this.userInput.endsWith(' ')) ? ' ' : '';
+                    this.userInput += text;
+                    this.$_focusInput();
+                }
+            } catch (e) {
+                console.error('Paste error:', e);
             }
         },
         async loadDictionary() {
