@@ -33,7 +33,7 @@ class Autocomplete(Baseplugin):
         self.is_loaded = True
         self.only_exact_matches = self.settings.get("only_exact_matches", False)
         self.allow_virtual_keyboard = self.settings.get("allow_virtual_keyboard", False)
-        self.short_prediction_words = self.settings.get("short_prediction_words", 3)
+        self.short_prediction_words = self.settings.get("short_prediction_words", 1)
         self.router = None
         print(f"ONLY EXACT MATCHES: {self.only_exact_matches}")
     
