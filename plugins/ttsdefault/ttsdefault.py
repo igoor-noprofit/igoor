@@ -95,7 +95,7 @@ class Ttsdefault(Baseplugin):
         self.logger.info("Global settings updated, refreshing ttsdefault settings")
         self.settings = self.get_my_settings()
         self.fallback_only = self.settings.get("fallback_only", False)
-        self.voice_id = self.settings.get("voice_id")
+        self.voice_id = self.settings.get("voice_id", 0)
         if self.is_loaded:
             try:
                 self.speaker.Voice = self.speaker.GetVoices().Item(self.voice_id)
