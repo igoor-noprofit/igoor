@@ -22,6 +22,7 @@
                  @focus="$_onFocus" 
                  @blur="$_onBlur"
                  @keydown="$_handleKeydown"
+                 @paste="$_handlePaste"
                  tabindex="0">
                 <span class="typed-text">{{ userInput }}</span><span class="cursor" v-if="isFocused">|</span>
                 <button v-for="(pred, idx) in shortPredictions" 
@@ -104,7 +105,7 @@ module.exports = {
     data() {
         return {
             userInput: "",
-            wordSuggestions: [],
+            wordSuggestions: [],    // Virtual keyboard fixed dictionary-based predictions
             prefixDictionary: null,
             isLoading: true,
             error: null,
@@ -112,7 +113,7 @@ module.exports = {
             maxRetries: 3,
             showKeyboard: false,
             allowVirtualKeyboard: false,
-            shortPredictions: [],
+            shortPredictions: [],   // DB-based personalized predictions
             shortPredictionTimeout: null,
             isFocused: false
         }
@@ -126,18 +127,6 @@ module.exports = {
         }
     },
     methods: {
-        /* async $_pasteFromClipboard() {
-            try {
-                const text = await navigator.clipboard.readText();
-                if (text) {
-                    this.userInput += (this.userInput && !this.userInput.endsWith(' ')) ? ' ' : '';
-                    this.userInput += text;
-                    this.$refs.autocompleteInput.focus();
-                }
-            } catch (e) {
-                this.error = "Impossible de coller depuis le presse-papiers.";
-            }
-        },*/
         $_showKeyboard() {
             this.showKeyboard = false;  // Changed from isInputFocused
         },
@@ -174,17 +163,23 @@ module.exports = {
             this.$_hideKeyboard();
         },
         async $_fetchShortPredictions() {
+            console.warn("Fetching short predictions for input:", this.userInput);
             if (!this.userInput || this.userInput.trim().length < 2) {
                 this.shortPredictions = [];
                 return;
             }
-            
             try {
                 const response = await this.callPluginRestEndpoint('autocomplete', 'short-predictions', {
                     method: 'POST',
                     data: { input: this.userInput }
                 });
                 this.shortPredictions = response.predictions || [];
+                
+                // Trigger LLM prediction after short predictions are fetched
+                const inputWithSpace = this.userInput;
+                if (inputWithSpace && inputWithSpace.endsWith(' ')) {
+                    this.predictFullSentence(inputWithSpace);
+                }
             } catch (e) {
                 console.error('Error fetching short predictions:', e);
                 this.shortPredictions = [];
@@ -208,8 +203,6 @@ module.exports = {
                 this.shortPredictions = [];
                 // Restore focus
                 this.$_focusInput();
-                // Trigger full sentence prediction (LLM)
-                this.predictFullSentence(this.userInput);
             }
         },
         $_handleKeydown(event) {
@@ -224,6 +217,19 @@ module.exports = {
             } else if (event.key === 'Enter') {
                 this.$_speakInput();
                 event.preventDefault();
+            }
+        },
+        async $_handlePaste(event) {
+            event.preventDefault();
+            try {
+                const text = await navigator.clipboard.readText();
+                if (text) {
+                    this.userInput += (this.userInput && !this.userInput.endsWith(' ')) ? ' ' : '';
+                    this.userInput += text;
+                    this.$_focusInput();
+                }
+            } catch (e) {
+                console.error('Paste error:', e);
             }
         },
         async loadDictionary() {
@@ -308,12 +314,14 @@ module.exports = {
                 this.userInput = words.join(' ') + ' ';
                 this.$_focusInput()
                 // Trigger full sentence prediction when word is selected
+                // console.log('Selected word:', word, 'Current input:', this.userInput);
                 // this.predictFullSentence(this.userInput);
             } catch (error) {
                 console.error('Error selecting word:', error);
             }
         },
         predictFullSentence(input) {
+            console.warn("Predicting full sentence for input:", input);
             // Send the entire input to backend for prediction
             const json = {
                 action: "predict",
@@ -373,17 +381,6 @@ module.exports = {
                 }
             } else {
                 this.shortPredictions = [];
-            }
-            
-            // Full sentence prediction when space is added (LLM, slower)
-            // Delay slightly to let short predictions render first
-            if (isSpaceAdded) {
-                if (this.predictionTimeout) {
-                    clearTimeout(this.predictionTimeout);
-                }
-                this.predictionTimeout = setTimeout(() => {
-                    this.predictFullSentence(newInput);
-                }, 100);
             }
         }
     }
