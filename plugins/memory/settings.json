@@ -1,7 +1,7 @@
 {
     "provider": "",
     "api_key": "",
-    "model_name": "",
+    "model_name": "openai/gpt-oss-120b",
     "temperature": 0.0,
     "review": true,
     "clean_after_days": 21
