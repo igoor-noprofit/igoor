@@ -88,23 +88,19 @@
                     <div v-if="currentTab === 'bio'" class="bio-container">
                         <div class="bio left">
                             <div>
-                                <label>{{ t("Name") }}</label><input type="text" v-model="bio.name">
+                                <label class="req">{{ t("Name") }}</label><input type="text" v-model="bio.name">
                             </div>
-                            <!--div>
-                                <label>{{ t("Pronoun") }}</label><input type="text" v-model="bio.pronoun">
+                             <div>
+                                <label>{{ t("Style") }}</label>
+                                <p class="field-description">{{ t("Describe the user's writing style. This helps the AI suggest text closer to their natural voice. Include sentence length, tone, vocabulary, humor, use of punctuation, and other recurring patterns.") }}</p>
+                                <textarea class="style" v-model="bio.style" :placeholder="t('Ex.: Uses long, formal sentences with frequent philosophical references and irony. Or: Short, punchy sentences. Very informal tone, lots of abbreviations.')"></textarea>
                             </div>
-                            <div>
-                                <label>{{ t("Year of birth") }}</label><input type="text" v-model="bio.birth_date">
-                            </div-->
                         </div>
                         <div class="bio right">
                             <div>
-                                <label>{{ t("Health State") }}</label>
-                                <textarea class="health" v-model="bio.health_state"></textarea>
-                            </div>
-                            <div>
-                                <label>{{ t("Style") }}</label>
-                                <textarea class="style" v-model="bio.style"></textarea>
+                                <label class="req">{{ t("Health State") }}</label>
+                                <p class="field-description">{{ t("Describe current physical abilities, functional limitations, assistive devices in use (wheelchair, eye-tracking device, orthoses…) and any medical or paramedical care in place. You may also include current medications and their frequency.") }}</p>
+                                <textarea class="health" v-model="bio.health_state" :placeholder="t('Ex.: Diagnosis, upper/lower limb mobility, fatigue, assistance needs for transfers or daily activities.\nAssistive devices: power wheelchair, eye-tracking device, orthoses, etc.\nCare team: physiotherapist (1x/week), nurse, etc.\nCurrent treatments: Riluzole (2x/day), vitamin D, etc.')"></textarea>
                             </div>
                         </div>
                     </div>
@@ -145,7 +141,7 @@
                                     </select>
                                 </div>
                                 <div>
-                                    <label>{{ t("API Key") }}</label>
+                                    <label class="req">{{ t("API Key") }}</label>
                                     <div style="display: flex; align-items: center; gap: 8px;">
                                         <input
                                             type="password"
@@ -1025,6 +1021,8 @@ export default {
     transition: .4s;
 }
 
+
+
 input:checked+.slider {
     background-color: #2196F3;
 }
@@ -1052,6 +1050,15 @@ input:checked+.slider:before {
 
 .bio-container {
     display: flex;
+}
+
+.field-description {
+    font-size: 0.75rem;
+    color: #ababab;
+    margin: 5px 0 10px 0;
+    line-height: 1.4;
+    max-width: 85%;
+    font-family: FontLight;
 }
 
 .ai-container {
@@ -1192,6 +1199,10 @@ button:disabled {
     font-size: 1em;
     text-align: center;
     font-weight: 500;
+}
+
+.req{
+    font-family: FontBold;
 }
 
 .plugins-grid {
