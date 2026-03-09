@@ -234,6 +234,7 @@ class Conversation(Baseplugin):
         if (not self.conversation_is_open):
             self.logger.info("Abandon conversation called, but conversation is not open")
             return
+        self.send_message_to_frontend({"action": "abandon_conversation"})
 
         # IMPORTANT: Send view change immediately to ensure UI updates before any processing
         await self.send_switch_view_to_app("daily")
@@ -275,7 +276,6 @@ class Conversation(Baseplugin):
         self.current_thread_id = None
         self.current_start_time = None
         context_manager.update_context("conversation", "")
-        self.send_message_to_frontend({"action": "abandon_conversation"})
         self.conversation_is_open = False
         self.cancel_timeout()
 
