@@ -1,6 +1,6 @@
 # Contributing to IGOOR
 
-Thank you for your interest in contributing to **IGOOR** — an open, free, and human-centered conversational application designed for people with neurodegenerative diseases or paralysis.
+Thank you for your interest in contributing to **IGOOR** — an open, free/libre (AGPLv3), and human-centered conversational application designed for people with neurodegenerative diseases or paralysis.
 
 ## 🧱 Development Setup
 
@@ -101,5 +101,5 @@ Please be patient and open to review discussions.
 
 ## ❤️ Acknowledgments
 
-IGOOR is authored by **Carlo Giordano**, based on a concept by **Igor Novitzki**.
+IGOOR is authored by **Carlo Giordano** and not-for-profit association IGOOR, based on a concept by **Igor Novitzki**.
 Original UX/UI by **Zenoid**.
