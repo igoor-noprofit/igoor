@@ -1,8 +1,8 @@
-[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPLv3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 
 # IGOOR
 
-**IGOOR is an open-source and free (GPLv3) conversational application based on AI, designed to provide people with ALS/MND diseases a smooth and natural means of communication.** 
+**IGOOR is an open-source and free (AGPLv3) conversational application based on AI, designed to provide people with ALS/MND diseases a smooth and natural means of communication.** 
 Its interface makes it easy-to-use also via eye-tracking device.
 
 <img src="./img/logo_fb.png" alt="logo IGOOR" width="400">
@@ -233,13 +233,13 @@ Separate llm_invocations contain a JSON of all LLM calls, with prompt/answer and
 
 ## License
 
-IGOOR is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+IGOOR is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
 
 Copyright (C) 2025-2026 Carlo Giordano, Igor Novitzki and the IGOOR not-for-profit organization (https://igoor.org)
 
 IGOOR is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License along with IGOOR.  If not, see <https://www.gnu.org/licenses/>.
+You should have received a copy of the GNU Affero General Public License along with IGOOR.  If not, see <https://www.gnu.org/licenses/>.
 
 ## ADDING A LANGUAGE
 
