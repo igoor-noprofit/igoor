@@ -386,6 +386,7 @@ class Speechifytts(Baseplugin):
             # 3. Play the audio using pydub playback
             print("Playing audio...")
             await self.pm.trigger_hook(hook_name="pause_asr")
+            await asyncio.sleep(0.1)  # Ensure pause message reaches frontend
 
             def play_audio():
                 play(audio_segment)

@@ -420,15 +420,18 @@ class Elevenlabstts(Baseplugin):
 
                 # Generate audio
                 audio = self.client.text_to_speech.convert(**request_params)
+                # Pause ASR before playback and give WebSocket time to deliver the message
                 await self.pm.trigger_hook(hook_name="pause_asr")
-                self._play_audio(audio, request_params.get("output_format", "mp3_44100_128"))
+                await asyncio.sleep(0.1)  # Ensure pause message reaches frontend
+                # Play audio in a thread to avoid blocking the event loop
+                output_format = request_params.get("output_format", "mp3_44100_128")
+                await asyncio.to_thread(self._play_audio, audio, output_format)
             except Exception as inner_e:
                 print(f"Error generating audio data: {inner_e}")
                 await self.call_fallback(message=message)
                 return False
 
-            # Play it back
-            await self.pm.trigger_hook(hook_name="pause_asr")
+            # Restart ASR after playback finishes
             self.run_restart_asr()
             return True
 

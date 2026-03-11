@@ -155,13 +155,15 @@ class Ttsdefault(Baseplugin):
 
     async def run_speak_func(self, message):
         await self.pm.trigger_hook(hook_name="pause_asr")
+        await asyncio.sleep(0.1)  # Ensure pause message reaches frontend
         success = await self.speak_func(message)
         await self.pm.trigger_hook(hook_name="restart_asr")
 
     async def speak_func(self, message):
         self.logger.info("SPEAK FUNC:" + message)
         try:
-            self.speaker.Speak(message)
+            # Run SAPI.Speak in a thread to avoid blocking the event loop
+            await asyncio.to_thread(self.speaker.Speak, message)
             return True
 
         except Exception as e:
