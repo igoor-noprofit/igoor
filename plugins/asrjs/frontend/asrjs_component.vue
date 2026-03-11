@@ -451,8 +451,13 @@ export default {
         },
 
         async $_processAudio(audioData) {
+            // Determine sample rate based on mode
+            // Continuous mode: VAD resamples to 16000 Hz internally
+            // Non-continuous mode: Use native sample rate (48000 Hz)
+            const sampleRate = this.continuous ? 16000 : this.nativeSampleRate;
+            
             // Convert Float32Array audio to WAV blob
-            const wavBlob = this.$_audioToWav(audioData);
+            const wavBlob = this.$_audioToWav(audioData, sampleRate);
 
             // Store the current audio data for potential accumulation on "nok"
             this._lastProcessedAudio = audioData;
@@ -500,8 +505,8 @@ export default {
             view.setUint32(16, 16, true);
             view.setUint16(20, 1, true);
             view.setUint16(22, numChannels, true);
-            view.setUint32(24, sampleRate, true);
-            view.setUint32(28, sampleRate * numChannels * bitsPerSample / 8, true);
+            view.setUint32(24, rate, true);
+            view.setUint32(28, rate * numChannels * bitsPerSample / 8, true);
             view.setUint16(32, numChannels * bitsPerSample / 8, true);
             view.setUint16(34, bitsPerSample, true);
             this.$_writeString(view, 36, 'data');
@@ -516,9 +521,10 @@ export default {
             return new Blob([buffer], { type: 'audio/wav' });
         },
 
-        $_audioToWav(float32Array) {
-            // Convert Float32Array to WAV format (use native sample rate)
-            const sampleRate = this.nativeSampleRate || 48000;
+        $_audioToWav(float32Array, sampleRate = null) {
+            // Convert Float32Array to WAV format
+            // Use provided sampleRate, or fallback to native sample rate
+            const rate = sampleRate || this.nativeSampleRate || 48000;
             const numChannels = 1;
             const bitsPerSample = 16;
 
@@ -541,8 +547,8 @@ export default {
             view.setUint32(16, 16, true);
             view.setUint16(20, 1, true);
             view.setUint16(22, numChannels, true);
-            view.setUint32(24, sampleRate, true);
-            view.setUint32(28, sampleRate * numChannels * bitsPerSample / 8, true);
+            view.setUint32(24, rate, true);
+            view.setUint32(28, rate * numChannels * bitsPerSample / 8, true);
             view.setUint16(32, numChannels * bitsPerSample / 8, true);
             view.setUint16(34, bitsPerSample, true);
             this.$_writeString(view, 36, 'data');
