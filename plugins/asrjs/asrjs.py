@@ -84,7 +84,8 @@ class Asrjs(Baseplugin):
             self.logger.warning("FastAPI app not available; asrjs endpoints not registered")
     
     @hookimpl
-    def restart_asr(self):
+    async def restart_asr(self):
+        print(f"ASRJS restart_asr called: continuous={self.continuous}, conversation_abandoned={self.conversation_abandoned}, is_paused={self.is_paused}")
         if (self.continuous):
             # Don't resume listening if conversation was abandoned
             if self.conversation_abandoned:
@@ -95,14 +96,8 @@ class Asrjs(Baseplugin):
                 new_status = "listening"  # VAD handles speech detection
         else:
             new_status="listening"
-            # Check if there's an existing event loop
-        try:
-            loop = asyncio.get_running_loop()
-            # If there's a running loop, create a task
-            loop.create_task(self.send_status(new_status))
-        except RuntimeError:
-            # If no running loop, use asyncio.run
-            asyncio.run(self.send_status(new_status))
+        print(f"ASRJS restart_asr sending status: {new_status}")
+        await self.send_status(new_status)
     
     def run_monitor_loading(self):
         asyncio.run(self.monitor_loading())
@@ -482,6 +477,14 @@ class Asrjs(Baseplugin):
         return text
         
         
+    @hookimpl
+    async def add_msg_to_conversation(self, msg, author, msg_input):
+        """Ensure flags are set so restart_asr will resume VAD after TTS finishes"""
+        if self.continuous:
+            self.conversation_abandoned = False
+            self.wakeword_detected = True
+            print(f"ASRJS add_msg_to_conversation: set conversation_abandoned=False, wakeword_detected=True")
+
     @hookimpl
     async def pause_asr(self):
         self.is_paused = True
