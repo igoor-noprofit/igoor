@@ -5,5 +5,7 @@
     "temperature": 1,
     "preflow_enabled": false,
     "preflow_model_name": "openai/gpt-oss-20b",
-    "preflow_temperature": 0.5
+    "preflow_temperature": 0.5,
+    "always_generate": false,
+    "semantic_model_name": ""
 }

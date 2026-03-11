@@ -102,6 +102,20 @@ class Flow(Baseplugin):
         # Remove the conversation attribute from dynamic context
         conversation = dynamic_context.get("conversation")
         
+        # SEMANTIC VAD GATE: Check if speaker has finished speaking
+        always_generate = self.settings.get("always_generate", False)
+        semantic_model = self.settings.get("semantic_model_name")
+        
+        if semantic_model and not always_generate:
+            vad_result = await self.semantic_vad(conversation)
+            if vad_result == "nok":
+                print("Semantic VAD: Speaker has not finished speaking")
+                self.send_message_to_frontend(json.dumps({
+                    "action": "listening",
+                    "status": "waiting_for_more"
+                }))
+                return
+        
         # Check if preflow is enabled
         preflow_enabled = self.settings.get("preflow_enabled", False)
         
@@ -230,6 +244,49 @@ class Flow(Baseplugin):
             print(f"Unexpected error in preflow: {str(e)}")
             self.send_error_to_frontend("llm_error",e)
         return False
+    
+    async def semantic_vad(self, conversation: str) -> str:
+        """Lightweight LLM call to check if speaker has finished talking. Returns 'ok' or 'nok'."""
+        start_time = time.time()
+        system_prompt = self.prompts.get("semantic_vad", {}).get("system")
+        if not system_prompt:
+            print("Semantic VAD: No prompt found, defaulting to 'ok'")
+            return "ok"
+        try:
+            model_name = self.settings.get("semantic_model_name") or self.settings.get("model_name")
+            provider = self.settings.get("provider")
+            api_key = self.settings.get("api_key")
+            
+            # Use Groq SDK directly (LLMManager unstructured path doesn't support Groq)
+            if provider == "groq":
+                from groq import Groq
+                client = Groq(api_key=api_key)
+                response = client.chat.completions.create(
+                    model=model_name,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": f"Conversation:\n{conversation}"}
+                    ],
+                    temperature=0,
+                    max_tokens=10  # We only need "ok" or "nok"
+                )
+                text = response.choices[0].message.content.strip().lower()
+            else:
+                # Fallback to LLMManager for other providers
+                llm = LLMManager(provider, api_key, model_name, temperature=0)
+                result = llm.invoke(system_prompt, f"Conversation:\n{conversation}")
+                has_error, result = self.handle_llm_error(result)
+                if has_error:
+                    print(f"Semantic VAD: LLM error, defaulting to 'ok'")
+                    return "ok"
+                text = result.strip().lower() if isinstance(result, str) else str(result).strip().lower()
+            
+            end_time = time.time()
+            print(f"Semantic VAD result: '{text}' (took {end_time - start_time:.2f}s)")
+            return "nok" if "nok" in text else "ok"
+        except Exception as e:
+            print(f"Semantic VAD error: {str(e)}, defaulting to 'ok'")
+            return "ok"
         
     def get_dynamic_context(self):
         return context_manager.get_context()

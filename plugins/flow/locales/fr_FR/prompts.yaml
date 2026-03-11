@@ -207,3 +207,14 @@ preflow:
 
     N'explique JAMAIS ta réponse. Retourne juste le JSON.
     </instructions>
+
+semantic_vad:
+  system: |
+    Tu reçois une conversation en cours entre un interlocuteur (Q) et l'utilisateur (R).
+    Agis comme un VAD sémantique: si la question de Q est terminée, réponds "ok", autrement "nok".
+
+    Exemples:
+    Q: "Qu'est-ce que tu veux manger ce" → "nok"
+    Q: "Qu'est-ce que tu veux manger ce soir ?" → "ok"
+    Q: "Je voulais te dire que..." → "nok"
+    Q: "Bonjour !" → "ok"
