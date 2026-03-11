@@ -462,10 +462,12 @@ export default {
             // Store the current audio data for potential accumulation on "nok"
             this._lastProcessedAudio = audioData;
 
+            // Set status BEFORE sending (not after — the backend sends "listening" via WebSocket
+            // during the request, which would be overwritten if we set status after await)
+            this.status = 'transcribing';
+
             // Send to backend for transcription
             await this.$_sendAudioToTranscribe(wavBlob);
-
-            this.status = 'transcribing';
         },
 
         $_concatenateAudio(buffer1, buffer2) {
@@ -479,6 +481,20 @@ export default {
         $_resetAudioBuffer() {
             this.accumulatedAudioBuffer = null;
             this._lastProcessedAudio = null;
+        },
+
+        $_handleVADStatusChange(status) {
+            // Pause VAD when receiving "ready" or "paused" status (e.g., TTS speaking, abandon)
+            if ((status === 'ready' || status === 'paused') && this.vad && this.vadInitialized) {
+                console.log(`VAD: status is ${status}, pausing VAD`);
+                this.vad.pause();
+                this.$_resetAudioBuffer();
+            }
+            // Resume VAD when receiving "listening" status in continuous mode (e.g., TTS finished)
+            if (status === 'listening' && this.continuous && this.vad && this.vadInitialized) {
+                console.log('VAD: status is listening in continuous mode, resuming VAD');
+                this.vad.start();
+            }
         },
 
         $_createWAVChunk(float32Array, sampleRate) {
@@ -871,6 +887,11 @@ export default {
                         this.keyboardShortcut = this.settings.shortcut;
                     }
                 }
+                // BasePluginComponent intercepts 'ready' status — handle VAD pause here too
+                if (data.status) {
+                    this.status = data.status;
+                    this.$_handleVADStatusChange(data.status);
+                }
                 return true;
             }
             console.log(this.$options.name + ' handling message');
@@ -902,6 +923,7 @@ export default {
                 }
                 if (data.status && data.action !== "listening") {
                     this.status = data.status;
+                    this.$_handleVADStatusChange(data.status);
                 }
             } catch (e) {
                 console.error("Error parsing message:", e);
@@ -959,6 +981,24 @@ export default {
                         this.vad.start();
                         this.status = 'listening';
                         console.log('VAD started');
+                    }
+                } else if (this.status === 'recording') {
+                    // Currently recording in continuous mode — pause VAD
+                    console.log('Pausing VAD during recording in continuous mode');
+                    if (this.vad && this.vadInitialized) {
+                        this.vad.pause();
+                        this.status = 'ready';
+                        this.$_resetAudioBuffer();
+                        console.log('VAD paused during recording');
+                    }
+                } else if (this.status === 'transcribing') {
+                    // Currently transcribing — actually pause VAD to stop listening
+                    console.log('Pausing VAD during transcription in continuous mode');
+                    if (this.vad && this.vadInitialized) {
+                        this.vad.pause();
+                        this.status = 'ready';
+                        this.$_resetAudioBuffer();
+                        console.log('VAD paused during transcription');
                     }
                 } else if (this.status === 'loading' || this.status === 'error') {
                     // VAD not yet loaded — load and start

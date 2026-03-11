@@ -55,6 +55,7 @@ class Asrjs(Baseplugin):
         self.wakeword = self.settings.get("wakeword")
         
         self.continuous = self.settings.get("continuous", False) # Ensure default for continuous
+        self.conversation_abandoned = False  # Track if conversation was abandoned
         print (f"ASRJS settings: {self.settings}, Global Lang for ASR: {self.lang_code}")
 
         self.model_provider = self.settings.get("model_provider", "groq")  # Default to Groq if not set
@@ -85,9 +86,13 @@ class Asrjs(Baseplugin):
     @hookimpl
     def restart_asr(self):
         if (self.continuous):
-            self.is_paused = False
-            self.wakeword_detected = True
-            new_status="recording"
+            # Don't resume listening if conversation was abandoned
+            if self.conversation_abandoned:
+                new_status = "ready"
+            else:
+                self.is_paused = False
+                self.wakeword_detected = True
+                new_status = "listening"  # VAD handles speech detection
         else:
             new_status="listening"
             # Check if there's an existing event loop
@@ -168,6 +173,10 @@ class Asrjs(Baseplugin):
         self.mark_ready()
     
     async def handle_wake_word(self,following_text):
+        # Guard against empty transcriptions
+        if not following_text or not following_text.strip():
+            print("Empty transcription, ignoring")
+            return
         print(f"Wake word detected! Text: '{following_text}'")
         await self.pm.trigger_hook(hook_name="add_msg_to_conversation", msg=following_text, author="def",msg_input="asrwhisper")
         await self.pm.trigger_hook(hook_name="asr_msg", msg="Q: " + following_text)
@@ -195,7 +204,8 @@ class Asrjs(Baseplugin):
                         # Handle hook triggers from frontend
                         hook_name = data.get('hook_name')
                         if hook_name == 'transcribing_started':
-                            asyncio.create_task(self.send_status("transcribing"))
+                            # Send "transcribing_started" status so conversation component can show typing indicator
+                            asyncio.create_task(self.send_status("transcribing_started"))
                             # Trigger to other plugins if needed
                             await self.pm.trigger_hook(hook_name="transcribing_started")
                         else:
@@ -374,6 +384,9 @@ class Asrjs(Baseplugin):
         async def start_recording_endpoint():
             """Start recording via HTTP endpoint"""
             try:
+                # Reset abandonment flag when user clicks to start new conversation
+                self.conversation_abandoned = False
+                
                 await self.send_status("recording")
                 await self.pm.trigger_hook(hook_name="transcribing_started")
                 return {"status": "started"}
@@ -416,6 +429,7 @@ class Asrjs(Baseplugin):
                 self.temp_audio_file = temp_file_path
                 
                 # Transcribe the audio
+                await self.pm.trigger_hook(hook_name="transcribing_started")
                 text = await self.transcribe_audio()
                 
                 # Restore original temp file path
@@ -432,6 +446,12 @@ class Asrjs(Baseplugin):
                     # Handle transcription result
                     await self.handle_wake_word(text)
                 await self.pm.trigger_hook(hook_name="transcribing_ended")
+                
+                # Reset status to "listening" for continuous mode after transcription completes
+                # But only if conversation wasn't abandoned
+                if self.continuous and not self.conversation_abandoned:
+                    await self.send_status("listening")
+                
                 return {"status": "success", "text": text}
                 
             except Exception as e:
@@ -471,9 +491,20 @@ class Asrjs(Baseplugin):
     async def abandon_conversation(self, cause="timeout"):
         try:
             print("ASRJS received ABANDON_CONVERSATION trigger")
-            # Your existing logic here
+            # Reset wake word detection
             self.wakeword_detected = False
-            await self.send_status("listening")
+            
+            # Mark conversation as abandoned to prevent status reset after transcription
+            self.conversation_abandoned = True
+            
+            # If continuous mode is active, pause VAD to stop listening
+            if self.continuous:
+                print("ASRJS: Continuous mode is active, pausing VAD")
+                await self.send_status("ready")  # Send "ready" status instead of "listening"
+            else:
+                print("ASRJS: Non-continuous mode, sending listening status")
+                await self.send_status("listening")
+                
             print("ASRJS after_conversation_end completed successfully")
         except Exception as e:
             print(f"Error in ASRJS after_conversation_end: {e}")
