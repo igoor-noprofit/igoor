@@ -104,7 +104,13 @@ class Flow(Baseplugin):
         
         # SEMANTIC VAD GATE: Check if speaker has finished speaking
         always_generate = self.settings.get("always_generate", False)
-        semantic_model = self.settings.get("semantic_model_name")
+        # Fall back to global onboarding settings for semantic model
+        ai = self.global_settings.get_nested(["plugins", "onboarding", "ai"], default={})
+        flow_semantic_model = self.settings.get("semantic_model_name")
+        if flow_semantic_model:
+            semantic_model = flow_semantic_model
+        else:
+            semantic_model = ai.get("semantic_model_name") or ai.get("model_name")
         
         if semantic_model and not always_generate:
             vad_result = await self.semantic_vad(conversation)
@@ -195,7 +201,20 @@ class Flow(Baseplugin):
         
         print(f"FINAL PROMPT : {prompt}")
         try:
-            llm = LLMManager(self.settings.get("provider"), self.settings.get("api_key"), self.settings.get("model_name"), temperature=self.settings.get("temperature",1))
+            # Fall back to global onboarding settings
+            ai = self.global_settings.get_nested(["plugins", "onboarding", "ai"], default={})
+            
+            # Use global provider and api_key (flow settings are empty by default)
+            provider = ai.get("provider")
+            api_key = ai.get("api_key")
+            
+            # Use global model_name (flow settings are empty by default)
+            model_name = ai.get("model_name")
+            
+            # Use global temperature (or default if not set)
+            temperature = self.settings.get("temperature") if self.settings.get("temperature") is not None else ai.get("temperature", 1)
+            
+            llm = LLMManager(provider, api_key, model_name, temperature=temperature)
             llm.set_json_schema(Answers)
             answers = llm.invoke(system_prompt,prompt)
             has_error, answers = self.handle_llm_error(answers)
@@ -224,9 +243,25 @@ class Flow(Baseplugin):
         prompt = pm.create_prompt(datetime=formatted_datetime, conversation=conversation)       
         print(f"FINAL PROMPT : {prompt}")
         try:
-            model_name = self.settings.get("preflow_model_name") or self.settings.get("model_name")
-            model_temperature = self.settings.get("preflow_temperature") or self.settings.get("temperature",0.5)
-            llm = LLMManager(self.settings.get("provider"), self.settings.get("api_key"), model_name, temperature=model_temperature)
+            # Fall back to global onboarding settings
+            ai = self.global_settings.get_nested(["plugins", "onboarding", "ai"], default={})
+            
+            # Check model settings (preflow-specific first, then general)
+            flow_preflow_model = self.settings.get("preflow_model_name")
+            if flow_preflow_model:
+                model_name = flow_preflow_model
+            else:
+                model_name = ai.get("model_name")
+            
+            # Check temperature settings (preflow-specific first, then general)
+            flow_preflow_temp = self.settings.get("preflow_temperature")
+            model_temperature = flow_preflow_temp if flow_preflow_temp is not None else ai.get("temperature", 0.5)
+            
+            # Use global provider and api_key
+            provider = ai.get("provider")
+            api_key = ai.get("api_key")
+            
+            llm = LLMManager(provider, api_key, model_name, temperature=model_temperature)
             llm.set_json_schema(ConversationModel)
             preflow = llm.invoke(system_prompt,prompt)
             has_error, preflow = self.handle_llm_error(preflow)
@@ -255,9 +290,17 @@ class Flow(Baseplugin):
         try:
             # Fall back to onboarding settings if flow settings are empty
             ai = self.global_settings.get_nested(["plugins", "onboarding", "ai"], default={})
-            model_name = self.settings.get("semantic_model_name") or self.settings.get("model_name") or ai.get("model_name")
-            provider = self.settings.get("provider") or ai.get("provider")
-            api_key = self.settings.get("api_key") or ai.get("api_key")
+            
+            # Check if flow-specific semantic_model is set (rare override case)
+            flow_semantic_model = self.settings.get("semantic_model_name")
+            if flow_semantic_model:
+                model_name = flow_semantic_model
+            else:
+                # Fallback to global onboarding settings
+                # Check semantic_model_name first (for semantic VAD), then model_name (general)
+                model_name = ai.get("semantic_model_name") or ai.get("model_name")
+            provider = ai.get("provider")
+            api_key = ai.get("api_key")
             
             # Validate provider and model_name before proceeding
             if not provider:
