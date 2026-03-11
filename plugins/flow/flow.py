@@ -310,32 +310,22 @@ class Flow(Baseplugin):
                 print("Semantic VAD: No model configured, defaulting to 'ok'")
                 return "ok"
             
-            # Use Groq SDK directly (LLMManager unstructured path doesn't support Groq)
-            if provider == "groq":
-                from groq import Groq
-                if not api_key:
-                    print("Semantic VAD: No API key configured, defaulting to 'ok'")
-                    return "ok"
-                client = Groq(api_key=api_key)
-                response = client.chat.completions.create(
-                    model=model_name,
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": f"Conversation:\n{conversation}"}
-                    ],
-                    temperature=0,
-                    max_tokens=10  # We only need "ok" or "nok"
-                )
-                text = response.choices[0].message.content.strip().lower()
+            # Use LLMManager for all providers (including Groq) for observability
+            print(f"Semantic VAD: Calling LLM with model '{model_name}' for conversation: {conversation[:100]}...")
+            llm = LLMManager(provider, api_key, model_name, temperature=0)
+            llm.set_json_schema(SemanticVADResponse)
+            result = llm.invoke(system_prompt, f"Conversation:\n{conversation}")
+            
+            has_error, result = self.handle_llm_error(result)
+            if has_error:
+                print(f"Semantic VAD: LLM error, defaulting to 'ok'")
+                return "ok"
+            
+            # Extract result from schema
+            if isinstance(result, SemanticVADResponse):
+                text = result.result.strip().lower()
             else:
-                # Fallback to LLMManager for other providers
-                llm = LLMManager(provider, api_key, model_name, temperature=0)
-                result = llm.invoke(system_prompt, f"Conversation:\n{conversation}")
-                has_error, result = self.handle_llm_error(result)
-                if has_error:
-                    print(f"Semantic VAD: LLM error, defaulting to 'ok'")
-                    return "ok"
-                text = result.strip().lower() if isinstance(result, str) else str(result).strip().lower()
+                text = str(result).strip().lower()
             
             end_time = time.time()
             print(f"Semantic VAD result: '{text}' (took {end_time - start_time:.2f}s)")
@@ -358,6 +348,10 @@ class Flow(Baseplugin):
         ]
         for query in queries:
             asyncio.run(self.asr_msg(query))
+
+class SemanticVADResponse(BaseModel):
+    model_config = {"extra": "forbid"}  # Required for Groq strict mode
+    result: str = Field(description="'ok' if speaker has finished, 'nok' if still speaking")
 
 class Answers(BaseModel):
     model_config = {"extra": "forbid"}  # Required for Groq strict mode

@@ -224,9 +224,10 @@ semantic_vad:
   system: |
     You receive an ongoing conversation between an interlocutor (Q) and the user (R).
     Act as a semantic VAD: if Q's question/statement is complete, respond "ok", otherwise "nok".
+    Always respond in JSON format with a "result" field.
 
     Examples:
-    Q: "What do you want to eat" → "nok"
-    Q: "What do you want to eat tonight?" → "ok"
-    Q: "I wanted to tell you that..." → "nok"
-    Q: "Hello!" → "ok"
+    Q: "What do you want to eat" → {"result": "nok"}
+    Q: "What do you want to eat tonight?" → {"result": "ok"}
+    Q: "I wanted to tell you that..." → {"result": "nok"}
+    Q: "Hello!" → {"result": "ok"}

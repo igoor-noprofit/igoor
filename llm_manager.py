@@ -79,10 +79,6 @@ class LLMManager:
         while attempt < retries:
             try:
                 reasoning_log_content = ""  # Initialize reasoning_log_content
-                
-                # Validate chat_instance exists before attempting invoke
-                if self.chat_instance is None:
-                    raise ValueError("LLM chat instance not initialized. Check provider configuration.")
                 # GPT-OSS models use include_reasoning, not reasoning_format
                 is_gpt_oss = self.model_name in ["openai/gpt-oss-120b", "openai/gpt-oss-20b"]
                 if self.provider == "groq" and self.json_schema and hasattr(self, "schema_model"):
@@ -96,7 +92,7 @@ class LLMManager:
                     ]
                     schema = self.schema_model
 
-                    if self.model_name == "llama-3.3-70b-versatile" or is_gpt_oss:
+                    if self.model_name == "llama-3.3-70b-versatile" or self.model_name == "llama-3.1-8b-instant" or is_gpt_oss:
                         # Use json_object mode - more compatible with reasoning models
                         # GPT-OSS reasoning + json_schema doesn't work reliably
                         response_format={
