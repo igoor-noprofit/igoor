@@ -253,13 +253,26 @@ class Flow(Baseplugin):
             print("Semantic VAD: No prompt found, defaulting to 'ok'")
             return "ok"
         try:
-            model_name = self.settings.get("semantic_model_name") or self.settings.get("model_name")
-            provider = self.settings.get("provider")
-            api_key = self.settings.get("api_key")
+            # Fall back to onboarding settings if flow settings are empty
+            ai = self.global_settings.get_nested(["plugins", "onboarding", "ai"], default={})
+            model_name = self.settings.get("semantic_model_name") or self.settings.get("model_name") or ai.get("model_name")
+            provider = self.settings.get("provider") or ai.get("provider")
+            api_key = self.settings.get("api_key") or ai.get("api_key")
+            
+            # Validate provider and model_name before proceeding
+            if not provider:
+                print("Semantic VAD: No provider configured, defaulting to 'ok'")
+                return "ok"
+            if not model_name:
+                print("Semantic VAD: No model configured, defaulting to 'ok'")
+                return "ok"
             
             # Use Groq SDK directly (LLMManager unstructured path doesn't support Groq)
             if provider == "groq":
                 from groq import Groq
+                if not api_key:
+                    print("Semantic VAD: No API key configured, defaulting to 'ok'")
+                    return "ok"
                 client = Groq(api_key=api_key)
                 response = client.chat.completions.create(
                     model=model_name,

@@ -411,7 +411,7 @@ export default {
                         this.audioChunks = [];
                         if (this.continuous) {
                             this.status = 'recording';
-                            this.audio.on.play();
+                            // this.audio.on.play();
                         }
                     },
 
@@ -426,7 +426,7 @@ export default {
                             }
                             this.pendingTranscription = true;
                             this.$_processAudio(audio);
-                            this.audio.off.play();
+                            // this.audio.off.play();
                         }
                     },
 
@@ -974,14 +974,14 @@ export default {
                 if (oldStatus === 'loading' && newStatus === 'listening') {
                     console.log("listening");
                 } else if (oldStatus === 'listening' && newStatus === 'recording') {
-                    this.audio.on.play();
+                    // this.audio.on.play();
                 } else if (oldStatus === 'recording' && newStatus === 'listening') {
-                    this.audio.off.play();
+                    // this.audio.off.play();
                 }
             }
             if (newStatus === 'empty') {
                 console.warn("Playing OFF sound");
-                this.audio.off.play();
+                //this.audio.off.play();
                 this.status = 'listening';
             }
         }
