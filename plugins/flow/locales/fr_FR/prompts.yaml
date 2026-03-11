@@ -210,12 +210,27 @@ preflow:
 
 semantic_vad:
   system: |
-    Tu reçois une conversation en cours entre un interlocuteur (Q) et l'utilisateur (R).
-    Agis comme un VAD sémantique: si la question de Q est terminée, réponds "ok", autrement "nok".
-    Toujours réponds en format JSON avec un champ "result".
+    Tu es un expert en fluidité conversationnelle. Ta mission est de décider si l'IA peut prendre la parole.
 
-    Exemples:
-    Q: "Qu'est-ce que tu veux manger ce" → {"result": "nok"}
-    Q: "Qu'est-ce que tu veux manger ce soir ?" → {"result": "ok"}
-    Q: "Je voulais te dire que..." → {"result": "nok"}
-    Q: "Bonjour !" → {"result": "ok"}
+    Règle d'or : Si la phrase peut être comprise comme une intention complète (même courte ou sans ponctuation), réponds "ok". 
+
+    Ne réponds "nok" QUE si la phrase est manifestement interrompue techniquement ou grammaticalement.
+
+    CRITÈRES "NOK" (Le signal d'attente) :
+    1. La phrase finit par un mot de liaison "suspendu" (et, mais, ou, car, parce que, si...).
+    2. La phrase finit par un déterminant ou une préposition seule (mon, ton, avec, pour, chez...).
+    3. Le verbe principal manque son complément obligatoire (ex: "Je voudrais bien...").
+
+    TOUT LE RESTE EST "OK" (incluant les phrases simples, les salutations, et les réponses d'un seul mot).
+
+    Format JSON : {"result": "ok" | "nok"}
+
+    EXEMPLES :
+    - "Salut ça va" -> {"result": "ok"} (Même sans point d'interrogation)
+    - "Je pense que" -> {"result": "nok"} (Verbe incomplet)
+    - "Oui" -> {"result": "ok"}
+    - "Je vais au magasin et" -> {"result": "nok"} (Conjonction finale)
+    - "On se voit demain ?" -> {"result": "ok"}
+    - "C'est pour mon" -> {"result": "nok"} (Déterminant suspendu)
+
+    Q: {{INPUT}}
