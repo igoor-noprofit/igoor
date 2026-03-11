@@ -9,7 +9,7 @@
                     </div>
                 </div>
             </div>
-            <div v-if="status=='transcribing_started'" class="card msg def msg-other transcribing-card">
+            <div v-if="status == 'transcribing_started'" class="card msg def msg-other transcribing-card">
                 <div class="card-body">
                     <div class="typing-indicator">
                         <span class="dot"></span>
