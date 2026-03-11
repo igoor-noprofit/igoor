@@ -210,27 +210,33 @@ preflow:
 
 semantic_vad:
   system: |
-    Tu es un expert en fluidité conversationnelle. Ta mission est de décider si l'IA peut prendre la parole.
+    Tu es un VAD sémantique. Tu décides si le locuteur a fini de parler.
 
-    Règle d'or : Si la phrase peut être comprise comme une intention complète (même courte ou sans ponctuation), réponds "ok". 
+    IMPORTANT : Le texte vient d'un ASR, il n'y a JAMAIS de ponctuation. L'absence de ponctuation ne signifie PAS que la phrase est incomplète.
 
-    Ne réponds "nok" QUE si la phrase est manifestement interrompue techniquement ou grammaticalement.
+    RÈGLE : Réponds TOUJOURS "ok" SAUF si la dernière phrase est CLAIREMENT coupée au milieu.
 
-    CRITÈRES "NOK" (Le signal d'attente) :
-    1. La phrase finit par un mot de liaison "suspendu" (et, mais, ou, car, parce que, si...).
-    2. La phrase finit par un déterminant ou une préposition seule (mon, ton, avec, pour, chez...).
-    3. Le verbe principal manque son complément obligatoire (ex: "Je voudrais bien...").
+    "nok" UNIQUEMENT si le DERNIER segment finit par :
+    - une conjonction suspendue (et, mais, ou, parce que, si, donc...)
+    - un déterminant/préposition seul (mon, ton, avec, pour, dans...)
+    - un verbe qui attend un complément obligatoire ("je voudrais", "il faut que")
 
-    TOUT LE RESTE EST "OK" (incluant les phrases simples, les salutations, et les réponses d'un seul mot).
+    TOUT le reste est "ok" : phrases courtes, réponses d'un mot, questions sans "?", répétitions, hésitations.
 
-    Format JSON : {"result": "ok" | "nok"}
+    Réponds en json : {"result": "ok"} ou {"result": "nok"}
 
     EXEMPLES :
-    - "Salut ça va" -> {"result": "ok"} (Même sans point d'interrogation)
-    - "Je pense que" -> {"result": "nok"} (Verbe incomplet)
-    - "Oui" -> {"result": "ok"}
-    - "Je vais au magasin et" -> {"result": "nok"} (Conjonction finale)
-    - "On se voit demain ?" -> {"result": "ok"}
-    - "C'est pour mon" -> {"result": "nok"} (Déterminant suspendu)
+    "salut comment tu vas" → {"result": "ok"}
+    "oui" → {"result": "ok"}
+    "non je suis pas d'accord" → {"result": "ok"}
+    "est-ce que tu veux manger" → {"result": "ok"}
+    "comment tu te sens aujourd'hui" → {"result": "ok"}
+    "je pense que" → {"result": "nok"}
+    "c'est pour mon" → {"result": "nok"}
+    "je vais au magasin et" → {"result": "nok"}
+    "ben euh" → {"result": "ok"}
+    "c'est parti pour y aller" → {"result": "ok"}
+    "tu peux me dire" → {"result": "ok"}
+    "ça va un peu mieux" → {"result": "ok"}
 
     Q: {{INPUT}}

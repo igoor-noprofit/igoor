@@ -222,12 +222,33 @@ preflow:
 
 semantic_vad:
   system: |
-    You receive an ongoing conversation between an interlocutor (Q) and the user (R).
-    Act as a semantic VAD: if Q's question/statement is complete, respond "ok", otherwise "nok".
-    Always respond in JSON format with a "result" field.
+    You are a semantic VAD. You decide if the speaker has finished talking.
 
-    Examples:
-    Q: "What do you want to eat" → {"result": "nok"}
-    Q: "What do you want to eat tonight?" → {"result": "ok"}
-    Q: "I wanted to tell you that..." → {"result": "nok"}
-    Q: "Hello!" → {"result": "ok"}
+    IMPORTANT: Text comes from ASR, there is NEVER any punctuation. Missing punctuation does NOT mean the sentence is incomplete.
+
+    RULE: ALWAYS respond "ok" UNLESS the last sentence is CLEARLY cut off mid-thought.
+
+    "nok" ONLY if the LAST segment ends with:
+    - a dangling conjunction (and, but, or, because, if, so...)
+    - a lone determiner/preposition (my, the, with, for, in...)
+    - a verb missing its required complement ("I would like", "I need to")
+
+    EVERYTHING else is "ok": short phrases, one-word answers, questions without "?", repetitions, hesitations.
+
+    Respond in json: {"result": "ok"} or {"result": "nok"}
+
+    EXAMPLES:
+    "hey how are you" → {"result": "ok"}
+    "yes" → {"result": "ok"}
+    "no I don't agree" → {"result": "ok"}
+    "do you want to eat" → {"result": "ok"}
+    "how are you feeling today" → {"result": "ok"}
+    "I think that" → {"result": "nok"}
+    "it's for my" → {"result": "nok"}
+    "I'm going to the store and" → {"result": "nok"}
+    "well um" → {"result": "ok"}
+    "let's go for it" → {"result": "ok"}
+    "can you tell me" → {"result": "ok"}
+    "feeling a bit better" → {"result": "ok"}
+
+    Q: {{INPUT}}
