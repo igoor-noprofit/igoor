@@ -1,6 +1,7 @@
 from plugin_manager import hookimpl, PluginManager
 from plugins.baseplugin.baseplugin import Baseplugin
 from settings_manager import SettingsManager
+from fastapi import APIRouter, HTTPException
 import asyncio
 import os
 from speechify import Speechify
@@ -25,6 +26,7 @@ Portuguese (Portugal)	pt-PT
 class Speechifytts(Baseplugin):
     def __init__(self, plugin_name, pm):
         self.pm = pm
+        self.router = None
         super().__init__(plugin_name,pm)
         self._ensure_lang_code()
 
@@ -38,9 +40,37 @@ class Speechifytts(Baseplugin):
             code = lang.replace('_', '-')
         self.lang_code = code
         return code
+
+    def _ensure_router(self):
+        """Initialize FastAPI router for plugin endpoints"""
+        if self.router is not None:
+            return
+        self.router = APIRouter(prefix="/api/plugins/speechifytts", tags=["speechifytts"])
+
+        @self.router.get("/get_voices")
+        async def get_voices(api_key: str):
+            """Get list of available voices for an API key"""
+            try:
+                # Use existing get_voices_list method with API key override
+                voice_list = self.get_voices_list(api_key_override=api_key)
+                
+                # If voices list is empty, treat as invalid API key
+                if not voice_list:
+                    raise HTTPException(status_code=400, detail="Invalid API key or no voices found")
+                
+                return {
+                    "voices": voice_list,
+                    "count": len(voice_list)
+                }
+            except Exception as e:
+                raise HTTPException(status_code=400, detail=f"Failed to get voices: {str(e)}")
                 
     @hookimpl
     def startup(self):
+        self._ensure_router()
+        # Register router with the main FastAPI app if available
+        if hasattr(self, 'pm') and hasattr(self.pm, 'fastapi_app'):
+            self.pm.fastapi_app.include_router(self.router)
         # https://docs.sws.speechify.com/docs/features/language-support#beta-languages
         self.supported_lang = ['en', 'fr-FR', 'de-DE', 'es-ES', 'pt-BR', 'pt-PT']
         self.settings = self.get_my_settings()
