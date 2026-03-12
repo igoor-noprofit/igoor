@@ -129,7 +129,7 @@
                 </div>
 
                 <!-- Always Generate (bypass semantic VAD) -->
-                <div class="form-label">{{t('Always Generate')}}</div>
+                <div class="form-label">{{t('Always generate predictions')}}</div>
                 <div class="form-input">
                     <label class="toggle-switch">
                         <input type="checkbox" v-model="formData.always_generate" />
