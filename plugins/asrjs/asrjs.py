@@ -518,6 +518,11 @@ class Asrjs(Baseplugin):
     @hookimpl
     def wakeword_detected(self):
         self.wakeword_detected = True
+
+    @hookimpl
+    def get_asrjs_config(self):
+        """Provide asrjs configuration to other plugins"""
+        return self.settings
         
         
     @hookimpl

@@ -101,9 +101,12 @@ class Flow(Baseplugin):
         dynamic_context = self.get_dynamic_context().copy()
         # Remove the conversation attribute from dynamic context
         conversation = dynamic_context.get("conversation")
-        
+
         # SEMANTIC VAD GATE: Check if speaker has finished speaking
-        always_generate = self.settings.get("always_generate", False)
+        always_generate = False
+        asrjs_configs = await self.pm.trigger_hook(hook_name="get_asrjs_config")
+        if asrjs_configs and asrjs_configs[0]:
+            always_generate = asrjs_configs[0].get("always_generate", False)
         # Fall back to global onboarding settings for semantic model
         ai = self.global_settings.get_nested(["plugins", "onboarding", "ai"], default={})
         flow_semantic_model = self.settings.get("semantic_model_name")
