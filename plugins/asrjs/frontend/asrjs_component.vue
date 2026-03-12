@@ -389,6 +389,10 @@ export default {
                     throw new Error('VAD library not available');
                 }
 
+                // Get settings with defaults
+                const positiveThreshold = this.settings?.positiveSpeechThreshold || 0.5;
+                const redemptionFrames = this.settings?.redemptionFrames || 8;
+
                 this.vad = await window.vad.MicVAD.new({
                     // Model files (silero_vad_legacy.onnx) are in /plugins/asrjs/static/vad/
                     baseAssetPath: "/plugins/asrjs/static/vad/",
@@ -398,10 +402,10 @@ export default {
                     // Don't start listening until user clicks mic
                     startOnLoad: false,
 
-                    // VAD configuration
-                    positiveSpeechThreshold: 0.5,
-                    negativeSpeechThreshold: 0.35,
-                    redemptionFrames: 8,
+                    // VAD configuration (from settings)
+                    positiveSpeechThreshold: positiveThreshold,
+                    negativeSpeechThreshold: positiveThreshold - 0.15, // Keep relative to positive
+                    redemptionFrames: redemptionFrames,
                     preSpeechPadFrames: 1,
                     minSpeechFrames: 3,
 
@@ -880,11 +884,41 @@ export default {
                 const data = JSON.parse(event.data);
                 if (data.settings) {
                     console.log('ASRJS SETTINGS:', data.settings);
+
+                    // Check if VAD-related settings changed (thresholds that require VAD re-init)
+                    const vadSettingsChanged = this.settings &&
+                        (data.settings.positiveSpeechThreshold !== this.settings.positiveSpeechThreshold ||
+                         data.settings.redemptionFrames !== this.settings.redemptionFrames);
+
+                    // Check if continuous mode changed
+                    const continuousChanged = this.settings &&
+                        data.settings.continuous !== this.settings.continuous;
+
+                    // Update all settings
                     this.settings = data.settings;
                     this.continuous = this.settings.continuous || false;
-                    if (this.settings.shortcut) {
-                        console.log('ASRJS SHORTCUT:', this.settings.shortcut);
-                        this.keyboardShortcut = this.settings.shortcut;
+
+                    // Handle shortcut (always update, even if empty)
+                    console.log('ASRJS SHORTCUT:', this.settings.shortcut);
+                    this.keyboardShortcut = this.settings.shortcut || null;
+
+                    // Re-initialize VAD if:
+                    // 1. VAD-related settings changed (thresholds) AND continuous mode is on
+                    // 2. OR continuous mode was toggled
+                    if ((vadSettingsChanged && this.continuous && this.vadInitialized) ||
+                        (continuousChanged && this.vadInitialized)) {
+                        console.log('Settings changed, re-initializing VAD...');
+                        this.vad.destroy();
+                        this.vadInitialized = false;
+
+                        if (this.continuous) {
+                            this.$_initializeVAD();
+                        }
+                    }
+
+                    // If continuous mode was just enabled and VAD not initialized, initialize it
+                    if (continuousChanged && this.continuous && !this.vadInitialized) {
+                        this.$_loadVADLibrary();
                     }
                 }
                 // BasePluginComponent intercepts 'ready' status — handle VAD pause here too

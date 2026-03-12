@@ -34,36 +34,76 @@
             {{ voxtralKeyError ? t('Mistral API Key is required') : t('Mistral API Key is required for Voxtral models') }}
         </div>
 
-        <!-- VAD Level -->
-        <div class="form-label">{{t('VAD level')}}</div>
+        <!-- Continuous Mode -->
+        <div class="form-label">{{t('Continuous Mode')}}</div>
         <div class="form-input">
-            <select name="vad_level" v-model.number="formData.vad_level" >
-                <option value="-1">{{t('Disabled')}}</option>
-                <option value="0">0 ({{t('Less aggressive')}})</option>
-                <option value="1">1</option>
-                <option value="2">2 ({{t('Recommended')}})</option>
-                <option value="3">3 ({{t('Most aggressive')}})</option>
-            </select>
+            <label class="toggle-switch">
+                <input type="checkbox" v-model="formData.continuous" />
+                <span class="toggle-slider"></span>
+            </label>
+            <span style="margin-left: 8px;">{{ formData.continuous ? t('Enabled') : t('Disabled') }}</span>
         </div>
         <div class="form-note">
-            {{t('The VAD level determines how aggressive the algorithm is at detecting speech.')}}<br>
-            {{t('Higher levels work better in noisy environments. Disabled will bypass VAD entirely.')}}
+            {{t('When enabled, the microphone listens continuously and automatically detects speech.')}}<br>
+            {{t('When disabled, use the shortcut to manually start/stop recording.')}}
         </div>
 
-        <!-- Silence Frames -->
-        <div class="form-label">{{t('Silence Frames')}}</div>
-        <div class="form-input">
-            <select name="silence_frames" v-model.number="formData.silence_frames">
-                <option value="500">500: {{t('Faster ASR')}}</option>
-                <option value="1250">1250: {{t('Recommended for most cases')}}</option>
-                <option value="1500">1500: {{t('Recommended for most cases')}}</option>
-                <option value="2000">2000: {{t('Slower ASR: For people making big pauses')}}</option>
-            </select>
-        </div>
-        <div class="form-note">
-            {{t('The lower,the faster the transcription starts,but risks of cutting people speaking after a pause')}}<br>
-            {{t('The higher,the slower the transcription starts, but less risky for people making big pauses speaking')}}
-        </div>
+        <!-- Speech Detection Threshold (only shown when continuous is enabled) -->
+        <template v-if="formData.continuous">
+            <div class="form-label">{{t('Speech Threshold')}}</div>
+            <div class="form-input" style="display: flex; align-items: center; gap: 12px;">
+                <input
+                    type="range"
+                    min="0.2"
+                    max="0.8"
+                    step="0.05"
+                    v-model.number="formData.positiveSpeechThreshold"
+                    style="flex: 1 1 60%;"
+                />
+                <input
+                    type="number"
+                    v-model.number="formData.positiveSpeechThreshold"
+                    step="0.05"
+                    min="0.2"
+                    max="0.8"
+                    style="width: 60px;"
+                />
+            </div>
+            <div class="form-note">
+                {{t('Lower = more sensitive (may pick up noise), Higher = less sensitive (may miss soft speech)')}}<br>
+                {{t('Default: 0.50')}}
+            </div>
+
+            <!-- Pause Tolerance (redemptionFrames) -->
+            <div class="form-label">{{t('Pause Tolerance')}}</div>
+            <div class="form-input">
+                <select name="redemptionFrames" v-model.number="formData.redemptionFrames">
+                    <option value="4">4 {{t('frames')}} (~80ms) - {{t('Fast')}}</option>
+                    <option value="8">8 {{t('frames')}} (~160ms) - {{t('Default')}}</option>
+                    <option value="12">12 {{t('frames')}} (~240ms) - {{t('Medium')}}</option>
+                    <option value="16">16 {{t('frames')}} (~320ms) - {{t('Slow')}}</option>
+                    <option value="24">24 {{t('frames')}} (~480ms) - {{t('Very slow')}}</option>
+                </select>
+            </div>
+            <div class="form-note">
+                {{t('How long to wait after speech stops before transcribing.')}}<br>
+                {{t('Higher values help with speakers who pause frequently.')}}
+            </div>
+
+            <!-- Always Generate (bypass semantic VAD) -->
+            <div class="form-label">{{t('Always Generate')}}</div>
+            <div class="form-input">
+                <label class="toggle-switch">
+                    <input type="checkbox" v-model="formData.always_generate" />
+                    <span class="toggle-slider"></span>
+                </label>
+                <span style="margin-left: 8px;">{{ formData.always_generate ? t('Enabled') : t('Disabled') }}</span>
+            </div>
+            <div class="form-note">
+                {{t('When enabled, bypasses the semantic VAD check and generates immediately after speech ends.')}}<br>
+                {{t('Useful for faster responses or when the semantic VAD is too conservative.')}}
+            </div>
+        </template>
 
         <!-- Shortcut -->
         <div class="form-label">{{t('Microphone Activation Shortcut')}}</div>
@@ -137,9 +177,18 @@ export default {
                 model_provider: 'groq',
                 model_name: 'whisper-large-v3',
                 voxtral_api_key: '',
-                vad_level: 2,
-                silence_frames: 1500,
+                continuous: false,
+                always_generate: false,
+                positiveSpeechThreshold: 0.5,
+                redemptionFrames: 8,
                 shortcut: ''
+            },
+            // Default values for new settings (for migration from old settings)
+            defaultSettings: {
+                positiveSpeechThreshold: 0.5,
+                redemptionFrames: 8,
+                continuous: false,
+                always_generate: false
             },
             isRecordingShortcut: false,
             voxtralKeyError: false,
@@ -159,8 +208,11 @@ export default {
                     // Only set originalSettings after we've received initialSettings
                     this.$nextTick(() => {
                         this.setOriginalSettings(newVal);
-                        // Then update formData with actual values (not default)
-                        this.formData = { ...newVal };
+                        // Merge with defaults to handle missing fields from old settings
+                        this.formData = {
+                            ...this.defaultSettings,
+                            ...newVal
+                        };
                     });
                 }
             },
@@ -250,7 +302,7 @@ export default {
     padding-top: 2px;
     text-align: left;
 }
-select, input[type="text"], input[type="url"], input[type="password"] {
+select, input[type="text"], input[type="url"], input[type="password"], input[type="number"] {
     background: #222;
     color: #fff;
     border: 1px solid #444;
@@ -274,5 +326,45 @@ button:hover {
 .input-error {
     border-color: #ff6666;
     background: #2a1818;
+}
+/* Toggle switch styles */
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 44px;
+    height: 24px;
+}
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+.toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #444;
+    transition: 0.3s;
+    border-radius: 24px;
+}
+.toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: #ccc;
+    transition: 0.3s;
+    border-radius: 50%;
+}
+.toggle-switch input:checked + .toggle-slider {
+    background-color: #3ca23c;
+}
+.toggle-switch input:checked + .toggle-slider:before {
+    transform: translateX(20px);
 }
 </style>

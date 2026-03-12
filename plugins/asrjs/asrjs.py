@@ -537,3 +537,5 @@ class Asrjs(Baseplugin):
         self.model_provider = self.settings.get("model_provider", "groq")
         # Reinitialize the model/client with new settings
         self.load_model()
+        # Send updated settings to frontend
+        self.send_settings_to_frontend()
