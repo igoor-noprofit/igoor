@@ -410,11 +410,17 @@ export default {
                     minSpeechFrames: 3,
 
                     // Callbacks
-                    onSpeechStart: () => {
+                    onSpeechStart: async() => {
                         console.log("Speech started");
                         this.audioChunks = [];
                         if (this.continuous) {
                             this.status = 'recording';
+                            // Send status message to conversation plugin to show typing indicator
+                            try {
+                                const response = await this.callPluginRestEndpoint('conversation', 'start_transcribing');
+                            } catch (error) {
+                                console.error('Error sending transcribing_started status:', error);
+                            }
                             // this.audio.on.play();
                         }
                     },
@@ -434,13 +440,15 @@ export default {
                         }
                     },
 
-                    onVADMisfire: () => {
+                    onVADMisfire: async() => {
+                        const response = await this.callPluginRestEndpoint('conversation', 'end_transcribing');
                         console.log("VAD misfire - false positive");
                         this.status = 'empty';
                         this.audio.off.play();
                         setTimeout(() => {
                             this.status = 'listening';
                         }, 500);
+                        
                     }
                 });
 

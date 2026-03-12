@@ -120,6 +120,20 @@ class Conversation(Baseplugin):
             except Exception as e:
                 self.logger.error(f"Error getting conversations for LLM: {e}")
                 raise e
+
+        @self.router.get("/start_transcribing")
+        async def start_transcribing():
+            """REST endpoint to trigger transcribing status"""
+            self.logger.info("Transcribing started (via REST)")
+            await self.send_status("transcribing_started")
+            return {"status": "success"}
+        
+        @self.router.get("/end_transcribing")
+        async def end_transcribing():
+            """REST endpoint to trigger transcribing status"""
+            self.logger.info("Transcribing ended (via REST)")
+            await self.send_status("transcribing_ended")
+            return {"status": "success"}
         
     def init_timeout(self):
         print("INIT TIMEOUT")
