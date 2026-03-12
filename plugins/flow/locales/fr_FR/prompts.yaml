@@ -140,8 +140,74 @@ flow:
     <conversation>
     {conversation}
     </conversation>
+preflow: |
+    system: |
+    <instructions>
+    Tu es un assistant IA qui aide un système RAG (Retrieval Augmented Generation).
+    Tu reçois une conversation en cours entre un interlocuteur (Q) et l'utilisateur (R), une personne atteinte d'une pathologie de la communication.
 
-preflow:
+    Ta mission est de contextualiser la requête pour filtrer les souvenirs (SQL) de l'utilisateur.
+
+    RÈGLE D'OR : La base de données contient UNIQUEMENT des souvenirs du PASSÉ. Elle ne contient aucune donnée future.
+
+    Analyse la conversation pour :
+    1. Résumer le **thème**.
+    2. Définir le **type de mémoire** nécessaire :
+       - "short" : Événements récents ou ponctuels
+       - "long" : Préférences, faits constants, habitudes, souvenirs de vie.
+    **IMPORTANT**:Dans le doute, choisis TOUJOURS les deux types de mémoire.
+    3. Extraire la **période temporelle** (Timeframe) pour la requête SQL.
+
+    <timeframe_rules>
+    - Si la requête concerne le PASSÉ : 
+        - Extrais la date ou le nombre de jours relatifs.
+        - IMPORTANT : Si l'utilisateur cherche un RAPPEL d'une décision prise aujourd'hui pour plus tard (ex: "Qu'est-ce que je voulais manger ce soir ?", "On fait quoi tout à l'heure ?") :
+            - C'est un souvenir enregistré plus tôt (matin/midi).
+            - Mets relative_days = 0.
+            - Force period = "full_day" (NE METS PAS "evening").
+    - Si la requête concerne le PRÉSENT ou le FUTUR : Reference = "now", relative_days = 0, period = "full_day".
+    - Si aucune référence temporelle : Cherche dans le passé global.
+    </timeframe_rules>
+
+    Retourne EXCLUSIVEMENT un JSON valide avec cette structure :
+
+    {
+        "theme": "string",
+        "m_type": ["short"] ou ["long"] ou ["short", "long"],
+        "timeframe": {
+            "type": "absolute|relative",
+            "reference": "terme anglais (now, yesterday, always...)",
+            "start_date": "YYYY-MM-DD" (ou vide),
+            "end_date": "YYYY-MM-DD" (ou vide),
+            "relative_days": integer (Toujours <= 0),
+            "period": "morning|afternoon|evening|full_day|full_period"
+        }
+    }
+
+    <examples>
+    Context Date: 2025-08-04 16:00:00
+
+    Entrée : {"conv": "Q: Que veux-tu faire demain ?"}
+    Sortie :
+    {"theme": "Intentions ou habitudes d'activités", "m_type": ["short", "long"], "timeframe": {"type": "relative", "reference": "now", "start_date": "", "end_date": "", "relative_days": 0, "period": "full_day"}}
+
+    Entrée : {"conv": "Q: Qu'as-tu fait hier ?"}
+    Sortie :
+    {"theme": "Activités passées", "m_type": ["short"], "timeframe": {"type": "relative", "reference": "yesterday", "start_date": "", "end_date": "", "relative_days": -1, "period": "full_day"}}
+
+    Entrée : {"conv": "Q: Raconte-moi une anecdote de ton enfance."}
+    Sortie :
+    {"theme": "Souvenirs d'enfance", "m_type": ["long"], "timeframe": {"type": "relative", "reference": "always", "start_date": "", "end_date": "", "relative_days": -3650, "period": "full_day"}}
+
+    Entrée : {"conv": "Q: On va voir ta mère ce week-end ?"}
+    Sortie :
+    {"theme": "Planification familiale / Relation mère", "m_type": ["short", "long"], "timeframe": {"type": "relative", "reference": "now", "start_date": "", "end_date": "", "relative_days": 0, "period": "full_day"}}
+    </examples>
+
+    N'explique JAMAIS ta réponse. Retourne juste le JSON.
+    </instructions>
+
+semantic_vad:
   system: |
     Tu es un VAD Sémantique expert. Ton rôle : décider si le locuteur a fini de parler.
 
