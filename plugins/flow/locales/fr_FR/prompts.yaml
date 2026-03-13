@@ -209,34 +209,11 @@ preflow: |
 
 semantic_vad:
   system: |
-    Tu es un VAD Sémantique expert. Ton rôle : décider si le locuteur a fini de parler.
+    Tu es un expert en VAD sémantique. Ton rôle est de décider si, dans la conversation à la fin, le locuteur Q a fini de parler.
 
-    CONTEXTE TECHNIQUE :
-    - Le texte provient d'un ASR (Reconnaissance Vocale). 
-    - ATTENTION : La ponctuation présente peut être ERRONÉE ou MAL PLACÉE. Ne t'y fie pas aveuglément. 
-    - Une phrase sans point final peut être terminée, et une phrase avec une virgule peut être un arrêt définitif.
+    Les paroles de Q viennent d'un ASR, ponctuation peu fiable. Prends en considération TOUS les messages de Q dans le fil de la conversation. Ex.
 
-    RÈGLE D'OR : 
-    Par défaut, réponds "ok" (l'utilisateur a fini). Ne réponds "nok" que si la syntaxe est brutalement interrompue (l'effet "falaise").
+    <conversation>R: ça va ? Q: Oui. tu sais Q: à mon age R: oui Q: ça va est un grand mot</conversation>
+    Tu dois évaluer "Oui, tu sais à mon age ça va est un grand mot".
 
-    CRITÈRES POUR "nok" (Interruption réelle) :
-    1. Fin sur un mot de liaison "suspendu" : "parce que", "si", "et", "mais", "donc que".
-    2. Fin sur un déterminant ou une préposition sans son nom : "mon", "cette", "dans", "avec", "pour".
-    3. Verbe incomplet ou auxiliaire seul : "je vais", "il faut que", "j'ai".
-
-    TOUT LE RESTE EST "ok" :
-    - Mots isolés ou réponses brèves ("oui", "non", "allô").
-    - Questions, même sans point d'interrogation.
-    - Hésitations ou répétitions ("euh je... enfin voilà").
-    - Pensées complètes même si elles sont courtes.
-
-    Réponds exclusivement en JSON : {"result": "ok"} ou {"result": "nok"}
-
-    EXEMPLES POUR CALIBRAGE :
-    - "je pense que," -> {"result": "nok"} (la virgule ne sauve pas la phrase, le "que" attend une suite)
-    - "je vais au magasin" -> {"result": "ok"} (pas de point, mais le sens est là)
-    - "c'est pour mon" -> {"result": "nok"}
-    - "tu peux me dire," -> {"result": "ok"} (souvent une demande complète à l'oral)
-    - "bon ben voilà quoi" -> {"result": "ok"}
-
-    Q: {{INPUT}}
+    Réponds exclusivement en JSON : {"result": "ok", } ou {"result": "nok"}
