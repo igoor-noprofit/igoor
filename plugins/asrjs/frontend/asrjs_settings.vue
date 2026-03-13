@@ -137,9 +137,84 @@
                     </label>
                     <span style="margin-left: 8px;">{{ formData.always_generate ? t('Enabled') : t('Disabled') }}</span>
                 </div>
-                <div class="form-note">
-                    {{t('When enabled, bypasses the semantic VAD check and generates immediately after speech ends.')}}<br>
+            <div class="form-note">
+                {{t('When enabled, bypasses the semantic VAD check and generates immediately after speech ends.')}}<br>
+            </div>
+        </template>
+
+        <!-- Wakeword Detection Section -->
+        <template v-if="formData.continuous">
+            <div class="form-label">{{t('Wakeword Detection')}}</div>
+            <div class="form-input">
+                <label class="toggle-switch">
+                    <input type="checkbox" v-model="formData.wakeword_enabled" />
+                    <span class="toggle-slider"></span>
+                </label>
+                <span style="margin-left: 8px;">{{ formData.wakeword_enabled ? t('Enabled') : t('Disabled') }}</span>
+            </div>
+            <div class="form-note">
+                {{t('Say "Hey Igor" to activate voice recognition hands-free.')}}
+            </div>
+
+            <!-- Wakeword Sensitivity (only shown when wakeword enabled) -->
+            <template v-if="formData.wakeword_enabled">
+                <div class="form-label">{{t('Wakeword Sensitivity')}}</div>
+                <div class="form-input" style="display: flex; align-items: center; gap: 12px;">
+                    <input
+                        type="range"
+                        min="0.1"
+                        max="0.9"
+                        step="0.1"
+                        v-model.number="formData.wakeword_sensitivity"
+                        style="flex: 1 1 60%;"
+                    />
+                    <input
+                        type="number"
+                        v-model.number="formData.wakeword_sensitivity"
+                        step="0.1"
+                        min="0.1"
+                        max="0.9"
+                        style="width: 60px;"
+                    />
                 </div>
+                <div class="form-note">
+                    {{t('Lower = fewer false positives, Higher = more sensitive')}}<br>
+                    {{t('Adjust based on your environment and microphone quality.')}}
+                </div>
+
+                <!-- Wakeword Model Selection -->
+                <div class="form-label">{{t('Wakeword Model')}}</div>
+                <div class="form-input">
+                    <select v-model="formData.wakeword_model">
+                        <option value="default">{{t('Default (Hey Igor)')}}</option>
+                        <option value="custom">{{t('Custom Model')}}</option>
+                    </select>
+                </div>
+                <div class="form-note">
+                    {{t('Select the wakeword detection model. Default models are language-specific.')}}
+                </div>
+
+                <!-- Custom Model Upload (only shown when custom selected) -->
+                <template v-if="formData.wakeword_model === 'custom'">
+                    <div class="form-label">{{t('Custom Model File')}}</div>
+                    <div class="form-input">
+                        <input
+                            type="file"
+                            ref="wakewordFileInput"
+                            accept=".onnx"
+                            style="display: none"
+                            @change="handleWakewordFileSelect"
+                        />
+                        <button type="button" @click="$refs.wakewordFileInput.click()">
+                            {{t('Upload Custom Model')}}
+                        </button>
+                    </div>
+                    <div class="form-note" v-if="customModelName">
+                        {{t('Current:')}} {{ customModelName }}
+                        <div class="form-note" v-if="!customModelName">
+                        {{t('Upload an ONNX wakeword model file.')}}
+                    </div>
+                </template>
             </template>
 
            

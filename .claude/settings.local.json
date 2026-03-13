@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(rm -rf /c/AIKU/experiments/igoor/plugins/asrjs/__pycache__)",
+      "Bash(python -m py_compile /c/AIKU/experiments/igoor/plugins/asrjs/asrjs.py)"
+    ],
+    "additionalDirectories": [
+      "C:\\AIKU\\experiments\\igoor\\plugins\\asrjs\\__pycache__"
+    ]
+  }
+}

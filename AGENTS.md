@@ -90,6 +90,13 @@ plugin_name/
 
 **Python Version**: Tested on 3.10.6 only
 
+## Testing Python syntax
+If you modify a python file, ALWAYS test syntax with:
+
+python -m scriptname.py
+
+before telling me you finished.
+
 ## Accesing and testing the frontend
 To test the frontend verify if IGOOR is running in Python. 
 If not: 

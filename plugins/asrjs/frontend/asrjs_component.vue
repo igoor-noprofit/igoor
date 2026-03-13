@@ -36,7 +36,10 @@ export default {
             nativeSampleRate: null, // Store the actual native sample rate (typically 48kHz)
             speakerIdBuffer: [], // Buffer for downsampled audio for speakerid
             lastChunkSentTime: 0, // Track when we last sent a chunk to speakerid
-            chunkDuration: 3.0 // Fixed chunk duration in seconds for speakerid
+            chunkDuration: 3.0, // Fixed chunk duration in seconds for speakerid
+            wakewordEnabled: false, // Wakeword detection enabled from settings
+            wakewordProcessing: false, // Flag to prevent overlapping wakeword requests
+            wakewordDetected: false // Flag to track if wakeword was detected
         };
     },
     computed: {
@@ -64,6 +67,7 @@ export default {
             console.log('ASRJS settings received:', settings);
             this.settings = settings;
             this.continuous = settings.continuous || false;
+            this.wakewordEnabled = settings.wakeword_enabled || false;
             if (settings.shortcut) {
                 console.log('ASRJS SHORTCUT:', settings.shortcut);
                 this.keyboardShortcut = settings.shortcut;
@@ -238,12 +242,21 @@ export default {
                     } else if (event.data.type === 'audio-data') {
                         // Store audio data for final WAV file
                         this.recordingBuffer = this.recordingBuffer.concat(event.data.data);
+                    } else if (event.data.type === 'wakeword-chunk') {
+                        // Send chunk to wakeword detection
+                        this.$_sendWakewordChunk(event.data.data);
                     }
                 };
 
                 // Connect the audio nodes
                 this.source.connect(this.processor);
                 this.processor.connect(this.audioContext.destination);
+
+                // Enable wakeword detection if enabled in settings
+                if (this.wakewordEnabled && this.continuous) {
+                    this.processor.port.postMessage({ type: 'enable-wakeword' });
+                    console.log('Wakeword detection enabled in AudioWorklet');
+                }
 
                 // Set up audio level monitoring
                 const analyser = this.audioContext.createAnalyser();
@@ -319,12 +332,21 @@ export default {
                     } else if (event.data.type === 'audio-data') {
                         // Store audio data for final WAV file
                         this.recordingBuffer = this.recordingBuffer.concat(event.data.data);
+                    } else if (event.data.type === 'wakeword-chunk') {
+                        // Send chunk to wakeword detection
+                        this.$_sendWakewordChunk(event.data.data);
                     }
                 };
 
                 // Connect the audio nodes
                 this.source.connect(this.processor);
                 this.processor.connect(this.audioContext.destination);
+
+                // Enable wakeword detection if enabled in settings
+                if (this.wakewordEnabled && this.continuous) {
+                    this.processor.port.postMessage({ type: 'enable-wakeword' });
+                    console.log('Wakeword detection enabled in AudioWorklet');
+                }
 
                 // Set up audio level monitoring
                 const analyser = this.audioContext.createAnalyser();
@@ -506,6 +528,12 @@ export default {
             if (status === 'listening' && this.continuous && this.vad && this.vadInitialized) {
                 console.log('VAD: status is listening in continuous mode, resuming VAD');
                 this.vad.start();
+                // Re-enable wakeword detection if enabled
+                if (this.wakewordEnabled && this.processor) {
+                    this.wakewordDetected = false;
+                    this.processor.port.postMessage({ type: 'enable-wakeword' });
+                    console.log('Wakeword detection re-enabled');
+                }
             }
         },
 
@@ -656,6 +684,89 @@ export default {
             } catch (error) {
                 console.error('Error sending fixed chunk to speakerid:', error);
             }
+        },
+
+        async $_sendWakewordChunk(int16Chunk) {
+            // Send audio chunk to wakeword detection endpoint
+            // Skip if already processing or wakeword already detected
+            if (this.wakewordProcessing || this.wakewordDetected || !this.wakewordEnabled) {
+                return;
+            }
+
+            this.wakewordProcessing = true;
+
+            try {
+                // Create WAV blob from Int16 data
+                const wavBlob = this.$_createWavFromInt16(int16Chunk, 16000);
+
+                // Send to wakeword endpoint
+                const formData = new FormData();
+                formData.append('audio_chunk', wavBlob, 'wakeword_chunk.wav');
+
+                const response = await fetch('http://127.0.0.1:9714/api/plugins/asrjs/wakeword_chunk', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    if (result.detected) {
+                        console.log('WAKEWORD DETECTED!');
+                        this.wakewordDetected = true;
+                        // Disable wakeword detection until transcription is done
+                        if (this.processor) {
+                            this.processor.port.postMessage({ type: 'disable-wakeword' });
+                        }
+                        // Trigger VAD/listening - the backend will send wakeword_detected action
+                    }
+                } else {
+                    console.error('Error sending wakeword chunk:', response.status);
+                }
+            } catch (error) {
+                console.error('Error sending wakeword chunk:', error);
+            } finally {
+                this.wakewordProcessing = false;
+            }
+        },
+
+        $_createWavFromInt16(int16Data, sampleRate) {
+            // Create WAV file from Int16Array
+            const numChannels = 1;
+            const bitsPerSample = 16;
+            const byteRate = sampleRate * numChannels * bitsPerSample / 8;
+            const blockAlign = numChannels * bitsPerSample / 8;
+            const dataSize = int16Data.length * 2;
+            const buffer = new ArrayBuffer(44 + dataSize);
+            const view = new DataView(buffer);
+
+            // WAV header
+            const writeString = (offset, string) => {
+                for (let i = 0; i < string.length; i++) {
+                    view.setUint8(offset + i, string.charCodeAt(i));
+                }
+            };
+
+            writeString(0, 'RIFF');
+            view.setUint32(4, 36 + dataSize, true);
+            writeString(8, 'WAVE');
+            writeString(12, 'fmt ');
+            view.setUint32(16, 16, true);
+            view.setUint16(20, 1, true);
+            view.setUint16(22, numChannels, true);
+            view.setUint32(24, sampleRate, true);
+            view.setUint32(28, byteRate, true);
+            view.setUint16(32, blockAlign, true);
+            view.setUint16(34, bitsPerSample, true);
+            writeString(36, 'data');
+            view.setUint32(40, dataSize, true);
+
+            // Write audio data
+            const dataOffset = 44;
+            for (let i = 0; i < int16Data.length; i++) {
+                view.setInt16(dataOffset + i * 2, int16Data[i], true);
+            }
+
+            return new Blob([buffer], { type: 'audio/wav' });
         },
 
         async $_checkSpeakerIdAvailability() {
@@ -949,6 +1060,27 @@ export default {
                     // Keep accumulated audio — the last processed audio becomes the accumulated buffer
                     if (this._lastProcessedAudio) {
                         this.accumulatedAudioBuffer = this._lastProcessedAudio;
+                    }
+                    return;
+                }
+
+                // Handle wakeword detected from backend
+                if (data.action === "wakeword_detected") {
+                    console.log('Wakeword detected! Starting VAD/listening...');
+                    this.wakewordDetected = true;
+                    // Disable wakeword detection in AudioWorklet
+                    if (this.processor) {
+                        this.processor.port.postMessage({ type: 'disable-wakeword' });
+                    }
+                    // Start VAD listening if available
+                    if (this.vad && this.vad.pause) {
+                        this.vad.pause();
+                        // Small delay then resume to trigger speech detection
+                        setTimeout(() => {
+                            if (this.vad) {
+                                this.vad.pause();
+                            }
+                        }, 100);
                     }
                     return;
                 }

@@ -7,9 +7,85 @@ import asyncio
 import pyaudio
 import wave
 import groq
+import numpy as np
 from typing import Optional
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from utils import setup_logger, get_base_language_code
+from pathlib import Path
+
+WAKEWORD_MODELS_DIR = os.path.join(os.path.dirname(__file__), "static", "wakeword")
+CUSTOM_WAKEWORD_DIR = "custom_wakeword"
+
+class WakewordDetector:
+    def __init__(self, model_path: str, sensitivity: float = 0.5, logger=None):
+        self.model_path = model_path
+        self.sensitivity = sensitivity
+        self.logger = logger
+        self.model = None
+        self.is_loaded = False
+        self.audio_buffer = np.array([], dtype=np.float32)
+        self.sample_rate = 16000
+        self.chunk_size = 1280  # 80ms at 16kHz
+        
+    def load_model(self):
+        try:
+            from openwakeword import Model as OpenWakeWordModel
+            if self.logger:
+                self.logger.info(f"Loading wakeword model from: {self.model_path}")
+            self.model = OpenWakeWordModel(wakeword_models=[self.model_path])
+            self.is_loaded = True
+            if self.logger:
+                self.logger.info("Wakeword model loaded successfully")
+            return True
+        except ImportError as e:
+            if self.logger:
+                self.logger.error(f"openwakeword not installed: {e}")
+            return False
+        except Exception as e:
+            if self.logger:
+                self.logger.error(f"Error loading wakeword model: {e}")
+            return False
+    
+    def process_chunk(self, audio_data: bytes) -> bool:
+        if not self.is_loaded or self.model is None:
+            return False
+        try:
+            audio_np = np.frombuffer(audio_data, dtype=np.int16).astype(np.float32) / 32768.0
+            self.audio_buffer = np.concatenate([self.audio_buffer, audio_np])
+            if len(self.audio_buffer) >= self.chunk_size:
+                chunk_to_process = self.audio_buffer[:self.chunk_size]
+                self.audio_buffer = self.audio_buffer[self.chunk_size:]
+                prediction = self.model.predict(chunk_to_process)
+
+                # Debug: log prediction scores every 10 chunks
+                if not hasattr(self, '_prediction_count'):
+                    self._prediction_count = 0
+                self._prediction_count += 1
+                if self._prediction_count % 10 == 0 and self.logger:
+                    scores_str = ", ".join([f"{k}: {v:.4f}" for k, v in prediction.items()])
+                    self.logger.info(f"Wakeword #{self._prediction_count}: {scores_str} (threshold: {self.sensitivity})")
+
+                for model_name, scores in prediction.items():
+                    # Log any score above 0.01 for debugging
+                    if scores > 0.01 and self.logger:
+                        self.logger.info(f"Wakeword score: {model_name} = {scores:.4f}")
+                    if scores >= self.sensitivity:
+                        if self.logger:
+                            self.logger.info(f"Wakeword DETECTED! Model: {model_name}, Score: {scores:.4f}")
+                        return True
+            return False
+        except Exception as e:
+            if self.logger:
+                self.logger.error(f"Error processing wakeword chunk: {e}")
+            return False
+    
+    def set_sensitivity(self, sensitivity: float):
+        self.sensitivity = max(0.1, min(0.9, sensitivity))
+        
+    def destroy(self):
+        self.model = None
+        self.is_loaded = False
+        self.audio_buffer = np.array([], dtype=np.float32)
 
 class Asrjs(Baseplugin):
     def __init__(self, plugin_name, pm):
@@ -45,7 +121,14 @@ class Asrjs(Baseplugin):
         # Set up temporary file for audio storage (WebM format)
         self.temp_audio_file = os.path.join(self.plugin_folder, "temp_audio.webm")
         
-    @hookimpl 
+        # Wakeword detector initialization
+        self.wakeword_detector = None
+        self.wakeword_enabled = False
+        self.wakeword_sensitivity = 0.5
+        
+        self._setup_custom_wakeword_dir()
+        
+    @hookimpl
     def startup(self):
         self.settings = self.get_my_settings()
         
@@ -57,7 +140,14 @@ class Asrjs(Baseplugin):
         self.continuous = self.settings.get("continuous", False) # Ensure default for continuous
         self.conversation_abandoned = False  # Track if conversation was abandoned
         print (f"ASRJS settings: {self.settings}, Global Lang for ASR: {self.lang_code}")
-
+        
+        self.wakeword_enabled = self.settings.get("wakeword_enabled", False)
+        self.wakeword_sensitivity = self.settings.get("wakeword_sensitivity", 0.5)
+        
+        # Load wakeword model if enabled and continuous mode
+        if self.continuous and self.wakeword_enabled:
+            self._load_wakeword_model()
+        
         self.model_provider = self.settings.get("model_provider", "groq")  # Default to Groq if not set
         if self.model_provider not in self.settings.get("allowed_model_providers", []):
             self.logger.error(f"Model provider '{self.model_provider}' is not allowed. Defaulting to groq")
@@ -367,12 +457,128 @@ class Asrjs(Baseplugin):
         except Exception as e:
             self.logger.error(f"Groq transcription error: {e}")
             return ""
+    
+    def _setup_custom_wakeword_dir(self):
+        """Set up custom wakeword directory in APPDATA"""
+        try:
+            custom_dir = os.path.join(self.plugin_data_folder, CUSTOM_WAKEWORD_DIR)
+            if not os.path.exists(custom_dir):
+                os.makedirs(custom_dir, exist_ok=True)
+                self.logger.info(f"Created custom wakeword directory: {custom_dir}")
+            self.custom_wakeword_dir = custom_dir
+        except Exception as e:
+            self.logger.error(f"Error setting up custom wakeword directory: {e}")
+            self.custom_wakeword_dir = None
+    
+    def _get_default_wakeword_model_path(self):
+        """Get the default wakeword model path based on language"""
+        if self.lang_code == "en":
+            model_file = "hey_igor_en.onnx"
+        else:
+            model_file = "hey_igor_fr.onnx"
         
-    def _ensure_router(self):
-        """Initialize FastAPI router with transcription endpoint"""
-        if self.router is not None:
+        model_path = os.path.join(WAKEWORD_MODELS_DIR, model_file)
+        if os.path.exists(model_path):
+            return model_path
+        else:
+            self.logger.warning(f"Default wakeword model not found: {model_path}")
+            return None
+    
+    def _get_custom_wakeword_model_path(self):
+        """Get the custom wakeword model path from settings"""
+        custom_path = self.settings.get("wakeword_custom_path", "")
+        if custom_path and os.path.exists(custom_path):
+            return custom_path
+        return None
+    
+    def _load_wakeword_model(self):
+        """Load the wakeword detection model"""
+        if not self.wakeword_enabled or not self.continuous:
+            self.logger.info("Wakeword not enabled or not in continuous mode, skipping model load")
+            return False
+        
+        # Determine model path
+        wakeword_model = self.settings.get("wakeword_model", "default")
+        
+        if wakeword_model == "custom":
+            model_path = self._get_custom_wakeword_model_path()
+            if not model_path:
+                self.logger.warning("Custom wakeword model not found, falling back to default")
+                model_path = self._get_default_wakeword_model_path()
+        else:
+            model_path = self._get_default_wakeword_model_path()
+        
+        if not model_path:
+            self.logger.error("No wakeword model available")
+            return False
+        
+        # Destroy existing detector if any
+        if self.wakeword_detector:
+            self.wakeword_detector.destroy()
+        
+        # Create new detector
+        self.wakeword_detector = WakewordDetector(
+            model_path=model_path,
+            sensitivity=self.wakeword_sensitivity,
+            logger=self.logger
+        )
+        
+        # Load the model
+        success = self.wakeword_detector.load_model()
+        if success:
+            self.logger.info(f"Wakeword model loaded successfully from: {model_path}")
+        else:
+            self.logger.error(f"Failed to load wakeword model from: {model_path}")
+        
+        return success
+        
+    def _setup_custom_wakeword_dir(self):
+        """Set up custom wakeword directory in APP data folder"""
+        try:
+            custom_dir = os.path.join(self.plugin_data_folder, CUSTOM_WAKEWORD_DIR)
+            if not os.path.exists(custom_dir):
+                os.makedirs(custom_dir, exist_ok=True)
+                self.logger.info(f"Created custom wakeword directory: {custom_dir}")
+        except Exception as e:
+            self.logger.error(f"Failed to create custom wakeword directory: {e}")
+    
+    def _get_default_wakeword_model_path(self):
+        """Get default wakeword model path based on language"""
+        if self.lang_code == "en":
+            model_name = "hey_igor_en.onnx"
+        else:
+            model_name = "hey_igor_fr.onnx"
+        
+        model_path = os.path.join(WAKEWORD_MODELS_DIR, model_name)
+        return model_path
+    
+    def _load_wakeword_model_simple(self):
+        """Load wakeword model if enabled and continuous mode"""
+        if not self.continuous or not self.wakeword_enabled:
+            self.logger.warning("Wakeword requires continuous mode")
             return
         
+        model_path = self._get_default_wakeword_model_path()
+        if not model_path:
+            self.logger.warning(f"Default wakeword model not found: {model_path}")
+            return None
+        
+        self.wakeword_detector = WakewordDetector(
+            model_path=model_path,
+            sensitivity=self.wakeword_sensitivity,
+            logger=self.logger
+        )
+        
+        if self.wakeword_detector.load_model():
+            self.logger.info(f"Wakeword model loaded from: {model_path}")
+        else:
+            self.logger.error(f"Failed to load wakeword model from {model_path}")
+            self.wakeword_detector = None
+    
+    def _ensure_router(self):
+        if self.router:
+            return
+
         self.router = APIRouter(prefix="/api/plugins/asrjs", tags=["asrjs"])
         
         @self.router.post("/start_recording")
@@ -436,6 +642,7 @@ class Asrjs(Baseplugin):
                 # except:
                 #     pass
                 
+                
                 if text:
                     text = self.clean_whisper_silence(text)
                     # Handle transcription result
@@ -452,6 +659,45 @@ class Asrjs(Baseplugin):
             except Exception as e:
                 self.logger.error(f"Error transcribing audio: {e}")
                 raise HTTPException(status_code=500, detail=str(e))
+        
+        # Wakeword detection endpoints
+        @self.router.post("/wakeword_chunk")
+        async def wakeword_chunk_endpoint(audio_chunk: UploadFile = File(...)):
+            """Receive audio chunk for wakeword detection"""
+            try:
+                if not self.wakeword_detector or not self.wakeword_enabled:
+                    return {"error": "Wakeword detection not enabled"}
+
+                # Read audio chunk (WAV format with 44-byte header)
+                chunk_data = audio_chunk.file.read()
+
+                # Skip WAV header (44 bytes) to get raw PCM data
+                if len(chunk_data) > 44:
+                    raw_pcm_data = chunk_data[44:]
+                else:
+                    raw_pcm_data = chunk_data
+
+                # Debug log every 10 chunks
+                if not hasattr(self, '_wakeword_chunk_count'):
+                    self._wakeword_chunk_count = 0
+                self._wakeword_chunk_count += 1
+                if self._wakeword_chunk_count % 10 == 0:
+                    self.logger.debug(f"Wakeword chunk #{self._wakeword_chunk_count}, size: {len(raw_pcm_data)} bytes")
+
+                detected = self.wakeword_detector.process_chunk(raw_pcm_data)
+                if detected:
+                    self.logger.info("WAKEWORD DETECTED! Notifying frontend...")
+                    # Notify frontend to start VAD and resume listening
+                    await self.send_message_to_frontend({
+                        "action": "wakeword_detected"
+                    })
+                    return {"status": "success", "detected": True}
+
+                return {"status": "success", "detected": False}
+
+            except Exception as e:
+                self.logger.error(f"Error processing wakeword chunk: {e}")
+                return {"error": str(e)}
     
     def clean_whisper_silence(self, text):
         print(f"Transcribed text: {text}")
@@ -544,3 +790,87 @@ class Asrjs(Baseplugin):
         self.load_model()
         # Send updated settings to frontend
         self.send_settings_to_frontend()
+    
+    def _setup_custom_wakeword_dir(self):
+        """Create custom wakeword directory in APPDATA"""
+        try:
+            custom_dir = os.path.join(self.plugin_data_folder, CUSTOM_WAKEWORD_DIR)
+            if not os.path.exists(custom_dir):
+                os.makedirs(custom_dir, exist_ok=True)
+                self.logger.info(f"Created custom wakeword directory: {custom_dir}")
+        except Exception as e:
+            self.logger.error(f"Error setting up custom wakeword directory: {e}")
+    
+    def _get_default_wakeword_model_path(self):
+        """Get default wakeword model path based on language"""
+        if self.lang_code == "en":
+            model_name = "hey_igor_en.onnx"
+        else:
+            model_name = "hey_igor_fr.onnx"
+        
+        model_path = os.path.join(WAKEWORD_MODELS_DIR, model_name)
+        
+        if os.path.exists(model_path):
+            return model_path
+        else:
+            self.logger.warning(f"Default wakeword model not found: {model_path}")
+            return None
+    
+    def _get_custom_wakeword_model_path(self):
+        """Get custom wakeword model path from settings"""
+        custom_path = self.settings.get("wakeword_custom_path", "")
+        if custom_path and os.path.exists(custom_path):
+            return custom_path
+        else:
+            self.logger.warning(f"Custom wakeword model not found: {custom_path}")
+            return None
+    
+    def _load_wakeword_model(self):
+        """Load wakeword model if enabled and continuous mode"""
+        if not self.continuous or not self.wakeword_enabled:
+            self.logger.warning("Wakeword requires continuous mode")
+            return
+        
+        model_path = self._get_default_wakeword_model_path()
+        if not model_path:
+            self.logger.warning(f"Default wakeword model not found")
+            return
+        
+        if self.wakeword_detector:
+            self.wakeword_detector.destroy()
+        
+        self.wakeword_detector = WakewordDetector(
+            model_path=model_path,
+            sensitivity=self.wakeword_sensitivity,
+            logger=self.logger
+        )
+        
+        success = self.wakeword_detector.load_model()
+        if success:
+            self.logger.info(f"Wakeword model loaded from: {model_path}")
+        else:
+            self.logger.error(f"Failed to load wakeword model from {model_path}")
+            self.wakeword_detector = None
+    
+    def _load_wakeword_from_settings(self):
+        if self.router is not None:
+            return
+
+        if self.settings.get("wakeword_model") == "custom":
+            model_path = self._get_custom_wakeword_model_path()
+        else:
+            model_path = self._get_default_wakeword_model_path()
+
+        if not model_path:
+            self.logger.error("No valid wakeword model path found")
+            return
+
+        sensitivity = self.settings.get("wakeword_sensitivity", 0.5)
+
+        self.wakeword_detector = WakewordDetector(model_path, sensitivity, self.logger)
+
+        if self.wakeword_detector.load_model():
+            self.logger.info(f"Wakeword model loaded successfully from: {model_path}")
+        else:
+            self.logger.error("Failed to load wakeword model")
+            self.wakeword_detector = None
