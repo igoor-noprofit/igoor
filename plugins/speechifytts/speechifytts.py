@@ -77,13 +77,12 @@ class Speechifytts(Baseplugin):
         ''' print ("SPEECHIFY settings", self.settings) '''
         try:
             self.api_key = self.settings.get("api_key")
-            self.voice_id = self.settings.get("voice_id")  
+            self.voice_id = self.settings.get("voice_id")
             if (not self.api_key):
                 self.logger.warning("Speechify API token not set in settings,cannot generate speech")
                 return False
-            if (not self.voice_id):
-                print("Speechify Voice ID not set in settings,cannot generate speech")
-                return False
+            # Don't return early if voice_id is missing - plugin should still load and be ready
+            # The plugin will be marked as ready when voice_id is set via plugin_settings_updated hook
             self._ensure_lang_code()
             if self.lang_code not in self.supported_lang:
                 print(f"Configured language '{self.lang_code}' is not officially supported by Speechify plugin. Check documentation for compatibility.")
@@ -91,7 +90,9 @@ class Speechifytts(Baseplugin):
                 self.client = Speechify(token=self.api_key)
                 self.is_loaded = True
                 self.get_voices_list() # Pre-fetch voices list to validate API key and voice ID
-                self.mark_ready()
+                # Only mark as ready if voice_id is already set in settings
+                if self.voice_id:
+                    self.mark_ready()
                 return True
             except Exception as e:
                 self.logger.error(f"Error occurred while creating Speechify client : {e}")
@@ -104,7 +105,37 @@ class Speechifytts(Baseplugin):
     def global_settings_updated(self):
         print("RELOADING SPEECHIFY SETTINGS")
         self.startup()
-        
+
+    @hookimpl
+    def settings_updated(self, plugin_name, new_settings):
+        print ("PLUGIN SETTINGS UPDATED:", plugin_name)
+        """Called when any plugin's settings are updated via settings UI"""
+        # Only process updates for this specific plugin
+        if plugin_name != 'speechifytts':
+            return
+
+        # Refresh settings to get latest values
+        self.settings = self.get_my_settings()
+
+        # Check if both API key and voice ID are set
+        api_key = self.settings.get("api_key", "")
+        voice_id = self.settings.get("voice_id", "")
+
+        if api_key and voice_id:
+            # Both API key and voice are configured, mark as ready
+            if not self.is_loaded:
+                try:
+                    self.client = Speechify(token=api_key)
+                    self.is_loaded = True
+                except Exception as e:
+                    self.logger.error(f"Failed to create Speechify client: {e}")
+                    return
+            self.mark_ready()
+            print(f"SpeechifyTTS marked as ready via settings_updated")
+        # Missing required settings, plugin stays not ready (user must select a voice)
+        else:
+            print(f"SpeechifyTTS NOT ready: api_key={bool(api_key)}, voice_id={bool(voice_id)}")
+
     @hookimpl
     def speak(self, message):
         print("§§§§ SPEECHIFY SPEAKING *********************************************** :", message)
