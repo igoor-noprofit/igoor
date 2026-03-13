@@ -20,7 +20,18 @@ class Elevenlabstts(Baseplugin):
     @hookimpl
     def global_settings_updated(self):
         print("RELOADING ELEVENLABS SETTINGS")
-        self.startup()                
+        self.startup()
+
+    @hookimpl
+    def settings_updated(self, plugin_name, new_settings):
+        """Called when any plugin's settings are updated via settings UI"""
+        # Only process updates for this specific plugin
+        if plugin_name != 'elevenlabstts':
+            return
+
+        print("PLUGIN SETTINGS UPDATED:", plugin_name)
+        # Refresh settings and reinitialize
+        self.startup()
 
     def _ensure_router(self):
         """Initialize FastAPI router for plugin endpoints"""

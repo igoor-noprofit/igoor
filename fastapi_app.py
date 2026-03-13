@@ -80,9 +80,9 @@ def create_app() -> FastAPI:
     async def api_update_plugin_settings(
         plugin_name: str, payload: UpdateSettingsPayload
     ):
-        settings_manager.update_plugin_settings(plugin_name, payload.settings)
-        # Auto-reload settings after plugin update to notify all plugins
-        settings_manager.load_and_notify(plugin_manager)
+        settings_manager.update_plugin_settings(plugin_name, payload.settings, plugin_manager)
+        # Trigger settings_updated hook for the specific plugin (not global_settings_updated)
+        await plugin_manager.trigger_hook('settings_updated', plugin_name=plugin_name, new_settings=payload.settings)
         return Response(status_code=status.HTTP_204_NO_CONTENT)
 
     @api_router.post("/settings/reload")

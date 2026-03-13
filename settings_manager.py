@@ -174,7 +174,7 @@ class SettingsManager:
         """Retrieve settings for a specific plugin."""
         return self.settings.get('plugins', {}).get(plugin_name, {})
 
-    def update_plugin_settings(self, plugin_name, new_settings):
+    def update_plugin_settings(self, plugin_name, new_settings, plugin_manager=None):
         """Update settings for a specific plugin."""
         if 'plugins' not in self.settings:
             self.settings['plugins'] = {}
@@ -185,6 +185,10 @@ class SettingsManager:
         self.settings['plugins'][plugin_name].update(new_settings)
         #self.logger.info(f"----------------UPDATED GLOBAL SETTINGS: {self.settings}")
         self.save_settings()
+        
+        # Trigger settings_updated hook for individual plugin updates
+        if plugin_manager:
+            asyncio.create_task(plugin_manager.trigger_hook('settings_updated', plugin_name=plugin_name, new_settings=new_settings))
         
     def save_settings(self, settings=None):
         try:
