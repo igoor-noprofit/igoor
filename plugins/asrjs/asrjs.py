@@ -33,14 +33,12 @@ class WakewordDetector:
             if self.logger:
                 self.logger.info(f"Loading wakeword model from: {self.model_path}")
 
-            # TEMPORARY: Use built-in hey_jarvis for testing
-            # Comment out the line below and uncomment the original to use custom model
-            self.model = OpenWakeWordModel()  # Loads all built-in models including hey_jarvis
-            # self.model = OpenWakeWordModel(wakeword_models=[self.model_path])
+            # Load custom wakeword model
+            self.model = OpenWakeWordModel(wakeword_models=[self.model_path])
 
             self.is_loaded = True
             if self.logger:
-                self.logger.info("Wakeword model loaded successfully (using hey_jarvis for testing)")
+                self.logger.info(f"Wakeword model loaded successfully: {self.model_path}")
             return True
         except ImportError as e:
             if self.logger:
@@ -76,8 +74,8 @@ class WakewordDetector:
                         self.logger.info(f"Available models: {list(self.model.models.keys())}")
                 self._prediction_count += 1
 
-                # Log every 10 chunks OR when there's significant audio (RMS > 0.03)
-                if (self._prediction_count % 10 == 0 or audio_rms > 0.03) and self.logger:
+                # Log every 5 chunks for debugging
+                if self._prediction_count % 5 == 0 and self.logger:
                     all_scores = ", ".join([f"{k}: {v:.4f}" for k, v in prediction.items()])
                     self.logger.info(f"Wakeword #{self._prediction_count}: {all_scores} | RMS: {audio_rms:.4f}, Max: {audio_max:.4f}")
 
@@ -101,7 +99,7 @@ class WakewordDetector:
     def destroy(self):
         self.model = None
         self.is_loaded = False
-        self.audio_buffer = np.array([], dtype=np.float32)
+        self.audio_buffer = np.array([], dtype=np.int16)
 
 class Asrjs(Baseplugin):
     def __init__(self, plugin_name, pm):
@@ -698,7 +696,7 @@ class Asrjs(Baseplugin):
                     self._wakeword_chunk_count = 0
                 self._wakeword_chunk_count += 1
                 if self._wakeword_chunk_count % 10 == 0:
-                    self.logger.debug(f"Wakeword chunk #{self._wakeword_chunk_count}, size: {len(raw_pcm_data)} bytes")
+                    self.logger.info(f"Wakeword chunk #{self._wakeword_chunk_count}, size: {len(raw_pcm_data)} bytes")
 
                 detected = self.wakeword_detector.process_chunk(raw_pcm_data)
                 if detected:
@@ -810,7 +808,7 @@ class Asrjs(Baseplugin):
     def _setup_custom_wakeword_dir(self):
         """Create custom wakeword directory in APPDATA"""
         try:
-            custom_dir = os.path.join(self.plugin_data_folder, CUSTOM_WAKEWORD_DIR)
+            custom_dir = os.path.join(self.plugin_folder, CUSTOM_WAKEWORD_DIR)
             if not os.path.exists(custom_dir):
                 os.makedirs(custom_dir, exist_ok=True)
                 self.logger.info(f"Created custom wakeword directory: {custom_dir}")
