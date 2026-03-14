@@ -23,7 +23,7 @@ class WakewordDetector:
         self.logger = logger
         self.model = None
         self.is_loaded = False
-        self.audio_buffer = np.array([], dtype=np.float32)
+        self.audio_buffer = np.array([], dtype=np.int16)  # openWakeWord requires int16
         self.sample_rate = 16000
         self.chunk_size = 1280  # 80ms at 16kHz
         
@@ -32,10 +32,15 @@ class WakewordDetector:
             from openwakeword import Model as OpenWakeWordModel
             if self.logger:
                 self.logger.info(f"Loading wakeword model from: {self.model_path}")
-            self.model = OpenWakeWordModel(wakeword_models=[self.model_path])
+
+            # TEMPORARY: Use built-in hey_jarvis for testing
+            # Comment out the line below and uncomment the original to use custom model
+            self.model = OpenWakeWordModel()  # Loads all built-in models including hey_jarvis
+            # self.model = OpenWakeWordModel(wakeword_models=[self.model_path])
+
             self.is_loaded = True
             if self.logger:
-                self.logger.info("Wakeword model loaded successfully")
+                self.logger.info("Wakeword model loaded successfully (using hey_jarvis for testing)")
             return True
         except ImportError as e:
             if self.logger:
@@ -50,28 +55,39 @@ class WakewordDetector:
         if not self.is_loaded or self.model is None:
             return False
         try:
-            audio_np = np.frombuffer(audio_data, dtype=np.int16).astype(np.float32) / 32768.0
+            audio_np = np.frombuffer(audio_data, dtype=np.int16)  # Keep as int16 for openWakeWord
+
+            # Debug: check audio level (convert to float for RMS calculation)
+            audio_float = audio_np.astype(np.float32) / 32768.0
+            audio_rms = np.sqrt(np.mean(audio_float ** 2))
+            audio_max = np.max(np.abs(audio_float))
+
             self.audio_buffer = np.concatenate([self.audio_buffer, audio_np])
             if len(self.audio_buffer) >= self.chunk_size:
                 chunk_to_process = self.audio_buffer[:self.chunk_size]
                 self.audio_buffer = self.audio_buffer[self.chunk_size:]
                 prediction = self.model.predict(chunk_to_process)
 
-                # Debug: log prediction scores every 10 chunks
+                # Debug: log prediction scores every 10 chunks OR when audio is detected
                 if not hasattr(self, '_prediction_count'):
                     self._prediction_count = 0
+                    # Log available models once
+                    if self.logger:
+                        self.logger.info(f"Available models: {list(self.model.models.keys())}")
                 self._prediction_count += 1
-                if self._prediction_count % 10 == 0 and self.logger:
-                    scores_str = ", ".join([f"{k}: {v:.4f}" for k, v in prediction.items()])
-                    self.logger.info(f"Wakeword #{self._prediction_count}: {scores_str} (threshold: {self.sensitivity})")
 
-                for model_name, scores in prediction.items():
-                    # Log any score above 0.01 for debugging
-                    if scores > 0.01 and self.logger:
-                        self.logger.info(f"Wakeword score: {model_name} = {scores:.4f}")
-                    if scores >= self.sensitivity:
+                # Log every 10 chunks OR when there's significant audio (RMS > 0.03)
+                if (self._prediction_count % 10 == 0 or audio_rms > 0.03) and self.logger:
+                    all_scores = ", ".join([f"{k}: {v:.4f}" for k, v in prediction.items()])
+                    self.logger.info(f"Wakeword #{self._prediction_count}: {all_scores} | RMS: {audio_rms:.4f}, Max: {audio_max:.4f}")
+
+                # Check all models for detection
+                for model_name, score in prediction.items():
+                    if score > 0.01 and self.logger:
+                        self.logger.info(f"Score spike: {model_name} = {score:.4f}")
+                    if score >= self.sensitivity:
                         if self.logger:
-                            self.logger.info(f"Wakeword DETECTED! Model: {model_name}, Score: {scores:.4f}")
+                            self.logger.info(f"Wakeword DETECTED! {model_name} = {score:.4f}")
                         return True
             return False
         except Exception as e:
@@ -668,14 +684,14 @@ class Asrjs(Baseplugin):
                 if not self.wakeword_detector or not self.wakeword_enabled:
                     return {"error": "Wakeword detection not enabled"}
 
-                # Read audio chunk (WAV format with 44-byte header)
+                # Read audio chunk - frontend sends raw Int16 PCM data (not WAV)
                 chunk_data = audio_chunk.file.read()
 
-                # Skip WAV header (44 bytes) to get raw PCM data
-                if len(chunk_data) > 44:
-                    raw_pcm_data = chunk_data[44:]
+                # Check if this looks like a WAV file (starts with "RIFF")
+                if chunk_data[:4] == b'RIFF' and len(chunk_data) > 44:
+                    raw_pcm_data = chunk_data[44:]  # Strip WAV header
                 else:
-                    raw_pcm_data = chunk_data
+                    raw_pcm_data = chunk_data  # Raw Int16 data, no header
 
                 # Debug log every 10 chunks
                 if not hasattr(self, '_wakeword_chunk_count'):
