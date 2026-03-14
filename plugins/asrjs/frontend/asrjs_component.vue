@@ -1066,21 +1066,17 @@ export default {
 
                 // Handle wakeword detected from backend
                 if (data.action === "wakeword_detected") {
-                    console.log('Wakeword detected! Starting VAD/listening...');
+                    console.log('Wakeword detected! Starting VAD listening...');
                     this.wakewordDetected = true;
                     // Disable wakeword detection in AudioWorklet
                     if (this.processor) {
                         this.processor.port.postMessage({ type: 'disable-wakeword' });
                     }
-                    // Start VAD listening if available
-                    if (this.vad && this.vad.pause) {
-                        this.vad.pause();
-                        // Small delay then resume to trigger speech detection
-                        setTimeout(() => {
-                            if (this.vad) {
-                                this.vad.pause();
-                            }
-                        }, 100);
+                    // Start VAD listening - it will detect speech and handle transcription
+                    if (this.vad && this.vadInitialized) {
+                        this.vad.start();
+                        this.status = 'listening';
+                        console.log('VAD started after wakeword detection');
                     }
                     return;
                 }
