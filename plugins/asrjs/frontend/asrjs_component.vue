@@ -475,8 +475,9 @@ export default {
                 });
 
                 this.vadInitialized = true;
-                this.status = 'ready';
-                console.log('VAD initialized successfully');
+                // Don't set ready here - wait for backend to confirm all models loaded
+                // Backend will send 'ready' status when ASR + wakeword models are ready
+                console.log('VAD initialized successfully, waiting for backend ready...');
 
             } catch (error) {
                 console.error('Failed to initialize VAD:', error);
