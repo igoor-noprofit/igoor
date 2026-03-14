@@ -704,7 +704,7 @@ class Asrjs(Baseplugin):
                 if detected:
                     self.logger.info("WAKEWORD DETECTED! Notifying frontend...")
                     # Notify frontend to start VAD and resume listening
-                    await self.send_message_to_frontend({
+                    self.send_message_to_frontend({
                         "action": "wakeword_detected"
                     })
                     return {"status": "success", "detected": True}
