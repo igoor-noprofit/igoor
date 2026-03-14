@@ -58,6 +58,18 @@
                 <br>
                 {{t('This keyboard combination STARTS / STOPS the speech detection process')}}
             </div>
+
+            <!-- Microphone Volume Indicator -->
+            <div class="form-label">{{t('Microphone Level')}}</div>
+            <div class="form-input" style="display: flex; align-items: center; gap: 8px;">
+                <div class="volume-meter">
+                    <div class="volume-bar" :style="{ width: volumeLevel + '%' }"></div>
+                </div>
+                <span class="volume-value">{{ volumeLevel }}%</span>
+            </div>
+            <div class="form-note">
+                {{t('Speak into your microphone to see the level. If no movement, check microphone permissions.')}}
+            </div>
         </div>
 
         <div class="bio right">
@@ -267,7 +279,13 @@ export default {
             },
             isRecordingShortcut: false,
             voxtralKeyError: false,
-            loading: false
+            loading: false,
+            // Volume meter
+            volumeLevel: 0,
+            audioContext: null,
+            analyser: null,
+            microphone: null,
+            volumeCheckInterval: null
         };
     },
     computed: {
@@ -292,6 +310,12 @@ export default {
             immediate: true,
             deep: true
         }
+    },
+    mounted() {
+        this.startVolumeMonitor();
+    },
+    beforeDestroy() {
+        this.stopVolumeMonitor();
     },
     methods: {
         startRecordingShortcut(e) {
@@ -340,6 +364,47 @@ export default {
             this.saveSettings().finally(() => {
                 this.loading = false;
             });
+        },
+        async startVolumeMonitor() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                this.microphone = this.audioContext.createMediaStreamSource(stream);
+                this.analyser = this.audioContext.createAnalyser();
+                this.analyser.fftSize = 2048;
+                this.microphone.connect(this.analyser);
+
+                const dataArray = new Uint8Array(this.analyser.frequencyBinCount);
+                this.volumeCheckInterval = setInterval(() => {
+                    // Use time domain data for proper amplitude measurement
+                    this.analyser.getByteTimeDomainData(dataArray);
+                    // Calculate RMS (root mean square) for volume
+                    let sum = 0;
+                    for (let i = 0; i < dataArray.length; i++) {
+                        const normalized = (dataArray[i] - 128) / 128;
+                        sum += normalized * normalized;
+                    }
+                    const rms = Math.sqrt(sum / dataArray.length);
+                    // Scale to 0-100% with some boost for visibility
+                    this.volumeLevel = Math.min(100, Math.round(rms * 400));
+                }, 100);
+            } catch (e) {
+                console.error('Could not access microphone:', e);
+            }
+        },
+        stopVolumeMonitor() {
+            if (this.volumeCheckInterval) {
+                clearInterval(this.volumeCheckInterval);
+                this.volumeCheckInterval = null;
+            }
+            if (this.microphone) {
+                this.microphone.disconnect();
+                this.microphone = null;
+            }
+            if (this.audioContext) {
+                this.audioContext.close();
+                this.audioContext = null;
+            }
         }
     }
 };
@@ -470,5 +535,26 @@ button:disabled {
 
 .toggle-switch input:checked + .toggle-slider:before {
     transform: translateX(20px);
+}
+
+.volume-meter {
+    width: 150px;
+    height: 20px;
+    background: #333;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid #555;
+}
+
+.volume-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #3ca23c, #7cb342, #fdd835, #ff5722);
+    transition: width 0.05s ease-out;
+}
+
+.volume-value {
+    font-size: 0.9em;
+    color: #aaa;
+    min-width: 40px;
 }
 </style>

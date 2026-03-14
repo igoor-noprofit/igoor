@@ -20,8 +20,8 @@
   "Custom Model File": "Fichier de modèle ONnx personnalisé",
   "Upload Custom Model": "Charger un modèle personnalisé",
   "Current:": "Actuel : ",
-  "Upload an ONNX wakeword model file.": "Models": "Modèles",
-  "Model uploaded successfully!": "Télécharger un modèle personnalisé",
+  "Upload an ONNX wakeword model file.": "Téléverser un fichier de modèle ONNX pour le mot-clé",
+  "Model uploaded successfully!": "Le modèle a été téléchargé avec succès !",
   "Delete": "Supprimer",
   "Delete custom model": "Supprimer",
   "failed to load wakeword model": "échec du le chargement du modèle"

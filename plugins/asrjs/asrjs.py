@@ -108,6 +108,7 @@ class Asrjs(Baseplugin):
         self.recording = False  # Initialize recording state
         self.is_loaded = False  # Make sure this is initialized
         self.wakeword_detected = False  # Initialize wakeword state
+        self.wakeword_model_loaded = False  # Track wakeword model loading
         super().__init__(plugin_name, pm)
         
         # Create recordings directory for persistent audio files
@@ -207,9 +208,23 @@ class Asrjs(Baseplugin):
         asyncio.run(self.monitor_loading())
 
     async def monitor_loading(self):
+        # Wait for ASR model to load
         while not self.is_loaded:
-            # Wait until the model is loaded
             await asyncio.sleep(1)
+
+        # If wakeword is enabled, also wait for wakeword model
+        if self.continuous and self.wakeword_enabled:
+            self.logger.info("Waiting for wakeword model to load...")
+            while not self.wakeword_model_loaded:
+                await asyncio.sleep(0.5)
+                # Timeout after 30 seconds
+                if hasattr(self, '_wakeword_wait_start'):
+                    if asyncio.get_event_loop().time() - self._wakeword_wait_start > 30:
+                        self.logger.error("Timeout waiting for wakeword model")
+                        break
+                else:
+                    self._wakeword_wait_start = asyncio.get_event_loop().time()
+
         print("Model is ready to use.")
         await self.send_status("ready")
         self.send_settings_to_frontend()
@@ -847,28 +862,32 @@ class Asrjs(Baseplugin):
         """Load wakeword model if enabled and continuous mode"""
         if not self.continuous or not self.wakeword_enabled:
             self.logger.warning("Wakeword requires continuous mode")
+            self.wakeword_model_loaded = True  # Not required, so mark as "ready"
             return
-        
+
         model_path = self._get_default_wakeword_model_path()
         if not model_path:
             self.logger.warning(f"Default wakeword model not found")
+            self.wakeword_model_loaded = False
             return
-        
+
         if self.wakeword_detector:
             self.wakeword_detector.destroy()
-        
+
         self.wakeword_detector = WakewordDetector(
             model_path=model_path,
             sensitivity=self.wakeword_sensitivity,
             logger=self.logger
         )
-        
+
         success = self.wakeword_detector.load_model()
         if success:
             self.logger.info(f"Wakeword model loaded from: {model_path}")
+            self.wakeword_model_loaded = True
         else:
             self.logger.error(f"Failed to load wakeword model from {model_path}")
             self.wakeword_detector = None
+            self.wakeword_model_loaded = False
     
     def _load_wakeword_from_settings(self):
         if self.router is not None:
