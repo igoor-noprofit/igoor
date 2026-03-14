@@ -524,6 +524,12 @@ export default {
                 this.vad.pause();
                 this.$_resetAudioBuffer();
             }
+            // Re-enable wakeword detection when ready in continuous mode with wakeword enabled
+            if (status === 'ready' && this.continuous && this.wakewordEnabled && this.processor) {
+                this.wakewordDetected = false;
+                this.processor.port.postMessage({ type: 'enable-wakeword' });
+                console.log('Wakeword detection re-enabled (ready state)');
+            }
             // Resume VAD when receiving "listening" status in continuous mode (e.g., TTS finished)
             if (status === 'listening' && this.continuous && this.vad && this.vadInitialized) {
                 console.log('VAD: status is listening in continuous mode, resuming VAD');
