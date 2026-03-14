@@ -485,13 +485,15 @@ class Asrjs(Baseplugin):
             self.custom_wakeword_dir = None
     
     def _get_default_wakeword_model_path(self):
-        """Get the default wakeword model path based on language"""
-        if self.lang_code == "en":
-            model_file = "hey_igor_en.onnx"
-        else:
-            model_file = "hey_igor_fr.onnx"
-        
-        model_path = os.path.join(WAKEWORD_MODELS_DIR, model_file)
+        """Get the default wakeword model path based on language locale"""
+        # Use full locale for model naming: locales/fr_FR/hey_igoor_fr_FR.onnx
+        locale = self.lang  # e.g., "fr_FR" or "en_EN"
+        model_name = f"hey_igoor_{locale}.onnx"
+
+        # Build path in locales folder
+        locales_dir = os.path.join(os.path.dirname(__file__), "locales", locale)
+        model_path = os.path.join(locales_dir, model_name)
+
         if os.path.exists(model_path):
             return model_path
         else:
@@ -557,13 +559,14 @@ class Asrjs(Baseplugin):
             self.logger.error(f"Failed to create custom wakeword directory: {e}")
     
     def _get_default_wakeword_model_path(self):
-        """Get default wakeword model path based on language"""
-        if self.lang_code == "en":
-            model_name = "hey_igor_en.onnx"
-        else:
-            model_name = "hey_igor_fr.onnx"
-        
-        model_path = os.path.join(WAKEWORD_MODELS_DIR, model_name)
+        """Get default wakeword model path based on language locale"""
+        # Use full locale for model naming: locales/fr_FR/hey_igoor_fr_FR.onnx
+        locale = self.lang  # e.g., "fr_FR" or "en_EN"
+        model_name = f"hey_igoor_{locale}.onnx"
+
+        # Build path in locales folder
+        locales_dir = os.path.join(os.path.dirname(__file__), "locales", locale)
+        model_path = os.path.join(locales_dir, model_name)
         return model_path
     
     def _load_wakeword_model_simple(self):
@@ -816,14 +819,15 @@ class Asrjs(Baseplugin):
             self.logger.error(f"Error setting up custom wakeword directory: {e}")
     
     def _get_default_wakeword_model_path(self):
-        """Get default wakeword model path based on language"""
-        if self.lang_code == "en":
-            model_name = "hey_igor_en.onnx"
-        else:
-            model_name = "hey_igor_fr.onnx"
-        
-        model_path = os.path.join(WAKEWORD_MODELS_DIR, model_name)
-        
+        """Get default wakeword model path based on language locale"""
+        # Use full locale for model naming: locales/fr_FR/hey_igoor_fr_FR.onnx
+        locale = self.lang  # e.g., "fr_FR" or "en_EN"
+        model_name = f"hey_igoor_{locale}.onnx"
+
+        # Build path in locales folder
+        locales_dir = os.path.join(os.path.dirname(__file__), "locales", locale)
+        model_path = os.path.join(locales_dir, model_name)
+
         if os.path.exists(model_path):
             return model_path
         else:
