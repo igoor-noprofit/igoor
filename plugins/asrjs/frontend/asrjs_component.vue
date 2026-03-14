@@ -58,6 +58,9 @@ export default {
             on: new Audio('/plugins/asrvosk/samples/on.wav'),
             off: new Audio('/plugins/asrvosk/samples/off.wav')
         };
+        // Wakeword detection sound
+        this.wakewordSound = new Audio('/plugins/asrjs/samples/on.wav');
+        this.wakewordSound.load();
         Object.values(this.audio).forEach(audio => audio.load());
     },
     async mounted() {
@@ -1073,17 +1076,27 @@ export default {
 
                 // Handle wakeword detected from backend
                 if (data.action === "wakeword_detected") {
-                    console.log('Wakeword detected! Starting VAD listening...');
-                    this.wakewordDetected = true;
-                    // Disable wakeword detection in AudioWorklet
-                    if (this.processor) {
-                        this.processor.port.postMessage({ type: 'disable-wakeword' });
-                    }
-                    // Start VAD listening - it will detect speech and handle transcription
-                    if (this.vad && this.vadInitialized) {
-                        this.vad.start();
-                        this.status = 'listening';
-                        console.log('VAD started after wakeword detection');
+                    // Only play sound and process if not already detected
+                    if (!this.wakewordDetected) {
+                        console.log('Wakeword detected! Starting VAD listening...');
+                        this.wakewordDetected = true;
+
+                        // Play confirmation beep (non-blocking)
+                        if (this.wakewordSound) {
+                            this.wakewordSound.currentTime = 0;
+                            this.wakewordSound.play().catch(() => {}); // Silent fail
+                        }
+
+                        // Disable wakeword detection in AudioWorklet
+                        if (this.processor) {
+                            this.processor.port.postMessage({ type: 'disable-wakeword' });
+                        }
+                        // Start VAD listening - it will detect speech and handle transcription
+                        if (this.vad && this.vadInitialized) {
+                            this.vad.start();
+                            this.status = 'listening';
+                            console.log('VAD started after wakeword detection');
+                        }
                     }
                     return;
                 }
