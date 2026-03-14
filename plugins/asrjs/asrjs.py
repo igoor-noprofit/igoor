@@ -77,15 +77,15 @@ class WakewordDetector:
                 # Log every 5 chunks for debugging
                 if self._prediction_count % 5 == 0 and self.logger:
                     all_scores = ", ".join([f"{k}: {v:.4f}" for k, v in prediction.items()])
-                    self.logger.info(f"Wakeword #{self._prediction_count}: {all_scores} | RMS: {audio_rms:.4f}, Max: {audio_max:.4f}")
+                    print(f"Wakeword #{self._prediction_count}: {all_scores} | RMS: {audio_rms:.4f}, Max: {audio_max:.4f}")
 
                 # Check all models for detection
                 for model_name, score in prediction.items():
                     if score > 0.01 and self.logger:
-                        self.logger.info(f"Score spike: {model_name} = {score:.4f}")
+                        print(f"Score spike: {model_name} = {score:.4f}")
                     if score >= self.sensitivity:
                         if self.logger:
-                            self.logger.info(f"Wakeword DETECTED! {model_name} = {score:.4f}")
+                            print(f"Wakeword DETECTED! {model_name} = {score:.4f}")
                         return True
             return False
         except Exception as e:
