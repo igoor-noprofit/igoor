@@ -1194,21 +1194,31 @@ export default {
                         console.log('VAD started');
                     }
                 } else if (this.status === 'recording') {
-                    // Currently recording in continuous mode — pause VAD
+                    // Currently recording in continuous mode — pause VAD and re-enable wakeword
                     console.log('Pausing VAD during recording in continuous mode');
                     if (this.vad && this.vadInitialized) {
                         this.vad.pause();
                         this.status = 'ready';
                         this.$_resetAudioBuffer();
+                        // Re-enable wakeword detection when going back to ready
+                        if (this.wakewordEnabled && this.processor) {
+                            this.processor.port.postMessage({ type: 'enable-wakeword' });
+                            console.log('Wakeword re-enabled after recording pause');
+                        }
                         console.log('VAD paused during recording');
                     }
                 } else if (this.status === 'transcribing') {
-                    // Currently transcribing — actually pause VAD to stop listening
+                    // Currently transcribing — pause VAD and re-enable wakeword
                     console.log('Pausing VAD during transcription in continuous mode');
                     if (this.vad && this.vadInitialized) {
                         this.vad.pause();
                         this.status = 'ready';
                         this.$_resetAudioBuffer();
+                        // Re-enable wakeword detection when going back to ready
+                        if (this.wakewordEnabled && this.processor) {
+                            this.processor.port.postMessage({ type: 'enable-wakeword' });
+                            console.log('Wakeword re-enabled after transcription pause');
+                        }
                         console.log('VAD paused during transcription');
                     }
                 } else if (this.status === 'loading' || this.status === 'error') {
