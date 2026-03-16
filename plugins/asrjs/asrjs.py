@@ -536,13 +536,20 @@ class Asrjs(Baseplugin):
     
     def _get_custom_wakeword_model_path(self):
         """Get the custom wakeword model path from settings"""
-        custom_path = self.settings.get("wakeword_custom_path", "")
-        self.logger.info(f"Checking custom wakeword path: {custom_path}")
-        if custom_path and os.path.exists(custom_path):
-            self.logger.info(f"Custom wakeword model found: {custom_path}")
-            return custom_path
-        if custom_path:
-            self.logger.warning(f"Custom wakeword path set but file not found: {custom_path}")
+        custom_filename = self.settings.get("wakeword_custom_path", "")
+        if not custom_filename:
+            self.logger.info("No custom wakeword filename in settings")
+            return None
+
+        # Construct full path from filename
+        full_path = os.path.join(self.custom_wakeword_dir, custom_filename)
+        self.logger.info(f"Checking custom wakeword path: {full_path}")
+
+        if os.path.exists(full_path):
+            self.logger.info(f"Custom wakeword model found: {full_path}")
+            return full_path
+
+        self.logger.warning(f"Custom wakeword file not found: {full_path}")
         return None
     
     def _load_wakeword_model(self):
@@ -728,13 +735,11 @@ class Asrjs(Baseplugin):
                 with open(file_path, "wb") as f:
                     f.write(contents)
 
-                # Update settings: keep wakeword_model as "custom", set the path
+                # Update settings: store only the filename (not full path)
                 self.settings["wakeword_model"] = "custom"
-                self.settings["wakeword_custom_path"] = file_path
-                self.update_my_settings({
-                    "wakeword_model": "custom",
-                    "wakeword_custom_path": file_path
-                })
+                self.settings["wakeword_custom_path"] = filename
+                self.update_my_settings("wakeword_model", "custom")
+                self.update_my_settings("wakeword_custom_path", filename)
 
                 # Reload the wakeword model
                 self._load_wakeword_model()
