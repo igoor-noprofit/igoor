@@ -719,11 +719,11 @@ class Asrjs(Baseplugin):
                     self._wakeword_chunk_count = 0
                 self._wakeword_chunk_count += 1
                 if self._wakeword_chunk_count % 10 == 0:
-                    self.logger.info(f"Wakeword chunk #{self._wakeword_chunk_count}, size: {len(raw_pcm_data)} bytes")
+                    print(f"Wakeword chunk #{self._wakeword_chunk_count}, size: {len(raw_pcm_data)} bytes")
 
                 detected = self.wakeword_detector.process_chunk(raw_pcm_data)
                 if detected:
-                    self.logger.info("WAKEWORD DETECTED! Notifying frontend...")
+                    print("WAKEWORD DETECTED! Notifying frontend...")
                     # Notify frontend to start VAD and resume listening
                     self.send_message_to_frontend({
                         "action": "wakeword_detected"
