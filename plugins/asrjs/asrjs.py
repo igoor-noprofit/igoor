@@ -537,8 +537,12 @@ class Asrjs(Baseplugin):
     def _get_custom_wakeword_model_path(self):
         """Get the custom wakeword model path from settings"""
         custom_path = self.settings.get("wakeword_custom_path", "")
+        self.logger.info(f"Checking custom wakeword path: {custom_path}")
         if custom_path and os.path.exists(custom_path):
+            self.logger.info(f"Custom wakeword model found: {custom_path}")
             return custom_path
+        if custom_path:
+            self.logger.warning(f"Custom wakeword path set but file not found: {custom_path}")
         return None
     
     def _load_wakeword_model(self):
@@ -546,10 +550,11 @@ class Asrjs(Baseplugin):
         if not self.wakeword_enabled or not self.continuous:
             self.logger.info("Wakeword not enabled or not in continuous mode, skipping model load")
             return False
-        
+
         # Determine model path
         wakeword_model = self.settings.get("wakeword_model", "default")
-        
+        self.logger.info(f"Wakeword model setting: {wakeword_model}")
+
         if wakeword_model == "custom":
             model_path = self._get_custom_wakeword_model_path()
             if not model_path:
@@ -557,6 +562,7 @@ class Asrjs(Baseplugin):
                 model_path = self._get_default_wakeword_model_path()
         else:
             model_path = self._get_default_wakeword_model_path()
+            self.logger.info(f"Using default wakeword model path: {model_path}")
         
         if not model_path:
             self.logger.error("No wakeword model available")
