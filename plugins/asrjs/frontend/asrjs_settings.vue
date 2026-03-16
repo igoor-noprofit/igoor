@@ -282,7 +282,9 @@ export default {
             audioContext: null,
             analyser: null,
             microphone: null,
-            volumeCheckInterval: null
+            volumeCheckInterval: null,
+            // Custom wakeword model
+            customModelName: null
         };
     },
     computed: {
@@ -301,6 +303,11 @@ export default {
                             ...this.defaultSettings,
                             ...newVal
                         };
+                        // Extract custom model name from path if set
+                        if (newVal.wakeword_custom_path) {
+                            const parts = newVal.wakeword_custom_path.split(/[/\\]/);
+                            this.customModelName = parts[parts.length - 1];
+                        }
                     });
                 }
             },
@@ -407,6 +414,30 @@ export default {
             if (this.audioContext) {
                 this.audioContext.close();
                 this.audioContext = null;
+            }
+        },
+        async handleWakewordFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch('http://127.0.0.1:9714/api/plugins/asrjs/upload_wakeword_model', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+                if (result.status === 'success') {
+                    this.customModelName = file.name;
+                    this.formData.wakeword_model = result.filename;
+                    console.log('Custom model uploaded:', result.path);
+                } else {
+                    console.error('Upload failed:', result.message);
+                }
+            } catch (error) {
+                console.error('Error uploading model:', error);
             }
         }
     }

@@ -97,6 +97,16 @@ python -m scriptname.py
 
 before telling me you finished.
 
+## Testing .js/.vue syntax
+After you finish modifying .js/.vue files:
+
+1. List exactly which files you changed
+2. Run the project's lint command on those files only (npm run lint -- <files>)
+3. Run type checker (tsc --noEmit or vue-tsc --noEmit)
+4. Show me any errors/warnings
+5. If there are errors → propose fixes and apply them in a follow-up edit
+6. Only tell me "ready" when lint + types are clean
+
 ## Accesing and testing the frontend
 To test the frontend verify if IGOOR is running in Python. 
 If not: 
