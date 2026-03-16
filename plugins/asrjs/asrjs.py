@@ -95,7 +95,16 @@ class WakewordDetector:
     
     def set_sensitivity(self, sensitivity: float):
         self.sensitivity = max(0.1, min(0.9, sensitivity))
-        
+
+    def reset(self):
+        """Reset the audio buffer and model state to prevent false positives"""
+        self.audio_buffer = np.array([], dtype=np.int16)
+        # Reset the openwakeword model's internal state if available
+        if self.model is not None and hasattr(self.model, 'reset'):
+            self.model.reset()
+        if self.logger:
+            self.logger.debug("WakewordDetector buffer and state reset")
+
     def destroy(self):
         self.model = None
         self.is_loaded = False
@@ -578,6 +587,7 @@ class Asrjs(Baseplugin):
 
         if not model_path:
             self.logger.error("No wakeword model available")
+            self.wakeword_model_loaded = False
             return False
 
         # Destroy existing detector if any
@@ -594,8 +604,10 @@ class Asrjs(Baseplugin):
         # Load the model
         success = self.wakeword_detector.load_model()
         if success:
+            self.wakeword_model_loaded = True
             self.logger.info(f"Wakeword model loaded successfully from: {model_path}")
         else:
+            self.wakeword_model_loaded = False
             self.logger.error(f"Failed to load wakeword model from: {model_path}")
 
         return success
@@ -842,10 +854,14 @@ class Asrjs(Baseplugin):
             print("ASRJS received ABANDON_CONVERSATION trigger")
             # Reset wake word detection
             self.wakeword_detected = False
-            
+
+            # Reset wakeword detector buffer to prevent false positives from residual audio
+            if self.wakeword_detector:
+                self.wakeword_detector.reset()
+
             # Mark conversation as abandoned to prevent status reset after transcription
             self.conversation_abandoned = True
-            
+
             # If continuous mode is active, pause VAD to stop listening
             if self.continuous:
                 print("ASRJS: Continuous mode is active, pausing VAD")
@@ -853,7 +869,7 @@ class Asrjs(Baseplugin):
             else:
                 print("ASRJS: Non-continuous mode, sending listening status")
                 await self.send_status("listening")
-                
+
             print("ASRJS after_conversation_end completed successfully")
         except Exception as e:
             print(f"Error in ASRJS after_conversation_end: {e}")
