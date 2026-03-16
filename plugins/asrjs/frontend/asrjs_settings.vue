@@ -309,6 +309,12 @@ export default {
             },
             immediate: true,
             deep: true
+        },
+        'formData.continuous'(newVal) {
+            if (!newVal) {
+                // Wakeword requires continuous mode - auto-disable it
+                this.formData.wakeword_enabled = false;
+            }
         }
     },
     mounted() {
