@@ -535,14 +535,21 @@ class Asrjs(Baseplugin):
             return None
     
     def _get_custom_wakeword_model_path(self):
-        """Get the custom wakeword model path from settings"""
-        custom_filename = self.settings.get("wakeword_custom_path", "")
-        if not custom_filename:
-            self.logger.info("No custom wakeword filename in settings")
+        """Get the custom wakeword model path from settings.
+
+        wakeword_model can be:
+        - "" or "default" → use default model for language
+        - "filename.onnx" → use custom model from custom_wakeword directory
+        """
+        wakeword_model = self.settings.get("wakeword_model", "")
+
+        # Empty or "default" means use default model
+        if not wakeword_model or wakeword_model == "default":
+            self.logger.info("No custom wakeword model set, using default")
             return None
 
         # Construct full path from filename
-        full_path = os.path.join(self.custom_wakeword_dir, custom_filename)
+        full_path = os.path.join(self.custom_wakeword_dir, wakeword_model)
         self.logger.info(f"Checking custom wakeword path: {full_path}")
 
         if os.path.exists(full_path):
@@ -553,46 +560,44 @@ class Asrjs(Baseplugin):
         return None
     
     def _load_wakeword_model(self):
-        """Load the wakeword detection model"""
+        """Load the wakeword detection model.
+
+        wakeword_model can be:
+        - "" or "default" → use default model for language
+        - "filename.onnx" → use custom model from custom_wakeword directory
+        """
         if not self.wakeword_enabled or not self.continuous:
             self.logger.info("Wakeword not enabled or not in continuous mode, skipping model load")
             return False
 
-        # Determine model path
-        wakeword_model = self.settings.get("wakeword_model", "default")
-        self.logger.info(f"Wakeword model setting: {wakeword_model}")
-
-        if wakeword_model == "custom":
-            model_path = self._get_custom_wakeword_model_path()
-            if not model_path:
-                self.logger.warning("Custom wakeword model not found, falling back to default")
-                model_path = self._get_default_wakeword_model_path()
-        else:
+        # Try custom model first, fall back to default
+        model_path = self._get_custom_wakeword_model_path()
+        if not model_path:
             model_path = self._get_default_wakeword_model_path()
             self.logger.info(f"Using default wakeword model path: {model_path}")
-        
+
         if not model_path:
             self.logger.error("No wakeword model available")
             return False
-        
+
         # Destroy existing detector if any
         if self.wakeword_detector:
             self.wakeword_detector.destroy()
-        
+
         # Create new detector
         self.wakeword_detector = WakewordDetector(
             model_path=model_path,
             sensitivity=self.wakeword_sensitivity,
             logger=self.logger
         )
-        
+
         # Load the model
         success = self.wakeword_detector.load_model()
         if success:
             self.logger.info(f"Wakeword model loaded successfully from: {model_path}")
         else:
             self.logger.error(f"Failed to load wakeword model from: {model_path}")
-        
+
         return success
 
     def _ensure_router(self):
@@ -735,11 +740,9 @@ class Asrjs(Baseplugin):
                 with open(file_path, "wb") as f:
                     f.write(contents)
 
-                # Update settings: store only the filename (not full path)
-                self.settings["wakeword_model"] = "custom"
-                self.settings["wakeword_custom_path"] = filename
-                self.update_my_settings("wakeword_model", "custom")
-                self.update_my_settings("wakeword_custom_path", filename)
+                # Update settings: store only the filename in wakeword_model
+                self.settings["wakeword_model"] = filename
+                self.update_my_settings("wakeword_model", filename)
 
                 # Reload the wakeword model
                 self._load_wakeword_model()
@@ -750,6 +753,24 @@ class Asrjs(Baseplugin):
             except Exception as e:
                 self.logger.error(f"Error uploading wakeword model: {e}")
                 return {"status": "error", "message": str(e)}
+
+        @self.router.get("/list_custom_wakeword_models")
+        async def list_custom_wakeword_models():
+            """List all custom wakeword models in the custom directory"""
+            try:
+                if not self.custom_wakeword_dir or not os.path.exists(self.custom_wakeword_dir):
+                    return {"models": []}
+
+                models = []
+                for f in os.listdir(self.custom_wakeword_dir):
+                    if f.endswith('.onnx'):
+                        models.append(f)
+
+                return {"models": models}
+
+            except Exception as e:
+                self.logger.error(f"Error listing custom wakeword models: {e}")
+                return {"models": [], "error": str(e)}
 
     def clean_whisper_silence(self, text):
         print(f"Transcribed text: {text}")

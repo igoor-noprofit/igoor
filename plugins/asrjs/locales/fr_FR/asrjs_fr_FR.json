@@ -57,5 +57,7 @@
     "Model uploaded successfully!": "Le modèle a été téléchargé avec succès !",
     "Delete": "Supprimer",
     "Delete custom model": "Supprimer le modèle personnalisé",
-    "failed to load wakeword model": "Échec du chargement du modèle de mot-clé"
+    "failed to load wakeword model": "Échec du chargement du modèle de mot-clé",
+    "Default model": "Modèle par défaut",
+    "Browse": "Parcourir"
 }

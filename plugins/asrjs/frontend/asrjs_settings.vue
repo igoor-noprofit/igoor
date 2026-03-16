@@ -192,38 +192,23 @@
                 </div-->
 
                 <!-- Wakeword Model Selection -->
-                <!--div class="form-label">{{t('Wakeword Model')}}</div-->
-                <div class="form-input">
-                    <select v-model="formData.wakeword_model">
-                        <option value="default">{{t('Default (Hey Igor)')}}</option>
-                        <option value="custom">{{t('Custom Model')}}</option>
+                <div class="form-input" style="display: flex; align-items: center; gap: 8px;">
+                    <select v-model="formData.wakeword_model" style="flex: 1;">
+                        <option value="">{{t('Default model')}}</option>
+                        <option v-for="model in customModels" :key="model" :value="model">{{ model }}</option>
                     </select>
+                    <input
+                        type="file"
+                        ref="wakewordFileInput"
+                        accept=".onnx"
+                        style="display: none"
+                        @change="handleWakewordFileSelect"
+                    />
+                    <button type="button" class="btn btn-primary" @click="$refs.wakewordFileInput.click()">
+                        <i class="ph-light ph-folder"></i>
+                        <span>{{ t('Browse') }}</span>
+                    </button>
                 </div>
-                <!--div class="form-note">
-                    {{t('Select the wakeword detection model. Default models are language-specific.')}}
-                </div-->
-
-                <!-- Custom Model Upload (only shown when custom selected) -->
-                <template v-if="formData.wakeword_model === 'custom'">
-                    <div class="form-label">{{t('Custom Model File')}}</div>
-                    <div class="form-input">
-                        <input
-                            type="file"
-                            ref="wakewordFileInput"
-                            accept=".onnx"
-                            style="display: none"
-                            @change="handleWakewordFileSelect"
-                        />
-                        <button type="button" @click="$refs.wakewordFileInput.click()">
-                            {{t('Upload Custom Model')}}
-                        </button>
-                    </div>
-                    <div class="form-note" v-if="customModelName">
-                        {{t('Current:')}} {{ customModelName }}
-                        <div class="form-note" v-if="!customModelName">
-                        {{t('Upload an ONNX wakeword model file.')}}
-                    </div>
-                </template>
             </template>
 
            
@@ -284,7 +269,7 @@ export default {
             microphone: null,
             volumeCheckInterval: null,
             // Custom wakeword model
-            customModelName: null
+            customModels: []  // List of custom model filenames
         };
     },
     computed: {
@@ -323,6 +308,7 @@ export default {
     },
     mounted() {
         this.startVolumeMonitor();
+        this.fetchCustomModels();
     },
     beforeDestroy() {
         this.stopVolumeMonitor();
@@ -416,6 +402,17 @@ export default {
                 this.audioContext = null;
             }
         },
+        async fetchCustomModels() {
+            try {
+                const response = await fetch('http://127.0.0.1:9714/api/plugins/asrjs/list_custom_wakeword_models');
+                const result = await response.json();
+                if (result.models) {
+                    this.customModels = result.models;
+                }
+            } catch (error) {
+                console.error('Error fetching custom models:', error);
+            }
+        },
         async handleWakewordFileSelect(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -430,7 +427,8 @@ export default {
                 });
                 const result = await response.json();
                 if (result.status === 'success') {
-                    this.customModelName = file.name;
+                    // Refresh the list and select the new model
+                    await this.fetchCustomModels();
                     this.formData.wakeword_model = result.filename;
                     console.log('Custom model uploaded:', result.path);
                 } else {
