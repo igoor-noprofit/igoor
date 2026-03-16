@@ -125,11 +125,11 @@
                 <div class="form-label">{{t('Pause Tolerance')}}</div>
                 <div class="form-input">
                     <select name="redemptionFrames" v-model.number="formData.redemptionFrames">
-                        <option value="4">4 frames (~80ms) - Fast</option>
-                        <option value="8">8 frames (~160ms) - Default</option>
-                        <option value="12">12 frames (~240ms) - Medium</option>
-                        <option value="16">16 frames (~320ms) - Slow</option>
-                        <option value="24">24 frames (~480ms) - Very slow </option>
+                        <option value="12">12 frames (~380ms) - Fast</option>
+                        <option value="24">24 frames (~770ms) - Default</option>
+                        <option value="36">36 frames (~1150ms) - Medium</option>
+                        <option value="48">48 frames (~1540ms) - Slow</option>
+                        <option value="72">72 frames (~2300ms) - Very slow</option>
                     </select>
                 </div>
                 <!--div class="form-note">
@@ -250,12 +250,12 @@ export default {
                 continuous: false,
                 always_generate: false,
                 positiveSpeechThreshold: 0.5,
-                redemptionFrames: 8,
+                redemptionFrames: 24,
                 shortcut: ''
             },
             defaultSettings: {
                 positiveSpeechThreshold: 0.5,
-                redemptionFrames: 8,
+                redemptionFrames: 24,
                 continuous: false,
                 always_generate: false
             },

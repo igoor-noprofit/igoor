@@ -3,7 +3,7 @@
   "continuous": false,
   "always_generate": false,
   "positiveSpeechThreshold": 0.5,
-  "redemptionFrames": 8,
+  "redemptionFrames": 24,
   "chunk_duration_ms": 30,
   "sample_rate": 48000,
   "audio_format": "PCM_16",

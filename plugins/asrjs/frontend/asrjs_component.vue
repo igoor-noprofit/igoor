@@ -416,10 +416,12 @@ export default {
 
                 // Get settings with defaults
                 const positiveThreshold = this.settings?.positiveSpeechThreshold || 0.5;
-                const redemptionFrames = this.settings?.redemptionFrames || 8;
+                const redemptionFrames = this.settings?.redemptionFrames || 24;
 
                 this.vad = await window.vad.MicVAD.new({
-                    // Model files (silero_vad_legacy.onnx) are in /plugins/asrjs/static/vad/
+                    // Use v5 model for better accuracy (fewer false positives)
+                    model: "v5",
+                    // Model files are in /plugins/asrjs/static/vad/
                     baseAssetPath: "/plugins/asrjs/static/vad/",
                     // ONNX Runtime WASM binaries served from CDN (matching ort.js v1.22.0)
                     onnxWASMBasePath: "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/",
@@ -480,7 +482,7 @@ export default {
                 this.vadInitialized = true;
                 // Don't set ready here - wait for backend to confirm all models loaded
                 // Backend will send 'ready' status when ASR + wakeword models are ready
-                console.log('VAD initialized successfully, waiting for backend ready...');
+                console.log('VAD initialized successfully with Silero v5 model, waiting for backend ready...');
 
             } catch (error) {
                 console.error('Failed to initialize VAD:', error);
