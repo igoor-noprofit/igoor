@@ -698,8 +698,10 @@ export default {
 
         async $_sendWakewordChunk(int16Chunk) {
             // Send audio chunk to wakeword detection endpoint
-            // Skip if already processing or wakeword already detected
-            if (this.wakewordProcessing || this.wakewordDetected || !this.wakewordEnabled) {
+            // Skip if already processing, wakeword already detected, disabled,
+            // or not in a state where wakeword should be processed (not during recording/transcription)
+            if (this.wakewordProcessing || this.wakewordDetected || !this.wakewordEnabled ||
+                (this.status !== 'listening' && this.status !== 'ready' && this.status !== 'loading')) {
                 return;
             }
 
@@ -1027,9 +1029,20 @@ export default {
                     this.settings = data.settings;
                     this.continuous = this.settings.continuous || false;
 
+                    // Check if wakeword setting changed
+                    const wakewordChanged = this.wakewordEnabled !== (this.settings.wakeword_enabled || false);
+                    this.wakewordEnabled = this.settings.wakeword_enabled || false;
+
                     // Handle shortcut (always update, even if empty)
                     console.log('ASRJS SHORTCUT:', this.settings.shortcut);
                     this.keyboardShortcut = this.settings.shortcut || null;
+
+                    // If wakeword was just enabled and continuous mode is on, notify AudioWorklet
+                    if (wakewordChanged && this.wakewordEnabled && this.continuous && this.processor) {
+                        this.wakewordDetected = false;
+                        this.processor.port.postMessage({ type: 'enable-wakeword' });
+                        console.log('Wakeword detection enabled after settings change');
+                    }
 
                     // Re-initialize VAD if:
                     // 1. VAD-related settings changed (thresholds) AND continuous mode is on
