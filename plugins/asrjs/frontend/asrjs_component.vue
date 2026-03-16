@@ -1006,7 +1006,7 @@ export default {
 
 
 
-        handleIncomingMessage(event) {
+        async handleIncomingMessage(event) {
             const handled = BasePluginComponent.methods.handleIncomingMessage.call(this, event);
             if (handled) {
                 // Base component handled the message, check if it was settings
@@ -1041,7 +1041,13 @@ export default {
                         this.vadInitialized = false;
 
                         if (this.continuous) {
-                            this.$_initializeVAD();
+                            await this.$_initializeVAD();
+                            // Restart VAD listening after re-initialization
+                            if (this.vad && this.vadInitialized) {
+                                this.vad.start();
+                                this.status = 'listening';
+                                console.log('VAD restarted after settings change');
+                            }
                         }
                     }
 
