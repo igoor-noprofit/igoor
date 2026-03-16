@@ -130,6 +130,14 @@ class DataManager:
                         self.logger.info("Exported plugins/rag folder")
                     else:
                         self.logger.warning("plugins/rag folder not found")
+
+                # Export custom wakeword models
+                custom_wakeword_folder = os.path.join(self.appdata_dir, "plugins", "asrjs", "custom_wakeword")
+                if os.path.exists(custom_wakeword_folder):
+                    shutil.copytree(custom_wakeword_folder, temp_path / "plugins" / "asrjs" / "custom_wakeword")
+                    self.logger.info("Exported plugins/asrjs/custom_wakeword folder")
+                else:
+                    self.logger.warning("plugins/asrjs/custom_wakeword folder not found")
                 
                 # Create ZIP file
                 with zipfile.ZipFile(output_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
@@ -229,13 +237,23 @@ class DataManager:
                 # Backup RAG folder
                 current_rag_folder = os.path.join(self.appdata_dir, "plugins", "rag")
                 imported_rag_path = temp_path / "plugins" / "rag"
-                
+
                 if imported_rag_path.exists() and os.path.exists(current_rag_folder):
                     backup_rag_path = os.path.join(backup_path, "plugins", "rag")
                     shutil.copytree(current_rag_folder, backup_rag_path)
                     backup_items.append("plugins/rag")
                     self.logger.info("Backed up plugins/rag folder")
-                
+
+                # Backup custom wakeword folder
+                current_wakeword_folder = os.path.join(self.appdata_dir, "plugins", "asrjs", "custom_wakeword")
+                imported_wakeword_path = temp_path / "plugins" / "asrjs" / "custom_wakeword"
+
+                if imported_wakeword_path.exists() and os.path.exists(current_wakeword_folder):
+                    backup_wakeword_path = os.path.join(backup_path, "plugins", "asrjs", "custom_wakeword")
+                    shutil.copytree(current_wakeword_folder, backup_wakeword_path)
+                    backup_items.append("plugins/asrjs/custom_wakeword")
+                    self.logger.info("Backed up plugins/asrjs/custom_wakeword folder")
+
                 warnings = []
                 
                 # Handle settings.json
@@ -294,7 +312,14 @@ class DataManager:
                         shutil.rmtree(current_rag_folder)
                     shutil.copytree(imported_rag_path, current_rag_folder)
                     self.logger.info("plugins/rag folder restored")
-                
+
+                # Restore custom wakeword folder
+                if imported_wakeword_path.exists():
+                    if os.path.exists(current_wakeword_folder):
+                        shutil.rmtree(current_wakeword_folder)
+                    shutil.copytree(imported_wakeword_path, current_wakeword_folder)
+                    self.logger.info("plugins/asrjs/custom_wakeword folder restored")
+
                 self.logger.info("Import completed successfully")
                 
                 # Import hook - let plugins know data was imported
