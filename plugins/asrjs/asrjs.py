@@ -142,6 +142,17 @@ class Asrjs(Baseplugin):
         self.wakeword_sensitivity = 0.5
         
         self._setup_custom_wakeword_dir()
+
+        # Pre-download openwakeword models (melspectrogram, etc.) if openwakeword is installed
+        # download_models() checks if files exist before downloading - safe to call every init
+        try:
+            from openwakeword.utils import download_models
+            self.logger.info("Checking openwakeword models...")
+            download_models()
+        except ImportError:
+            self.logger.debug("openwakeword not installed, skipping model download")
+        except Exception as e:
+            self.logger.warning(f"Could not download openwakeword models: {e}")
         
     @hookimpl
     def startup(self):
@@ -225,6 +236,12 @@ class Asrjs(Baseplugin):
                 else:
                     self._wakeword_wait_start = asyncio.get_event_loop().time()
 
+        # Check if wakeword was required but failed to load
+        if self.continuous and self.wakeword_enabled and not self.wakeword_model_loaded:
+            self.logger.error("Wakeword model required but failed to load. Plugin will not be ready.")
+            await self.send_status("error")
+            return
+
         print("Model is ready to use.")
         await self.send_status("ready")
         self.send_settings_to_frontend()
@@ -267,7 +284,7 @@ class Asrjs(Baseplugin):
                 
                 # Mark as loaded
                 self.is_loaded = True
-                self.mark_ready()
+                # Don't call mark_ready() here - let the check at end of function handle it
                 # Removed: asyncio.create_task(self.send_status("ready"))
                 # This was causing the "no running event loop" error and is redundant
                 # as monitor_loading handles sending the "ready" status.
@@ -282,9 +299,11 @@ class Asrjs(Baseplugin):
                 # raise # Optionally re-raise
         elif (self.model_provider == "mistral"):
             self.model=self.settings.get("model_name", "voxtral-mini-latest")
-            
-        self.is_loaded=True
-        self.mark_ready()
+
+        self.is_loaded = True
+        # Only mark ready if wakeword isn't required, or if it loaded successfully
+        if not (self.continuous and self.wakeword_enabled) or self.wakeword_model_loaded:
+            self.mark_ready()
     
     async def handle_wake_word(self,following_text):
         # Guard against empty transcriptions
