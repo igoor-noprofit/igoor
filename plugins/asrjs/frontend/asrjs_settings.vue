@@ -67,8 +67,18 @@
                 </div>
                 <span class="volume-value">{{ volumeLevel }}%</span>
             </div>
+            <div class="form-note"></div>
+            <!-- Continuous Mode -->
+            <div class="form-label">{{t('Continuous Listening Mode')}}</div>
+            <div class="form-input">
+                <label class="toggle-switch">
+                    <input type="checkbox" v-model="formData.continuous" />
+                    <span class="toggle-slider"></span>
+                </label>
+                <span style="margin-left: 8px;">{{ formData.continuous ? t('Enabled') : t('Disabled') }}</span>
+            </div>
             <div class="form-note">
-                {{t('Speak into your microphone to see the level. If no movement, check microphone permissions.')}}
+                {{t('When enabled, the microphone listens continuously and automatically detects speech.')}}<br>
             </div>
         </div>
 
@@ -84,19 +94,6 @@
                     @save="checkBeforeUpdating"
                     @cancel="resetSettings"
                 />
-            </div>
-            <div class="form-note"></div>
-            <!-- Continuous Mode -->
-            <div class="form-label">{{t('Continuous Listening Mode')}}</div>
-            <div class="form-input">
-                <label class="toggle-switch">
-                    <input type="checkbox" v-model="formData.continuous" />
-                    <span class="toggle-slider"></span>
-                </label>
-                <span style="margin-left: 8px;">{{ formData.continuous ? t('Enabled') : t('Disabled') }}</span>
-            </div>
-            <div class="form-note">
-                {{t('When enabled, the microphone listens continuously and automatically detects speech.')}}<br>
             </div>
 
             <!-- Speech Detection Threshold (only shown when continuous is enabled) -->
@@ -132,13 +129,13 @@
                         <option value="8">8 frames (~160ms) - Default</option>
                         <option value="12">12 frames (~240ms) - Medium</option>
                         <option value="16">16 frames (~320ms) - Slow</option>
-                        <option value="24">24 frames (~480ms) - Very slow</option>
+                        <option value="24">24 frames (~480ms) - Very slow </option>
                     </select>
                 </div>
-                <div class="form-note">
+                <!--div class="form-note">
                     {{t('How long to wait after speech stops before transcribing.')}}<br>
                     {{t('Higher values help with speakers who pause frequently.')}}
-                </div>
+                </div-->
 
                 <!-- Always Generate (bypass semantic VAD) -->
                 <div class="form-label">{{t('Always generate predictions')}}</div>
@@ -149,9 +146,9 @@
                     </label>
                     <span style="margin-left: 8px;">{{ formData.always_generate ? t('Enabled') : t('Disabled') }}</span>
                 </div>
-            <div class="form-note">
+            <!--div class="form-note">
                 {{t('When enabled, bypasses the semantic VAD check and generates immediately after speech ends.')}}<br>
-            </div>
+            </div-->
         </template>
 
         <!-- Wakeword Detection Section -->
@@ -164,9 +161,9 @@
                 </label>
                 <span style="margin-left: 8px;">{{ formData.wakeword_enabled ? t('Enabled') : t('Disabled') }}</span>
             </div>
-            <div class="form-note">
+            <!--div class="form-note">
                 {{t('Say "Hey Igor" to activate voice recognition hands-free.')}}
-            </div>
+            </div-->
 
             <!-- Wakeword Sensitivity (only shown when wakeword enabled) -->
             <template v-if="formData.wakeword_enabled">
@@ -189,22 +186,22 @@
                         style="width: 60px;"
                     />
                 </div>
-                <div class="form-note">
+                <!--div class="form-note">
                     {{t('Lower = fewer false positives, Higher = more sensitive')}}<br>
                     {{t('Adjust based on your environment and microphone quality.')}}
-                </div>
+                </div-->
 
                 <!-- Wakeword Model Selection -->
-                <div class="form-label">{{t('Wakeword Model')}}</div>
+                <!--div class="form-label">{{t('Wakeword Model')}}</div-->
                 <div class="form-input">
                     <select v-model="formData.wakeword_model">
                         <option value="default">{{t('Default (Hey Igor)')}}</option>
                         <option value="custom">{{t('Custom Model')}}</option>
                     </select>
                 </div>
-                <div class="form-note">
+                <!--div class="form-note">
                     {{t('Select the wakeword detection model. Default models are language-specific.')}}
-                </div>
+                </div-->
 
                 <!-- Custom Model Upload (only shown when custom selected) -->
                 <template v-if="formData.wakeword_model === 'custom'">
