@@ -288,11 +288,6 @@ export default {
                             ...this.defaultSettings,
                             ...newVal
                         };
-                        // Extract custom model name from path if set
-                        if (newVal.wakeword_custom_path) {
-                            const parts = newVal.wakeword_custom_path.split(/[/\\]/);
-                            this.customModelName = parts[parts.length - 1];
-                        }
                     });
                 }
             },

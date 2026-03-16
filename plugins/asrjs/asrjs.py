@@ -772,6 +772,33 @@ class Asrjs(Baseplugin):
                 self.logger.error(f"Error listing custom wakeword models: {e}")
                 return {"models": [], "error": str(e)}
 
+        @self.router.delete("/delete_custom_wakeword_model/{filename}")
+        async def delete_custom_wakeword_model(filename: str):
+            """Delete a custom wakeword model"""
+            try:
+                if not self.custom_wakeword_dir:
+                    return {"status": "error", "message": "Custom directory not available"}
+
+                file_path = os.path.join(self.custom_wakeword_dir, filename)
+                if not os.path.exists(file_path):
+                    return {"status": "error", "message": "Model not found"}
+
+                os.remove(file_path)
+
+                # If this was the currently selected model, reset to default
+                if self.settings.get("wakeword_model") == filename:
+                    self.settings["wakeword_model"] = ""
+                    self.update_my_settings("wakeword_model", "")
+                    # Reload with default model
+                    self._load_wakeword_model()
+
+                self.logger.info(f"Deleted custom wakeword model: {filename}")
+                return {"status": "success"}
+
+            except Exception as e:
+                self.logger.error(f"Error deleting custom wakeword model: {e}")
+                return {"status": "error", "message": str(e)}
+
     def clean_whisper_silence(self, text):
         print(f"Transcribed text: {text}")
         SILENCE_STRINGS = [
