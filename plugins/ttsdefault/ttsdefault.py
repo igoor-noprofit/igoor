@@ -161,7 +161,7 @@ class Ttsdefault(Baseplugin):
     async def speak_func(self, message):
         self.logger.info("SPEAK FUNC:" + message)
         try:
-            self.speaker.Speak(message)
+            await asyncio.to_thread(self.speaker.Speak, message)
             return True
 
         except Exception as e:
