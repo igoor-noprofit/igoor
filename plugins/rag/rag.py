@@ -898,13 +898,38 @@ class Rag(Baseplugin):
     def get_embedding_function(self):
         self.logger.debug("LOADING EMBEDDING FUNCTION")
         embedding_model = self.settings.get("embedding_model")
-        model_kwargs = {"device": "cpu", 'trust_remote_code': True}
+
+        # Try loading from local cache first (works offline)
+        cache_folder = os.path.join(os.path.expanduser("~"), ".cache", "huggingface", "hub")
+
+        model_kwargs = {
+            "device": "cpu",
+            'trust_remote_code': True,
+            'local_files_only': True  # Prefer cached model - enables offline use
+        }
         encode_kwargs = {"normalize_embeddings": True}
-        
-        hf = HuggingFaceBgeEmbeddings(
-            model_name=embedding_model, model_kwargs=model_kwargs, encode_kwargs=encode_kwargs
-        )
-        return hf
+
+        try:
+            hf = HuggingFaceBgeEmbeddings(
+                model_name=embedding_model,
+                model_kwargs=model_kwargs,
+                encode_kwargs=encode_kwargs,
+                cache_folder=cache_folder
+            )
+            self.logger.info("Embedding model loaded from local cache")
+            return hf
+        except Exception as e:
+            # If local cache fails, try online (for first-time setup)
+            self.logger.warning(f"Failed to load from cache: {e}. Trying online...")
+            model_kwargs['local_files_only'] = False
+            hf = HuggingFaceBgeEmbeddings(
+                model_name=embedding_model,
+                model_kwargs=model_kwargs,
+                encode_kwargs=encode_kwargs,
+                cache_folder=cache_folder
+            )
+            self.logger.info("Embedding model downloaded and cached")
+            return hf
 
     def create_index(self):
         self.logger.info("CREATING DB, PLEASE WAIT...")
