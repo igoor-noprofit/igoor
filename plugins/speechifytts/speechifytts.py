@@ -34,7 +34,8 @@ class Speechifytts(Baseplugin):
         lang = getattr(self, 'lang', None)
         if not lang:
             lang = 'en_EN'
-        if lang == 'en_EN':
+        # Normalize both en_EN and en-EN to 'en' for Speechify API
+        if lang.lower() in ('en_en', 'en-en', 'en'):
             code = 'en'
         else:
             code = lang.replace('_', '-')
@@ -240,7 +241,16 @@ class Speechifytts(Baseplugin):
                             locales.add(loc)
 
                 # If a language filter is configured, exclude voices that don't advertise the language
-                if lang and len(locales) > 0 and lang not in locales:
+                # Match by prefix: 'en' should match 'en-US', 'en-GB', etc.
+                def locale_matches(lang_code, locale_set):
+                    if not lang_code or not locale_set:
+                        return True  # No filter or no locales = include
+                    for loc in locale_set:
+                        if loc and (loc == lang_code or loc.startswith(lang_code + "-") or loc.startswith(lang_code + "_")):
+                            return True
+                    return False
+
+                if not locale_matches(lang, locales):
                     continue
 
                 type = get_attr(v, "type", "")
