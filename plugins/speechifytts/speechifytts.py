@@ -488,5 +488,4 @@ class Speechifytts(Baseplugin):
 
         except Exception as e:
             self.logger.error(f"Error occurred while speaking: {e}")
-            await self.pm.trigger_hook(hook_name="speak_fallback",message=message) 
             return False

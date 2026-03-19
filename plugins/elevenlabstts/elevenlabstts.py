@@ -385,11 +385,9 @@ class Elevenlabstts(Baseplugin):
             # Validate required settings
             if not current_api_key:
                 print("API key not found in settings")
-                await self.call_fallback(message=message)
                 return False
             if not current_voice_id:
                 print("Voice ID not found in settings")
-                await self.call_fallback(message=message)
                 return False
 
             # Recreate client with current API key if changed or not exists
@@ -437,12 +435,10 @@ class Elevenlabstts(Baseplugin):
                 return True
             except Exception as inner_e:
                 print(f"Error generating audio data: {inner_e}")
-                await self.call_fallback(message=message)
                 return False
 
         except Exception as e:
             print(f"Error occurred while speaking: {e}")
-            await self.call_fallback(message=message)
             return False
         
     async def call_fallback(self,message):
