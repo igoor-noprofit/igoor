@@ -247,8 +247,9 @@ class Memory(Baseplugin):
             sys_pm = PromptManager(template=self.prompts.get("memory_review", {}).get("system"))
             system_prompt = sys_pm.create_prompt(bio_name=self.bio_name)
             
-            pm = PromptManager(template=self.prompts.get("memory_review", {}).get("usr"))
-            prompt = pm.create_prompt(memory_to_be_checked=json.dumps(memory_to_be_checked))
+            # Construct user prompt directly to avoid LangChain template issues with JSON braces
+            json_str = json.dumps(memory_to_be_checked)
+            prompt = f"<memory_to_be_checked>\n{json_str}\n</memory_to_be_checked>"
 
             # Call LLM with ValidationResponse schema
             llm = LLMManager(
