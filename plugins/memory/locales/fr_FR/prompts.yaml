@@ -130,7 +130,7 @@ memory_review:
 
     De plus, pour être validée, l'information extraite ("fact") doit être **claire et spécifique**, avec un **sujet clairement défini**. Les mémoires ambiguës ou manquant de détails essentiels ne doivent pas être validées. Par exemple, évitez de valider des faits tels que :
 
-    - "Igor pense que le logiciel est le meilleur pour des rendus photoréalistes gratuits" (De quel logiciel on parle?)
+    - "{bio_name} pense que le logiciel est le meilleur pour des rendus photoréalistes gratuits" (De quel logiciel on parle?)
     - "L'interlocuteur aime l'île de Pâques" (Qui est l'interlocuteur ?)
 
     Assurez-vous que le sujet de l'information est explicitement mentionné et que les détails clés 
@@ -211,5 +211,5 @@ memory_review:
     </instructions>
   usr: |
     <memory_to_be_checked>
-            {memory_to_be_checked}
-            </memory_to_be_checked>
+    {memory_to_be_checked}
+    </memory_to_be_checked>

@@ -25,5 +25,5 @@ class PromptManager:
             bound_prompt = self.prompt_template.format(**kwargs)
         except Exception as e:
             print(f"Error binding prompt template: {e}")
-            return False
+            raise ValueError(f"Failed to bind prompt template: {e}") from e
         return bound_prompt

@@ -86,14 +86,14 @@ memory_review:
     2) the long-term memory the AI proposes to save.
 
     <example>
-    {
+    {{
         "conversation": " Q: Do you like rice pudding? R: I don't like it at all! Q: I thought you liked it! R: I don't anymore!",
-        "memory": {
+        "memory": {{
             "fact": "{bio_name} no longer likes rice pudding",
             "type": "long"
-        },
+        }},
         "rag":"---{bio_name} likes Asian dishes, especially soups"
-    }
+    }}
     </example>
 
     In the conversation, Q: is the interlocutor, R: is the user (named {bio_name}).
@@ -129,7 +129,7 @@ memory_review:
 
     The extracted "fact" must also be **clear and specific**, with a **well-defined subject**. Do not validate ambiguous facts or those missing key details. For example, avoid validating:
 
-    - "Igor thinks the software is the best for free photorealistic rendering" (Which software?)
+    - "{bio_name} thinks the software is the best for free photorealistic rendering" (Which software?)
     - "The interlocutor loves Easter Island" (Which interlocutor?)
 
     Ensure the subject is explicitly mentioned and the crucial details (like the software name or the person's identity) appear in the fact.
@@ -138,76 +138,76 @@ memory_review:
 
     <examples>
     Input:
-    {
+    {{
         "conversation": " R: I'm sensitive to certain flavors? Q: Which ones? R: There are many.",
-        "memory": {
+        "memory": {{
             "fact": "{bio_name} is sensitive to many flavors",
             "type": "long"
-        }
-    }
+        }}
+    }}
     Output:
     {{"valid":false,"reason":"We don't know which flavors affect {bio_name}"}}
 
     Input:
-    {
+    {{
         "conversation": " R: I'm sensitive to very spicy flavors?",
-        "memory": {
+        "memory": {{
             "fact": "{bio_name} is sensitive to very spicy flavors",
             "type": "long"
-        }
-    }
+        }}
+    }}
     Output:
     {{"valid":true,"reason":"This preference is clear and specific"}}
 
     Input:
-    {
+    {{
         "conversation": " Q: Should we make soup tonight? R: Yes, a vegetable soup. Q: With croutons? R: Yes, and a bit of grated cheese.",
-        "memory": {
+        "memory": {{
             "fact": "{bio_name} likes croutons in their soup",
             "type": "long"
-        },
+        }},
         "rag": "---{bio_name} likes Asian dishes---"
-    }
+    }}
     Output:
     {{"valid":false,"reason":"We don't know if {bio_name} generally likes croutons or just wanted to try it this time"}}
 
     Input:
-    {
+    {{
         "conversation": "R: do you like jazz?",
-        "memory": {
+        "memory": {{
             "fact": "{bio_name} likes jazz",
             "type": "long"
-        }
-    }
+        }}
+    }}
     Output:
     {{"valid":false,"reason":"The question is unclear and the user didn't answer"}}
 
     Input:
-    {
+    {{
         "conversation": "Q: I like jazz more and more",
-        "memory": {
+        "memory": {{
             "fact": "{bio_name} likes jazz",
             "type": "long"
-        },
+        }},
         "rag": "---Artistic preferences of {bio_name}: loves jazz---"
-    }
+    }}
     Output:
     {{"valid":false,"reason":"The knowledge base already stores that preference"}}
 
     Input:
-    {
+    {{
         "conversation": "Q: How many children do you have? R: I have three children, Anton, Paloma and Anatole!",
-        "memory": {
+        "memory": {{
             "fact": "{bio_name} has a son or daughter named Anatole",
             "type": "long"
-        },
+        }},
         "rag": "---Family: {bio_name}'s children are Anton, Paloma and Anatole [children, Anton, Paloma, Anatole]---"
-    }
+    }}
     Output:
     {{"valid":false,"reason":"The RAG already lists all three children, so the new fact about only Anatole is redundant"}}
     </examples>
     </instructions>
   usr: |
     <memory_to_be_checked>
-            {memory_to_be_checked}
-            </memory_to_be_checked>
+    {memory_to_be_checked}
+    </memory_to_be_checked>
