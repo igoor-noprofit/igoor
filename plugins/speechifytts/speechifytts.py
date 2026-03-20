@@ -1,6 +1,7 @@
 from plugin_manager import hookimpl, PluginManager
 from plugins.baseplugin.baseplugin import Baseplugin
 from settings_manager import SettingsManager
+from fastapi import APIRouter, HTTPException
 import asyncio
 import os
 from speechify import Speechify
@@ -25,6 +26,7 @@ Portuguese (Portugal)	pt-PT
 class Speechifytts(Baseplugin):
     def __init__(self, plugin_name, pm):
         self.pm = pm
+        self.router = None
         super().__init__(plugin_name,pm)
         self._ensure_lang_code()
 
@@ -32,28 +34,56 @@ class Speechifytts(Baseplugin):
         lang = getattr(self, 'lang', None)
         if not lang:
             lang = 'en_EN'
-        if lang == 'en_EN':
+        # Normalize both en_EN and en-EN to 'en' for Speechify API
+        if lang.lower() in ('en_en', 'en-en', 'en'):
             code = 'en'
         else:
             code = lang.replace('_', '-')
         self.lang_code = code
         return code
+
+    def _ensure_router(self):
+        """Initialize FastAPI router for plugin endpoints"""
+        if self.router is not None:
+            return
+        self.router = APIRouter(prefix="/api/plugins/speechifytts", tags=["speechifytts"])
+
+        @self.router.get("/get_voices")
+        async def get_voices(api_key: str):
+            """Get list of available voices for an API key"""
+            try:
+                # Use existing get_voices_list method with API key override
+                voice_list = self.get_voices_list(api_key_override=api_key)
+                
+                # If voices list is empty, treat as invalid API key
+                if not voice_list:
+                    raise HTTPException(status_code=400, detail="Invalid API key or no voices found")
+                
+                return {
+                    "voices": voice_list,
+                    "count": len(voice_list)
+                }
+            except Exception as e:
+                raise HTTPException(status_code=400, detail=f"Failed to get voices: {str(e)}")
                 
     @hookimpl
     def startup(self):
+        self._ensure_router()
+        # Register router with the main FastAPI app if available
+        if hasattr(self, 'pm') and hasattr(self.pm, 'fastapi_app'):
+            self.pm.fastapi_app.include_router(self.router)
         # https://docs.sws.speechify.com/docs/features/language-support#beta-languages
         self.supported_lang = ['en', 'fr-FR', 'de-DE', 'es-ES', 'pt-BR', 'pt-PT']
         self.settings = self.get_my_settings()
         ''' print ("SPEECHIFY settings", self.settings) '''
         try:
             self.api_key = self.settings.get("api_key")
-            self.voice_id = self.settings.get("voice_id")  
+            self.voice_id = self.settings.get("voice_id")
             if (not self.api_key):
                 self.logger.warning("Speechify API token not set in settings,cannot generate speech")
                 return False
-            if (not self.voice_id):
-                print("Speechify Voice ID not set in settings,cannot generate speech")
-                return False
+            # Don't return early if voice_id is missing - plugin should still load and be ready
+            # The plugin will be marked as ready when voice_id is set via plugin_settings_updated hook
             self._ensure_lang_code()
             if self.lang_code not in self.supported_lang:
                 print(f"Configured language '{self.lang_code}' is not officially supported by Speechify plugin. Check documentation for compatibility.")
@@ -61,7 +91,9 @@ class Speechifytts(Baseplugin):
                 self.client = Speechify(token=self.api_key)
                 self.is_loaded = True
                 self.get_voices_list() # Pre-fetch voices list to validate API key and voice ID
-                self.mark_ready()
+                # Only mark as ready if voice_id is already set in settings
+                if self.voice_id:
+                    self.mark_ready()
                 return True
             except Exception as e:
                 self.logger.error(f"Error occurred while creating Speechify client : {e}")
@@ -74,7 +106,37 @@ class Speechifytts(Baseplugin):
     def global_settings_updated(self):
         print("RELOADING SPEECHIFY SETTINGS")
         self.startup()
-        
+
+    @hookimpl
+    def settings_updated(self, plugin_name, new_settings):
+        print ("PLUGIN SETTINGS UPDATED:", plugin_name)
+        """Called when any plugin's settings are updated via settings UI"""
+        # Only process updates for this specific plugin
+        if plugin_name != 'speechifytts':
+            return
+
+        # Refresh settings to get latest values
+        self.settings = self.get_my_settings()
+
+        # Check if both API key and voice ID are set
+        api_key = self.settings.get("api_key", "")
+        voice_id = self.settings.get("voice_id", "")
+
+        if api_key and voice_id:
+            # Both API key and voice are configured, mark as ready
+            if not self.is_loaded:
+                try:
+                    self.client = Speechify(token=api_key)
+                    self.is_loaded = True
+                except Exception as e:
+                    self.logger.error(f"Failed to create Speechify client: {e}")
+                    return
+            self.mark_ready()
+            print(f"SpeechifyTTS marked as ready via settings_updated")
+        # Missing required settings, plugin stays not ready (user must select a voice)
+        else:
+            print(f"SpeechifyTTS NOT ready: api_key={bool(api_key)}, voice_id={bool(voice_id)}")
+
     @hookimpl
     def speak(self, message):
         print("§§§§ SPEECHIFY SPEAKING *********************************************** :", message)
@@ -179,7 +241,16 @@ class Speechifytts(Baseplugin):
                             locales.add(loc)
 
                 # If a language filter is configured, exclude voices that don't advertise the language
-                if lang and len(locales) > 0 and lang not in locales:
+                # Match by prefix: 'en' should match 'en-US', 'en-GB', etc.
+                def locale_matches(lang_code, locale_set):
+                    if not lang_code or not locale_set:
+                        return True  # No filter or no locales = include
+                    for loc in locale_set:
+                        if loc and (loc == lang_code or loc.startswith(lang_code + "-") or loc.startswith(lang_code + "_")):
+                            return True
+                    return False
+
+                if not locale_matches(lang, locales):
                     continue
 
                 type = get_attr(v, "type", "")
@@ -418,5 +489,4 @@ class Speechifytts(Baseplugin):
 
         except Exception as e:
             self.logger.error(f"Error occurred while speaking: {e}")
-            await self.pm.trigger_hook(hook_name="speak_fallback",message=message) 
             return False

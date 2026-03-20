@@ -20,7 +20,18 @@ class Elevenlabstts(Baseplugin):
     @hookimpl
     def global_settings_updated(self):
         print("RELOADING ELEVENLABS SETTINGS")
-        self.startup()                
+        self.startup()
+
+    @hookimpl
+    def settings_updated(self, plugin_name, new_settings):
+        """Called when any plugin's settings are updated via settings UI"""
+        # Only process updates for this specific plugin
+        if plugin_name != 'elevenlabstts':
+            return
+
+        print("PLUGIN SETTINGS UPDATED:", plugin_name)
+        # Refresh settings and reinitialize
+        self.startup()
 
     def _ensure_router(self):
         """Initialize FastAPI router for plugin endpoints"""
@@ -374,11 +385,9 @@ class Elevenlabstts(Baseplugin):
             # Validate required settings
             if not current_api_key:
                 print("API key not found in settings")
-                await self.call_fallback(message=message)
                 return False
             if not current_voice_id:
                 print("Voice ID not found in settings")
-                await self.call_fallback(message=message)
                 return False
 
             # Recreate client with current API key if changed or not exists
@@ -426,9 +435,11 @@ class Elevenlabstts(Baseplugin):
                 # Play audio in a thread to avoid blocking the event loop
                 output_format = request_params.get("output_format", "mp3_44100_128")
                 await asyncio.to_thread(self._play_audio, audio, output_format)
+                await asyncio.to_thread(self._play_audio, audio, request_params.get("output_format", "mp3_44100_128"))
+                self.run_restart_asr()
+                return True
             except Exception as inner_e:
                 print(f"Error generating audio data: {inner_e}")
-                await self.call_fallback(message=message)
                 return False
 
             # Restart ASR after playback finishes
@@ -437,7 +448,6 @@ class Elevenlabstts(Baseplugin):
 
         except Exception as e:
             print(f"Error occurred while speaking: {e}")
-            await self.call_fallback(message=message)
             return False
         
     async def call_fallback(self,message):

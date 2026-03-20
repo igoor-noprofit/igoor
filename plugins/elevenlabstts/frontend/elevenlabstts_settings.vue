@@ -61,7 +61,7 @@
             <div class="form-label"></div>
             <div class="form-input">
                 <div style="display: flex; justify-content: space-between; align-items: center; width: 100%" >
-                    <button class="" type="button" @click="testVoice">{{ t('Test voice') }}</button>
+                    <button class="" type="button" @click="testVoice" :disabled="!formData.voice_id">{{ t('Test voice') }}</button>
                     <div style="display: flex; gap: 8px; align-items: center;">
                         <SaveSettingsButton
                             :hasChanges="hasChanges"

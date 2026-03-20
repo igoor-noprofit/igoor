@@ -34,7 +34,10 @@ class Api:
     def update_plugin_settings(self,plugin_name,settings):
         # print("Saving plugin settings")
         # print(settings)
-        return sm.update_plugin_settings(plugin_name,settings)
+        result = sm.update_plugin_settings(plugin_name,settings)
+        # Trigger settings_updated hook (pywebview doesn't have running event loop for asyncio.create_task)
+        asyncio.run(plugin_manager.trigger_hook('settings_updated', plugin_name=plugin_name, new_settings=settings))
+        return result
     
     def toggle_plugin(self, pn, active):
         if not active:

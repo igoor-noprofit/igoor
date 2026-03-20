@@ -164,6 +164,7 @@ class Ttsdefault(Baseplugin):
         try:
             # Note: SAPI COM objects are thread-affine, cannot use asyncio.to_thread
             self.speaker.Speak(message)
+            await asyncio.to_thread(self.speaker.Speak, message)
             return True
 
         except Exception as e:
