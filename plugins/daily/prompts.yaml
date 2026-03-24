@@ -32,6 +32,8 @@ daily:
 
     IMPORTANT: For topics that involve settings or adjustments (temperature, position, intensity, etc.), ALWAYS provide complementary or opposite options so every need is covered.
 
+    IMPORTANT: You MUST produce all sentences in {reply_language}.
+
     NEVER explain your answer; return ONLY the valid JSON.
     </instructions>
 
@@ -141,9 +143,12 @@ daily:
 
     ---
     Remember that your sentence predictions must be from {bio_name}'s point of view.
+    All sentences MUST be in {reply_language}.
 
     Here is the context of the need:
 
     "category":"{category}","theme":"{theme}","tags": "{tags}"
 
     </context>
+
+    IMPORTANT: Give a minimum of 1 and a maximum of 2 answers per column, strictly in the required JSON format.

@@ -14,7 +14,12 @@ flow:
     Put positive or affirmative replies in the left column.
     You may use the center column for nuanced, alternative, or ironic replies (see the examples), but every sentence must still express a clear need or intent.
 
+    IMPORTANT: Do not just answer. Your goal is also to MAINTAIN the conversation.
+    Each column should contain at least one reply that relaunches (asks a counter-question or adds contextual information).
+
     IMPORTANT: If an interlocutor is identified (speaker_info contains a name), you must imperatively address them by their first name and adapt your style and speech to the interlocutor, especially if you are greeting them for the first time.
+
+    IMPORTANT: You MUST respond in {reply_language}. All generated sentences must be in {reply_language}, matching the language of the conversation.
     </instructions>
 
     <examples>
@@ -23,51 +28,58 @@ flow:
     {
         "answers": {
             "left": [
-                "let's go!",
+                "let's go! Did you remember to bring sunscreen?",
                 "yes, if we hurry we'll catch the sunset"
             ],
             "center": [
-                "okay, but later",
-                "only if everyone comes along"
+                "okay, but let's wait until the sun goes down a bit. Coffee first?",
+                "only if everyone comes along, will you let them know?"
             ],
             "right": [
-                "I don't feel like it, it's too cold",
-                "I'm a bit tired, I'd rather stay home"
+                "Actually I'm feeling lazy... How about we just sit on a terrace instead?",
+                "It's getting chilly. Wouldn't we rather go see a movie?"
             ]
         }
     }
 
-    Input: (Speaker identified: Jean) Q: how are you?
+    Input: Q: Did you like tonight's movie?
     Output: {
         "answers": {
-            "left": ["I'm great Jean!", "yes, very well and you?"],
-            "center": ["we're getting by...", "it could be worse"],
-            "right": ["meh, not really today Jean", "no, I'm tired"]
-        }
-    }
-
-    Input: Q: do you like this movie?
-    Output:
-    {
-        "answers": {
             "left": [
-                "yeah, I love it!",
-                "it's not bad"
+                "Great! The lead actor was incredible, don't you think?",
+                "Yes, shall we watch the sequel?"
             ],
             "center": [
-                "I don't know it",
-                "I haven't seen it"
+                "Mixed feelings. The story is nice but a bit long, no?",
+                "I didn't follow everything. Can you explain the ending?"
             ],
             "right": [
-                "it's meh",
-                "I don't find it interesting"
+                "Not my style at all. Next time, let's pick something funnier?",
+                "Meh, I zoned out after ten minutes."
             ]
         }
     }
 
-    Input: Q: do you prefer soup or ramen?
-    Output:
-    {
+    Input: Q: Do you want me to adjust your pillow?
+    Output: {
+        "answers": {
+            "left": [
+                "Yes please, just a little bit.",
+                "Oh yes, I'll be much more comfortable to chat!"
+            ],
+            "center": [
+                "Maybe later. Can you check my right arm first?",
+                "I'm fine for now. Can you give me some water?"
+            ],
+            "right": [
+                "No it's good, I'm comfortable like this.",
+                "Leave it as is, otherwise my neck will hurt."
+            ]
+        }
+    }
+
+    Input: Q: Do you prefer soup or ramen?
+    Output: {
         "answers": {
             "left": [
                 "soup please"
@@ -83,9 +95,8 @@ flow:
         }
     }
 
-    Input: Q: do you want me to move your head?
-    Output:
-    {
+    Input: Q: Do you want me to move your head?
+    Output: {
         "answers": {
             "left": [
                 "yes, a little more to the left",
@@ -93,7 +104,6 @@ flow:
             ],
             "center": [
                 "yes, put it back in the center",
-                "no thanks, it's fine like this",
                 "no, but my neck hurts"
             ],
             "right": [
@@ -105,7 +115,8 @@ flow:
     </examples>
   usr: |
     <context>
-            The person affected by the illness is named {bio_name}. Consider their current state to avoid predictions incompatible with their physical abilities:
+            The person affected by the illness is named {bio_name}. 
+    IMPORTANT: Consider their current state to avoid predictions incompatible with their physical abilities:
 
     {health_state}
 
@@ -126,10 +137,11 @@ flow:
     {short_term}
 
     --- 
-    If needed, also use the following dynamic context info:
+    If needed, also use the following dynamic context info.
+    IMPORTANT: If an interlocutor is identified (speaker_info), address them by their first name and adapt
+    your speech to the interlocutor, especially when greeting them.
 
     {dynamic_context}
-
     ---
     Take into consideration the expressive style of {bio_name}:
 
@@ -142,12 +154,12 @@ flow:
 
     {last_conversations}
     </context>
-    ### FINAL DIRECTIVE:
     You are {bio_name}'s voice (R). Your goal is to provide the next possible lines for {bio_name} to say to the speaker (Q).
 
     STRICT RULES:
     1. **Role**: You are the speaker (R) who is being assisted. Do NOT act as the caregiver or assistant. If (Q) offers help, (R) accepts, directs, or declines it.
     2. **Format**: Output ONLY the JSON object with "left", "center", and "right" columns.
+    3. **Language**: All replies MUST be in {reply_language}.
 
     Generate {bio_name}'s (R) next lines in response to (Q):
     <conversation>
@@ -169,6 +181,7 @@ preflow:
     2. Define the **memory type** needed:
        - "short": Recent events or one-off events
        - "long": Preferences, constant facts, habits, life memories.
+    **IMPORTANT**: When in doubt, ALWAYS choose both memory types.
     3. Extract the **timeframe** (Timeframe) for the SQL query.
 
     <timeframe_rules>

@@ -24,6 +24,9 @@ autocomplete:
     Always consider the current conversation first.
 
     IMPORTANT: do not repeat what is already written—push the idea forward in the continuation.
+
+    IMPORTANT: You MUST produce all predictions in {reply_language}. The completed sentences must be in {reply_language}.
+
     Return ONLY the JSON object; include no explanations or extra text.
     </instructions>
   usr: |
@@ -83,6 +86,8 @@ autocomplete:
     Seamless Continuity: Your predictions MUST start exactly with the provided characters: "{input}". Do not rephrase the beginning.
 
     Role: If the conversation shows someone is assisting {bio_name}, complete the sentence to provide feedback (e.g., "higher up," "thank you," "a bit to the left"). NEVER act as the assistant or caregiver.
+
+    Language: All predictions MUST be in {reply_language}.
 
     IMPORTANT: Prioritize consistency with the interlocutor's question (Q) in the conversation below.
 

@@ -22,6 +22,24 @@ class Flow(Baseplugin):
         self.global_settings_updated()
         self.is_loaded = True
     
+    def _build_prompt_templates(self):
+        """Pre-build PromptManagers with static vars filled in (called at init and on settings change)."""
+        reply_language = self.global_settings.get_reply_language()
+        
+        # Pre-fill system prompt for flow (contains {reply_language})
+        sys_template = self.prompts.get("flow", {}).get("system", "")
+        self._flow_system_prompt = sys_template.replace("{reply_language}", reply_language)
+        
+        # Pre-fill user prompt template with static vars
+        self._flow_usr_pm = PromptManager(template=self.prompts.get("flow", {}).get("usr"))
+        self._flow_usr_pm.partial(
+            bio_name=self.bio_name,
+            reply_language=reply_language,
+            bio_style=self.bio_style,
+            bio_style_weight=self.bio_style_weight,
+            health_state=self.health_state,
+        )
+    
     @hookimpl 
     def global_settings_updated(self):
         self.settings = self.get_my_settings()
@@ -30,6 +48,7 @@ class Flow(Baseplugin):
         self.bio_style=bio.get("style")
         self.bio_style_weight=bio.get("style_weight")
         self.health_state=bio.get("health_state")
+        self._build_prompt_templates()
     
     @hookimpl
     def startup(self):
@@ -184,21 +203,15 @@ class Flow(Baseplugin):
         last_conversations_result = await self.pm.trigger_hook(hook_name="get_last_conversations")
         last_conversations = last_conversations_result[0] if last_conversations_result and last_conversations_result[0] else ""
         
-        system_prompt = self.prompts.get("flow", {}).get("system")
-        pm = PromptManager(template=self.prompts.get("flow", {}).get("usr"))
+        system_prompt = self._flow_system_prompt
         
-        # Pass the context to the prompt
-        prompt = pm.create_prompt(
-            bio_name=self.bio_name,
-            bio_style=self.bio_style,
-            bio_style_weight=self.bio_style_weight,
-            health_state=self.health_state,
-            static_context='\n'.join(actual_filtered_results.get(0, [])), # Use actual_filtered_results
-            long_term='\n'.join(actual_filtered_results.get(1, [])),  # Use actual_filtered_results
-            short_term='\n'.join(actual_filtered_results.get(2, [])), # Use actual_filtered_results
+        # Only pass dynamic vars (static ones are pre-filled via partial)
+        prompt = self._flow_usr_pm.create_prompt(
+            static_context='\n'.join(actual_filtered_results.get(0, [])),
+            long_term='\n'.join(actual_filtered_results.get(1, [])),
+            short_term='\n'.join(actual_filtered_results.get(2, [])),
             dynamic_context=dynamic_context, 
             conversation=conversation,
-            log_folder=self.plugin_folder,
             last_conversations=last_conversations
         )
         

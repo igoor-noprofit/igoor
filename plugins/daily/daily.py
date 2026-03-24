@@ -20,7 +20,25 @@ class Daily(Baseplugin):
         self.load_settings()
         bio = self.settings_manager.get_bio()
         self.bio_name = bio.get("name")
+        self.health_state = self.settings_manager.get_health_state()
         self.daily_data = None
+        self._build_prompt_templates()
+    
+    def _build_prompt_templates(self):
+        """Pre-build PromptManagers with static vars filled in."""
+        reply_language = self.settings_manager.get_reply_language()
+        
+        # Pre-fill system prompt (contains {reply_language})
+        sys_template = self.prompts.get("daily", {}).get("system", "")
+        self._daily_system_prompt = sys_template.replace("{reply_language}", reply_language)
+        
+        # Pre-fill user prompt template with static vars
+        self._daily_usr_pm = PromptManager(template=self.prompts.get("daily", {}).get("usr"))
+        self._daily_usr_pm.partial(
+            bio_name=self.bio_name,
+            reply_language=reply_language,
+            health_state=self.health_state,
+        )
         
     def load_settings(self):
         self.settings = self.get_my_settings()
@@ -81,9 +99,11 @@ class Daily(Baseplugin):
         # Reload all cached values from updated onboarding settings
         bio = self.settings_manager.get_bio()
         self.bio_name = bio.get("name")
+        self.health_state = self.settings_manager.get_health_state()
         # Reload language and prompts in case language was changed
         self.lang = self.settings_manager.get_lang()
         self.prompts = self.get_my_prompts()
+        self._build_prompt_templates()
     
     @hookimpl
     def abandon_conversation(self, cause=None):
@@ -154,21 +174,17 @@ class Daily(Baseplugin):
         # self.logger.info(f"FILTERED RESULTS: {filtered_results}")
         actual_filtered_results = normalize_filter_by_timeframe_result(filtered_results)
         # del dynamic_context["conversation"]
-        system_prompt = self.prompts.get("daily", {}).get("system")
+        system_prompt = self._daily_system_prompt
         print(f"SYSTEM PROMPT IS : {system_prompt}")   
-        pm = PromptManager(template=self.prompts.get("daily", {}).get("usr"))
-        dynamic_context = dynamic_context
-        prompt = pm.create_prompt(
-            bio_name=bio_name,
-            health_state=health_state,
-            static_context='\n'.join(actual_filtered_results.get(0, [])), # Use actual_filtered_results
-            long_term='\n'.join(actual_filtered_results.get(1, [])),  # Use actual_filtered_results
-            short_term='\n'.join(actual_filtered_results.get(2, [])), # Use actual_filtered_results
+        # Only pass dynamic vars (static ones are pre-filled via partial)
+        prompt = self._daily_usr_pm.create_prompt(
+            static_context='\n'.join(actual_filtered_results.get(0, [])),
+            long_term='\n'.join(actual_filtered_results.get(1, [])),
+            short_term='\n'.join(actual_filtered_results.get(2, [])),
             dynamic_context=dynamic_context, 
             category=category,
             theme=theme, 
-            tags="",
-            log_folder=self.plugin_folder)       
+            tags="")       
         print(f"FINAL PROMPT : {prompt}")
         try:
             llm = LLMManager(self.settings.get("provider"), self.settings.get("api_key"), self.settings.get("model_name"))

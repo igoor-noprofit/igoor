@@ -83,10 +83,14 @@ class Baseplugin:
         translations_path = os.path.join(self._app_plugin_folder, 'locales', self.lang, self.plugin_name + "_" + self.lang + ".json")
         return self.load_translation_file(translations_path)
     
-    # Load prompts from a YAML file
+    # Load prompts from a YAML file (unified at plugin root, with locale fallback)
     def get_my_prompts(self) -> dict:
         import yaml
-        prompts_path = os.path.join(self._app_plugin_folder, 'locales', self.lang, 'prompts.yaml')
+        # Primary: unified prompts at plugin root
+        prompts_path = os.path.join(self._app_plugin_folder, 'prompts.yaml')
+        if not os.path.exists(prompts_path):
+            # Fallback: legacy locale-specific prompts
+            prompts_path = os.path.join(self._app_plugin_folder, 'locales', self.lang, 'prompts.yaml')
         try:
             with open(prompts_path, 'r', encoding='utf-8') as f:
                 return yaml.safe_load(f) or {}

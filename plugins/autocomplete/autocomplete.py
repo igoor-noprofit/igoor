@@ -30,12 +30,40 @@ class Autocomplete(Baseplugin):
         bio = self.global_settings.get_bio()
         self.bio_name = bio.get("name")
         self.bio_style=bio.get("style")
+        self.health_state=self.global_settings.get_health_state()
         self.is_loaded = True
         self.only_exact_matches = self.settings.get("only_exact_matches", False)
         self.allow_virtual_keyboard = self.settings.get("allow_virtual_keyboard", False)
         self.short_prediction_words = self.settings.get("short_prediction_words", 1)
         self.router = None
+        self._build_prompt_templates()
         print(f"ONLY EXACT MATCHES: {self.only_exact_matches}")
+    
+    def _build_prompt_templates(self):
+        """Pre-build PromptManagers with static vars filled in."""
+        reply_language = self.global_settings.get_reply_language()
+        
+        # Pre-fill system prompt (contains {reply_language})
+        sys_template = self.prompts.get("autocomplete", {}).get("system", "")
+        self._auto_system_prompt = sys_template.replace("{reply_language}", reply_language)
+        
+        # Pre-fill user prompt template with static vars
+        self._auto_usr_pm = PromptManager(template=self.prompts.get("autocomplete", {}).get("usr"))
+        self._auto_usr_pm.partial(
+            bio_name=self.bio_name,
+            reply_language=reply_language,
+            bio_style=self.bio_style,
+            health_state=self.health_state,
+        )
+    
+    @hookimpl
+    def global_settings_updated(self):
+        self.settings = self.get_my_settings()
+        bio = self.global_settings.get_bio()
+        self.bio_name = bio.get("name")
+        self.bio_style = bio.get("style")
+        self.health_state = self.global_settings.get_health_state()
+        self._build_prompt_templates()
     
     @hookimpl
     def startup(self):
@@ -335,9 +363,6 @@ class Autocomplete(Baseplugin):
         return json.dumps(formatted_completions, ensure_ascii=False, indent=2)
     
     async def predict(self, msg: str) -> None:
-        health_state=self.global_settings.get_health_state()
-        bio_name=self.bio_name
-        bio_style=self.bio_style
         start_time = time.time()
         print("AUTOCOMPLETE PREDICTIONS")
         dynamic_context = self.get_dynamic_context()
@@ -372,15 +397,12 @@ class Autocomplete(Baseplugin):
         last_conversations_result = await self.pm.trigger_hook(hook_name="get_last_conversations")
         last_conversations = last_conversations_result[0] if last_conversations_result and last_conversations_result[0] else ""
         
-        system_prompt = self.prompts.get("autocomplete", {}).get("system")
-        pm = PromptManager(template=self.prompts.get("autocomplete", {}).get("usr"))
-        prompt = pm.create_prompt(
-            bio_name=bio_name,
-            bio_style=bio_style,
-            health_state=health_state,
-            static_context='\n'.join(actual_filtered_results.get(0, [])), # Use actual_filtered_results
-            long_term='\n'.join(actual_filtered_results.get(1, [])),  # Use actual_filtered_results
-            short_term='\n'.join(actual_filtered_results.get(2, [])), # Use actual_filtered_results
+        system_prompt = self._auto_system_prompt
+        # Only pass dynamic vars (static ones are pre-filled via partial)
+        prompt = self._auto_usr_pm.create_prompt(
+            static_context='\n'.join(actual_filtered_results.get(0, [])),
+            long_term='\n'.join(actual_filtered_results.get(1, [])),
+            short_term='\n'.join(actual_filtered_results.get(2, [])),
             dynamic_context=dynamic_context, 
             conversation=conversation,
             successful_predictions=successful_predictions,

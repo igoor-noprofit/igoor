@@ -14,6 +14,16 @@ class PromptManager:
             print(f"Error initializing ChatPromptTemplate: {e}")
             raise
 
+    def partial(self, **kwargs):
+        """
+        Pre-fill static variables into the template.
+        Call this once at init/settings-change time to avoid
+        re-merging unchanging values on every hot-path call.
+        Returns self for chaining.
+        """
+        self.prompt_template = self.prompt_template.partial(**kwargs)
+        return self
+
     def create_prompt(self, **kwargs) -> str:
         """
         Binds variables in the given template using the provided keyword arguments.

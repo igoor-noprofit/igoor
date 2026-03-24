@@ -22,7 +22,26 @@ class Memory(Baseplugin):
         bio = self.global_settings.get_bio()
         self.bio_name = bio.get("name")
         self.is_loaded = True
+        self._build_prompt_templates()
+    
+    def _build_prompt_templates(self):
+        """Pre-build system prompts with bio_name filled in."""
+        # Memory system prompt (contains {bio_name} in examples)
+        sys_template = self.prompts.get("memory", {}).get("system", "")
+        sys_pm = PromptManager(template=sys_template)
+        self._memory_system_prompt = sys_pm.create_prompt(bio_name=self.bio_name)
         
+        # Memory review system prompt (contains {bio_name})
+        review_template = self.prompts.get("memory_review", {}).get("system", "")
+        review_pm = PromptManager(template=review_template)
+        self._memory_review_system_prompt = review_pm.create_prompt(bio_name=self.bio_name)
+    
+    @hookimpl
+    def global_settings_updated(self):
+        self.settings = self.get_my_settings()
+        bio = self.global_settings.get_bio()
+        self.bio_name = bio.get("name")
+        self._build_prompt_templates()
     
     @hookimpl
     def startup(self):
@@ -80,10 +99,8 @@ class Memory(Baseplugin):
         else:
             self.logger.info(f"Processing conversation end with ID: {conversation_id}")
 
-        # SYSTEM PROMPT
-        template=self.prompts.get("memory", {}).get("system")
-        sys_pm = PromptManager(template)
-        system_prompt = sys_pm.create_prompt(bio_name=self.bio_name)
+        # SYSTEM PROMPT (pre-built with bio_name)
+        system_prompt = self._memory_system_prompt
         print(f"Memory system prompt: {system_prompt}")
         
         # HUMAN PROMPT
@@ -243,9 +260,8 @@ class Memory(Baseplugin):
                 "rag": rag_escaped
             }
             
-            # Set up prompts
-            sys_pm = PromptManager(template=self.prompts.get("memory_review", {}).get("system"))
-            system_prompt = sys_pm.create_prompt(bio_name=self.bio_name)
+            # Use pre-built system prompt
+            system_prompt = self._memory_review_system_prompt
             
             # Construct user prompt directly to avoid LangChain template issues with JSON braces
             json_str = json.dumps(memory_to_be_checked)
