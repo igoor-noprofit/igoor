@@ -80,7 +80,7 @@ class LLMManager:
             try:
                 reasoning_log_content = ""  # Initialize reasoning_log_content
                 # GPT-OSS models use include_reasoning, not reasoning_format
-                is_gpt_oss = self.model_name in ["openai/gpt-oss-120b", "openai/gpt-oss-20b"]
+                is_gpt_oss = self.model_name.lower() in ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "gpt-oss-120b", "gpt-oss-20b"]
                 if self.provider == "groq" and self.json_schema and hasattr(self, "schema_model"):
                     # Import Groq SDK at runtime
                     from groq import Groq
@@ -92,9 +92,9 @@ class LLMManager:
                     ]
                     schema = self.schema_model
 
-                    if self.model_name == "llama-3.3-70b-versatile" or self.model_name == "llama-3.1-8b-instant" or is_gpt_oss:
-                        # Use json_object mode - more compatible with reasoning models
-                        # GPT-OSS reasoning + json_schema doesn't work reliably
+                    if is_gpt_oss or self.model_name.lower() in ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"]:
+                        # Use json_object mode - validates JSON syntax but not schema
+                        # Schema validation happens via Pydantic after parsing
                         response_format={
                             "type": "json_object"
                         }
@@ -110,9 +110,10 @@ class LLMManager:
                     call_args = {
                         "model": self.model_name,
                         "messages": messages,
-                        "temperature": self.temperature,
-                        "response_format": response_format
+                        "temperature": self.temperature
                     }
+                    if response_format:
+                        call_args["response_format"] = response_format
                     # Note: GPT-OSS reasoning + JSON schema mode doesn't work reliably
                     # If user wants reasoning, they should use a non-reasoning model or accept JSON mode without schema
                     response = client.chat.completions.create(**call_args)
@@ -121,7 +122,7 @@ class LLMManager:
                         reasoning_log_content = response.choices[0].message.reasoning
                         print(f"REASONING: {response.choices[0].message.reasoning}")
                     if not raw_content:
-                        raise ValueError("Model returned empty content") 
+                        raise ValueError("Model returned empty content")
                     print("Groq raw model output:", raw_content)
                     raw_result = json.loads(raw_content or "{}")
                     result = schema.model_validate(raw_result)
@@ -207,7 +208,7 @@ class LLMManager:
                 self.logger.error(f"Invocation failed on attempt {attempt}: {error_message}")
 
                 if attempt < retries:
-                    delay = 2 ** attempt  # 2, 4, 8 seconds
+                    delay = 0.5 ** attempt  # 0.5, 0.25, 0.125 seconds
                     self.logger.info(f"Waiting {delay} seconds before retry...")
                     time.sleep(delay)
                 else:
