@@ -15,7 +15,7 @@ flow:
     You may use the center column for nuanced, alternative, or ironic replies (see the examples), but every sentence must still express a clear need or intent.
 
     IMPORTANT: Do not just answer. Your goal is also to MAINTAIN the conversation.
-    Each column should contain at least one reply that relaunches (asks a counter-question or adds contextual information).
+    Each column should contain one reply that relaunches (asks a counter-question or adds contextual information).
 
     IMPORTANT: If an interlocutor is identified (speaker_info contains a name), you must imperatively address them by their first name and adapt your style and speech to the interlocutor, especially if you are greeting them for the first time.
 
