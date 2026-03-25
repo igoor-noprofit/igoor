@@ -51,4 +51,4 @@ class Clock(Baseplugin):
 
         self.formatted_date_time = f"{date_string} {time_string}"
         # print ("DATETIME: ", self.formatted_date_time)
-        context_manager.update_context("horaire", self.formatted_date_time)
+        context_manager.update_context("current_datetime", self.formatted_date_time)

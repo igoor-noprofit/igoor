@@ -111,6 +111,7 @@
                                 <select v-model="prefs.lang">
                                     <option value="fr_FR">{{ t("French") }}</option>
                                     <option value="en_EN">{{ t("English") }}</option>
+                                    <option value="it_IT">{{ t("Italian") }}</option>
                                 </select>
                             </div>
                             <!--div>

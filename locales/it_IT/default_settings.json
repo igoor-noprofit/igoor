@@ -7,12 +7,12 @@
         "birth_date": "",
         "health_state": "",
         "style": "",
-        "style_weight": "2 réponses sur 6 maximum"
+        "style_weight": "2 risposte su 6 max"
       },
       "prefs": {
-        "lang": "fr_FR",
+        "lang": "it_IT",
         "darklight": "light",
-        "locale": "fr_FR.UTF-8",
+        "locale": "it_IT.UTF-8",
         "idle_threshold": 600
       },
       "ai": {

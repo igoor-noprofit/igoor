@@ -232,6 +232,211 @@
       }
     ]
   },
+  "it_IT": {
+    "needs": [
+      {
+        "discomforts": {
+          "grattare naso": {
+            "freq": 0,
+            "fixed": true
+          },
+          "grattare testa": {
+            "freq": 0,
+            "fixed": true
+          },
+          "capelli sul viso": {
+            "freq": 0,
+            "fixed": true
+          },
+          "cuscino per le mani": {
+            "fixed": true
+          },
+          "alleviare gomito": {
+            "freq": 0
+          },
+          "riposizionare sulla sedia": {
+            "freq": 0
+          },
+          "soffiare il naso": {
+            "freq": 0
+          },
+          "grattare corpo": {
+            "freq": 0
+          }
+        },
+        "hygiene": {
+          "doccia": {
+            "freq": 10,
+            "fixed": true
+          },
+          "denti": {
+            "freq": 10,
+            "fixed": true
+          },
+          "capelli": {
+            "freq": 10,
+            "fixed": true
+          },
+          "pelle": {
+            "freq": 0
+          },
+          "unghie": {
+            "freq": 0
+          },
+          "igiene intima": {
+            "freq": 0
+          },
+          "occhiali": {
+            "freq": 0
+          }
+        },
+        "eating": {
+          "piatto": {
+            "freq": 0,
+            "fixed": true
+          },
+          "bevanda": {
+            "freq": 0,
+            "fixed": true
+          },
+          "spesa": {
+            "freq": 0
+          },
+          "aiuto per mangiare": {
+            "freq": 0
+          }
+        },
+        "health care": {
+          "dormire": {
+            "freq": 0,
+            "fixed": true
+          },
+          "dolore": {
+            "freq": 0,
+            "fixed": true
+          },
+          "massaggio": {
+            "freq": 0
+          },
+          "medico": {
+            "freq": 0
+          },
+          "farmaci": {
+            "freq": 0
+          },
+          "stato di salute": {
+            "freq": 0
+          },
+          "avvisare caregiver": {
+            "freq": 0
+          }
+        },
+        "technical": {
+          "calibrare controllo oculare": {
+            "fixed": true,
+            "freq": 0
+          },
+          "riavviare OS": {
+            "freq": 0
+          },
+          "riavviare TD Control": {
+            "freq": 0
+          },
+          "batteria tablet": {
+            "freq": 0
+          }
+        },
+        "environment": {
+          "riscaldamento": {
+            "freq": 0
+          },
+          "ventilatore / aria condizionata": {
+            "freq": 0
+          },
+          "coperta": {
+            "freq": 0
+          },
+          "televisione": {
+            "freq": 0
+          },
+          "finestra": {
+            "freq": 0
+          },
+          "tende": {
+            "freq": 0
+          }
+        }
+      },
+      {
+        "dressing": {
+          "pigiama": {
+            "fixed": true
+          },
+          "vestiti": {
+            "freq": 0
+          },
+          "cappotto": {
+            "freq": 0
+          },
+          "scarpe": {
+            "freq": 0
+          }
+        },
+        "communication": {
+          "chiamare qualcuno": {
+            "freq": 0
+          },
+          "scrivere un messaggio": {
+            "freq": 0
+          },
+          "invitare amici / famiglia": {
+            "freq": 0
+          }
+        },
+        "entertainment": {
+          "film": {
+            "freq": 0
+          },
+          "spettacoli": {
+            "freq": 0
+          },
+          "arte": {
+            "freq": 0
+          },
+          "libri": {
+            "freq": 0
+          },
+          "giochi": {
+            "freq": 0
+          },
+          "musica": {
+            "freq": 0
+          },
+          "radio": {
+            "freq": 0
+          },
+          "natura / giardino": {
+            "freq": 0
+          }
+        },
+        "getting around": {
+          "auto": {
+            "freq": 0
+          },
+          "taxi": {
+            "freq": 0
+          },
+          "treno": {
+            "freq": 0
+          },
+          "viaggio": {
+            "pref": "",
+            "freq": 0
+          }
+        }
+      }
+    ]
+  },
   "en_EN": {
     "needs": [
       {
