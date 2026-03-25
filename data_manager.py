@@ -92,12 +92,24 @@ class DataManager:
             with tempfile.TemporaryDirectory() as temp_dir:
                 temp_path = Path(temp_dir)
                 
+                # Read current embedding model from RAG settings
+                rag_settings_path = os.path.join(self.appdata_dir, "plugins", "rag", "settings.json")
+                embedding_model = None
+                if os.path.exists(rag_settings_path):
+                    try:
+                        with open(rag_settings_path, 'r', encoding='utf-8') as f:
+                            rag_settings = json.load(f)
+                            embedding_model = rag_settings.get("embedding_model")
+                    except Exception as e:
+                        self.logger.warning(f"Could not read RAG settings for export metadata: {e}")
+
                 # Create metadata.json
                 metadata = {
                     "igoor_version": __version__,
                     "export_timestamp": datetime.now().isoformat(),
                     "export_type": "user_data",
-                    "include_rag": include_rag
+                    "include_rag": include_rag,
+                    "embedding_model": embedding_model
                 }
                 
                 metadata_path = temp_path / "metadata.json"
@@ -306,12 +318,54 @@ class DataManager:
                         self.logger.error(f"Failed to restore database: {e}")
                         raise Exception(f"Database file is in use. Please restart IGOOR and try again.") from e
                 
-                # Restore RAG folder
+                # Restore RAG folder — with embedding model compatibility check
                 if imported_rag_path.exists():
-                    if os.path.exists(current_rag_folder):
-                        shutil.rmtree(current_rag_folder)
-                    shutil.copytree(imported_rag_path, current_rag_folder)
-                    self.logger.info("plugins/rag folder restored")
+                    # Detect embedding model mismatch
+                    imported_embedding = metadata.get("embedding_model")  # None for old exports
+                    current_embedding = None
+                    app_rag_settings = os.path.join(
+                        os.path.dirname(os.path.abspath(__file__)),
+                        "plugins", "rag", "settings.json"
+                    )
+                    if os.path.exists(app_rag_settings):
+                        try:
+                            with open(app_rag_settings, 'r', encoding='utf-8') as f:
+                                current_embedding = json.load(f).get("embedding_model")
+                        except Exception as e:
+                            self.logger.warning(f"Could not read current RAG settings: {e}")
+
+                    needs_reembedding = (imported_embedding != current_embedding)
+
+                    if needs_reembedding:
+                        self.logger.warning(
+                            f"Embedding model mismatch: export used '{imported_embedding}', "
+                            f"current is '{current_embedding}'. FAISS indexes will be rebuilt."
+                        )
+                        # Import only source documents (medias), not the stale FAISS indexes
+                        os.makedirs(current_rag_folder, exist_ok=True)
+                        imported_medias = imported_rag_path / "medias"
+                        if imported_medias.exists():
+                            target_medias = os.path.join(current_rag_folder, "medias")
+                            if os.path.exists(target_medias):
+                                shutil.rmtree(target_medias)
+                            shutil.copytree(str(imported_medias), target_medias)
+                            self.logger.info("Restored plugins/rag/medias (source documents only)")
+                        # Wipe any existing stale FAISS index folders so RAG rebuilds from DB
+                        for idx_folder in ["ingested", "long", "short"]:
+                            idx_path = os.path.join(current_rag_folder, idx_folder)
+                            if os.path.exists(idx_path):
+                                shutil.rmtree(idx_path)
+                                self.logger.info(f"Deleted stale FAISS folder: {idx_folder}")
+                        warnings.append(
+                            "Embedding model changed from previous version. "
+                            "Memory and document indexes will be rebuilt automatically on next startup."
+                        )
+                    else:
+                        # Models match — safe to restore indexes as-is
+                        if os.path.exists(current_rag_folder):
+                            shutil.rmtree(current_rag_folder)
+                        shutil.copytree(str(imported_rag_path), current_rag_folder)
+                        self.logger.info("plugins/rag folder restored (embedding model compatible)")
 
                 # Restore custom wakeword folder
                 if imported_wakeword_path.exists():
