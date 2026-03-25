@@ -167,7 +167,6 @@
                                         <option value="llama-3.3-70b-versatile">Llama 3.3-70B</option>
                                         <option value="openai/gpt-oss-120b">OpenAI OSS-GPT-120B</option>
                                         <option value="openai/gpt-oss-20b">OpenAI OSS-GPT-20B</option>
-                                        <option value="meta-llama/llama-4-maverick-17b-128e-instruct">Llama 4-17b-128e (preview)</option>
                                         <option value="meta-llama/llama-4-scout-17b-16e-instruct">Llama 4-17b-16e (preview)</option>
                                     </select>
                                 </div>
