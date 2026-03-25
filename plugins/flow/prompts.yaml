@@ -121,7 +121,6 @@ flow:
     {health_state}
 
     ---
-    To answer, you can use the static context extracted from documents about {bio_name}'s life:
     Take into consideration the expressive style of {bio_name}:
 
     {bio_style}

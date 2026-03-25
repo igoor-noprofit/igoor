@@ -75,8 +75,8 @@ memory:
     </instructions>
   usr: |
     <conversation>
-            {conversation}
-            </conversation>
+        {conversation}
+    </conversation>
 
 memory_review:
   system: |
@@ -209,5 +209,5 @@ memory_review:
     </instructions>
   usr: |
     <memory_to_be_checked>
-    {memory_to_be_checked}
+        {memory_to_be_checked}
     </memory_to_be_checked>
