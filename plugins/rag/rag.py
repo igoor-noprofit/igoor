@@ -7,7 +7,7 @@ import pymupdf4llm
 from langchain_community.vectorstores import FAISS
 from langchain_text_splitters import CharacterTextSplitter
 from langchain.schema import Document  # Ensure all documents are of this type
-from langchain_community.embeddings import HuggingFaceBgeEmbeddings
+from langchain_community.embeddings import HuggingFaceBgeEmbeddings, HuggingFaceEmbeddings
 import time,sys, asyncio, threading
 import numpy as np
 from typing import Union, List, Dict, Optional
@@ -909,27 +909,52 @@ class Rag(Baseplugin):
         }
         encode_kwargs = {"normalize_embeddings": True}
 
-        try:
-            hf = HuggingFaceBgeEmbeddings(
-                model_name=embedding_model,
-                model_kwargs=model_kwargs,
-                encode_kwargs=encode_kwargs,
-                cache_folder=cache_folder
-            )
-            self.logger.info("Embedding model loaded from local cache")
-            return hf
-        except Exception as e:
-            # If local cache fails, try online (for first-time setup)
-            self.logger.warning(f"Failed to load from cache: {e}. Trying online...")
-            model_kwargs['local_files_only'] = False
-            hf = HuggingFaceBgeEmbeddings(
-                model_name=embedding_model,
-                model_kwargs=model_kwargs,
-                encode_kwargs=encode_kwargs,
-                cache_folder=cache_folder
-            )
-            self.logger.info("Embedding model downloaded and cached")
-            return hf
+        # Detect if model is BGE-compatible (dangvantuan models are BGE-based)
+        model_name_lower = embedding_model.lower()
+        is_bge_model = "bge" in model_name_lower or "dangvantuan" in model_name_lower
+
+        # For non-BGE models (like Jina), we need trust_remote_code at top level
+        # and should try online first since custom model code may need downloading
+        if is_bge_model:
+            try:
+                hf = HuggingFaceBgeEmbeddings(
+                    model_name=embedding_model,
+                    model_kwargs=model_kwargs,
+                    encode_kwargs=encode_kwargs,
+                    cache_folder=cache_folder
+                )
+                self.logger.info("Embedding model loaded from local cache")
+                return hf
+            except Exception as e:
+                self.logger.warning(f"Failed to load from cache: {e}. Trying online...")
+                model_kwargs['local_files_only'] = False
+                hf = HuggingFaceBgeEmbeddings(
+                    model_name=embedding_model,
+                    model_kwargs=model_kwargs,
+                    encode_kwargs=encode_kwargs,
+                    cache_folder=cache_folder
+                )
+                self.logger.info("Embedding model downloaded and cached")
+                return hf
+        else:
+            # For Jina and other models requiring trust_remote_code
+            # Try online first (custom code needs to be downloaded)
+            model_kwargs_online = {
+                "device": "cpu",
+                "trust_remote_code": True
+            }
+            try:
+                hf = HuggingFaceEmbeddings(
+                    model_name=embedding_model,
+                    model_kwargs=model_kwargs_online,
+                    encode_kwargs={"normalize_embeddings": True},
+                    cache_folder=cache_folder
+                )
+                self.logger.info("Embedding model loaded successfully")
+                return hf
+            except Exception as e:
+                self.logger.error(f"Failed to load embedding model: {e}")
+                raise
 
     def create_index(self):
         self.logger.info("CREATING DB, PLEASE WAIT...")
@@ -1074,7 +1099,7 @@ class Rag(Baseplugin):
                     results = await self.search_short_term_memory(query_text=query_text)
                 else:
                     # For INGESTED and LONG_TERM, use the regular chunk_num approach
-                    results = await self.search_in_FAISS(query_text=query_text,store_type=store_type,k=chunk_num,score_threshold=1)
+                    results = await self.search_in_FAISS(query_text=query_text,store_type=store_type,k=chunk_num,score_threshold=self.score_threshold)
                     search_end_time = time.time()
                     self.logger.debug(f"Store type {store_type} search time: {search_end_time - start_time:.2f} seconds")
                 
