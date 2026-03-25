@@ -364,35 +364,30 @@ class Conversation(Baseplugin):
         return f"{start_time}\n{content}\n---"
 
     def _prepend_to_cache(self, new_conv: str):
-        """Prepend a new conversation to the cache and trim to max count"""
+        """Append a new conversation to the cache (newest at end = chronological order) and trim oldest if needed"""
         if not self.last_conversations_cache:
             self.last_conversations_cache = f"<last_conversations>\n{new_conv}\n</last_conversations>"
             return
         
-        # Extract existing conversations (remove tags)
+        # Extract existing conversations (remove wrapper tags)
         cache_content = self.last_conversations_cache
         cache_content = cache_content.replace("<last_conversations>\n", "").replace("\n</last_conversations>", "")
         
-        # Prepend new conversation
-        updated = f"<last_conversations>\n{new_conv}\n{cache_content}"
+        # Append new conversation at the end (chronological order: oldest → newest)
+        updated_content = f"{cache_content}\n{new_conv}"
         
-        # Count conversations and trim if needed (each conversation ends with ---)
-        conv_parts = updated.split("---")
-        # Remove last empty part if exists
-        if conv_parts and not conv_parts[-1].strip():
+        # Count conversations and trim oldest if needed (each conversation ends with ---)
+        conv_parts = updated_content.split("---")
+        # Remove trailing empty parts
+        while conv_parts and not conv_parts[-1].strip():
             conv_parts = conv_parts[:-1]
         
-        # Keep only last N conversations (from the end since new ones are at start)
+        # Trim oldest conversations if over limit (keep the last N = most recent ones)
         if len(conv_parts) > self.last_conversations_count:
-            # Keep the first N conversation blocks (newest ones are first after prepending)
-            conv_parts = conv_parts[:self.last_conversations_count]
-            # Each part needs --- appended except we need proper structure
-            # Rebuild properly: each conversation is date\ncontent followed by ---
-            updated = "<last_conversations>\n" + "---\n".join(conv_parts) + "\n---\n</last_conversations>"
-        else:
-            updated = updated.rstrip() + "\n</last_conversations>"
+            conv_parts = conv_parts[-self.last_conversations_count:]
         
-        self.last_conversations_cache = updated
+        self.last_conversations_cache = "<last_conversations>\n" + "---\n".join(conv_parts) + "---\n</last_conversations>"
+
 
     @hookimpl
     def get_last_conversations(self) -> str:

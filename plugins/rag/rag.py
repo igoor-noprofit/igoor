@@ -1555,24 +1555,34 @@ class Rag(Baseplugin):
                 self.vector_stores[store_type] = new_store
                 self.index_loaded[store_type] = True
 
-                # Map new FAISS docstore_ids back to SQLite rows and update them
-                new_ids = list(new_store.docstore._dict.keys())
-                if len(new_ids) == len(valid_chunks):
-                    for i, docstore_id in enumerate(new_ids):
-                        db_id = valid_chunks[i]['id']
+                # Build a reliable db_id → docstore_id map using metadata (not positional order)
+                db_id_to_docstore_id = {}
+                for docstore_id, stored_doc in new_store.docstore._dict.items():
+                    db_id = stored_doc.metadata.get("db_id")
+                    if db_id is not None:
+                        db_id_to_docstore_id[db_id] = docstore_id
+                        stored_doc.metadata["docstore_id"] = docstore_id  # needed by search_in_FAISS
+
+                self.logger.info(f"Store {store_type}: mapped {len(db_id_to_docstore_id)} db_ids to FAISS docstore_ids")
+
+                # Update SQLite docstore_id column using the reliable map
+                missing = 0
+                for chunk in valid_chunks:
+                    db_id = chunk['id']
+                    docstore_id = db_id_to_docstore_id.get(db_id)
+                    if docstore_id:
                         await self.db_execute(
                             "UPDATE chunks SET docstore_id = ? WHERE id = ?",
                             (docstore_id, db_id)
                         )
-                        stored_doc = new_store.docstore._dict.get(docstore_id)
-                        if stored_doc:
-                            stored_doc.metadata["docstore_id"] = docstore_id
+                    else:
+                        missing += 1
+                        self.logger.warning(f"Store {store_type}: no FAISS id found for DB chunk id={db_id}")
+
+                if missing:
+                    self.logger.warning(f"Store {store_type}: {missing}/{len(valid_chunks)} chunks could not be mapped.")
                 else:
-                    self.logger.warning(
-                        f"Store {store_type}: doc count mismatch "
-                        f"({len(new_ids)} FAISS ids vs {len(valid_chunks)} DB rows). "
-                        "docstore_ids NOT updated."
-                    )
+                    self.logger.info(f"Store {store_type}: all {len(valid_chunks)} chunks mapped successfully.")
 
                 await self.save_index(store_type)
                 self.logger.info(
