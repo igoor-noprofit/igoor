@@ -115,13 +115,19 @@ daily:
     }
     </examples>
   usr: |
-    <context>
+    <static_context>
     The person affected by the illness is named {bio_name}. Consider their current state to avoid predictions incompatible with their physical abilities:
 
     {health_state}
 
     ---
-    To answer, you can use the static context extracted from documents about {bio_name}'s life:
+    Remember: sentence predictions must be from {bio_name}'s point of view.
+    All sentences MUST be in {reply_language}.
+    </static_context>
+
+    ---
+    <dynamic_context>
+    To answer, you can use the informations about {bio_name}'s life uploaded by {bio_name}:
 
     {static_context}
 
@@ -131,7 +137,6 @@ daily:
     {long_term}
 
     ---
-
     You can also use information from short-term memory, ordered by ascending date:
 
     {short_term}
@@ -142,13 +147,9 @@ daily:
     {dynamic_context}
 
     ---
-    Remember that your sentence predictions must be from {bio_name}'s point of view.
-    All sentences MUST be in {reply_language}.
-
     Here is the context of the need:
 
     "category":"{category}","theme":"{theme}","tags": "{tags}"
-
-    </context>
+    </dynamic_context>
 
     IMPORTANT: Give a minimum of 1 and a maximum of 2 answers per column, strictly in the required JSON format.

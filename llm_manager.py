@@ -79,6 +79,7 @@ class LLMManager:
         while attempt < retries:
             try:
                 reasoning_log_content = ""  # Initialize reasoning_log_content
+                cache_log = {}  # Initialize cache log for Groq cache hit tracking
                 # GPT-OSS models use include_reasoning, not reasoning_format
                 is_gpt_oss = self.model_name.lower() in ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "gpt-oss-120b", "gpt-oss-20b"]
                 if self.provider == "groq" and self.json_schema and hasattr(self, "schema_model"):
@@ -121,6 +122,24 @@ class LLMManager:
                     if is_gpt_oss and hasattr(response.choices[0].message, 'reasoning') and response.choices[0].message.reasoning:
                         reasoning_log_content = response.choices[0].message.reasoning
                         print(f"REASONING: {response.choices[0].message.reasoning}")
+                    # Log cache hit rate — full raw dump for debugging
+                    cache_log = {}
+                    if hasattr(response, 'usage') and response.usage:
+                        usage = response.usage
+                        print(f"[Groq usage raw] {usage}")
+                        ptd = getattr(usage, 'prompt_tokens_details', None)
+                        print(f"[Groq prompt_tokens_details raw] {ptd}")
+                        if ptd is not None:
+                            print(f"[Groq prompt_tokens_details dict] {vars(ptd) if hasattr(ptd, '__dict__') else ptd}")
+                        prompt_tokens = getattr(usage, 'prompt_tokens', 0)
+                        # prompt_tokens_details can be a dict or an object depending on SDK version
+                        if isinstance(ptd, dict):
+                            cached_tokens = ptd.get('cached_tokens', 0) or 0
+                        else:
+                            cached_tokens = getattr(ptd, 'cached_tokens', 0) or 0
+                        hit_rate = (cached_tokens / prompt_tokens * 100) if prompt_tokens > 0 else 0
+                        print(f"[Groq cache] {cached_tokens}/{prompt_tokens} tokens cached \u2192 {hit_rate:.1f}%")
+                        cache_log = {"cached_tokens": cached_tokens, "prompt_tokens": prompt_tokens, "cache_hit_pct": round(hit_rate, 1)}
                     if not raw_content:
                         raise ValueError("Model returned empty content")
                     print("Groq raw model output:", raw_content)
@@ -158,6 +177,8 @@ class LLMManager:
                 # Add reasoning_log_content if it's not empty
                 if reasoning_log_content:
                     log_data["reason"] = reasoning_log_content
+                if cache_log:
+                    log_data.update(cache_log)
                 log_data["resp"] = response_log_content
                 self.invocation_logger.info(log_data)
                 return response_content
