@@ -280,12 +280,35 @@ class DataManager:
                         imported_settings_data = json.load(f)
                     
                     merged_settings = self._deep_merge(current_settings_data, imported_settings_data)
-                    
+
+                    # Always use the current version's default RAG settings for embedding-related values
+                    # This prevents old exports from using incompatible settings
+                    # Note: rag settings are inside "plugins" object
+                    plugin_rag_settings = os.path.join(
+                        os.path.dirname(os.path.abspath(__file__)),
+                        "plugins", "rag", "settings.json"
+                    )
+                    if os.path.exists(plugin_rag_settings):
+                        try:
+                            with open(plugin_rag_settings, 'r', encoding='utf-8') as f:
+                                default_rag_settings = json.load(f)
+                                if "plugins" in merged_settings and "rag" in merged_settings.get("plugins", {}):
+                                    # Preserve embedding_model
+                                    if "embedding_model" in default_rag_settings:
+                                        merged_settings["plugins"]["rag"]["embedding_model"] = default_rag_settings["embedding_model"]
+                                        self.logger.info(f"Preserved embedding_model: {default_rag_settings['embedding_model']}")
+                                    # Preserve score_threshold (important for embedding model compatibility)
+                                    if "score_threshold" in default_rag_settings:
+                                        merged_settings["plugins"]["rag"]["score_threshold"] = default_rag_settings["score_threshold"]
+                                        self.logger.info(f"Preserved score_threshold: {default_rag_settings['score_threshold']}")
+                        except Exception as e:
+                            self.logger.warning(f"Could not read plugin default settings: {e}")
+
                     with open(current_settings, 'w', encoding='utf-8') as f:
                         json.dump(merged_settings, f, indent=4)
-                    
+
                     self.logger.info("Settings deep merged")
-                    
+
                     # Check for obsolete settings
                     obsolete_keys = self._find_obsolete_keys(imported_settings_data, current_settings_data)
                     if obsolete_keys:
@@ -323,14 +346,11 @@ class DataManager:
                     # Detect embedding model mismatch
                     imported_embedding = metadata.get("embedding_model")  # None for old exports
                     current_embedding = None
-                    app_rag_settings = os.path.join(
-                        os.path.dirname(os.path.abspath(__file__)),
-                        "plugins", "rag", "settings.json"
-                    )
-                    if os.path.exists(app_rag_settings):
+                    # Read from user's APPDATA settings (current_settings), not plugin defaults
+                    if os.path.exists(current_settings):
                         try:
-                            with open(app_rag_settings, 'r', encoding='utf-8') as f:
-                                current_embedding = json.load(f).get("embedding_model")
+                            with open(current_settings, 'r', encoding='utf-8') as f:
+                                current_embedding = json.load(f).get("rag", {}).get("embedding_model")
                         except Exception as e:
                             self.logger.warning(f"Could not read current RAG settings: {e}")
 
