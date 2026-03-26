@@ -4,7 +4,7 @@ echo Starting IGOOR (detached)...
 
 rem Set environment variables that the app expects
 set "IGOOR_FULLSCREEN=False"
-set "IGOOR_DEBUG=False"
+set "IGOOR_DEBUG=True"
 set "IGOOR_ONTOP=False"
 
 rem -- Optional: brutally kill any process listening on the websockets port (9715)
