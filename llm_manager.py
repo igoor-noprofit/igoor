@@ -207,7 +207,7 @@ class LLMManager:
                 self.logger.error(f"Invocation failed on attempt {attempt}: {error_message}")
 
                 if attempt < retries:
-                    delay = 2 ** attempt  # 2, 4, 8 seconds
+                    delay = 0.5 ** attempt  # 0.5, 0.25, 0.125 seconds
                     self.logger.info(f"Waiting {delay} seconds before retry...")
                     time.sleep(delay)
                 else:
