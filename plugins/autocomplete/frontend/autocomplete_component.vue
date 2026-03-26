@@ -17,22 +17,29 @@
             </div>
 
             <!-- Input and suggestions -->
-            <div v-else class="input-container" ref="autocompleteInput" 
-                 @click="$_focusInput" 
-                 @focus="$_onFocus" 
+            <div v-else class="input-container" ref="autocompleteInput"
+                 @click="$_focusInput"
                  @blur="$_onBlur"
                  @keydown="$_handleKeydown"
                  @paste="$_handlePaste"
                  tabindex="0">
                 <span class="typed-text">{{ userInput }}</span><span class="cursor" v-if="isFocused">|</span>
-                <button v-for="(pred, idx) in shortPredictions" 
+                <button v-for="(pred, idx) in shortPredictions"
                         :key="idx"
-                        class="inline-prediction btn btn-primary" 
+                        class="inline-prediction btn btn-primary"
                         @click.stop="$_applyPrediction(idx)">
                     {{ pred.trimStart() }}
                 </button>
                 <span v-if="!userInput && shortPredictions.length === 0" class="placeholder">{{ t('say something...') }}</span>
             </div>
+
+            <!-- Hidden input to trigger TabTip on tablets -->
+            <input ref="hiddenInput"
+                   type="text"
+                   class="hidden-input"
+                   @input="$_onHiddenInput"
+                   @focus="$_onHiddenFocus"
+                   @blur="$_onBlur">
 
         </div>
 
@@ -152,9 +159,18 @@ module.exports = {
             this.$_reset();
         },
         $_focusInput() {
-            if (this.$refs.autocompleteInput) {
-                this.$refs.autocompleteInput.focus();
+            // Focus hidden input to trigger TabTip on tablets
+            if (this.$refs.hiddenInput) {
+                this.$refs.hiddenInput.focus();
             }
+        },
+        $_onHiddenFocus() {
+            this.isFocused = true;
+            this.sendMsgToBackend({action: "input_focused"});
+        },
+        $_onHiddenInput(event) {
+            // Sync text from hidden input (TabTip types here)
+            this.userInput = event.target.value;
         },
         $_reset() {
             this.wordSuggestions = [];
@@ -354,6 +370,11 @@ module.exports = {
     },
     watch: {
         userInput(newInput, oldInput) {
+            // Sync to hidden input for TabTip
+            if (this.$refs.hiddenInput && this.$refs.hiddenInput.value !== newInput) {
+                this.$refs.hiddenInput.value = newInput;
+            }
+
             // Word suggestions
             if (newInput && !this.isLoading && !this.error) {
                 this.wordSuggestions = this.predictWords(newInput);
@@ -515,5 +536,12 @@ button {
 }
 .inline-prediction:active {
     background: #23515b;
+}
+.hidden-input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+    width: 1px;
+    height: 1px;
 }
 </style>
