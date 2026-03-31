@@ -3,6 +3,7 @@ from plugin_manager import hookimpl, PluginManager
 from pyowm.owm import OWM
 from pyowm.utils.config import get_default_config
 import json
+import os
 import asyncio
 from dotenv import load_dotenv
 load_dotenv()
@@ -170,22 +171,35 @@ class Onboarding(Baseplugin):
                 try:
                     # Get current settings to preserve any existing values not in new_settings
                     current_settings = self.pm.settings_manager.get_plugin_settings('onboarding') or {}
-                    
+
+                    # Capture old provider BEFORE any mutations (get_plugin_settings returns a reference)
+                    old_provider = current_settings.get('ai', {}).get('provider')
+                    print(f"[PRESETS] Old provider: {old_provider}")
+
                     # Update each section separately to preserve structure
                     for section in ['bio', 'prefs', 'ai']:
                         if section in new_settings:
                             if section not in current_settings:
                                 current_settings[section] = {}
                             current_settings[section].update(new_settings[section])
-                    
+
                     if (self.mass_update_my_settings(current_settings)):
                         # Update local settings
                         self.settings = current_settings
                         self.onboarding_completed = True
-                        
+
+                        # Check if provider changed and apply presets to other plugins
+                        new_provider = new_settings.get('ai', {}).get('provider')
+                        print(f"[PRESETS] New provider: {new_provider}")
+                        print(f"[PRESETS] Provider changed: {new_provider != old_provider}")
+
+                        if new_provider and new_provider != old_provider:
+                            print(f"[PRESETS] Triggering preset application for '{new_provider}'")
+                            self._apply_provider_presets(new_provider)
+
                         # Switch view
                         asyncio.create_task(self.send_switch_view_to_app('daily'))
-                        
+
                         # Send success response
                         self.send_message_to_frontend({
                             'type': 'success',
@@ -219,7 +233,39 @@ class Onboarding(Baseplugin):
                 'type': 'error',
                 'message': f'Failed to save settings: {str(e)}'
             })
-        
+
+    def _apply_provider_presets(self, provider):
+        """Apply provider-specific presets to other plugins."""
+        import yaml
+
+        presets_path = os.path.join(os.path.dirname(__file__), 'provider_presets.yaml')
+        print(f"[PRESETS] Looking for presets file: {presets_path}")
+
+        try:
+            with open(presets_path, 'r', encoding='utf-8') as f:
+                presets = yaml.safe_load(f)
+
+            print(f"[PRESETS] Loaded presets for providers: {list(presets.keys())}")
+
+            if provider in presets:
+                print(f"[PRESETS] Found presets for '{provider}': {presets[provider]}")
+                for plugin_name, settings in presets[provider].items():
+                    print(f"[PRESETS] Applying to {plugin_name}: {settings}")
+                    self.pm.settings_manager.update_plugin_settings(
+                        plugin_name,
+                        settings,
+                        self.pm
+                    )
+                print(f"[PRESETS] Successfully applied presets for provider '{provider}'")
+            else:
+                print(f"[PRESETS] No presets found for provider '{provider}'")
+        except FileNotFoundError:
+            print(f"[PRESETS] File not found: {presets_path}")
+        except Exception as e:
+            print(f"[PRESETS] Error: {e}")
+            import traceback
+            print(f"[PRESETS] Traceback: {traceback.format_exc()}")
+
     @hookimpl
     async def global_settings_updated(self):
         """Called when global settings are updated - reload onboarding settings from disk."""

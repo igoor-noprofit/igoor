@@ -1,0 +1,51 @@
+# Provider-specific model recommendations for IGOOR plugins
+# When provider changes in onboarding, these presets are applied to other plugins
+
+groq:
+  flow:
+    preflow_model_name: "openai/gpt-oss-20b"
+    semantic_model_name: "llama-3.1-8b-instant"
+  memory:
+    model_name: "openai/gpt-oss-120b"
+  autocomplete:
+    model_name: "openai/gpt-oss-20b"
+
+cerebras:
+  flow:
+    preflow_model_name: "gpt-oss-120b"
+  memory:
+    model_name: "gpt-oss-120b"
+  autocomplete:
+    model_name: "llama3.1-8b"
+
+mistral:
+  flow:
+    preflow_model_name: "mistral-small-latest"
+  memory:
+    model_name: "mistral-large-latest"
+  autocomplete:
+    model_name: "mistral-small-latest"
+
+openai:
+  flow:
+    preflow_model_name: "gpt-4o-mini"
+  memory:
+    model_name: "gpt-4o"
+  autocomplete:
+    model_name: "gpt-4o-mini"
+
+ollama:
+  flow:
+    preflow_model_name: "llama3.1:8b"
+  memory:
+    model_name: "llama3.1:8b"
+  autocomplete:
+    model_name: "llama3.1:8b"
+
+ollama-cloud:
+  flow:
+    preflow_model_name: "gpt-oss:20b-cloud"
+  memory:
+    model_name: "gpt-oss:120b-cloud"
+  autocomplete:
+    model_name: "gpt-oss:20b-cloud"

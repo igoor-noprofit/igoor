@@ -202,7 +202,10 @@
                             <div class="ai right">
                                 <div>
                                     <label>{{ t("Model Name") }}</label>
-                                    <select v-model="ai.model_name">
+                                    <!-- Text input for custom provider, dropdown for others -->
+                                    <input v-if="ai.provider === 'custom'" type="text" v-model="ai.model_name"
+                                        :placeholder="t('Enter model name')" />
+                                    <select v-else v-model="ai.model_name">
                                         <option v-for="model in providerModels" :key="model.value" :value="model.value">
                                             {{ model.label }}
                                         </option>
@@ -449,8 +452,8 @@ export default {
             return ["openai/gpt-oss-120b", "openai/gpt-oss-20b"].includes(this.ai.model_name);
         },
         showBaseUrl() {
-            // Show base URL for providers that need custom endpoint configuration
-            return ['custom', 'ollama', 'ollama-cloud', 'lmstudio'].includes(this.ai.provider) || this.ai.base_url;
+            // Show base URL only for providers that need custom endpoint configuration
+            return ['custom', 'ollama', 'ollama-cloud', 'lmstudio'].includes(this.ai.provider);
         },
         baseUrlPlaceholder() {
             const placeholders = {
@@ -613,6 +616,11 @@ export default {
             };
             if (defaultModels[this.ai.provider]) {
                 this.ai.model_name = defaultModels[this.ai.provider];
+            }
+
+            // Clear base_url when switching to custom (user must enter their own)
+            if (this.ai.provider === 'custom') {
+                this.ai.base_url = '';
             }
 
             // Reset validation state when changing provider
