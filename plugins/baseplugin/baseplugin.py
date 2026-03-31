@@ -489,12 +489,15 @@ class Baseplugin:
         """
         sm = self.settings_manager
         translator_settings = sm.get_plugin_settings("translator")
+        self.logger.info(f"[TRANSLATE] direction={direction}, settings={translator_settings}")
         target_lang = translator_settings.get("interlocutor_language", "")
         if not target_lang:
+            self.logger.info(f"[TRANSLATE] No interlocutor_language set, returning original text")
             return text  # Plugin inactive or not configured — immediate return
 
         toggle_key = "translate_outgoing" if direction == "outgoing" else "translate_incoming"
         if not translator_settings.get(toggle_key, False):
+            self.logger.info(f"[TRANSLATE] {toggle_key} is False, returning original text")
             return text
 
         # Determine which language to translate into
@@ -503,4 +506,5 @@ class Baseplugin:
         else:
             target_language = target_lang              # interlocutor's language e.g. "French"
 
+        self.logger.info(f"[TRANSLATE] Translating to {target_language}: {text}")
         return await asyncio.to_thread(self._translate_text_sync, text, target_language)
