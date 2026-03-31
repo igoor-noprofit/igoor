@@ -468,30 +468,43 @@ class Asrjs(Baseplugin):
             return False
             
     async def transcribe_audio(self):
-        """Transcribe audio using Groq Whisper"""
+        """Transcribe audio using Groq Whisper or Mistral Voxtral"""
         try:
             if not os.path.exists(self.temp_audio_file):
                 return ""
-                
+
             # Check file size to avoid sending empty files
             if os.path.getsize(self.temp_audio_file) < 1000:  # Less than 1KB
                 return ""
-                
+
+            # Determine which language to use for transcription
+            # ASR listens to the INTERLOCUTOR, so use their language when configured
+            transcription_lang = self.lang_code  # Default: patient's language (fallback)
+            translator_settings = self.settings_manager.get_plugin_settings("translator")
+            interlocutor_lang = translator_settings.get("interlocutor_language", "")
+            if interlocutor_lang:
+                from utils import language_name_to_code
+                interlocutor_code = language_name_to_code(interlocutor_lang)
+                if interlocutor_code:
+                    transcription_lang = interlocutor_code
+                    self.logger.info(f"[ASR] Using interlocutor language for transcription: {transcription_lang}")
+
             # Use asyncio to run the transcription in a separate thread
             loop = asyncio.get_running_loop()
             if (self.model_provider == "groq"):
-                result = await loop.run_in_executor(None, self._transcribe_with_groq)
+                result = await loop.run_in_executor(None, lambda: self._transcribe_with_groq(transcription_lang))
             elif (self.model_provider == "mistral"):
-                result = await loop.run_in_executor(None, self._transcribe_with_voxtral)
+                result = await loop.run_in_executor(None, lambda: self._transcribe_with_voxtral(transcription_lang))
             return result
         except Exception as e:
             self.logger.error(f"Error transcribing audio: {e}")
             return ""
 
-    def _transcribe_with_voxtral(self):
+    def _transcribe_with_voxtral(self, language_code=None):
         """Helper method to run Voxtral transcription in a separate thread"""
         try:
             url = "https://api.mistral.ai/v1/audio/transcriptions"
+            lang = language_code or self.lang_code
 
             # Try to get API key from onboarding first if provider is mistral
             onboarding_ai_settings = self.settings_manager.get_nested(["plugins", "onboarding", "ai"])
@@ -517,11 +530,11 @@ class Asrjs(Baseplugin):
             headers = {
                 "x-api-key": api_key
             }
-            print (f"Transcribing with Voxtral using model: {self.model}, language: {self.lang_code}")
+            self.logger.info(f"[ASR] Calling Voxtral with language={lang}")
             files = {
                 "file": open(self.temp_audio_file, "rb"),
                 "model": (None, self.model),
-                "language": (None, self.lang_code)
+                "language": (None, lang)
             }
             response = requests.post(url, headers=headers, files=files)
             if response.status_code == 200:
@@ -534,15 +547,18 @@ class Asrjs(Baseplugin):
             self.logger.error(f"Voxtral transcription error: {e}")
             return ""
             
-    def _transcribe_with_groq(self):
+    def _transcribe_with_groq(self, language_code=None):
         """Helper method to run Groq transcription in a separate thread"""
         try:
+            lang = language_code or self.lang_code
+            self.logger.info(f"[ASR] Calling Whisper with language={lang}")
             with open(self.temp_audio_file, "rb") as audio_file:
                 transcription = self.client.audio.transcriptions.create(
                     file=audio_file,
                     model=self.model,
-                    language=self.lang_code  # Use the processed global language
+                    language=lang
                 )
+                self.logger.info(f"[ASR] Whisper transcribed: {transcription.text[:100]}...")
                 return transcription.text
         except Exception as e:
             self.logger.error(f"Groq transcription error: {e}")

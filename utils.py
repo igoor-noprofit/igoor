@@ -149,6 +149,32 @@ def get_base_language_code(lang_code_with_region, default_lang="en"):
         return lang_code_with_region.split("_")[0]
     return lang_code_with_region
 
+# Mapping of language names to ISO 639-1 codes
+LANGUAGE_NAME_TO_CODE = {
+    "french": "fr",
+    "english": "en",
+    "italian": "it",
+    "spanish": "es",
+    "german": "de",
+    "portuguese": "pt",
+    "dutch": "nl",
+    "polish": "pl",
+    "russian": "ru",
+    "chinese": "zh",
+    "japanese": "ja",
+    "korean": "ko",
+    "arabic": "ar",
+}
+
+def language_name_to_code(language_name):
+    """
+    Convert a language name (e.g., 'Italian') to ISO 639-1 code (e.g., 'it').
+    Returns None if not found.
+    """
+    if not language_name:
+        return None
+    return LANGUAGE_NAME_TO_CODE.get(language_name.lower())
+
 def normalize_filter_by_timeframe_result(filtered_results):
     """
     Ensures the result from filter_by_timeframe is always a dict.
