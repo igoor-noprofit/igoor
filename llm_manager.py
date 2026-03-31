@@ -4,18 +4,48 @@ langchain.debug = True  # Enable debug mode for LangChain
 import os, time
 from settings_manager import SettingsManager
 from utils import setup_logger, setup_jsonl_logger
+from langchain_openai import ChatOpenAI
+
+
+# Default base URLs for popular OpenAI-compatible providers
+PROVIDER_BASE_URLS = {
+    "groq": "https://api.groq.com/openai/v1",
+    "cerebras": "https://api.cerebras.ai/v1",
+    "mistral": "https://api.mistral.ai/v1",
+    "openai": None,  # Default OpenAI endpoint
+    "ollama": "http://localhost:11434/v1",
+    "ollama-cloud": "https://api.ollama.com/v1",  # Ollama cloud
+    "lmstudio": "http://localhost:1234/v1",
+}
 
 
 class LLMManager:
-    def __init__(self, provider, api_key, model_name, **kwargs):
+    def __init__(self, provider, api_key, model_name, base_url=None, **kwargs):
         # Setup logger
         self.logger = setup_logger('llm_manager', os.path.join(os.getenv('APPDATA'), __appname__))
-        
+
         self.global_settings = SettingsManager()
         ai = self.global_settings.get_nested(["plugins", "onboarding", "ai"], default={})
-        self.provider = provider or ai.get("provider")
+
+        # Get provider - support both old "groq"/"openai" and new unified approach
+        self.provider = provider or ai.get("provider", "openai")
+
+        # Get API key
         self.api_key = api_key or ai.get("api_key")
+
+        # Get model name
         self.model_name = model_name or ai.get("model_name")
+
+        # Get base_url - priority: explicit param > settings > provider defaults
+        if base_url is not None:
+            self.base_url = base_url
+        elif ai.get("base_url"):
+            self.base_url = ai.get("base_url")
+        elif self.provider in PROVIDER_BASE_URLS:
+            self.base_url = PROVIDER_BASE_URLS[self.provider]
+        else:
+            self.base_url = None
+
         # Prefer an explicitly passed temperature (even if falsy like 0); otherwise use saved settings.
         if "temperature" in kwargs:
             temp_raw = kwargs["temperature"]
@@ -26,44 +56,45 @@ class LLMManager:
         except (TypeError, ValueError):
             self.logger.warning(f"Invalid temperature value {temp_raw!r}; falling back to 0.7")
             self.temperature = 0.7
+
         # Get reasoning_effort from settings
         self.reasoning_effort = ai.get("reasoning_effort", "low")
+
         self.chat_instance = self._create_chat()
         self.json_schema = False
+
         # Setup dedicated logger for LLM invocations
         self.invocation_logger = setup_jsonl_logger('llm_invocations', os.path.join(os.getenv('APPDATA'), __appname__))
 
     def _create_chat(self):
-        if self.provider == "groq":
-            '''
-            self.logger.info(f"Creating Groq chat instance with model: {self.model_name}")
-            base_chat = ChatGroq(
-                temperature=self.temperature, 
-                groq_api_key=self.api_key, 
-                model_name=self.model_name, 
-                callbacks=[StdOutCallbackHandler()]
-            )
-            # Return the instance with tools disabled by default
-            return base_chat.bind(tool_choice="none")
-            '''
-        elif self.provider == "openai":
-            self.logger.info(f"Creating OpenAI chat instance with model: {self.model_name}")
-            return ChatOpenAI(temperature=self.temperature, openai_api_key=self.api_key, model_name=self.model_name)
-        else:
-            error_msg = f"Unsupported provider: {self.provider}"
-            self.logger.error(error_msg) 
-            raise ValueError(error_msg)
-            
+        """Create a chat instance using OpenAI SDK with configurable base_url."""
+        self.logger.info(f"Creating chat instance - provider: {self.provider}, model: {self.model_name}, base_url: {self.base_url}")
+
+        return ChatOpenAI(
+            temperature=self.temperature,
+            openai_api_key=self.api_key,
+            model_name=self.model_name,
+            base_url=self.base_url  # None uses default OpenAI endpoint
+        )
+
     def set_json_schema(self, schema):
         """Sets the JSON schema for structured output."""
         try:
             self.json_schema = True
             self.schema_model = schema  # Store the Pydantic model
-            if self.provider == "groq":
-                # For Groq SDK, we use the schema at invocation time
-                self.structured_chat_instance = None
+
+            # Check if this is OpenAI (default endpoint)
+            is_openai = self.base_url is None or "api.openai.com" in (self.base_url or "")
+
+            if is_openai:
+                # OpenAI supports strict structured output with schema validation
+                self.structured_chat_instance = self.chat_instance.with_structured_output(schema, strict=True)
+                self._use_manual_json = False
             else:
-                self.structured_chat_instance = self.chat_instance.with_structured_output(schema)
+                # For other providers (Groq, Cerebras, etc.), we handle JSON ourselves
+                # Don't use LangChain's with_structured_output - it doesn't work well
+                self.structured_chat_instance = None
+                self._use_manual_json = True
         except Exception as e:
             self.logger.error(f"Exception setting JSON schema: {e}")
             return e
@@ -71,115 +102,106 @@ class LLMManager:
     def get_no_tools_instance(self):
         """Returns a chat instance with tools explicitly disabled."""
         return self.chat_instance.bind(tool_choice="none")
-    
+
     def invoke(self, system_prompt, prompt, retries=3, reasoning_effort=None):
         import json
         attempt = 0
         last_exception = None
         while attempt < retries:
             try:
-                reasoning_log_content = ""  # Initialize reasoning_log_content
-                cache_log = {}  # Initialize cache log for Groq cache hit tracking
-                # GPT-OSS models use include_reasoning, not reasoning_format
-                is_gpt_oss = self.model_name.lower() in ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "gpt-oss-120b", "gpt-oss-20b"]
-                if self.provider == "groq" and self.json_schema and hasattr(self, "schema_model"):
-                    # Import Groq SDK at runtime
-                    from groq import Groq
-                    client = Groq(api_key=self.api_key)
-                    # Prepare messages in OpenAI format
-                    messages = [
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": prompt}
-                    ]
-                    schema = self.schema_model
+                reasoning_log_content = ""
+                cache_log = {}
 
-                    if is_gpt_oss or self.model_name.lower() in ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"]:
-                        # Use json_object mode - validates JSON syntax but not schema
-                        # Schema validation happens via Pydantic after parsing
-                        response_format={
-                            "type": "json_object"
-                        }
-                    else:
-                        response_format={
-                            "type": "json_schema",
-                            "json_schema": {
-                                "name": schema.__name__,
-                                "schema": schema.model_json_schema(),
-                                "strict": False
-                            }
-                        }
-                    call_args = {
-                        "model": self.model_name,
-                        "messages": messages,
-                        "temperature": self.temperature
-                    }
-                    if response_format:
-                        call_args["response_format"] = response_format
-                    # Note: GPT-OSS reasoning + JSON schema mode doesn't work reliably
-                    # If user wants reasoning, they should use a non-reasoning model or accept JSON mode without schema
-                    response = client.chat.completions.create(**call_args)
-                    raw_content = response.choices[0].message.content
-                    if is_gpt_oss and hasattr(response.choices[0].message, 'reasoning') and response.choices[0].message.reasoning:
-                        reasoning_log_content = response.choices[0].message.reasoning
-                        print(f"REASONING: {response.choices[0].message.reasoning}")
-                    # Log cache hit rate — full raw dump for debugging
-                    cache_log = {}
-                    if hasattr(response, 'usage') and response.usage:
-                        usage = response.usage
-                        print(f"[Groq usage raw] {usage}")
-                        ptd = getattr(usage, 'prompt_tokens_details', None)
-                        print(f"[Groq prompt_tokens_details raw] {ptd}")
-                        if ptd is not None:
-                            print(f"[Groq prompt_tokens_details dict] {vars(ptd) if hasattr(ptd, '__dict__') else ptd}")
-                        prompt_tokens = getattr(usage, 'prompt_tokens', 0)
-                        # prompt_tokens_details can be a dict or an object depending on SDK version
-                        if isinstance(ptd, dict):
-                            cached_tokens = ptd.get('cached_tokens', 0) or 0
+                if self.json_schema:
+                    if getattr(self, "_use_manual_json", False):
+                        # Manual JSON mode for non-OpenAI providers
+                        # Add JSON format instruction to system prompt
+                        schema_json = self.schema_model.model_json_schema()
+                        json_instruction = f"\n\nIMPORTANT: Respond ONLY with valid JSON matching this schema:\n{json.dumps(schema_json, indent=2)}\n\nDo not include any text outside the JSON object."
+
+                        response = self.chat_instance.invoke([
+                            ("system", system_prompt + json_instruction),
+                            ("human", prompt)
+                        ])
+
+                        # Parse JSON from response
+                        raw_content = response.content
+                        parsed = self._parse_json_response(raw_content)
+                        if parsed:
+                            # Validate with Pydantic
+                            result = self.schema_model.model_validate(parsed)
+                            response_content = result
+                            response_log_content = result.model_dump() if hasattr(result, "model_dump") else str(result)
                         else:
-                            cached_tokens = getattr(ptd, 'cached_tokens', 0) or 0
-                        hit_rate = (cached_tokens / prompt_tokens * 100) if prompt_tokens > 0 else 0
-                        print(f"[Groq cache] {cached_tokens}/{prompt_tokens} tokens cached \u2192 {hit_rate:.1f}%")
-                        cache_log = {"cached_tokens": cached_tokens, "prompt_tokens": prompt_tokens, "cache_hit_pct": round(hit_rate, 1)}
-                    if not raw_content:
-                        raise ValueError("Model returned empty content")
-                    print("Groq raw model output:", raw_content)
-                    raw_result = json.loads(raw_content or "{}")
-                    result = schema.model_validate(raw_result)
-                    response_content = result
-                    response_log_content = result.model_dump() if hasattr(result, "model_dump") else str(result)
-                elif self.json_schema:
-                    # LangChain structured output
-                    result = self.structured_chat_instance.invoke([
-                        ("system", system_prompt),
-                        ("human", prompt)
-                    ])
-                    response_content = result
-                    response_log_content = result.model_dump() if hasattr(result, "model_dump") else str(result)
+                            raise ValueError(f"Failed to parse JSON from response: {raw_content}")
+                    elif hasattr(self, "structured_chat_instance") and self.structured_chat_instance:
+                        # OpenAI structured output
+                        result = self.structured_chat_instance.invoke([
+                            ("system", system_prompt),
+                            ("human", prompt)
+                        ])
+                        response_content = result
+                        response_log_content = result.model_dump() if hasattr(result, "model_dump") else str(result)
                 else:
                     # Unstructured output
-                    response_content = self.chat_instance.invoke([
+                    response = self.chat_instance.invoke([
                         ("system", system_prompt),
                         ("human", prompt)
                     ])
+                    response_content = response
                     response_log_content = str(response_content)
+
+                    # Try to extract provider-specific metadata (reasoning, cache info)
+                    if hasattr(response, 'response_metadata'):
+                        metadata = response.response_metadata
+
+                        # Check for reasoning in token_usage (some providers include it)
+                        if 'token_usage' in metadata:
+                            usage = metadata['token_usage']
+
+                            # Check for reasoning tokens (varies by provider)
+                            if isinstance(usage, dict):
+                                if 'reasoning_tokens' in usage:
+                                    reasoning_log_content = f"Reasoning tokens: {usage['reasoning_tokens']}"
+                                    self.logger.info(f"Reasoning tokens used: {usage['reasoning_tokens']}")
+
+                                # Check for cache information (Groq, etc.)
+                                prompt_tokens = usage.get('prompt_tokens', 0)
+                                cached_tokens = 0
+
+                                # Try different cache field names used by providers
+                                if 'cached_tokens' in usage:
+                                    cached_tokens = usage['cached_tokens']
+                                elif 'prompt_tokens_details' in usage:
+                                    ptd = usage['prompt_tokens_details']
+                                    if isinstance(ptd, dict):
+                                        cached_tokens = ptd.get('cached_tokens', 0)
+
+                                if cached_tokens > 0 and prompt_tokens > 0:
+                                    hit_rate = (cached_tokens / prompt_tokens * 100)
+                                    self.logger.info(f"Cache: {cached_tokens}/{prompt_tokens} tokens cached → {hit_rate:.1f}%")
+                                    cache_log = {
+                                        "cached_tokens": cached_tokens,
+                                        "prompt_tokens": prompt_tokens,
+                                        "cache_hit_pct": round(hit_rate, 1)
+                                    }
 
                 # Log invocation details to JSONL file
                 log_data = {
                     "p": self.provider,
                     "m": self.model_name,
+                    "base_url": self.base_url,
                     "t": self.temperature,
                     "sys": system_prompt[:80],
                     "usr": prompt
                 }
-                # Add reasoning_effort if used (GPT-OSS models)
-                if is_gpt_oss:
-                    log_data["re"] = reasoning_effort if reasoning_effort is not None else self.reasoning_effort
-                # Add reasoning_log_content if it's not empty
+
                 if reasoning_log_content:
                     log_data["reason"] = reasoning_log_content
                 if cache_log:
                     log_data.update(cache_log)
                 log_data["resp"] = response_log_content
+
                 self.invocation_logger.info(log_data)
                 return response_content
 
@@ -212,6 +234,7 @@ class LLMManager:
                     self.invocation_logger.info({
                         "p": self.provider,
                         "m": self.model_name,
+                        "base_url": self.base_url,
                         "t": self.temperature,
                         "sys": system_prompt[:80],
                         "usr": prompt,
@@ -238,6 +261,7 @@ class LLMManager:
                     self.invocation_logger.info({
                         "p": self.provider,
                         "m": self.model_name,
+                        "base_url": self.base_url,
                         "t": self.temperature,
                         "sys": system_prompt[:80],
                         "usr": prompt,
@@ -250,8 +274,37 @@ class LLMManager:
                         "message": error_message,
                         "type": type(last_exception).__name__
                     }
-                    
-    @staticmethod                   
+
+    def _parse_json_response(self, content):
+        """Extract and parse JSON from LLM response."""
+        import json
+        import re
+
+        # Try direct parse first
+        try:
+            return json.loads(content)
+        except:
+            pass
+
+        # Try to extract JSON from markdown code blocks
+        json_match = re.search(r'```(?:json)?\s*([\s\S]*?)```', content)
+        if json_match:
+            try:
+                return json.loads(json_match.group(1).strip())
+            except:
+                pass
+
+        # Try to find JSON object in the response
+        json_match = re.search(r'\{[\s\S]*\}', content)
+        if json_match:
+            try:
+                return json.loads(json_match.group(0))
+            except:
+                pass
+
+        return None
+
+    @staticmethod
     def is_error_response(response) -> tuple[bool, dict]:
         """
         Checks if the LLM response is an error dictionary.
@@ -265,3 +318,8 @@ class LLMManager:
             }
             return True, error_info
         return False, {}
+
+    @staticmethod
+    def get_supported_providers():
+        """Returns a list of supported providers with their default base URLs."""
+        return PROVIDER_BASE_URLS.copy()

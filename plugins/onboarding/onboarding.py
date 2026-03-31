@@ -31,36 +31,55 @@ class Onboarding(Baseplugin):
         self.router = APIRouter(prefix="/api/plugins/onboarding", tags=["onboarding"])
 
         @self.router.get("/validate_api_key")
-        async def validate_api_key(provider: str = "groq", api_key: str = "", model_name: str = ""):
-            """Validate API key and model for a provider"""
+        async def validate_api_key(provider: str = "groq", api_key: str = "", model_name: str = "", base_url: str = ""):
+            """Validate API key and model for any OpenAI-compatible provider"""
             if not api_key or not api_key.strip():
                 raise HTTPException(status_code=400, detail="API key is required")
             if not model_name or not model_name.strip():
                 raise HTTPException(status_code=400, detail="Model name is required")
 
+            # Default base URLs for known providers
+            provider_base_urls = {
+                "groq": "https://api.groq.com/openai/v1",
+                "cerebras": "https://api.cerebras.ai/v1",
+                "mistral": "https://api.mistral.ai/v1",
+                "openai": None,
+                "ollama": "http://localhost:11434/v1",
+                "ollama-cloud": "https://api.ollama.com/v1",
+                "lmstudio": "http://localhost:1234/v1",
+            }
+
+            # Determine base_url to use
+            if base_url and base_url.strip():
+                validation_base_url = base_url.strip()
+            elif provider in provider_base_urls:
+                validation_base_url = provider_base_urls[provider]
+            else:
+                validation_base_url = None
+
             try:
-                if provider == "groq":
-                    from groq import Groq
-                    client = Groq(api_key=api_key.strip())
-                    messages = [{"role": "user", "content": "Hi"}]
-                    response = client.chat.completions.create(
-                        model=model_name.strip(),
-                        messages=messages,
-                        max_tokens=5
-                    )
-                    return {"valid": True}
-                else:
-                    raise HTTPException(status_code=400, detail=f"Unsupported provider: {provider}")
+                from openai import OpenAI
+                client = OpenAI(
+                    api_key=api_key.strip(),
+                    base_url=validation_base_url
+                )
+                messages = [{"role": "user", "content": "Hi"}]
+                response = client.chat.completions.create(
+                    model=model_name.strip(),
+                    messages=messages,
+                    max_tokens=5
+                )
+                return {"valid": True}
             except Exception as e:
                 error_msg = str(e).lower()
-                # Handle Groq-specific errors
+                # Handle common API errors
                 if 'unauthorized' in error_msg or 'invalid api key' in error_msg:
                     raise HTTPException(status_code=400, detail="Invalid API Key")
-                elif 'unsupported model' in error_msg or '2025' in error_msg:
+                elif 'unsupported model' in error_msg or 'model not found' in error_msg:
                     raise HTTPException(status_code=400, detail="Unsupported model")
                 elif '401' in error_msg or 'authentication' in error_msg:
                     raise HTTPException(status_code=400, detail="Invalid API Key")
-                elif 'timeout' in error_msg or 'connection' in error_msg:
+                elif 'timeout' in error_msg or 'connection' in error_msg or 'connect' in error_msg:
                     raise HTTPException(status_code=400, detail="Connection error: could not validate API key")
                 else:
                     raise HTTPException(status_code=400, detail=f"API Key validation failed: {str(e)}")

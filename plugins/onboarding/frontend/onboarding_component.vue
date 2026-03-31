@@ -136,10 +136,20 @@
                             <div class="ai left">
                                 <div>
                                     <label>{{ t("Provider") }}</label>
-                                    <select v-model="ai.provider">
+                                    <select v-model="ai.provider" @change="onProviderChange">
                                         <option value="groq">Groq</option>
-                                        <!--option value="openai">OpenAI</option-->
+                                        <option value="cerebras">Cerebras</option>
+                                        <option value="mistral">Mistral</option>
+                                        <option value="openai">OpenAI</option>
+                                        <option value="ollama">Ollama (Local)</option>
+                                        <option value="ollama-cloud">Ollama Cloud</option>
+                                        <option value="custom">Custom (OpenAI-compatible)</option>
                                     </select>
+                                </div>
+                                <div v-if="showBaseUrl">
+                                    <label>{{ t("Base URL") }}</label>
+                                    <input type="text" v-model="ai.base_url" :placeholder="baseUrlPlaceholder" />
+                                    <p v-if="ai.provider === 'custom'">{{ t("Enter the OpenAI-compatible API endpoint URL") }}</p>
                                 </div>
                                 <div>
                                     <label class="req">{{ t("API Key") }}</label>
@@ -154,9 +164,38 @@
                                         <span v-if="apiKeyValid" class="valid-icon">✓</span>
                                     </div>
                                     <p v-if="apiKeyError" class="error-message">{{ apiKeyErrorMessage }}</p>
-                                    <p>{{ t("Groq is our default provider:") }} <br><a class="extlink"
-                                            href="https://console.groq.com/login" target="_blank">{{ t("To obtain a FREE api key sign up here") }}</a>
-                                        <br><a class="extlink" href="https://groq.com/privacy-policy/" target="_blank">{{ t("Our default provider privacy policy") }}</a>
+                                    <p v-if="ai.provider === 'groq'">
+                                        {{ t("Groq is our default provider:") }}<br>
+                                        <a class="extlink" href="https://console.groq.com/login" target="_blank">{{ t("To obtain a FREE api key sign up here") }}</a><br>
+                                        <a class="extlink" href="https://groq.com/privacy-policy/" target="_blank">{{ t("Provider privacy policy") }}</a>
+                                    </p>
+                                    <p v-else-if="ai.provider === 'cerebras'">
+                                        {{ t("Cerebras offers fast inference:") }}<br>
+                                        <a class="extlink" href="https://cloud.cerebras.ai" target="_blank">{{ t("Get your API key at Cerebras Cloud") }}</a><br>
+                                        <a class="extlink" href="https://www.cerebras.ai/privacy-policy" target="_blank">{{ t("Provider privacy policy") }}</a>
+                                    </p>
+                                    <p v-else-if="ai.provider === 'together'">
+                                        {{ t("Together AI offers many open-source models:") }}<br>
+                                        <a class="extlink" href="https://api.together.xyz" target="_blank">{{ t("Get your API key") }}</a><br>
+                                        <a class="extlink" href="https://www.together.ai/privacy" target="_blank">{{ t("Provider privacy policy") }}</a>
+                                    </p>
+                                    <p v-else-if="ai.provider === 'mistral'">
+                                        {{ t("Mistral AI:") }}<br>
+                                        <a class="extlink" href="https://console.mistral.ai" target="_blank">{{ t("Get your API key at Mistral Console") }}</a><br>
+                                        <a class="extlink" href="https://mistral.ai/privacy-policy" target="_blank">{{ t("Provider privacy policy") }}</a>
+                                    </p>
+                                    <p v-else-if="ai.provider === 'openai'">
+                                        {{ t("OpenAI:") }}<br>
+                                        <a class="extlink" href="https://platform.openai.com/api-keys" target="_blank">{{ t("Get your API key at OpenAI Platform") }}</a><br>
+                                        <a class="extlink" href="https://openai.com/privacy" target="_blank">{{ t("Provider privacy policy") }}</a>
+                                    </p>
+                                    <p v-else-if="ai.provider === 'ollama'">
+                                        {{ t("Ollama runs locally on your machine:") }}<br>
+                                        <a class="extlink" href="https://ollama.ai" target="_blank">{{ t("Download Ollama") }}</a><br>
+                                        {{ t("Make sure Ollama is running before validating") }}
+                                    </p>
+                                    <p v-else-if="ai.provider === 'custom'">
+                                        {{ t("Enter your OpenAI-compatible API endpoint above") }}
                                     </p>
                                 </div>
                             </div>
@@ -164,10 +203,9 @@
                                 <div>
                                     <label>{{ t("Model Name") }}</label>
                                     <select v-model="ai.model_name">
-                                        <option value="llama-3.3-70b-versatile">Llama 3.3-70B</option>
-                                        <option value="openai/gpt-oss-120b">OpenAI OSS-GPT-120B</option>
-                                        <option value="openai/gpt-oss-20b">OpenAI OSS-GPT-20B</option>
-                                        <option value="meta-llama/llama-4-scout-17b-16e-instruct">Llama 4-17b-16e (preview)</option>
+                                        <option v-for="model in providerModels" :key="model.value" :value="model.value">
+                                            {{ model.label }}
+                                        </option>
                                     </select>
                                 </div>
                                 <div>
@@ -320,6 +358,7 @@ export default {
                 provider: "",
                 api_key: "",
                 model_name: "",
+                base_url: "",
                 temperature: "",
                 reasoning_effort: ""
             },
@@ -409,6 +448,65 @@ export default {
         supportsReasoning() {
             return ["openai/gpt-oss-120b", "openai/gpt-oss-20b"].includes(this.ai.model_name);
         },
+        showBaseUrl() {
+            // Show base URL for providers that need custom endpoint configuration
+            return ['custom', 'ollama', 'ollama-cloud', 'lmstudio'].includes(this.ai.provider) || this.ai.base_url;
+        },
+        baseUrlPlaceholder() {
+            const placeholders = {
+                'groq': 'https://api.groq.com/openai/v1',
+                'cerebras': 'https://api.cerebras.ai/v1',
+                'together': 'https://api.together.xyz/v1',
+                'mistral': 'https://api.mistral.ai/v1',
+                'openai': '(default: api.openai.com)',
+                'ollama': 'http://localhost:11434/v1',
+                'lmstudio': 'http://localhost:1234/v1',
+                'custom': 'https://your-api-endpoint/v1'
+            };
+            return placeholders[this.ai.provider] || '';
+        },
+        providerModels() {
+            const modelsByProvider = {
+                'groq': [
+                    { value: 'llama-3.3-70b-versatile', label: 'Llama 3.3-70B' },
+                    { value: 'openai/gpt-oss-120b', label: 'OpenAI OSS-GPT-120B' },
+                    { value: 'openai/gpt-oss-20b', label: 'OpenAI OSS-GPT-20B' },
+                    { value: 'meta-llama/llama-4-scout-17b-16e-instruct', label: 'Llama 4-17b-16e (preview)' }
+                ],
+                'cerebras': [
+                    { value: 'llama3.1-8b', label: 'Llama 3.1 8B (~2200 t/s)' },
+                    { value: 'gpt-oss-120b', label: 'GPT-OSS 120B (~3000 t/s)' },
+                    { value: 'qwen-3-235b-a22b-instruct-2507', label: 'Qwen 3 235B (preview)' }
+                ],
+                'mistral': [
+                    { value: 'mistral-small-latest', label: 'Mistral Small' },
+                    { value: 'open-mistral-nemo', label: 'Mistral Nemo' },
+                    { value: 'mistral-large-latest', label: 'Mistral Large' }
+                ],
+                'openai': [
+                    { value: 'gpt-4o', label: 'GPT-4o' },
+                    { value: 'gpt-4o-mini', label: 'GPT-4o Mini' },
+                    { value: 'gpt-4-turbo', label: 'GPT-4 Turbo' },
+                    { value: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo' }
+                ],
+                'ollama': [
+                    { value: 'llama3.3:70b', label: 'Llama 3.3 70B' },
+                    { value: 'llama3.1:8b', label: 'Llama 3.1 8B' },
+                    { value: 'mistral:7b', label: 'Mistral 7B' }
+                ],
+                'ollama-cloud': [
+                    { value: 'gpt-oss:120b-cloud', label: 'GPT-OSS 120B Cloud' },
+                    { value: 'gpt-oss:20b-cloud', label: 'GPT-OSS 20B Cloud' }
+                ],
+                'lmstudio': [
+                    { value: 'local-model', label: 'Local Model (configure in LM Studio)' }
+                ],
+                'custom': [
+                    { value: 'custom-model', label: 'Custom Model (enter model name)' }
+                ]
+            };
+            return modelsByProvider[this.ai.provider] || modelsByProvider['groq'];
+        },
         pluginsByCategory() {
             // Exclude plugins by name
             const excluded = ["baseplugin", "settings", "onboarding"];
@@ -488,6 +586,40 @@ export default {
         }
     },
     methods: {
+        onProviderChange() {
+            // Auto-populate base_url for known providers if empty
+            const defaultUrls = {
+                'groq': 'https://api.groq.com/openai/v1',
+                'cerebras': 'https://api.cerebras.ai/v1',
+                'mistral': 'https://api.mistral.ai/v1',
+                'ollama': 'http://localhost:11434/v1',
+                'ollama-cloud': 'https://api.ollama.com/v1',
+                'lmstudio': 'http://localhost:1234/v1'
+            };
+            if (defaultUrls[this.ai.provider]) {
+                this.ai.base_url = defaultUrls[this.ai.provider];
+            }
+
+            // Set default model for the provider
+            const defaultModels = {
+                'groq': 'llama-3.3-70b-versatile',
+                'cerebras': 'llama3.1-8b',
+                'mistral': 'mistral-small-latest',
+                'openai': 'gpt-4o',
+                'ollama': 'llama3.1:8b',
+                'ollama-cloud': 'gpt-oss:120b-cloud',
+                'lmstudio': 'local-model',
+                'custom': 'custom-model'
+            };
+            if (defaultModels[this.ai.provider]) {
+                this.ai.model_name = defaultModels[this.ai.provider];
+            }
+
+            // Reset validation state when changing provider
+            this.apiKeyValid = false;
+            this.apiKeyError = false;
+            this.apiKeyErrorMessage = '';
+        },
         async validateApiKey(apiKey) {
             if (!apiKey || !apiKey.trim() || !this.ai.model_name) {
                 this.apiKeyError = false;
@@ -498,8 +630,9 @@ export default {
             this.isValidating = true;
 
             try {
+                const baseUrlParam = this.ai.base_url ? `&base_url=${encodeURIComponent(this.ai.base_url)}` : '';
                 const response = await fetch(
-                    `/api/plugins/onboarding/validate_api_key?provider=${encodeURIComponent(this.ai.provider || 'groq')}&api_key=${encodeURIComponent(apiKey)}&model_name=${encodeURIComponent(this.ai.model_name)}`
+                    `/api/plugins/onboarding/validate_api_key?provider=${encodeURIComponent(this.ai.provider || 'groq')}&api_key=${encodeURIComponent(apiKey)}&model_name=${encodeURIComponent(this.ai.model_name)}${baseUrlParam}`
                 );
                 const data = await response.json();
 
