@@ -1,0 +1,9 @@
+{
+    "category": "ACCESSIBILITY",
+    "title": "Translator",
+    "description": "Translates speech between languages for multilingual conversations. Translate incoming speech to the patient's language and/or outgoing speech to the interlocutor's language.",
+    "is_free": true,
+    "requires_subscription": false,
+    "requires_internet": true,
+    "has_settings": true
+}

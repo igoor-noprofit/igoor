@@ -331,8 +331,10 @@ class Asrjs(Baseplugin):
             print("Empty transcription, ignoring")
             return
         print(f"Wake word detected! Text: '{following_text}'")
-        await self.pm.trigger_hook(hook_name="add_msg_to_conversation", msg=following_text, author="def",msg_input="asrwhisper")
-        await self.pm.trigger_hook(hook_name="asr_msg", msg="Q: " + following_text)
+        # Translate incoming speech if translator plugin is configured
+        translated_text = await self.translate_for_interlocutor(following_text, direction="incoming")
+        await self.pm.trigger_hook(hook_name="add_msg_to_conversation", msg=translated_text, author="def",msg_input="asrwhisper")
+        await self.pm.trigger_hook(hook_name="asr_msg", msg="Q: " + translated_text)
 
     async def process_incoming_message(self, message):
         """Extend the base plugin's message handler with ASR-specific actions"""

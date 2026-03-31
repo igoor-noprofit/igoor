@@ -345,8 +345,8 @@ class Elevenlabstts(Baseplugin):
     @hookimpl
     def speak(self, message):
         print("§§§§ ELEVENLABS SPEAKING *********************************************** :", message)
-        # Schedule the speak_func to run in the background
-        asyncio.create_task(self.run_speak_func(message))
+        # Schedule the speak_func to run in the background (with translation)
+        asyncio.create_task(self.run_speak_func_with_translation(message))
         asyncio.create_task(self.pm.trigger_hook(hook_name="reset_conversation_timeout"))
 
     def run_restart_asr(self):
@@ -357,6 +357,11 @@ class Elevenlabstts(Baseplugin):
 
     async def run_speak_func(self, message):
         success = await self.safe_speak_func(message)
+
+    async def run_speak_func_with_translation(self, message):
+        """Translate outgoing speech before speaking"""
+        translated_message = await self.translate_for_interlocutor(message, direction="outgoing")
+        await self.run_speak_func(translated_message)
 
     async def safe_speak_func(self, message):
         print("SAFE SPEAK FUNC:", message)

@@ -427,3 +427,80 @@ class Baseplugin:
         self.logger.info(f"Plugin requires DB: {self._plugin_metadata.get('requires_db', False)}")
         self.logger.info(f"Tables defined: {list(tables.keys())}")
         return True
+
+    # ── Translation helpers ────────────────────────────────────────────────────
+
+    def _translate_text_sync(self, text, target_language):
+        """Translate *text* to *target_language* via LLM.
+        Synchronous — meant to be called via asyncio.to_thread().
+        Always returns a string: the translation on success, the original on failure.
+        """
+        from context_manager import context_manager
+        try:
+            sm = self.settings_manager
+            ai = sm.get_nested(["plugins", "onboarding", "ai"], default={})
+            translator_settings = sm.get_plugin_settings("translator")
+            # Allow a dedicated fast model for translation (no reasoning needed)
+            model_name = translator_settings.get("translation_model_name") or ai.get("model_name")
+
+            llm = LLMManager(
+                ai.get("provider"),
+                ai.get("api_key"),
+                model_name,
+                temperature=0,
+            )
+
+            # Include conversation for context-aware translation
+            conversation = context_manager.get_context().get("conversation", "")
+            conversation_ctx = ""
+            if conversation:
+                conversation_ctx = (
+                    "\n\nConversation context (for reference only — do NOT translate "
+                    "this, use it only to understand context and tone):\n" + conversation
+                )
+
+            system_prompt = (
+                f"You are a translator. Translate the following text to {target_language}.\n"
+                "RULES:\n"
+                "- Output ONLY the translated text.\n"
+                "- No quotes, no explanation, no extra text.\n"
+                "- Maintain the same tone, register, and intent.\n"
+                "- Keep it natural and colloquial."
+                + conversation_ctx
+            )
+            result = llm.invoke(system_prompt, text)
+            translated = result.content if hasattr(result, "content") else str(result)
+            return translated.strip() if translated else text
+        except Exception as e:
+            self.logger.error(f"Translation failed, using original text: {e}")
+            return text
+
+    async def translate_for_interlocutor(self, text, direction="outgoing"):
+        """Translate *text* if the translator plugin is active and configured.
+
+        direction:
+            'outgoing' — patient's language → interlocutor's language (pre-TTS)
+            'incoming' — interlocutor's language → patient's language (post-ASR)
+
+        Returns the original text immediately (zero cost) when:
+        - translator plugin is not activated / not configured
+        - the relevant toggle (translate_incoming / translate_outgoing) is off
+        - translation fails (fail-safe)
+        """
+        sm = self.settings_manager
+        translator_settings = sm.get_plugin_settings("translator")
+        target_lang = translator_settings.get("interlocutor_language", "")
+        if not target_lang:
+            return text  # Plugin inactive or not configured — immediate return
+
+        toggle_key = "translate_outgoing" if direction == "outgoing" else "translate_incoming"
+        if not translator_settings.get(toggle_key, False):
+            return text
+
+        # Determine which language to translate into
+        if direction == "incoming":
+            target_language = sm.get_reply_language()  # patient's language e.g. "Italian"
+        else:
+            target_language = target_lang              # interlocutor's language e.g. "French"
+
+        return await asyncio.to_thread(self._translate_text_sync, text, target_language)
