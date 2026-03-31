@@ -140,9 +140,9 @@
                                         <option value="groq">Groq</option>
                                         <option value="cerebras">Cerebras</option>
                                         <option value="mistral">Mistral</option>
-                                        <option value="openai">OpenAI</option>
+                                        <!-- <option value="openai">OpenAI</option>
                                         <option value="ollama">Ollama (Local)</option>
-                                        <option value="ollama-cloud">Ollama Cloud</option>
+                                        <option value="ollama-cloud">Ollama Cloud</option> -->
                                         <option value="custom">Custom (OpenAI-compatible)</option>
                                     </select>
                                 </div>
@@ -182,7 +182,7 @@
                                     <p v-else-if="ai.provider === 'mistral'">
                                         {{ t("Mistral AI:") }}<br>
                                         <a class="extlink" href="https://console.mistral.ai" target="_blank">{{ t("Get your API key at Mistral Console") }}</a><br>
-                                        <a class="extlink" href="https://mistral.ai/privacy-policy" target="_blank">{{ t("Provider privacy policy") }}</a>
+                                        <a class="extlink" href="https://legal.mistral.ai/terms/privacy-policy" target="_blank">{{ t("Provider privacy policy") }}</a>
                                     </p>
                                     <p v-else-if="ai.provider === 'openai'">
                                         {{ t("OpenAI:") }}<br>
@@ -449,7 +449,17 @@ export default {
             return Object.keys(this.pluginData)
         },
         supportsReasoning() {
-            return ["openai/gpt-oss-120b", "openai/gpt-oss-20b"].includes(this.ai.model_name);
+            // Groq reasoning models (with openai/ prefix)
+            const groqReasoningModels = ["openai/gpt-oss-120b", "openai/gpt-oss-20b"];
+            // Cerebras reasoning models (without prefix)
+            const cerebrasReasoningModels = ["gpt-oss-120b"];
+
+            if (this.ai.provider === 'groq') {
+                return groqReasoningModels.includes(this.ai.model_name);
+            } else if (this.ai.provider === 'cerebras') {
+                return cerebrasReasoningModels.includes(this.ai.model_name);
+            }
+            return false;
         },
         showBaseUrl() {
             // Show base URL only for providers that need custom endpoint configuration
@@ -603,19 +613,21 @@ export default {
                 this.ai.base_url = defaultUrls[this.ai.provider];
             }
 
-            // Set default model for the provider
-            const defaultModels = {
-                'groq': 'llama-3.3-70b-versatile',
-                'cerebras': 'llama3.1-8b',
-                'mistral': 'mistral-small-latest',
-                'openai': 'gpt-4o',
-                'ollama': 'llama3.1:8b',
-                'ollama-cloud': 'gpt-oss:120b-cloud',
-                'lmstudio': 'local-model',
-                'custom': 'custom-model'
+            // Set default model and reasoning for the provider
+            const providerDefaults = {
+                'groq': { model: 'openai/gpt-oss-20b', reasoning_effort: 'low' },
+                'cerebras': { model: 'gpt-oss-120b', reasoning_effort: 'low' },
+                'mistral': { model: 'mistral-small-latest', reasoning_effort: '' },
+                'openai': { model: 'gpt-4o', reasoning_effort: '' },
+                'ollama': { model: 'llama3.1:8b', reasoning_effort: '' },
+                'ollama-cloud': { model: 'gpt-oss:120b-cloud', reasoning_effort: '' },
+                'lmstudio': { model: 'local-model', reasoning_effort: '' },
+                'custom': { model: 'custom-model', reasoning_effort: '' }
             };
-            if (defaultModels[this.ai.provider]) {
-                this.ai.model_name = defaultModels[this.ai.provider];
+
+            if (providerDefaults[this.ai.provider]) {
+                this.ai.model_name = providerDefaults[this.ai.provider].model;
+                this.ai.reasoning_effort = providerDefaults[this.ai.provider].reasoning_effort;
             }
 
             // Clear base_url when switching to custom (user must enter their own)
