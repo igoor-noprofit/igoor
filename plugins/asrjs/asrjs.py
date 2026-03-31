@@ -207,7 +207,18 @@ class Asrjs(Baseplugin):
             self._router_registered = True
         elif fastapi_app is None:
             self.logger.warning("FastAPI app not available; asrjs endpoints not registered")
-    
+
+    def send_settings_to_frontend(self):
+        """Override to include onboarding AI info so frontend knows if API keys are available from onboarding"""
+        settings = self.get_my_settings()
+        # Add onboarding AI info so frontend knows if API keys are available from onboarding
+        onboarding_ai = self.settings_manager.get_nested(["plugins", "onboarding", "ai"])
+        self.send_message_to_frontend({
+            "type": "settings",
+            "settings": settings,
+            "onboarding_ai": onboarding_ai  # Add this
+        })
+
     @hookimpl
     async def restart_asr(self):
         print(f"ASRJS restart_asr called: continuous={self.continuous}, conversation_abandoned={self.conversation_abandoned}, is_paused={self.is_paused}")
@@ -477,10 +488,28 @@ class Asrjs(Baseplugin):
         """Helper method to run Voxtral transcription in a separate thread"""
         try:
             url = "https://api.mistral.ai/v1/audio/transcriptions"
-            api_key = self.settings.get("voxtral_api_key", "")
+
+            # Try to get API key from onboarding first if provider is mistral
+            onboarding_ai_settings = self.settings_manager.get_nested(["plugins", "onboarding", "ai"])
+            api_key = None
+
+            if onboarding_ai_settings and \
+                onboarding_ai_settings.get("provider") == "mistral" and \
+                onboarding_ai_settings.get("api_key"):
+                api_key = onboarding_ai_settings.get("api_key")
+                self.logger.info("Using Mistral API key from global AI settings (onboarding).")
+            else:
+                # Fallback to plugin's own settings
+                api_key = self.settings.get("voxtral_api_key", "")
+                if api_key:
+                    self.logger.info("Using Mistral API key from asrjs plugin settings.")
+                else:
+                    self.logger.error("No Mistral API key found in global AI settings or asrjs plugin settings.")
+
             if not api_key:
-                self.logger.error("No Voxtral API key provided.")
+                self.logger.error("No Mistral API key could be determined.")
                 return ""
+
             headers = {
                 "x-api-key": api_key
             }

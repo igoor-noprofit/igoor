@@ -22,9 +22,27 @@
             </div>
             <div class="form-note"></div>
 
+            <!-- GROQ API KEY -->
+            <div class="form-label" v-show="formData.model_provider === 'groq' && !usingOnboardingGroqKey">{{t('Groq API Key')}}</div>
+            <div class="form-input" v-show="formData.model_provider === 'groq' && !usingOnboardingGroqKey">
+                <input
+                    type="password"
+                    v-model="formData.api_key"
+                    :class="{'input-error': groqKeyError}"
+                    :placeholder="t('Required for Groq')"
+                    required
+                />
+            </div>
+            <div class="form-note" :style="{color: groqKeyError ? '#ff6666' : undefined}" v-show="formData.model_provider === 'groq' && !usingOnboardingGroqKey">
+                {{ groqKeyError ? t('Groq API Key is required') : t('Groq API Key is required for Whisper models') }}
+            </div>
+            <div class="form-note" v-show="formData.model_provider === 'groq' && usingOnboardingGroqKey" style="color: #4caf50;">
+                {{ t('Using Groq API Key from global AI settings') }}
+            </div>
+
             <!-- MISTRAL API KEY -->
-            <div class="form-label" v-show="formData.model_name === 'voxtral-mini-latest'">{{t('Voxtral API Key (BETA)')}}</div>
-            <div class="form-input" v-show="formData.model_name === 'voxtral-mini-latest'">
+            <div class="form-label" v-show="formData.model_provider === 'mistral' && !usingOnboardingMistralKey">{{t('Voxtral API Key (BETA)')}}</div>
+            <div class="form-input" v-show="formData.model_provider === 'mistral' && !usingOnboardingMistralKey">
                 <input
                     type="password"
                     v-model="formData.voxtral_api_key"
@@ -33,8 +51,11 @@
                     required
                 />
             </div>
-            <div class="form-note" :style="{color: voxtralKeyError ? '#ff6666' : undefined}" v-show="formData.model_name === 'voxtral-mini-latest'">
+            <div class="form-note" :style="{color: voxtralKeyError ? '#ff6666' : undefined}" v-show="formData.model_provider === 'mistral' && !usingOnboardingMistralKey">
                 {{ voxtralKeyError ? t('Mistral API Key is required') : t('Mistral API Key is required for Voxtral models') }}
+            </div>
+            <div class="form-note" v-show="formData.model_provider === 'mistral' && usingOnboardingMistralKey" style="color: #4caf50;">
+                {{ t('Using Mistral API Key from global AI settings') }}
             </div>
 
             <!-- Shortcut -->
@@ -245,7 +266,8 @@ export default {
         return {
             formData: {
                 model_provider: 'groq',
-                model_name: 'whisper-large-v3',
+                model_name: 'whisper-large-v3-turbo',
+                api_key: '',
                 voxtral_api_key: '',
                 continuous: false,
                 always_generate: false,
@@ -259,7 +281,9 @@ export default {
                 continuous: false,
                 always_generate: false
             },
+            onboarding_ai: null,  // Store onboarding AI settings
             isRecordingShortcut: false,
+            groqKeyError: false,
             voxtralKeyError: false,
             loading: false,
             // Volume meter
@@ -276,6 +300,16 @@ export default {
         hasUnsavedChanges() {
             if (!this.originalSettings || !this.formData) return false;
             return JSON.stringify(this.formData) !== JSON.stringify(this.originalSettings);
+        },
+        usingOnboardingGroqKey() {
+            return this.onboarding_ai &&
+                this.onboarding_ai.provider === 'groq' &&
+                this.onboarding_ai.api_key;
+        },
+        usingOnboardingMistralKey() {
+            return this.onboarding_ai &&
+                this.onboarding_ai.provider === 'mistral' &&
+                this.onboarding_ai.api_key;
         }
     },
     watch: {
@@ -283,6 +317,10 @@ export default {
             handler(newVal) {
                 if (newVal) {
                     this.$nextTick(() => {
+                        // Extract onboarding_ai if present
+                        if (newVal.onboarding_ai) {
+                            this.onboarding_ai = newVal.onboarding_ai;
+                        }
                         this.setOriginalSettings(newVal);
                         this.formData = {
                             ...this.defaultSettings,
@@ -332,7 +370,7 @@ export default {
         onProviderChange() {
             if (this.formData.model_provider === 'groq') {
                 if (!['whisper-large-v3', 'whisper-large-v3-turbo'].includes(this.formData.model_name)) {
-                    this.formData.model_name = 'whisper-large-v3';
+                    this.formData.model_name = 'whisper-large-v3-turbo';
                 }
             } else if (this.formData.model_provider === 'mistral') {
                 if (this.formData.model_name !== 'voxtral-mini-latest') {
@@ -342,15 +380,27 @@ export default {
         },
         checkBeforeUpdating() {
             console.log("Updating settings with:", this.formData);
-            if (
-                this.formData.model_name === 'voxtral-mini-latest' &&
-                (!this.formData.voxtral_api_key || !this.formData.voxtral_api_key.trim())
-            ) {
-                this.voxtralKeyError = true;
-                console.warn('Voxtral API Key is required for Voxtral models.');
-                return;
+
+            // Validate Groq API key if needed
+            if (this.formData.model_provider === 'groq' && !this.usingOnboardingGroqKey) {
+                if (!this.formData.api_key || !this.formData.api_key.trim()) {
+                    this.groqKeyError = true;
+                    console.warn('Groq API Key is required for Groq models.');
+                    return;
+                }
+            }
+            this.groqKeyError = false;
+
+            // Validate Mistral API key if needed
+            if (this.formData.model_provider === 'mistral' && !this.usingOnboardingMistralKey) {
+                if (!this.formData.voxtral_api_key || !this.formData.voxtral_api_key.trim()) {
+                    this.voxtralKeyError = true;
+                    console.warn('Voxtral API Key is required for Voxtral models.');
+                    return;
+                }
             }
             this.voxtralKeyError = false;
+
             this.loading = true;
             this.saveSettings().finally(() => {
                 this.loading = false;

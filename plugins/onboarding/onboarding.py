@@ -188,6 +188,9 @@ class Onboarding(Baseplugin):
                         self.settings = current_settings
                         self.onboarding_completed = True
 
+                        # Sync API key to asrjs plugin if needed
+                        self._sync_api_key_to_asrjs(new_settings.get('ai', {}))
+
                         # Check if provider changed and apply presets to other plugins
                         new_provider = new_settings.get('ai', {}).get('provider')
                         print(f"[PRESETS] New provider: {new_provider}")
@@ -265,6 +268,36 @@ class Onboarding(Baseplugin):
             print(f"[PRESETS] Error: {e}")
             import traceback
             print(f"[PRESETS] Traceback: {traceback.format_exc()}")
+
+    def _sync_api_key_to_asrjs(self, ai_settings):
+        """Sync API key to asrjs plugin if it doesn't have one for the current provider."""
+        provider = ai_settings.get('provider')
+        api_key = ai_settings.get('api_key')
+
+        if not provider or not api_key:
+            return
+
+        # Get asrjs current settings
+        asrjs_settings = self.pm.settings_manager.get_plugin_settings('asrjs') or {}
+
+        if provider == 'groq':
+            # For Groq, asrjs uses 'api_key' field
+            if not asrjs_settings.get('api_key'):
+                print(f"[ASRJS SYNC] Syncing Groq API key to asrjs plugin")
+                self.pm.settings_manager.update_plugin_settings(
+                    'asrjs',
+                    {'api_key': api_key},
+                    self.pm
+                )
+        elif provider == 'mistral':
+            # For Mistral, asrjs uses 'voxtral_api_key' field
+            if not asrjs_settings.get('voxtral_api_key'):
+                print(f"[ASRJS SYNC] Syncing Mistral API key to asrjs plugin")
+                self.pm.settings_manager.update_plugin_settings(
+                    'asrjs',
+                    {'voxtral_api_key': api_key},
+                    self.pm
+                )
 
     @hookimpl
     async def global_settings_updated(self):
