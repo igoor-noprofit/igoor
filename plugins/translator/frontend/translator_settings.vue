@@ -109,40 +109,26 @@ export default {
     watch: {
         initialSettings: {
             handler(newVal) {
+                console.log('translatorSettings: initialSettings watcher triggered', newVal);
                 if (newVal) {
                     this.$nextTick(() => {
                         this.setOriginalSettings(newVal);
                         this.formData = { ...newVal };
+                        console.log('translatorSettings: formData updated', this.formData);
                     });
                 }
             },
             immediate: true,
             deep: true
-        },
-        originalSettings: {
-            handler(newVal) {
-                if (newVal) {
-                    const needsMerge = !this.formData.interlocutor_language &&
-                                      !this.formData.translation_model_name;
-
-                    if (needsMerge) {
-                        this.formData = {
-                            interlocutor_language: newVal.interlocutor_language || '',
-                            translate_incoming: newVal.translate_incoming || false,
-                            translate_outgoing: newVal.translate_outgoing || false,
-                            translation_model_name: newVal.translation_model_name || ''
-                        };
-                    }
-                }
-            },
-            deep: true
         }
     },
     methods: {
         async saveSettingsHandler() {
+            console.log('translatorSettings: Saving settings', this.formData);
             this.isSaving = true;
             try {
                 await this.saveSettings();
+                console.log('translatorSettings: Settings saved successfully');
             } finally {
                 this.isSaving = false;
             }
@@ -200,7 +186,7 @@ select, input[type="text"] {
     max-width: 300px;
 }
 
-select:focus, input[type="text"]:focus {
+select:focus, input[type="text"]:focus{
     border-color: var(--color-inputfocus-border, #0095c0);
     outline: none;
 }
