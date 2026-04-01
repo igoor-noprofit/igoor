@@ -126,7 +126,7 @@
                                 <label>{{ t("Locale") }}</label><input type="text" v-model="prefs.locale" disabled>
                             </div>
                             <div>
-                                <label>{{ t("Idle threshold (n. of seconds before the user is considered idle)") }}"</label><input
+                                <label>{{ t("Idle threshold (n. of seconds before the user is considered idle)") }}</label><input
                                     type="number" v-model="prefs.idle_threshold" min="60" max="6000" step="100">
                             </div>
                         </div>
