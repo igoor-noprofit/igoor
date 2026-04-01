@@ -395,12 +395,14 @@ export default {
                 "Speech Recognition": [
                     { label: "Configure recognition", plugin: "asrwhisper", icon: "" },
                     { label: "Configure recognition", plugin: "asrvosk", icon: "" },
-                    { label: "Configure recognition", plugin: "asrjs", icon: "" }
+                    { label: "Configure recognition", plugin: "asrjs", icon: "" },
+                    { label: "Configure translation", plugin: "translator", icon: "" }
                 ],
                 "Vocal Synthesis": [
                     { label: "Configure ElevenLabs", plugin: "elevenlabstts", icon: "" },
                     { label: "Configure Speechify", plugin: "speechifytts", icon: "" },
-                    { label: "Configure Windows Voice", plugin: "ttsdefault", icon: "" }
+                    { label: "Configure Windows Voice", plugin: "ttsdefault", icon: "" },
+                    { label: "Configure translation", plugin: "translator", icon: "" }
                 ]
             }
         }

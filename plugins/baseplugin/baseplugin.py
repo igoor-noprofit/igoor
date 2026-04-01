@@ -430,6 +430,20 @@ class Baseplugin:
 
     # ── Translation helpers ────────────────────────────────────────────────────
 
+    def _load_translation_prompt(self):
+        """Load translation prompt from translator plugin's prompts.yaml"""
+        import yaml
+        try:
+            prompts_path = resource_path(os.path.join('plugins', 'translator', 'prompts.yaml'))
+            with open(prompts_path, 'r', encoding='utf-8') as f:
+                prompts = yaml.safe_load(f)
+            return prompts.get('translate', {})
+        except Exception as e:
+            self.logger.warning(f"Could not load translation prompts, using defaults: {e}")
+            return {
+                "system": "You are a translator. Translate the following text to {target_language}.\nRULES:\n- Output ONLY the translated text.\n- No quotes, no explanation, no extra text.\n- Maintain the same tone, register, and intent.\n- Keep it natural and colloquial.\n{conversation_context}"
+            }
+
     def _translate_text_sync(self, text, target_language):
         """Translate *text* to *target_language* via LLM.
         Synchronous — meant to be called via asyncio.to_thread().
@@ -459,15 +473,21 @@ class Baseplugin:
                     "this, use it only to understand context and tone):\n" + conversation
                 )
 
-            system_prompt = (
-                f"You are a translator. Translate the following text to {target_language}.\n"
-                "RULES:\n"
-                "- Output ONLY the translated text.\n"
-                "- No quotes, no explanation, no extra text.\n"
-                "- Maintain the same tone, register, and intent.\n"
-                "- Keep it natural and colloquial."
-                + conversation_ctx
+            # Get user bio for gender-aware translation
+            bio = sm.get_bio()
+            bio_name = bio.get("name", "the user")
+            health_state = bio.get("health_state", "")
+            health_ctx = f"Health context: {health_state}" if health_state else ""
+
+            # Load prompt from translator plugin's prompts.yaml
+            prompt_template = self._load_translation_prompt()
+            system_prompt = prompt_template.get("system", "").format(
+                target_language=target_language,
+                conversation_context=conversation_ctx,
+                bio_name=bio_name,
+                health_state=health_ctx
             )
+
             result = llm.invoke(system_prompt, text)
             translated = result.content if hasattr(result, "content") else str(result)
             return translated.strip() if translated else text

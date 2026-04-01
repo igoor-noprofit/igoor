@@ -167,8 +167,7 @@ class Ttsdefault(Baseplugin):
     async def speak_func(self, message):
         self.logger.info("SPEAK FUNC:" + message)
         try:
-            # Note: SAPI COM objects are thread-affine, cannot use asyncio.to_thread
-            self.speaker.Speak(message)
+            # Run SAPI speech in a separate thread to avoid blocking
             await asyncio.to_thread(self.speaker.Speak, message)
             return True
 
