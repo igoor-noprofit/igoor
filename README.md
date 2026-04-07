@@ -5,12 +5,14 @@
 **IGOOR is an open-source and free (AGPLv3) conversational application based on AI, designed to provide people with ALS/MND diseases a smooth and natural means of communication.** 
 Its interface makes it easy-to-use also via eye-tracking device.
 
-<img src="./img/logo_fb.png" alt="logo IGOOR" width="400">
+<a href="https://igoor.org" target="_blank"><img src="./img/logo_fb.png" alt="logo IGOOR" width="400"></a>
 
 Take a look at the <a href="https://igoor.org/en">IGOOR website</a> for further infos about our core principles, values and software roadmap.
 
-IGOOR is developed by <a href="https://igoor.org" target="_blank">IGOOR not for profit organisation</a>, in partnership with <a href="https://www.arsla.org/">ARSLA</a>, based on an original idea by Igor Novitzki.
-<img src="https://igoor.org/wp-content/uploads/2025/06/arsla-logo-principal-png-1536x1086-1.png" alt="logo ARSLA" width="300">
+IGOOR is developed by <a href="https://igoor.org" target="_blank">IGOOR not for profit organisation</a>, in partnership with <a href="https://www.arsla.org/">ARSLA</a>, based on an <a href="https://vimeo.com/980377339?fl=pl&fe=vl" target="_blank">original idea by Igor Novitzki</a>.
+The <a href="https://www.aphp.fr/hopitaux/hendaye" target="_blank">Hôpital Marin d'Hendaye</a> is also partnering to support the evaluation phase of the tool.
+<p>
+<a href="https://arsla.org" target="_blank"><img src="https://igoor.org/wp-content/uploads/2025/06/arsla-logo-principal-png-1536x1086-1.png" alt="logo ARSLA" width="250"></a></p>
 
 ## DOCUMENTATION
 
