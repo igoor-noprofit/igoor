@@ -22,8 +22,7 @@
                 <!-- Voice recording: mic button matching asrjs style -->
                 <div class="voice-section" v-if="!isTranscribing">
                     <div class="mic clickable" :class="{ recording: isRecording }" @click="toggleRecording">
-                        <img v-if="!isRecording" src="/img/mic.png" alt="Record">
-                        <img v-else src="/img/stop.svg" alt="Stop">
+                        <img src="/img/mic.png" alt="Record">
                     </div>
                 </div>
 
@@ -492,16 +491,23 @@ module.exports = {
 .mic img {
     max-height: 70px;
     max-width: 70px;
+    opacity: 0.4;
+    animation: pulse_rec 2s infinite;
 }
 
 .mic.recording {
-    background: #dc2626;
-    animation: pulse 1s infinite;
+    background: #396350 !important;
 }
 
-@keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.7; }
+.mic.recording img {
+    opacity: 1;
+    animation: none;
+}
+
+@keyframes pulse_rec {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
 }
 
 .transcribing {
