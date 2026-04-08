@@ -3,7 +3,8 @@
     "allow": [
       "Bash(python -m plugins.biorecorder.biorecorder)",
       "Bash(python -m py_compile \"c:\\\\AIKU\\\\experiments\\\\igoor\\\\plugins\\\\biorecorder\\\\biorecorder.py\")",
-      "Bash(node -e \"plugins/biorecorder/frontend/biorecorder_settings.vue\")"
+      "Bash(node -e \"plugins/biorecorder/frontend/biorecorder_settings.vue\")",
+      "Bash(python -c \"import py_compile; py_compile.compile\\('plugins/biorecorder/biorecorder.py', doraise=True\\)\")"
     ]
   }
 }
