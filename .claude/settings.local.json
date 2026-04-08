@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(rm -rf /c/AIKU/experiments/igoor/plugins/asrjs/__pycache__)",
-      "Bash(python -m py_compile /c/AIKU/experiments/igoor/plugins/asrjs/asrjs.py)"
+      "Bash(python -m py_compile /c/AIKU/experiments/igoor/plugins/asrjs/asrjs.py)",
+      "Read(//c/AIKU/experiments/slrecorder/**)"
     ],
     "additionalDirectories": [
       "C:\\AIKU\\experiments\\igoor\\plugins\\asrjs\\__pycache__"
