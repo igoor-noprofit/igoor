@@ -1,0 +1,12 @@
+{
+    "category": "core",
+    "title": "Biography Recorder",
+    "description": "Record biographical information through guided Q&A",
+    "version": "1.0.0",
+    "is_free": true,
+    "has_settings": true,
+    "layout": {
+        "part": "plugins",
+        "order": 50
+    }
+}

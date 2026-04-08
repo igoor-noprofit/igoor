@@ -3,7 +3,10 @@
     "allow": [
       "Bash(rm -rf /c/AIKU/experiments/igoor/plugins/asrjs/__pycache__)",
       "Bash(python -m py_compile /c/AIKU/experiments/igoor/plugins/asrjs/asrjs.py)",
-      "Read(//c/AIKU/experiments/slrecorder/**)"
+      "Read(//c/AIKU/experiments/slrecorder/**)",
+      "Bash(cp \"C:/AIKU/experiments/slrecorder/questions/questions_en.json\" \"c:/AIKU/experiments/igoor/plugins/biorecorder/locales/en_EN/questions_en_EN.json\")",
+      "Bash(cp \"C:/AIKU/experiments/slrecorder/questions/questions_fr.json\" \"c:/AIKU/experiments/igoor/plugins/biorecorder/locales/fr_FR/questions_fr_FR.json\")",
+      "Bash(cp \"C:/AIKU/experiments/slrecorder/questions/questions_it.json\" \"c:/AIKU/experiments/igoor/plugins/biorecorder/locales/it_IT/questions_it_IT.json\")"
     ],
     "additionalDirectories": [
       "C:\\AIKU\\experiments\\igoor\\plugins\\asrjs\\__pycache__"

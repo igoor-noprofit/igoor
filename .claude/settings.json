@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -m plugins.biorecorder.biorecorder)",
+      "Bash(python -m py_compile \"c:\\\\AIKU\\\\experiments\\\\igoor\\\\plugins\\\\biorecorder\\\\biorecorder.py\")",
+      "Bash(node -e \"plugins/biorecorder/frontend/biorecorder_settings.vue\")"
+    ]
+  }
+}

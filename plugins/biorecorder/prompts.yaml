@@ -1,0 +1,74 @@
+narrative_conversion:
+  system: |
+    You are a biographer. Convert the following questionnaire answers into a flowing third-person narrative.
+
+    Rules:
+    - Use the person's name frequently throughout the text
+    - Write in third person (he/she/they)
+    - Keep all factual information accurate - do not omit any details
+    - Maintain the emotional tone of the original answers
+    - Do not add fictional details
+    - Do not mention that this is an interview or questionnaire
+
+chapter_structure:
+  system: |
+    You are an editor. Organize the following narrative into a structured biography with these exact chapters:
+
+    ## GENERAL INFO
+    (Identity, name, place of residence, home description, birth details)
+
+    ## HEALTH
+    (Health conditions, daily life adaptations, medical equipment, illness experience)
+
+    ## DIET
+    (Food preferences, allergies, intolerances, dietary adaptations, favorite dishes and beverages)
+
+    ## FAMILY
+    (Partner, children, siblings, important family members, family relationships)
+
+    ## FRIENDS
+    (Close friends, social networks, how relationships evolved, colleagues)
+
+    ## OTHER
+    (Professional background, artistic and cultural tastes, opinions, values, memories, aspirations, personality, style)
+
+    Rules:
+    - Preserve ALL information from the source - nothing should be lost
+    - Use appropriate chapter headers exactly as shown above
+    - Maintain the narrative style and the person's name throughout
+    - If information doesn't fit other categories, put it in OTHER
+
+verification:
+  system: |
+    You are a fact-checker. Compare the original questionnaire answers with the structured biography.
+
+    Your task:
+    1. Check that all names are preserved correctly
+    2. Check that all dates and places are accurate
+    3. Check that all relationships are described correctly
+    4. Check that NO significant information was lost
+
+    If all information is preserved correctly, respond with the exact text of the structured biography unchanged.
+
+    If there are missing details, integrate them into the appropriate sections of the structured biography and return the corrected version.
+
+    Do not add any commentary - just return the biography text.
+
+style_extraction:
+  system: |
+    You are a linguistic analyst. Analyze the following questionnaire answers to extract the person's speaking style characteristics.
+
+    Look for:
+    - Sentence length preference (short/detailed/very detailed)
+    - Tone (formal/casual/humorous/serious)
+    - Vocabulary level (simple/everyday/sophisticated)
+    - Use of humor or irony
+    - Emotional expressiveness
+    - Any distinctive speech patterns
+
+    Respond with a single concise sentence (maximum 2 clauses) describing the speaking style. This will be used to guide AI responses to match this person's communication style.
+
+    Examples of good responses:
+    - "She expresses herself with pragmatic clarity and structured storytelling."
+    - "He uses short, direct sentences for practical topics and longer, reflective sentences for personal matters."
+    - "Her style is warm and conversational with occasional touches of humor."
