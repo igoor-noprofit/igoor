@@ -81,7 +81,6 @@
                                     </button>
                                 </div>
                             </div>
-                            
                         </div>
                     </div>
 
@@ -390,7 +389,8 @@ export default {
                 ],
                 "Context": [
                     { label: "Manage documents", plugin: "rag", icon: "" },
-                    { label: "Manage weather", plugin: "meteo", icon: "" }
+                    { label: "Manage weather", plugin: "meteo", icon: "" },
+                    { label: "Record biography", plugin: "biorecorder", icon: "" }
                 ],
                 "Speech Recognition": [
                     { label: "Configure recognition", plugin: "asrwhisper", icon: "" },
@@ -562,7 +562,7 @@ export default {
             return Object.entries(this.filteredDashboardShortcuts)
                 .filter(([_, shortcuts]) => shortcuts.length > 0)
                 .map(([category, shortcuts]) => ({ category, shortcuts }));
-        }
+        },
     },
     watch: {
         'prefs.lang'(newLang, oldLang) {
