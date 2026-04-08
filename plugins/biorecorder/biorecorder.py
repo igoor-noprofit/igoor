@@ -443,9 +443,11 @@ class Biorecorder(Baseplugin):
         if new_style:
             merged_style = f"{existing_style}\n{new_style}" if existing_style else new_style
 
-            # Update onboarding settings
+            # Update only the style field in onboarding bio, preserving name/health_state/etc.
+            current_bio = self.settings_manager.get_nested(["plugins", "onboarding", "bio"], default={})
+            current_bio["style"] = merged_style
             self.settings_manager.update_plugin_settings("onboarding", {
-                "bio": {"style": merged_style}
+                "bio": current_bio
             }, self.pm)
             self.logger.info("Style updated in onboarding settings")
 
