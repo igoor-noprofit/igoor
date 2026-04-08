@@ -560,7 +560,7 @@ module.exports = {
 }
 
 /* Right column - textarea */
-.answer-textarea {
+textarea.answer-textarea {
     width: 100%;
     max-width: 100%;
     min-height: 200px;
