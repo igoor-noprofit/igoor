@@ -40,6 +40,7 @@
     "rag": true,
     "memory": true,
     "extkeyb": false,
-    "weather": false
+    "weather": false,
+    "recorder": true
   }
 }
