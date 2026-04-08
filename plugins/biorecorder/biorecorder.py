@@ -123,9 +123,9 @@ class Biorecorder(Baseplugin):
         total = len(self.questions)
         return {
             "answered": answered,
-            "total": len(self.questions),
+            "total": total,
             "current_index": self._get_next_unanswered_index(),
-            "is_complete": answered == len(self.questions)
+            "can_generate": answered > 0
         }
 
     def _get_next_unanswered_index(self) -> int:
@@ -261,9 +261,9 @@ class Biorecorder(Baseplugin):
             raise HTTPException(status_code=500, detail=str(e))
 
     async def _generate_bio(self) -> Dict:
-        progress = self._get_progress()
-        if not progress["is_complete"]:
-            raise HTTPException(status_code=400, detail="Not all questions answered")
+        answered = sum(1 for k in self.answers if self.answers[k].get("answer", "").strip())
+        if answered == 0:
+            raise HTTPException(status_code=400, detail="No questions answered yet")
 
         try:
             result = await self._run_bio_generation()
@@ -281,23 +281,23 @@ class Biorecorder(Baseplugin):
     async def _reset_biography(self) -> Dict:
         """Reset all biography data"""
         try:
-                # Delete answers file
-                answers_path = Path(self.plugin_folder) / "answers.json"
-                if answers_path.exists():
-                    answers_path.unlink()
+            # Delete answers file
+            answers_path = Path(self.plugin_folder) / "answers.json"
+            if answers_path.exists():
+                answers_path.unlink()
 
-                # Delete bio file
-                bio_path = Path(self.plugin_folder) / "bio.md"
-                if bio_path.exists():
-                    bio_path.unlink()
+            # Delete bio file
+            bio_path = Path(self.plugin_folder) / "bio.md"
+            if bio_path.exists():
+                bio_path.unlink()
 
-                # Clear in-memory data
-                self.answers = {}
+            # Clear in-memory data
+            self.answers = {}
 
-                return {"status": "reset", "message": "Biography data reset successfully"}
+            return {"status": "reset", "message": "Biography data reset successfully"}
         except Exception as e:
-                self.logger.error(f"Error resetting biography: {e}")
-                raise HTTPException(status_code=500, detail=str(e))
+            self.logger.error(f"Error resetting biography: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
 
     async def _transcribe_audio(self, audio_path: Path) -> str:
         """Transcribe audio using asrjs plugin in the user's language"""
@@ -367,7 +367,10 @@ class Biorecorder(Baseplugin):
 
     async def _run_bio_generation(self) -> Dict:
         """Run the 4-step LLM process"""
+        import asyncio
         from llm_manager import LLMManager
+
+        loop = asyncio.get_event_loop()
 
         # Get AI settings from onboarding
         ai = self.settings_manager.get_nested(["plugins", "onboarding", "ai"], default={})
@@ -393,45 +396,41 @@ class Biorecorder(Baseplugin):
         llm = LLMManager(provider, api_key, model_name, temperature=0.3)
 
         # Step 1: 3rd person narrative
-        self.logger.info("Step 1: Converting to narrative...")
-        prompt1 = prompts.get("narrative_conversion", {}).get("system", "")
-        narrative = llm.invoke(prompt1, f"Name: {bio_name}\n\n{answers_text}")
-        if hasattr(narrative, 'content'):
-            narrative_text = narrative.content
-        else:
-            narrative_text = str(narrative)
+        self.logger.info("Step 1/4: Converting to narrative...")
+        narrative = await loop.run_in_executor(
+            None, llm.invoke, prompts.get("narrative_conversion", {}).get("system", ""),
+            f"Name: {bio_name}\n\n{answers_text}"
+        )
+        narrative_text = narrative.content if hasattr(narrative, 'content') else str(narrative)
 
         # Step 2: Structure into chapters
-        self.logger.info("Step 2: Structuring into chapters...")
-        prompt2 = prompts.get("chapter_structure", {}).get("system", "")
-        structured = llm.invoke(prompt2, narrative_text)
-        if hasattr(structured, 'content'):
-            structured_text = structured.content
-        else:
-            structured_text = str(structured)
+        self.logger.info("Step 2/4: Structuring into chapters...")
+        structured = await loop.run_in_executor(
+            None, llm.invoke, prompts.get("chapter_structure", {}).get("system", ""),
+            narrative_text
+        )
+        structured_text = structured.content if hasattr(structured, 'content') else str(structured)
 
         # Step 3: Verify completeness
-        self.logger.info("Step 3: Verifying completeness...")
-        prompt3 = prompts.get("verification", {}).get("system", "")
-        verified = llm.invoke(prompt3, f"Original:\n{answers_text}\n\nStructured:\n{structured_text}")
-        if hasattr(verified, 'content'):
-            bio_content = verified.content
-        else:
-            bio_content = str(verified)
+        self.logger.info("Step 3/4: Verifying completeness...")
+        verified = await loop.run_in_executor(
+            None, llm.invoke, prompts.get("verification", {}).get("system", ""),
+            f"Original:\n{answers_text}\n\nStructured:\n{structured_text}"
+        )
+        bio_content = verified.content if hasattr(verified, 'content') else str(verified)
 
         # Save bio.md
         bio_path = Path(self.plugin_folder) / "bio.md"
         bio_path.write_text(bio_content, encoding='utf-8')
-        self.logger.info(f"Bio saved to {bio_path}")
+        self.logger.info(f"Step 3/4 complete. Bio saved to {bio_path}")
 
         # Step 4: Extract and merge style
-        self.logger.info("Step 4: Extracting style...")
-        prompt4 = prompts.get("style_extraction", {}).get("system", "")
-        style_result = llm.invoke(prompt4, answers_text)
-        if hasattr(style_result, 'content'):
-            new_style = style_result.content.strip()
-        else:
-            new_style = str(style_result).strip()
+        self.logger.info("Step 4/4: Extracting style...")
+        style_result = await loop.run_in_executor(
+            None, llm.invoke, prompts.get("style_extraction", {}).get("system", ""),
+            answers_text
+        )
+        new_style = style_result.content.strip() if hasattr(style_result, 'content') else str(style_result).strip()
 
         # Merge with existing style
         existing_style = bio.get("style", "")

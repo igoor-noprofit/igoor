@@ -9,7 +9,7 @@
         </div>
 
         <!-- Question container (two-column layout) -->
-        <div class="question-container" v-if="currentQuestion && !progress.is_complete">
+        <div class="question-container" v-if="currentQuestion && !showCompletion">
 
             <!-- LEFT COLUMN: Question + Voice recording + Navigation -->
             <div class="left">
@@ -41,7 +41,11 @@
                     <button class="btn btn-nav btn-skip" @click="skipQuestion">
                         {{ t('Skip') }}
                     </button>
-                    <button class="btn btn-nav" @click="nextQuestion" :disabled="currentIndex >= questions.length - 1">
+                    <!-- On last question: show Finish button instead of disabled arrow -->
+                    <button v-if="isLastQuestion" class="btn btn-finish" @click="finishQuestions">
+                        {{ t('Finish') }}
+                    </button>
+                    <button v-else class="btn btn-nav" @click="nextQuestion">
                         <i class="ph-light ph-caret-right"></i>
                     </button>
                 </div>
@@ -67,11 +71,16 @@
         </div>
 
         <!-- Completion screen -->
-        <div class="completion-container" v-if="progress.is_complete">
-            <div class="completion-message">{{ t('All questions answered!') }}</div>
-            <button class="btn btn-generate" @click="generateBio" :disabled="isGenerating">
+        <div class="completion-container" v-if="showCompletion">
+            <div class="completion-message">{{ t('Recording complete!') }}</div>
+            <div class="completion-info">{{ progress.answered }} {{ t('answers recorded') }}</div>
+            <button class="btn btn-generate" @click="generateBio" :disabled="isGenerating || progress.answered === 0">
                 <span v-if="isGenerating"><i class="ph-light ph-spinner ph-spin"></i> {{ t('Generating...') }}</span>
                 <span v-else><i class="ph-light ph-magic-wand"></i> {{ t('Generate Biography') }}</span>
+            </button>
+
+            <button class="btn btn-back" @click="showCompletion = false">
+                {{ t('Back to questions') }}
             </button>
 
             <div v-if="bioExists" class="bio-exists">
@@ -92,13 +101,14 @@ module.exports = {
         return {
             questions: [],
             currentIndex: 0,
-            progress: { answered: 0, total: 0, is_complete: false, current_index: 0 },
+            progress: { answered: 0, total: 0, can_generate: false, current_index: 0 },
             textInput: "",
             transcriptionText: "",
             isTranscribing: false,
             isGenerating: false,
             isRecording: false,
             bioExists: false,
+            showCompletion: false,
             mediaRecorder: null,
             audioChunks: [],
             recordedBlob: null
@@ -110,6 +120,9 @@ module.exports = {
         },
         progressPercent() {
             return this.progress.total ? (this.progress.answered / this.progress.total) * 100 : 0;
+        },
+        isLastQuestion() {
+            return this.currentIndex >= this.questions.length - 1;
         }
     },
     watch: {
@@ -176,7 +189,30 @@ module.exports = {
             }
         },
 
-        // --- Voice recording (native MediaRecorder, no RecorderComponent) ---
+        // --- Save current answer before navigating away ---
+        async saveCurrentIfDirty() {
+            const q = this.currentQuestion;
+            if (!q) return;
+
+            // Save transcription if pending
+            if (this.transcriptionText && this.transcriptionText.trim()) {
+                const saved = q.answer || "";
+                if (this.transcriptionText !== saved) {
+                    await this.saveTranscription();
+                    return;
+                }
+            }
+
+            // Save text input if changed
+            if (this.textInput && this.textInput.trim()) {
+                const saved = q.answer || "";
+                if (this.textInput !== saved) {
+                    await this.autoSave();
+                }
+            }
+        },
+
+        // --- Voice recording (native MediaRecorder) ---
         toggleRecording() {
             if (this.isRecording) {
                 this.stopRecording();
@@ -234,6 +270,10 @@ module.exports = {
                     const data = await response.json();
                     this.transcriptionText = data.text || "";
                     this.progress = data.progress;
+                    // Update the local questions array so navigation picks up the saved answer
+                    if (this.questions[this.currentIndex]) {
+                        this.questions[this.currentIndex].answer = data.text || "";
+                    }
                 } else {
                     const error = await response.json();
                     console.error('Transcription failed:', error.detail);
@@ -264,6 +304,10 @@ module.exports = {
                 if (response.ok) {
                     const data = await response.json();
                     this.progress = data.progress;
+                    // Update local questions array so loadCurrentAnswer picks it up
+                    if (this.questions[this.currentIndex]) {
+                        this.questions[this.currentIndex].answer = this.textInput;
+                    }
                     this.$emit('settings-changed');
                 }
             } catch (error) {
@@ -287,6 +331,10 @@ module.exports = {
                 if (response.ok) {
                     const data = await response.json();
                     this.progress = data.progress;
+                    // Update local questions array
+                    if (this.questions[this.currentIndex]) {
+                        this.questions[this.currentIndex].answer = this.transcriptionText;
+                    }
                     this.textInput = this.transcriptionText;
                     this.transcriptionText = "";
                     this.$emit('settings-changed');
@@ -296,22 +344,32 @@ module.exports = {
             }
         },
 
-        // --- Navigation ---
-        previousQuestion() {
+        // --- Navigation (save before navigating) ---
+        async previousQuestion() {
+            await this.saveCurrentIfDirty();
             if (this.currentIndex > 0) {
                 this.currentIndex--;
             }
         },
 
-        nextQuestion() {
+        async nextQuestion() {
+            await this.saveCurrentIfDirty();
             if (this.currentIndex < this.questions.length - 1) {
                 this.currentIndex++;
             }
         },
 
-        skipQuestion() {
-            this.nextQuestion();
+        async skipQuestion() {
+            await this.saveCurrentIfDirty();
+            if (this.currentIndex < this.questions.length - 1) {
+                this.currentIndex++;
+            }
             this.refreshProgress();
+        },
+
+        async finishQuestions() {
+            await this.saveCurrentIfDirty();
+            this.showCompletion = true;
         },
 
         async generateBio() {
@@ -464,7 +522,7 @@ module.exports = {
     justify-content: center;
 }
 
-/* Navigation - space-between for easy targeting */
+/* Navigation */
 .navigation {
     display: flex;
     justify-content: space-between;
@@ -506,6 +564,17 @@ module.exports = {
     min-width: 120px;
 }
 
+.btn-finish {
+    background: var(--color-btn-primary, #216776);
+    color: white;
+    min-width: 120px;
+    font-weight: bold;
+}
+
+.btn-finish:hover {
+    background: var(--color-btn-rollover-primary, #2a8fa8);
+}
+
 /* Right column - textarea */
 .answer-textarea {
     width: 100%;
@@ -544,6 +613,11 @@ module.exports = {
     font-weight: bold;
 }
 
+.completion-info {
+    font-size: 1rem;
+    opacity: 0.7;
+}
+
 .btn-generate {
     padding: 1rem 2.5rem;
     font-size: 1.2rem;
@@ -565,6 +639,20 @@ module.exports = {
 .btn-generate:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+}
+
+.btn-back {
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--color-text, #333);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.btn-back:hover {
+    background: rgba(255, 255, 255, 0.2);
 }
 
 .bio-exists {
