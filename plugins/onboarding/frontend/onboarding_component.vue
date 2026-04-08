@@ -388,9 +388,9 @@ export default {
                     { label: "Manage quick access buttons", plugin: "shortcuts", icon: "" },
                 ],
                 "Context": [
+                    { label: "Record biography", plugin: "biorecorder", icon: "" },
                     { label: "Manage documents", plugin: "rag", icon: "" },
-                    { label: "Manage weather", plugin: "meteo", icon: "" },
-                    { label: "Record biography", plugin: "biorecorder", icon: "" }
+                    { label: "Manage weather", plugin: "meteo", icon: "" }
                 ],
                 "Speech Recognition": [
                     { label: "Configure recognition", plugin: "asrwhisper", icon: "" },
