@@ -2,7 +2,7 @@
     <div class="biorecorder-settings">
         <!-- Progress header -->
         <div class="progress-header">
-            <span class="progress-text">{{ progress.answered }} / {{ progress.total }}</span>
+            <span class="progress-text">{{ currentIndex + 1 }} / {{ progress.total }} &mdash; {{ progress.answered }} {{ t('answers recorded') }}</span>
             <div class="progress-bar">
                 <div class="progress-fill" :style="{ width: progressPercent + '%' }"></div>
             </div>
@@ -20,7 +20,7 @@
                 </div>
 
                 <!-- Voice recording: mic button matching asrjs style -->
-                <div class="voice-section" v-if="!isTranscribing && !transcriptionText">
+                <div class="voice-section" v-if="!isTranscribing">
                     <div class="mic clickable" :class="{ recording: isRecording }" @click="toggleRecording">
                         <img v-if="!isRecording" src="/img/mic.png" alt="Record">
                         <img v-else src="/img/stop.svg" alt="Stop">
@@ -36,17 +36,14 @@
                 <!-- Navigation -->
                 <div class="navigation">
                     <button class="btn btn-nav" @click="previousQuestion" :disabled="currentIndex === 0">
-                        <i class="ph-light ph-caret-left"></i>
+                        <svg class="icon icon-l"><use xlink:href="/img/svgdefs.svg#icon-chevron_left" /></svg>
                     </button>
-                    <button class="btn btn-nav btn-skip" @click="skipQuestion">
-                        {{ t('Skip') }}
-                    </button>
-                    <!-- On last question: show Finish button instead of disabled arrow -->
+                    <!-- On last question: show Finish button instead of next arrow -->
                     <button v-if="isLastQuestion" class="btn btn-finish" @click="finishQuestions">
                         {{ t('Finish') }}
                     </button>
                     <button v-else class="btn btn-nav" @click="nextQuestion">
-                        <i class="ph-light ph-caret-right"></i>
+                        <svg class="icon icon-l"><use xlink:href="/img/svgdefs.svg#icon-chevron_right" /></svg>
                     </button>
                 </div>
             </div>
@@ -95,7 +92,7 @@
 import BasePluginComponent from '/js/BasePluginComponent.js';
 
 module.exports = {
-    name: "biorecorder-settings",
+    name: "biorecorderSettings",
     mixins: [BasePluginComponent],
     data() {
         return {
@@ -119,7 +116,7 @@ module.exports = {
             return this.questions[this.currentIndex] || null;
         },
         progressPercent() {
-            return this.progress.total ? (this.progress.answered / this.progress.total) * 100 : 0;
+            return this.progress.total ? ((this.currentIndex + 1) / this.progress.total) * 100 : 0;
         },
         isLastQuestion() {
             return this.currentIndex >= this.questions.length - 1;
@@ -359,14 +356,6 @@ module.exports = {
             }
         },
 
-        async skipQuestion() {
-            await this.saveCurrentIfDirty();
-            if (this.currentIndex < this.questions.length - 1) {
-                this.currentIndex++;
-            }
-            this.refreshProgress();
-        },
-
         async finishQuestions() {
             await this.saveCurrentIfDirty();
             this.showCompletion = true;
@@ -448,6 +437,7 @@ module.exports = {
     text-align: left;
     display: flex;
     flex-direction: column;
+    min-width: 0;
 }
 
 /* Left column styles */
@@ -482,28 +472,30 @@ module.exports = {
     justify-content: center;
 }
 
-.mic {
-    width: 120px;
-    height: 120px;
+.mic.clickable {
+    width: 140px;
+    height: 140px;
     display: flex;
     justify-content: center;
     align-items: center;
     cursor: pointer;
     border-radius: 50%;
-    transition: background 0.2s ease;
+    border: none;
+    background-color: #2f535b !important;
+    transition: background-color 0.2s ease;
 }
 
 .mic.clickable:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background-color: #0095c0 !important;
 }
 
 .mic img {
-    max-height: 60px;
-    max-width: 60px;
+    max-height: 70px;
+    max-width: 70px;
 }
 
 .mic.recording {
-    background: rgba(220, 38, 38, 0.3);
+    background: #dc2626;
     animation: pulse 1s infinite;
 }
 
@@ -531,37 +523,29 @@ module.exports = {
 }
 
 .btn {
-    padding: 1rem 1.5rem;
-    font-size: 1.2rem;
+    padding: 2rem 2rem;
+    font-size: 1.4rem;
     font-weight: 500;
     border: none;
     border-radius: 8px;
     cursor: pointer;
     transition: all 0.2s ease;
-    min-width: 80px;
+    min-width: 140px;
+    min-height: 70px;
     display: flex;
     align-items: center;
     justify-content: center;
+    background-color: #2f535b !important;
+    color: white;
 }
 
-.btn-nav {
-    background: rgba(255, 255, 255, 0.1);
-    color: var(--color-text, #333);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.btn-nav:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.2);
+.btn:hover {
+    background-color: #0095c0 !important;
 }
 
 .btn-nav:disabled {
     opacity: 0.3;
     cursor: not-allowed;
-}
-
-.btn-skip {
-    background: rgba(255, 255, 255, 0.05);
-    min-width: 120px;
 }
 
 .btn-finish {
@@ -589,6 +573,13 @@ module.exports = {
     resize: vertical;
     font-family: inherit;
     line-height: 1.4;
+    box-sizing: border-box;
+    display: block;
+}
+
+.transcription-edit,
+.text-input {
+    max-width: 100%;
     box-sizing: border-box;
 }
 
