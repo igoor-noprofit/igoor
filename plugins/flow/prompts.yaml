@@ -136,6 +136,12 @@ flow:
 
     ---
     <dynamic_context>
+    Previous conversations:
+
+    {last_conversations}
+    
+    ---
+
     To answer, you can use the informations about {bio_name}'s life uploaded by {bio_name}:
 
     {static_context}
@@ -151,6 +157,7 @@ flow:
     {short_term}
 
     ---
+    
     If needed, also use the following dynamic context info.
     IMPORTANT: If an interlocutor is identified (speaker_info), address them by their first name and adapt
     your speech to the interlocutor, especially when greeting them.
@@ -158,9 +165,7 @@ flow:
     {dynamic_context}
 
     ---
-    Previous conversations:
-
-    {last_conversations}
+    
     </dynamic_context>
 
     You are {bio_name}'s voice (R). Your goal is to provide the next possible lines for {bio_name} to say to the speaker (Q).
