@@ -1,0 +1,388 @@
+{
+  "Identity": [
+    {
+      "text": "What is your first name?",
+      "mandatory": true,
+      "instructions": "Do not enter your last name here"
+    },
+    {
+      "text": "Your place and year of birth",
+      "mandatory": true,
+      "instructions": ""
+    },
+    {
+      "text": "Where do you currently live?",
+      "mandatory": true,
+      "instructions": ""
+    },
+    {
+      "text": "Can you describe your home in a few words?",
+      "mandatory": false,
+      "instructions": ""
+    }
+  ],
+  "Family": [
+    {
+      "text": "Are you married, in a civil partnership, or living together? What is your partner's name?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Do you have children? Can you give us their names and ages?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Do you have brothers and sisters? What are their names?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Are there other family members who have special importance to you?",
+      "mandatory": false,
+      "instructions": ""
+    }
+  ],
+  "Friends and social networks": [
+    {
+      "text": "Who are your closest friends?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Can you tell me about a long-time friend and your relationship?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Are there different groups of friends in your life?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Are there friends or people close to you who particularly support you day to day?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Are there people who have drifted away from you in recent years?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Do you have other social networks that matter to you? (association, club, people you met on social media…)",
+      "mandatory": false,
+      "instructions": ""
+    }
+  ],
+  "Routine and daily life": [
+    {
+      "text": "What does a typical day look like for you?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Are you more of a morning person or an evening person?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "What puts you in a good mood in the morning?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Do you have rituals or habits that give rhythm to your day?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "What is your favorite spot at home?",
+      "mandatory": false,
+      "instructions": ""
+    }
+  ],
+  "Food and pleasures": [
+    {
+      "text": "Do you have any food allergies or intolerances?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "What are your favorite dishes or cuisines?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "What are your favorite beverages?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Are there foods that you absolutely dislike?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Do you enjoy cooking, or do you have a favorite recipe?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Do you have a guilty pleasure food?",
+      "mandatory": false,
+      "instructions": ""
+    }
+  ],
+  "Hobbies and entertainment": [
+    {
+      "text": "What TV shows or series are you watching right now?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Do you enjoy games (board games, video games, crosswords, sudoku…)?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Do you follow a sport or a particular team?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Do you use social media? Which ones?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Do you have a podcast, YouTube channel, or radio show you enjoy listening to?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Is there something you are passionate about right now?",
+      "mandatory": false,
+      "instructions": ""
+    }
+  ],
+  "Animals and nature": [
+    {
+      "text": "Do you have a pet? What is its name?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Do you enjoy nature? Is there a landscape or natural place that is dear to you?",
+      "mandatory": false,
+      "instructions": ""
+    }
+  ],
+  "Travel and places": [
+    {
+      "text": "Is there a trip or a place that has particularly marked you?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "If you could be anywhere in the world right now, where would you be?",
+      "mandatory": false,
+      "instructions": ""
+    }
+  ],
+  "Personality and character traits": [
+    {
+      "text": "How would you describe your personality in a few words?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "How do you react to difficulties or obstacles?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Do you use humor or irony in your way of communicating?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "What makes you laugh?",
+      "mandatory": false,
+      "instructions": ""
+    }
+  ],
+  "Style and appearance": [
+    {
+      "text": "If you had to describe yourself physically to someone who has never seen you, what would you say?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "How would you describe your usual clothing style (e.g. classic, casual, original, elegant…)?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Do you have accessories (jewelry, scarves, hats, watches) that you like to wear? Do they have a special story?",
+      "mandatory": false,
+      "instructions": ""
+    }
+  ],
+  "Communication preferences": [
+    {
+      "text": "What topics do you most enjoy talking about?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Are there subjects you prefer to avoid?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "How do you like to be addressed (formal, informal, nickname…)?",
+      "mandatory": false,
+      "instructions": ""
+    }
+  ],
+  "Professional background": [
+    {
+      "text": "What is or has been your main profession?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Can you tell me about professional projects that you are particularly proud of?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "How has your career evolved over the years?",
+      "mandatory": false,
+      "instructions": ""
+    }
+  ],
+  "Artistic and cultural tastes": [
+    {
+      "text": "What music do you listen to when you want to relax?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "What are your favorite films or directors?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Do you like to read? Who are your favorite authors or literary genres?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Do you have personal artistic passions or do you practice an art form?",
+      "mandatory": false,
+      "instructions": ""
+    }
+  ],
+  "Opinions and values": [
+    {
+      "text": "What are your main values in life?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Are there causes or social issues that are particularly important to you?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "How do you envision the future?",
+      "mandatory": false,
+      "instructions": ""
+    }
+  ],
+  "Experience with illness": [
+    {
+      "text": "Could you describe how you reacted when you received your diagnosis?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "What has been the most difficult thing to accept about your condition?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Has your health situation changed your perspective on life? If so, could you say how?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "What advice would you give to someone going through a similar situation?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Are there positive aspects that you have gained from this experience?",
+      "mandatory": false,
+      "instructions": ""
+    }
+  ],
+  "Equipment and adaptations": [
+    {
+      "text": "What equipment or assistive devices do you use on a daily basis?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Is there a piece of equipment that has particularly improved your quality of life?",
+      "mandatory": false,
+      "instructions": ""
+    }
+  ],
+  "Personal history and memories": [
+    {
+      "text": "Can you share a childhood memory that marked you?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Can you mention a decisive moment or a turning point in your life?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Is there a period of your life that you consider the happiest?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "If you had to summarize your life journey so far in a few sentences, what would you say?",
+      "mandatory": false,
+      "instructions": ""
+    }
+  ],
+  "Aspirations": [
+    {
+      "text": "What are your current hopes or goals?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "What would you like others to say about you in the future?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Are there particular messages you would like to communicate to your loved ones?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "How would you like your personal story to influence others?",
+      "mandatory": false,
+      "instructions": ""
+    }
+  ]
+}

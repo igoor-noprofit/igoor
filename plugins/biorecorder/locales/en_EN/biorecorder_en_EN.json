@@ -1,0 +1,37 @@
+{
+  "progress": "Progress",
+  "of": "of",
+  "previous": "PREVIOUS",
+  "next": "NEXT",
+  "skip": "SKIP",
+  "save_answer": "SAVE ANSWER",
+  "save_transcription": "SAVE TRANSCRIPTION",
+  "type_answer": "Type your answer here...",
+  "edit_transcription": "Edit transcription if needed...",
+  "transcribing": "Transcribing...",
+  "recording": "Recording...",
+  "ready_to_record": "Ready to record",
+  "generate_biography": "GENERATE BIOGRAPHY",
+  "generating": "Generating your biography... This may take a minute.",
+  "all_questions_answered": "All questions answered!",
+  "or": "OR",
+  "voice": "Voice",
+  "text": "Text",
+  "complete_biography": "Complete Biography",
+  "bio_complete": "Biography complete",
+  "bio_not_started": "Start your biography"
+  "resume_biography": "Resume biography"
+  "questions_remaining": "{count} questions remaining"
+  "category_identity": "Identity",
+  "category_family": "Family",
+  "category_friends": "Friends & Social Networks",
+  "category_health": "Health & Daily Life",
+  "category_personality": "Personality",
+  "category_style": "Style & Appearance",
+  "category_professional": "Professional Background",
+  "category_artistic": "Artistic & Cultural Tastes",
+  "category_opinions": "Opinions & Values",
+  "category_illness": "Experience with Illness",
+  "category_memories": "Personal History & Memories",
+  "category_aspirations": "Aspirations"
+}
