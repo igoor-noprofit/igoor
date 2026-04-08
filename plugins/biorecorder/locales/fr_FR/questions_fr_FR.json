@@ -1,11 +1,6 @@
 {
   "Identité": [
     {
-      "text": "Quel est votre prénom ?",
-      "mandatory": true,
-      "instructions": "Ne rentrez pas votre nom de famille ici"
-    },
-    {
       "text": "Votre lieu et votre année de naissance",
       "mandatory": true,
       "instructions": ""

@@ -1,11 +1,6 @@
 {
   "Identità": [
     {
-      "text": "Come ti chiami?",
-      "mandatory": true,
-      "instructions": "Non inserire il tuo cognome qui"
-    },
-    {
       "text": "Il tuo luogo e anno di nascita",
       "mandatory": true,
       "instructions": ""

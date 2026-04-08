@@ -1,11 +1,6 @@
 {
   "Identity": [
     {
-      "text": "What is your first name?",
-      "mandatory": true,
-      "instructions": "Do not enter your last name here"
-    },
-    {
       "text": "Your place and year of birth",
       "mandatory": true,
       "instructions": ""
