@@ -381,6 +381,12 @@ class Biorecorder(Baseplugin):
         api_key = ai.get("api_key")
         model_name = ai.get("model_name")
 
+        # Override model with biorecorder-specific setting if available
+        bio_settings = self.settings_manager.get_plugin_settings("biorecorder")
+        if bio_settings and bio_settings.get("model_name"):
+            model_name = bio_settings["model_name"]
+            self.logger.info(f"Using biorecorder-specific model: {model_name}")
+
         if not all([provider, api_key, model_name]):
             raise Exception("AI settings not configured in onboarding")
 

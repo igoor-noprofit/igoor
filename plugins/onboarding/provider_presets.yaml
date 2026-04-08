@@ -9,6 +9,8 @@ groq:
     model_name: "openai/gpt-oss-120b"
   autocomplete:
     model_name: "openai/gpt-oss-20b"
+  biorecorder:
+    model_name: "openai/gpt-oss-120b"
 
 cerebras:
   flow:
@@ -17,6 +19,8 @@ cerebras:
     model_name: "gpt-oss-120b"
   autocomplete:
     model_name: "llama3.1-8b"
+  biorecorder:
+    model_name: "openai/gpt-oss-120b"
 
 mistral:
   flow:
@@ -25,6 +29,8 @@ mistral:
     model_name: "mistral-large-latest"
   autocomplete:
     model_name: "mistral-small-latest"
+  biorecorder:
+    model_name: "mistral-large-latest"
 
 openai:
   flow:
@@ -33,19 +39,5 @@ openai:
     model_name: "gpt-4o"
   autocomplete:
     model_name: "gpt-4o-mini"
-
-ollama:
-  flow:
-    preflow_model_name: "llama3.1:8b"
-  memory:
-    model_name: "llama3.1:8b"
-  autocomplete:
-    model_name: "llama3.1:8b"
-
-ollama-cloud:
-  flow:
-    preflow_model_name: "gpt-oss:20b-cloud"
-  memory:
-    model_name: "gpt-oss:120b-cloud"
-  autocomplete:
-    model_name: "gpt-oss:20b-cloud"
+  biorecorder:
+    model_name: "gpt-4o"
