@@ -128,10 +128,14 @@ module.exports = {
     async mounted() {
         if (this.allowVirtualKeyboard){
             await this.loadDictionary();
-        }  
+        }
         else{
             this.isLoading=false;
         }
+        this.$nextTick(() => {
+            this.$refs.autocompleteInput.focus();
+            this.$_focusInput();
+        });
     },
     methods: {
         $_showKeyboard() {

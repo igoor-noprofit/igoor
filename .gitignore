@@ -9,6 +9,8 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+.playwright-mcp/
+
 .github_token.txt
 test_elevenlabstts.py
 # C extensions
