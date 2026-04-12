@@ -145,7 +145,7 @@ module.exports = {
             return this.currentIndex >= this.questions.length - 1;
         },
         showBioEditor() {
-            return this.bioExists && !this.showCompletion;
+            return this.bioExists;
         }
     },
     watch: {
