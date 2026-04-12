@@ -167,6 +167,10 @@ class Biorecorder(Baseplugin):
         async def get_bio():
             return await self._get_bio_content()
 
+        @self.router.post("/update_bio")
+        async def update_bio(data: dict):
+            return await self._update_bio_content(data)
+
         @self.router.post("/reset")
         async def reset_biography():
             return await self._reset_biography()
@@ -278,6 +282,21 @@ class Biorecorder(Baseplugin):
             return {"exists": True, "content": bio_path.read_text(encoding='utf-8')}
         return {"exists": False, "content": ""}
 
+    async def _update_bio_content(self, data: dict) -> Dict:
+        """Update the bio document with edited content from the frontend"""
+        content = data.get("content", "").strip()
+        if not content:
+            raise HTTPException(status_code=400, detail="Content cannot be empty")
+
+        bio_path = Path(self.plugin_folder) / "bio.md"
+        try:
+            bio_path.write_text(content, encoding='utf-8')
+            self.logger.info("Bio content updated via editor")
+            return {"status": "updated", "message": "Biography updated successfully"}
+        except Exception as e:
+            self.logger.error(f"Error updating bio content: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
     async def _reset_biography(self) -> Dict:
         """Reset all biography data"""
         try:
@@ -365,9 +384,31 @@ class Biorecorder(Baseplugin):
             self.logger.error(f"Error saving audio to recorder: {e}")
             return None
 
+    def _validate_llm_result(self, result, step_name: str) -> str:
+        """Extract text from LLM result and validate it's non-empty. Returns the text."""
+        text = result.content.strip() if hasattr(result, 'content') else str(result).strip()
+        if not text:
+            raise ValueError(f"{step_name} returned empty content")
+        return text
+
+    async def _run_llm_step_with_retry(self, llm, system_prompt: str, user_prompt: str, step_name: str, loop) -> str:
+        """Run a single LLM step with one retry on empty result."""
+        result = await loop.run_in_executor(
+            None, llm.invoke, system_prompt, user_prompt
+        )
+        try:
+            return self._validate_llm_result(result, step_name)
+        except ValueError:
+            self.logger.warning(f"{step_name} returned empty, retrying once...")
+            result = await loop.run_in_executor(
+                None, llm.invoke, system_prompt, user_prompt
+            )
+            return self._validate_llm_result(result, step_name)
+
     async def _run_bio_generation(self) -> Dict:
-        """Run the 4-step LLM process"""
+        """Run the 5-step LLM process with validation at each step"""
         import asyncio
+        import json as json_module
         from llm_manager import LLMManager
 
         loop = asyncio.get_event_loop()
@@ -402,57 +443,118 @@ class Biorecorder(Baseplugin):
         llm = LLMManager(provider, api_key, model_name, temperature=0.3)
 
         # Step 1: 3rd person narrative
-        self.logger.info("Step 1/4: Converting to narrative...")
-        narrative = await loop.run_in_executor(
-            None, llm.invoke, prompts.get("narrative_conversion", {}).get("system", ""),
-            f"Name: {bio_name}\n\n{answers_text}"
+        self.logger.info("Step 1/5: Converting to narrative...")
+        narrative_text = await self._run_llm_step_with_retry(
+            llm,
+            prompts.get("narrative_conversion", {}).get("system", ""),
+            f"Name: {bio_name}\n\n{answers_text}",
+            "Step 1 (narrative_conversion)",
+            loop
         )
-        narrative_text = narrative.content if hasattr(narrative, 'content') else str(narrative)
 
         # Step 2: Structure into chapters
-        self.logger.info("Step 2/4: Structuring into chapters...")
-        structured = await loop.run_in_executor(
-            None, llm.invoke, prompts.get("chapter_structure", {}).get("system", ""),
-            narrative_text
+        self.logger.info("Step 2/5: Structuring into chapters...")
+        structured_text = await self._run_llm_step_with_retry(
+            llm,
+            prompts.get("chapter_structure", {}).get("system", ""),
+            narrative_text,
+            "Step 2 (chapter_structure)",
+            loop
         )
-        structured_text = structured.content if hasattr(structured, 'content') else str(structured)
 
-        # Step 3: Verify completeness
-        self.logger.info("Step 3/4: Verifying completeness...")
-        verified = await loop.run_in_executor(
-            None, llm.invoke, prompts.get("verification", {}).get("system", ""),
-            f"Original:\n{answers_text}\n\nStructured:\n{structured_text}"
-        )
-        bio_content = verified.content if hasattr(verified, 'content') else str(verified)
+        # Step 3+4: Verify completeness + completeness check (with retry loop)
+        max_completeness_retries = 3
+        bio_content = None
 
-        # Save bio.md
+        for attempt in range(1, max_completeness_retries + 1):
+            # Step 3: Verify completeness
+            self.logger.info(f"Step 3/5: Verifying completeness (attempt {attempt}/{max_completeness_retries})...")
+            bio_content = await self._run_llm_step_with_retry(
+                llm,
+                prompts.get("verification", {}).get("system", ""),
+                f"Original:\n{answers_text}\n\nStructured:\n{structured_text}",
+                f"Step 3 (verification, attempt {attempt})",
+                loop
+            )
+
+            # Step 4: Completeness check (LLM validates all info is present)
+            self.logger.info(f"Step 4/5: Checking document completeness (attempt {attempt}/{max_completeness_retries})...")
+            completeness_prompt = prompts.get("completeness_check", {}).get("system", "")
+            completeness_result = await loop.run_in_executor(
+                None, llm.invoke, completeness_prompt,
+                f"ANSWERS:\n{answers_text}\n\nDOCUMENT:\n{bio_content}"
+            )
+            completeness_raw = completeness_result.content if hasattr(completeness_result, 'content') else str(completeness_result)
+
+            # Parse the JSON response
+            try:
+                json_str = completeness_raw.strip()
+                if "```json" in json_str:
+                    json_str = json_str.split("```json")[1].split("```")[0].strip()
+                elif "```" in json_str:
+                    json_str = json_str.split("```")[1].split("```")[0].strip()
+                completeness_data = json_module.loads(json_str)
+            except (json_module.JSONDecodeError, IndexError) as e:
+                self.logger.warning(f"Could not parse completeness check JSON: {e}. Raw: {completeness_raw[:200]}")
+                completeness_data = {"is_complete": False, "missing_topics": ["Completeness check could not be parsed"]}
+
+            if completeness_data.get("is_complete", False):
+                self.logger.info(f"Step 4/5 complete: Document is complete (attempt {attempt}).")
+                break
+
+            missing = completeness_data.get("missing_topics", [])
+            self.logger.warning(f"Completeness check failed (attempt {attempt}/{max_completeness_retries}). Missing: {missing}")
+
+            if attempt == max_completeness_retries:
+                self.logger.error(f"Completeness check failed after {max_completeness_retries} attempts. Missing topics: {missing}")
+                raise Exception(
+                    f"Biography is incomplete after {max_completeness_retries} attempts. "
+                    f"Missing information about: {', '.join(missing[:10])}. "
+                    "Please try generating again."
+                )
+
+            # Feed missing info hint into next verification attempt
+            structured_text = (
+                f"{structured_text}\n\n"
+                f"NOTE: The following information was missing and MUST be included: "
+                f"{'; '.join(missing[:10])}"
+            )
+       
+
+        # Save bio.md (only after all checks pass)
         bio_path = Path(self.plugin_folder) / "bio.md"
         bio_path.write_text(bio_content, encoding='utf-8')
-        self.logger.info(f"Step 3/4 complete. Bio saved to {bio_path}")
+        self.logger.info(f"Bio saved to {bio_path}")
 
-        # Step 4: Extract and merge style
-        self.logger.info("Step 4/4: Extracting style...")
-        style_result = await loop.run_in_executor(
-            None, llm.invoke, prompts.get("style_extraction", {}).get("system", ""),
-            answers_text
-        )
-        new_style = style_result.content.strip() if hasattr(style_result, 'content') else str(style_result).strip()
+        # Step 5: Extract and merge style
+        self.logger.info("Step 5/5: Extracting style...")
+        try:
+            new_style = await self._run_llm_step_with_retry(
+                llm,
+                prompts.get("style_extraction", {}).get("system", ""),
+                answers_text,
+                "Step 5 (style_extraction)",
+                loop
+            )
 
-        # Merge with existing style
-        existing_style = bio.get("style", "")
-        if new_style:
-            merged_style = f"{existing_style}\n{new_style}" if existing_style else new_style
+            # Merge with existing style
+            existing_style = bio.get("style", "")
+            if new_style:
+                merged_style = f"{existing_style}\n{new_style}" if existing_style else new_style
 
-            # Update only the style field in onboarding bio, preserving name/health_state/etc.
-            current_bio = self.settings_manager.get_nested(["plugins", "onboarding", "bio"], default={})
-            current_bio["style"] = merged_style
-            self.settings_manager.update_plugin_settings("onboarding", {
-                "bio": current_bio
-            }, self.pm)
-            self.logger.info("Style updated in onboarding settings")
+                # Update only the style field in onboarding bio, preserving name/health_state/etc.
+                current_bio = self.settings_manager.get_nested(["plugins", "onboarding", "bio"], default={})
+                current_bio["style"] = merged_style
+                self.settings_manager.update_plugin_settings("onboarding", {
+                    "bio": current_bio
+                }, self.pm)
+                self.logger.info("Style updated in onboarding settings")
+        except Exception as e:
+            self.logger.warning(f"Style extraction failed (non-critical): {e}")
+            # Style extraction failure should not prevent the bio from being marked as generated
 
         return {
             "status": "complete",
             "bio_file": str(bio_path),
-            "style_updated": bool(new_style)
+            "style_updated": True
         }

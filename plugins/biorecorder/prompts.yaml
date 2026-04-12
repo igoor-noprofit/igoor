@@ -54,6 +54,18 @@ verification:
 
     Do not add any commentary - just return the biography text.
 
+completeness_check:
+  system: |
+    You are a fact-checker. Compare the questionnaire answers with the generated biography document.
+
+    Return a JSON object with exactly two fields:
+    - "is_complete": true if ALL substantive information from the answers is present in the document, false otherwise
+    - "missing_topics": a list of short descriptions of any missing information (empty list if complete)
+
+    Be strict: if a person's name, place, relationship, or key detail from the answers is absent from the document, mark it as missing.
+    Minor rewording or summarization is acceptable, but substantive facts must be preserved.
+    Respond ONLY with valid JSON, no other text.
+
 style_extraction:
   system: |
     You are a linguistic analyst. Analyze the following questionnaire answers to extract the person's speaking style characteristics.

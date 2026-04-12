@@ -1,7 +1,7 @@
 <template>
     <div class="biorecorder-settings">
         <!-- Progress header -->
-        <div class="progress-header">
+        <div class="progress-header" v-if="!showBioEditor">
             <span class="progress-text">{{ currentIndex + 1 }} / {{ progress.total }} &mdash; {{ progress.answered }} {{ t('answers recorded') }}</span>
             <div class="progress-bar">
                 <div class="progress-fill" :style="{ width: progressPercent + '%' }"></div>
@@ -9,7 +9,7 @@
         </div>
 
         <!-- Question container (two-column layout) -->
-        <div class="question-container" v-if="currentQuestion && !showCompletion">
+        <div class="question-container" v-if="currentQuestion && !showCompletion && !showBioEditor">
 
             <!-- LEFT COLUMN: Question + Voice recording + Navigation -->
             <div class="left">
@@ -67,7 +67,7 @@
         </div>
 
         <!-- Completion screen -->
-        <div class="completion-container" v-if="showCompletion">
+        <div class="completion-container" v-if="showCompletion && !showBioEditor">
             <div class="completion-message">{{ t('Recording complete!') }}</div>
             <div class="completion-info">{{ progress.answered }} {{ t('answers recorded') }}</div>
             <button class="btn btn-generate" @click="generateBio" :disabled="isGenerating || progress.answered === 0">
@@ -82,6 +82,27 @@
             <div v-if="bioExists" class="bio-exists">
                 <i class="ph-light ph-check-circle"></i>
                 <span>{{ t('Biography generated successfully!') }}</span>
+            </div>
+        </div>
+
+        <!-- Bio Editor (shown when biography has been generated) -->
+        <div class="bio-editor-container" v-if="showBioEditor">
+            <textarea
+                v-model="bioContent"
+                class="bio-textarea"
+                :placeholder="t('Loading document...')"
+            ></textarea>
+            <div class="bio-editor-actions">
+                <button class="btn btn-save" @click="saveBioContent" :disabled="isSaving">
+                    <span v-if="isSaving"><i class="ph-light ph-spinner ph-spin"></i> {{ t('Saving...') }}</span>
+                    <span v-else><i class="ph-light ph-floppy-disk"></i> {{ t('Save') }}</span>
+                </button>
+                <button class="btn btn-regenerate" @click="confirmRegenerate">
+                    <i class="ph-light ph-arrows-clockwise"></i> {{ t('Regenerate') }}
+                </button>
+                <span v-if="saveConfirmation" class="save-confirmation">
+                    <i class="ph-light ph-check-circle"></i> {{ t('Saved!') }}
+                </span>
             </div>
         </div>
     </div>
@@ -107,7 +128,10 @@ module.exports = {
             showCompletion: false,
             mediaRecorder: null,
             audioChunks: [],
-            recordedBlob: null
+            recordedBlob: null,
+            bioContent: "",
+            isSaving: false,
+            saveConfirmation: false
         };
     },
     computed: {
@@ -119,6 +143,9 @@ module.exports = {
         },
         isLastQuestion() {
             return this.currentIndex >= this.questions.length - 1;
+        },
+        showBioEditor() {
+            return this.bioExists && !this.showCompletion;
         }
     },
     watch: {
@@ -179,6 +206,9 @@ module.exports = {
                 if (response.ok) {
                     const data = await response.json();
                     this.bioExists = data.exists;
+                    if (data.exists) {
+                        this.bioContent = data.content || "";
+                    }
                 }
             } catch (error) {
                 console.error('Error checking bio:', error);
@@ -369,7 +399,7 @@ module.exports = {
                 });
 
                 if (response.ok) {
-                    this.bioExists = true;
+                    await this.checkBioExists();
                     this.$emit('settings-changed');
                 } else {
                     const error = await response.json();
@@ -380,6 +410,41 @@ module.exports = {
                 alert('Failed to generate biography');
             } finally {
                 this.isGenerating = false;
+            }
+        },
+
+        async saveBioContent() {
+            if (!this.bioContent.trim()) return;
+            this.isSaving = true;
+
+            try {
+                const response = await fetch('/api/plugins/biorecorder/update_bio', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ content: this.bioContent })
+                });
+
+                if (response.ok) {
+                    this.saveConfirmation = true;
+                    setTimeout(() => { this.saveConfirmation = false; }, 2000);
+                } else {
+                    const error = await response.json();
+                    alert(error.detail || 'Save failed');
+                }
+            } catch (error) {
+                console.error('Error saving bio:', error);
+                alert('Failed to save biography');
+            } finally {
+                this.isSaving = false;
+            }
+        },
+
+        confirmRegenerate() {
+            const msg = this.t('Regenerate the biography? This will overwrite the current document.');
+            if (confirm(msg)) {
+                this.bioExists = false;
+                this.bioContent = "";
+                this.showCompletion = true;
             }
         }
     }
@@ -658,5 +723,104 @@ textarea.answer-textarea {
     gap: 0.5rem;
     color: var(--color-accent, #34d399);
     font-size: 1rem;
+}
+
+/* Bio editor */
+.bio-editor-container {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+}
+
+.bio-editor-actions {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    margin-top: 0.75rem;
+}
+
+.bio-textarea {
+    width: 100%;
+    flex: 1;
+    min-height: 300px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    padding: 1rem;
+    color: inherit;
+    font-size: 1rem;
+    resize: vertical;
+    font-family: inherit;
+    line-height: 1.6;
+    box-sizing: border-box;
+}
+
+.bio-textarea:focus {
+    outline: none;
+    border-color: var(--color-btn-primary, #216776);
+}
+
+.btn-save {
+    background: var(--color-btn-primary, #216776) !important;
+    color: white;
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+    font-weight: bold;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-height: 50px;
+    min-width: 100px;
+    justify-content: center;
+}
+
+.btn-save:hover:not(:disabled) {
+    background: var(--color-btn-rollover-primary, #2a8fa8) !important;
+}
+
+.btn-save:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn-regenerate {
+    background: rgba(255, 255, 255, 0.1) !important;
+    color: white;
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-height: 50px;
+    min-width: 100px;
+    justify-content: center;
+}
+
+.btn-regenerate:hover {
+    background: rgba(255, 255, 255, 0.2) !important;
+}
+
+.save-confirmation {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--color-accent, #34d399);
+    font-size: 0.95rem;
+    margin-top: 0.5rem;
+    animation: fadeInOut 2s ease;
+}
+
+@keyframes fadeInOut {
+    0% { opacity: 0; }
+    20% { opacity: 1; }
+    80% { opacity: 1; }
+    100% { opacity: 0; }
 }
 </style>

@@ -40,5 +40,11 @@
   "category_opinions": "Opinioni e valori",
   "category_illness": "Esperienza della malattia",
   "category_memories": "Storia personale e ricordi",
-  "category_aspirations": "Aspirazioni"
+  "category_aspirations": "Aspirazioni",
+  "Save": "Salva",
+  "Saving...": "Salvataggio...",
+  "Regenerate": "Rigenera",
+  "Saved!": "Salvato!",
+  "Loading document...": "Caricamento del documento...",
+  "Regenerate the biography? This will overwrite the current document.": "Rigenerare la biografia? Questo sovrascriverà il documento attuale."
 }
