@@ -35,5 +35,12 @@
     "Young adult": "Jeune adulte",
     "Teen": "Adolescent",
     "Personal": "Personnelle",
-    "Shared": "Partagée"
+    "Shared": "Partagée",
+    "Use recorded voice": "Utiliser la voix enregistrée",
+    "Upload audio to clone voice": "Importer un audio pour cloner la voix",
+    "Cloning...": "Clonage...",
+    "Voice cloned successfully": "Voix clonée avec succès",
+    "Failed to clone voice": "Échec du clonage de la voix",
+    "No recorded voice available": "Aucune voix enregistrée disponible",
+    "Use your biorecorder voice samples to clone your voice": "Utiliser vos enregistrements vocaux du biorecorder pour cloner votre voix"
 }

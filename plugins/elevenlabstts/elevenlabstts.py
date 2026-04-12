@@ -7,7 +7,9 @@ from typing import Any, Dict
 from settings_manager import SettingsManager
 import asyncio
 import json
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, UploadFile, File
+from fastapi.responses import JSONResponse
+from fastapi import Form
 import sounddevice as sd
 import numpy as np
 
@@ -118,6 +120,14 @@ class Elevenlabstts(Baseplugin):
                 }
             except Exception as e:
                 raise HTTPException(status_code=400, detail=f"Failed to test voice: {str(e)}")
+
+        @self.router.post("/clone_voice")
+        async def clone_voice(
+            audio_file: UploadFile = File(...),
+            name: str = Form("My Voice Clone"),
+        ):
+            """Clone a voice from an audio file using ElevenLabs instant voice cloning"""
+            return await self._clone_voice(audio_file, name)
                 
     @hookimpl
     def startup(self):
@@ -339,6 +349,43 @@ class Elevenlabstts(Baseplugin):
         except Exception as e:
             print(f"Error in test speak: {e}")
             self.send_error_to_frontend(f"Test failed: {str(e)}")
+
+    async def _clone_voice(self, audio_file: UploadFile, name: str) -> Dict:
+        """Clone a voice from an audio file using ElevenLabs IVC"""
+        from io import BytesIO
+
+        try:
+            api_key = self.settings.get("api_key")
+            if not api_key:
+                raise HTTPException(status_code=400, detail="ElevenLabs API key not configured")
+
+            audio_bytes = await audio_file.read()
+            if not audio_bytes:
+                raise HTTPException(status_code=400, detail="Empty audio file")
+
+            client = self.createClient(api_key)
+
+            voice = client.voices.ivc.create(
+                name=name,
+                files=[BytesIO(audio_bytes)],
+                remove_background_noise=True,
+            )
+
+            voice_id = voice.voice_id
+            self.logger.info(f"Voice cloned successfully: {name} (voice_id={voice_id})")
+
+            # Update settings with the cloned voice
+            self.settings["voice_id"] = voice_id
+            self.voice_id = voice_id
+            self.settings_manager.update_plugin_settings("elevenlabstts", self.settings, self.pm)
+
+            return {"voice_id": voice_id, "status": "created", "name": name}
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            self.logger.error(f"Error cloning voice: {e}")
+            raise HTTPException(status_code=500, detail=f"Failed to clone voice: {str(e)}")
     
 
         

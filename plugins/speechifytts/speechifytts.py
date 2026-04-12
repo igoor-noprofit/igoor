@@ -1,7 +1,9 @@
 from plugin_manager import hookimpl, PluginManager
 from plugins.baseplugin.baseplugin import Baseplugin
 from settings_manager import SettingsManager
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, UploadFile, File
+from fastapi.responses import JSONResponse
+from fastapi import Form
 import asyncio
 import os
 from speechify import Speechify
@@ -65,6 +67,15 @@ class Speechifytts(Baseplugin):
                 }
             except Exception as e:
                 raise HTTPException(status_code=400, detail=f"Failed to get voices: {str(e)}")
+
+        @self.router.post("/clone_voice")
+        async def clone_voice(
+            audio_file: UploadFile = File(...),
+            name: str = Form("My Voice Clone"),
+            gender: str = Form("notSpecified"),
+        ):
+            """Clone a voice from an audio file using Speechify voice cloning"""
+            return await self._clone_voice(audio_file, name, gender)
                 
     @hookimpl
     def startup(self):
@@ -155,6 +166,56 @@ class Speechifytts(Baseplugin):
         print ("SSML:", ssml)
         asyncio.create_task(self.call_speechify(input=ssml, voice_id=voice_id, language=self.lang_code, model="simba-multilingual"))
     
+    async def _clone_voice(self, audio_file: UploadFile, name: str, gender: str) -> Dict:
+        """Clone a voice from an audio file using Speechify voice cloning"""
+        from io import BytesIO
+        import json as json_module
+
+        try:
+            api_key = self.settings.get("api_key")
+            if not api_key:
+                raise HTTPException(status_code=400, detail="Speechify API key not configured")
+
+            audio_bytes = await audio_file.read()
+            if not audio_bytes:
+                raise HTTPException(status_code=400, detail="Empty audio file")
+
+            # Get user name from onboarding bio for consent
+            bio = self.settings_manager.get_bio()
+            user_name = bio.get("name", "Biorecorder User")
+
+            client = self.client
+            if not client:
+                client = Speechify(token=api_key)
+
+            consent_json = json_module.dumps({
+                "fullName": user_name,
+                "email": "user@igoor.local"
+            })
+
+            voice = client.tts.voices.create(
+                name=name,
+                gender=gender,
+                sample=BytesIO(audio_bytes),
+                consent=consent_json,
+            )
+
+            voice_id = voice.id
+            self.logger.info(f"Voice cloned successfully: {name} (voice_id={voice_id})")
+
+            # Update settings with the cloned voice
+            self.settings["voice_id"] = voice_id
+            self.voice_id = voice_id
+            self.settings_manager.update_plugin_settings("speechifytts", self.settings, self.pm)
+
+            return {"voice_id": voice_id, "status": "created", "name": name}
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            self.logger.error(f"Error cloning voice: {e}")
+            raise HTTPException(status_code=500, detail=f"Failed to clone voice: {str(e)}")
+
     def get_voices_list(self, api_key_override=None):
         try:
             client = getattr(self, 'client', None)

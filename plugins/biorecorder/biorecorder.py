@@ -10,7 +10,7 @@ from datetime import datetime
 from typing import Optional, Dict, Any, List
 
 from fastapi import APIRouter, HTTPException, UploadFile, File
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 
 from version import __appname__
 from plugins.baseplugin.baseplugin import Baseplugin
@@ -175,6 +175,18 @@ class Biorecorder(Baseplugin):
         async def reset_biography():
             return await self._reset_biography()
 
+        @self.router.get("/voice_sample")
+        async def get_voice_sample():
+            return self._get_voice_sample_info()
+
+        @self.router.get("/voice_sample/file")
+        async def get_voice_sample_file():
+            return await self._get_voice_sample_file()
+
+        @self.router.delete("/voice_sample")
+        async def delete_voice_sample():
+            return await self._delete_voice_sample()
+
     async def _get_data(self) -> Dict:
         result = []
         for i in range(len(self.questions)):
@@ -231,7 +243,7 @@ class Biorecorder(Baseplugin):
             text = await self._transcribe_audio(temp_path)
 
             # Save audio via recorder plugin
-            audio_id = await self._save_audio_to_recorder(temp_path)
+            audio_result = await self._save_audio_to_recorder(temp_path)
 
             # Clean up temp file
             try:
@@ -241,17 +253,18 @@ class Biorecorder(Baseplugin):
 
             # Save answer
             q = self.questions[index]
+            audio_file_ref = audio_result.get("filename") if audio_result else None
             self.answers[str(index)] = {
                 "question": q["text"],
                 "answer": text,
-                "audio_file": f"audio/biorecorder/{audio_id}.wav" if audio_id else None
+                "audio_file": audio_file_ref
             }
             self._save_answers()
 
             return {
                 "status": "saved",
                 "text": text,
-                "audio_id": audio_id,
+                "audio_id": audio_result.get("id") if audio_result else None,
                 "progress": self._get_progress()
             }
 
@@ -271,6 +284,11 @@ class Biorecorder(Baseplugin):
 
         try:
             result = await self._run_bio_generation()
+            # Generate voice sample from recorded answers (non-critical)
+            try:
+                self._generate_voice_sample()
+            except Exception as e:
+                self.logger.warning(f"Voice sample generation failed (non-critical): {e}")
             return result
         except Exception as e:
             self.logger.error(f"Error generating bio: {e}")
@@ -309,6 +327,11 @@ class Biorecorder(Baseplugin):
             bio_path = Path(self.plugin_folder) / "bio.md"
             if bio_path.exists():
                 bio_path.unlink()
+
+            # Delete voice sample file
+            voice_sample_path = Path(self.plugin_folder) / "voice_sample.wav"
+            if voice_sample_path.exists():
+                voice_sample_path.unlink()
 
             # Clear in-memory data
             self.answers = {}
@@ -352,8 +375,8 @@ class Biorecorder(Baseplugin):
             if saved_interlocutor:
                 translator_settings["interlocutor_language"] = saved_interlocutor
 
-    async def _save_audio_to_recorder(self, audio_path: Path) -> Optional[str]:
-        """Save audio file via recorder plugin REST API"""
+    async def _save_audio_to_recorder(self, audio_path: Path) -> Optional[Dict]:
+        """Save audio file via recorder plugin REST API. Returns dict with id and filename."""
         try:
             import httpx
 
@@ -375,8 +398,9 @@ class Biorecorder(Baseplugin):
             if response.status_code == 200:
                 result = response.json()
                 audio_id = result.get("id")
-                self.logger.info(f"Audio saved to recorder, id={audio_id}, file={result.get('filename')}")
-                return str(audio_id)
+                filename = result.get("filename")
+                self.logger.info(f"Audio saved to recorder, id={audio_id}, file={filename}")
+                return {"id": str(audio_id), "filename": filename}
             else:
                 self.logger.error(f"Recorder API error: {response.status_code} - {response.text}")
                 return None
@@ -558,3 +582,161 @@ class Biorecorder(Baseplugin):
             "bio_file": str(bio_path),
             "style_updated": True
         }
+
+    def _generate_voice_sample(self):
+        """Merge recorded voice answers into a single WAV with silence trimming"""
+        from pydub import AudioSegment
+        from pydub.silence import split_on_silence
+
+        # Collect audio file paths from answers
+        audio_paths = []
+        recorder_plugin = next((p for p in self.pm.plugins if getattr(p, 'plugin_name', None) == "recorder"), None)
+        if not recorder_plugin:
+            self.logger.warning("Recorder plugin not available, cannot generate voice sample")
+            return
+
+        recorder_folder = recorder_plugin.plugin_folder
+
+        for idx in sorted(self.answers.keys(), key=int):
+            data = self.answers[idx]
+            audio_ref = data.get("audio_file")
+            if not audio_ref:
+                continue
+            # Try direct path first (audio_ref is relative to recorder plugin folder)
+            audio_path = Path(recorder_folder) / audio_ref
+            if audio_path.exists():
+                audio_paths.append(audio_path)
+                continue
+
+            # If direct path doesn't exist, extract the record ID and resolve via recorder database
+            # audio_ref format: "audio/biorecorder/{audio_id}.wav"
+            try:
+                audio_id = Path(audio_ref).stem
+                rows = recorder_plugin.db_execute_sync(
+                    "SELECT filename FROM records WHERE id = ?",
+                    (int(audio_id),)
+                )
+                if rows and rows[0].get("filename"):
+                    resolved_path = Path(recorder_folder) / rows[0]["filename"]
+                    if resolved_path.exists():
+                        audio_paths.append(resolved_path)
+                    else:
+                        self.logger.warning(f"Resolved audio file not found: {resolved_path}")
+                else:
+                    self.logger.warning(f"No recorder DB entry for audio_id={audio_id}")
+            except (ValueError, Exception) as e:
+                self.logger.warning(f"Could not resolve audio file {audio_ref}: {e}")
+
+        if not audio_paths:
+            self.logger.info("No voice recordings found, skipping voice sample generation")
+            return
+
+        self.logger.info(f"Generating voice sample from {len(audio_paths)} audio files...")
+
+        try:
+            # Load and concatenate all audio files
+            combined = AudioSegment.empty()
+            for audio_path in audio_paths:
+                try:
+                    segment = AudioSegment.from_file(str(audio_path))
+                    combined += segment
+                except Exception as e:
+                    self.logger.warning(f"Could not load audio file {audio_path}: {e}")
+                    continue
+
+            if len(combined) == 0:
+                self.logger.warning("All audio files were empty, skipping voice sample generation")
+                return
+
+            # Normalize: 44.1kHz, 16-bit, mono
+            combined = combined.set_frame_rate(44100).set_sample_width(2).set_channels(1)
+
+            # Split on silence and re-join with short gaps
+            # silence_thresh: audio quieter than -40 dBFS is considered silence
+            # min_silence_len: 500ms of continuous silence to trigger a split
+            # keep_silence: keep 100ms of silence at edges for natural sound
+            chunks = split_on_silence(
+                combined,
+                min_silence_len=500,
+                silence_thresh=-40,
+                keep_silence=100
+            )
+
+            if chunks:
+                # Re-concatenate with 200ms gaps
+                silence_gap = AudioSegment.silent(duration=200, frame_rate=44100)
+                trimmed = chunks[0]
+                for chunk in chunks[1:]:
+                    trimmed += silence_gap + chunk
+            else:
+                # No silence detected, use original
+                trimmed = combined
+
+            # If longer than 2 minutes, cut at the next silence boundary after 2 min
+            max_duration_ms = 2 * 60 * 1000  # 2 minutes
+            if len(trimmed) > max_duration_ms:
+                # Look for a silence gap after the 2-minute mark
+                search_start = max_duration_ms
+                search_end = min(len(trimmed), max_duration_ms + 10000)  # search up to 10s past 2 min
+                best_cut = None
+
+                # Scan for quiet sections (segments below -35 dBFS for at least 200ms)
+                chunk_ms = 50
+                for offset in range(search_start, search_end - 200, chunk_ms):
+                    segment = trimmed[offset:offset + 200]
+                    if segment.dBFS < -35:
+                        best_cut = offset
+                        break
+
+                if best_cut:
+                    trimmed = trimmed[:best_cut]
+                else:
+                    # No silence found, hard cut at 2 min
+                    trimmed = trimmed[:max_duration_ms]
+
+                self.logger.info(f"Voice sample trimmed to {len(trimmed)/1000:.1f}s")
+
+            # Export
+            output_path = Path(self.plugin_folder) / "voice_sample.wav"
+            trimmed.export(str(output_path), format="wav")
+            self.logger.info(f"Voice sample saved to {output_path} ({len(trimmed)/1000:.1f}s)")
+
+        except Exception as e:
+            self.logger.error(f"Error generating voice sample: {e}")
+
+    def _get_voice_sample_info(self) -> Dict:
+        """Get info about the generated voice sample"""
+        sample_path = Path(self.plugin_folder) / "voice_sample.wav"
+        if not sample_path.exists():
+            return {"exists": False, "duration_seconds": 0}
+
+        try:
+            from pydub import AudioSegment
+            audio = AudioSegment.from_file(str(sample_path))
+            return {
+                "exists": True,
+                "duration_seconds": len(audio) / 1000.0,
+                "file_path": str(sample_path)
+            }
+        except Exception as e:
+            self.logger.error(f"Error reading voice sample: {e}")
+            return {"exists": False, "duration_seconds": 0}
+
+    async def _get_voice_sample_file(self):
+        """Serve the voice sample WAV file"""
+        sample_path = Path(self.plugin_folder) / "voice_sample.wav"
+        if not sample_path.exists():
+            raise HTTPException(status_code=404, detail="Voice sample not found")
+        return FileResponse(sample_path, media_type="audio/wav", filename="voice_sample.wav")
+
+    async def _delete_voice_sample(self) -> Dict:
+        """Delete the voice sample file"""
+        sample_path = Path(self.plugin_folder) / "voice_sample.wav"
+        try:
+            if sample_path.exists():
+                sample_path.unlink()
+                self.logger.info("Voice sample deleted")
+            return {"status": "deleted"}
+        except Exception as e:
+            self.logger.error(f"Error deleting voice sample: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
