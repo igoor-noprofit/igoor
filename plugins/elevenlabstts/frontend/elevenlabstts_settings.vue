@@ -405,7 +405,7 @@ export default {
                 const blob = await audioResp.blob();
                 const formData = new FormData();
                 formData.append('audio_file', blob, 'voice_sample.wav');
-                formData.append('name', 'My Voice Clone');
+                formData.append('name', 'Voice Clone ' + new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' }));
                 const response = await fetch('/api/plugins/elevenlabstts/clone_voice', {
                     method: 'POST',
                     body: formData
@@ -437,7 +437,7 @@ export default {
             try {
                 const formData = new FormData();
                 formData.append('audio_file', file);
-                formData.append('name', 'My Voice Clone');
+                formData.append('name', 'Voice Clone ' + new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' }));
                 const response = await fetch('/api/plugins/elevenlabstts/clone_voice', {
                     method: 'POST',
                     body: formData

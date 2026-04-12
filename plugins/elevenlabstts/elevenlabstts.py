@@ -124,9 +124,12 @@ class Elevenlabstts(Baseplugin):
         @self.router.post("/clone_voice")
         async def clone_voice(
             audio_file: UploadFile = File(...),
-            name: str = Form("My Voice Clone"),
+            name: str = Form(None),
         ):
             """Clone a voice from an audio file using ElevenLabs instant voice cloning"""
+            if name is None:
+                from datetime import datetime
+                name = f"Voice Clone {datetime.now().strftime('%b %d')}"
             return await self._clone_voice(audio_file, name)
                 
     @hookimpl
