@@ -9,7 +9,7 @@ Its interface makes it easy-to-use also via eye-tracking device.
 
 Take a look at the <a href="https://igoor.org/en">IGOOR website</a> for further infos about our core principles, values and software roadmap.
 
-<img src="https://igoor.org/wp-content/uploads/2026/03/igoor-flow-en.png" alt="screenshot of the dialogue flow inside IGOOR's app">
+<img src="https://igoor.org/wp-content/uploads/2026/03/igoor-flow-en.png" alt="screenshot of the dialogue flow inside IGOOR's app" width="720">
 
 IGOOR is developed by <a href="https://igoor.org" target="_blank">IGOOR not for profit organisation</a>, in partnership with <a href="https://www.arsla.org/">ARSLA</a>, based on an <a href="https://vimeo.com/980377339?fl=pl&fe=vl" target="_blank">original idea by Igor Novitzki</a>.
 The <a href="https://www.aphp.fr/hopitaux/hendaye" target="_blank">Hôpital Marin d'Hendaye</a> is also partnering to support the evaluation phase of the tool.
