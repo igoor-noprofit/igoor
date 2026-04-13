@@ -207,14 +207,14 @@ class Rag(Baseplugin):
                 ext = os.path.splitext(filename)[1].lower()
 
                 if ext not in ['.txt', '.md', '.pdf']:
-                    errors.append(f"{filename}: Unsupported format. Use .txt, .md, or .pdf")
+                    errors.append({"filename": filename, "code": "unsupported_format"})
                     continue
 
                 existing = await self.db_execute(
                     "SELECT id FROM documents WHERE filename = ?", (filename,)
                 )
                 if existing:
-                    errors.append(f"{filename}: Already exists. Please rename and retry.")
+                    errors.append({"filename": filename, "code": "already_exists"})
                     continue
 
                 file_path = os.path.join(self.plugin_folder, self.medias_folder_name, filename)
@@ -224,7 +224,7 @@ class Rag(Baseplugin):
                     new_files.append(filename)
                 except Exception as e:
                     self.logger.error(f"Error saving file {filename}: {e}")
-                    errors.append(f"{filename}: Failed to save file.")
+                    errors.append({"filename": filename, "code": "save_failed"})
 
             if new_files:
                 await self.ingest_new_files(new_files)
