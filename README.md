@@ -1,13 +1,14 @@
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPLv3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 
-# IGOOR
+<img src="https://igoor.org/wp-content/uploads/2024/06/igoor_logo.svg" alt="logo IGOOR" width="400">
 
 **IGOOR is an open-source and free (AGPLv3) conversational application based on AI, designed to provide people with ALS/MND diseases a smooth and natural means of communication.** 
 Its interface makes it easy-to-use also via eye-tracking device.
 
-<a href="https://igoor.org" target="_blank"><img src="./img/logo_fb.png" alt="logo IGOOR" width="400"></a>
 
 Take a look at the <a href="https://igoor.org/en">IGOOR website</a> for further infos about our core principles, values and software roadmap.
+
+<img src="https://igoor.org/wp-content/uploads/2026/03/igoor-flow-en.png" alt="screenshot of the dialogue flow inside IGOOR's app" width="720">
 
 IGOOR is developed by <a href="https://igoor.org" target="_blank">IGOOR not for profit organisation</a>, in partnership with <a href="https://www.arsla.org/">ARSLA</a>, based on an <a href="https://vimeo.com/980377339?fl=pl&fe=vl" target="_blank">original idea by Igor Novitzki</a>.
 The <a href="https://www.aphp.fr/hopitaux/hendaye" target="_blank">Hôpital Marin d'Hendaye</a> is also partnering to support the evaluation phase of the tool.
@@ -24,7 +25,7 @@ Documentation is ongoing. We strive to keep it up to date with latest functional
 ## REQUIREMENTS
 
 - **Windows 10/11** (PC or tablet)
-- Minimum resolution: 1280,960
+- Minimum resolution: 1280x960
 - Recommended resolution: 1920x1080 or more
 - **Internet connection (preferably optic fiber or ADSL)**
 - A Groq API key
@@ -37,7 +38,7 @@ You can download it here:
 
 https://developer.microsoft.com/en-us/microsoft-edge/webview2?form=MA13LH#download
 
-**NOTE: IGOOR installers sistematically include the runtime.**
+**NOTE: IGOOR installers systematically include the runtime.**
 Download latest executable from:
 
 https://github.com/igoor-noprofit/igoor/releases/download/latest/IGOOR.exe
@@ -133,7 +134,7 @@ Other models can be saved in this folder.
 *EXPERIMENTAL*: You can now launch IGOOR in CLI mode (IGOOR_CLI=True in .env), which is a headless mode you can access with the browser at http://127.0.0.1:9714/ (via FastAPI). As of now this is mostly for easier debug with VueDevTools, agents etc.
 
 Default mode is inside pywebview webedge window (IGOOR_CLI=False).
-PLEASE NOTE: Opening inside both pywebview AND external browser will yield unwantend sync between the two clients.
+PLEASE NOTE: Opening inside both pywebview AND external browser will yield unwanted sync between the two clients.
 
 #### AUTOMATIC SPEECH RECOGNITION WITH VOSK
 
