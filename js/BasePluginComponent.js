@@ -50,9 +50,13 @@ const BasePluginComponent = {
         this.translations = {};
       }
     },
-    t(key) {
+    t(key, params = {}) {
       // Return the translated string or the key itself if not found
-      return this.translations[key] || key;
+      let result = this.translations[key] || key;
+      for (const [k, v] of Object.entries(params)) {
+        result = result.replace(new RegExp(`\\{${k}\\}`, 'g'), v);
+      }
+      return result;
     },
     requestSettings() {
       const pluginName = this.$options.name

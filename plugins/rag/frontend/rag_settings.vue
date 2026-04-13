@@ -255,7 +255,11 @@ export default {
                     const errorData = await response.json();
                     if (response.status === 409) {
                         const errors = errorData.detail.errors || [];
-                        this.errorMessage = this.t('Upload errors: {errors}', { errors: errors.join(', ') });
+                        const errorMessages = errors.map(e => {
+                            const msg = this.t(e.code);
+                            return e.filename + ': ' + msg;
+                        });
+                        this.errorMessage = this.t('Upload errors: {errors}', { errors: errorMessages.join(', ') });
                     } else {
                         this.errorMessage = this.t('Failed to upload documents');
                     }
