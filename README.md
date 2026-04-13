@@ -1,11 +1,10 @@
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPLv3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 
-# IGOOR
+<img src="https://igoor.org/wp-content/uploads/2024/06/igoor_logo.svg" alt="logo IGOOR" width="400">
 
 **IGOOR is an open-source and free (AGPLv3) conversational application based on AI, designed to provide people with ALS/MND diseases a smooth and natural means of communication.** 
 Its interface makes it easy-to-use also via eye-tracking device.
 
-<a href="https://igoor.org" target="_blank"><img src="./img/logo_fb.png" alt="logo IGOOR" width="400"></a>
 
 Take a look at the <a href="https://igoor.org/en">IGOOR website</a> for further infos about our core principles, values and software roadmap.
 
