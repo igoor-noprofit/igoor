@@ -24,5 +24,8 @@
     "Search documents...": "Cerca documenti...",
     "No matching documents": "Nessun documento corrispondente",
     "Loading the model, you will be able to upload documents in a few minutes": "Caricamento del modello, potrai caricare i documenti tra qualche minuto",
-    "Plugin is not ready yet. Please wait for the model to finish loading.": "Il plugin non è ancora pronto. Attendi che il modello finisca di caricare."
+    "Plugin is not ready yet. Please wait for the model to finish loading.": "Il plugin non è ancora pronto. Attendi che il modello finisca di caricare.",
+    "unsupported_format": "Formato non supportato. Usa .txt, .md o .pdf",
+    "already_exists": "Il file esiste già. Rinominalo e riprova.",
+    "save_failed": "Impossibile salvare il file."
 }

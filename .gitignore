@@ -11,6 +11,8 @@ __pycache__/
 
 .playwright-mcp
 
+gitleaks-report.json
+
 .github_token.txt
 test_elevenlabstts.py
 # C extensions
