@@ -238,7 +238,7 @@ Separate llm_invocations contain a JSON of all LLM calls, with prompt/answer and
 
 IGOOR is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
 
-Copyright (C) 2025-2026 Carlo Giordano, Igor Novitzki and the IGOOR not-for-profit organization (https://igoor.org)
+Copyright (C) 2025-2026 Carlo Giordano, Igor Novitzki and the IGOOR not-for-profit organization (https://igoor.org). UX Designer : <a href="https://zenoid.it">Piero C.</a> 
 
 IGOOR is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
