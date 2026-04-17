@@ -441,10 +441,10 @@ class Baseplugin:
         except Exception as e:
             self.logger.warning(f"Could not load translation prompts, using defaults: {e}")
             return {
-                "system": "You are a translator. Translate the following text to {target_language}.\nRULES:\n- Output ONLY the translated text.\n- No quotes, no explanation, no extra text.\n- Maintain the same tone, register, and intent.\n- Keep it natural and colloquial.\n{conversation_context}"
+                "system": "You are a translator. Translate the following text from {source_language} to {target_language}.\nRULES:\n- Output ONLY the translated text.\n- No quotes, no explanation, no extra text.\n- PRESERVE THE REGISTER: Match the formality level of the source in the target language.\n- Keep it natural and colloquial.\n{conversation_context}"
             }
 
-    def _translate_text_sync(self, text, target_language):
+    def _translate_text_sync(self, text, target_language, source_language=""):
         """Translate *text* to *target_language* via LLM.
         Synchronous — meant to be called via asyncio.to_thread().
         Always returns a string: the translation on success, the original on failure.
@@ -483,6 +483,7 @@ class Baseplugin:
             prompt_template = self._load_translation_prompt()
             system_prompt = prompt_template.get("system", "").format(
                 target_language=target_language,
+                source_language=source_language,
                 conversation_context=conversation_ctx,
                 bio_name=bio_name,
                 health_state=health_ctx
@@ -510,6 +511,10 @@ class Baseplugin:
         sm = self.settings_manager
         translator_settings = sm.get_plugin_settings("translator")
         self.logger.info(f"[TRANSLATE] direction={direction}, settings={translator_settings}")
+
+        if not text or not text.strip():
+            return text
+
         target_lang = translator_settings.get("interlocutor_language", "")
         if not target_lang:
             self.logger.info(f"[TRANSLATE] No interlocutor_language set, returning original text")
@@ -523,8 +528,10 @@ class Baseplugin:
         # Determine which language to translate into
         if direction == "incoming":
             target_language = sm.get_reply_language()  # patient's language e.g. "Italian"
+            source_language = target_lang              # interlocutor's language e.g. "French"
         else:
             target_language = target_lang              # interlocutor's language e.g. "French"
+            source_language = sm.get_reply_language()  # patient's language e.g. "Italian"
 
-        self.logger.info(f"[TRANSLATE] Translating to {target_language}: {text}")
-        return await asyncio.to_thread(self._translate_text_sync, text, target_language)
+        self.logger.info(f"[TRANSLATE] Translating from {source_language} to {target_language}: {text}")
+        return await asyncio.to_thread(self._translate_text_sync, text, target_language, source_language)
