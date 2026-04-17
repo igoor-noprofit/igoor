@@ -121,6 +121,9 @@ daily:
     {health_state}
 
     ---
+    {bio_context}
+
+    ---
     Remember: sentence predictions must be from {bio_name}'s point of view.
     All sentences MUST be in {reply_language}.
     </static_context>

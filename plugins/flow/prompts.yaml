@@ -126,6 +126,9 @@ flow:
     {bio_style}
 
     Propose answers influenced by the style to the extent of: {bio_style_weight}.
+
+    ---
+    {bio_context}
     </static_context>
 
     ---

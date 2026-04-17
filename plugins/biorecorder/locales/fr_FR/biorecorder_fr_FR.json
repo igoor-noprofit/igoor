@@ -46,5 +46,6 @@
   "Regenerate": "Régénérer",
   "Saved!": "Enregistré !",
   "Loading document...": "Chargement du document...",
-  "Regenerate the biography? This will overwrite the current document.": "Régénérer la biographie ? Cela écrasera le document actuel."
+  "Regenerate the biography? This will overwrite the current document.": "Régénérer la biographie ? Cela écrasera le document actuel.",
+  "Generate voice sample": "Générer l'échantillon vocal"
 }

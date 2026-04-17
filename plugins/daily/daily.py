@@ -38,6 +38,7 @@ class Daily(Baseplugin):
             bio_name=self.bio_name,
             reply_language=reply_language,
             health_state=self.health_state,
+            bio_context=self.get_bio_context(),
         )
         
     def load_settings(self):
@@ -103,6 +104,12 @@ class Daily(Baseplugin):
         # Reload language and prompts in case language was changed
         self.lang = self.settings_manager.get_lang()
         self.prompts = self.get_my_prompts()
+        self._build_prompt_templates()
+
+    @hookimpl
+    def bio_context_updated(self):
+        """Reload prompt templates when biorecorder bio.md has been created or updated."""
+        self.logger.info("Daily: bio_context_updated — rebuilding prompt templates")
         self._build_prompt_templates()
     
     @hookimpl

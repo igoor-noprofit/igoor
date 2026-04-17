@@ -254,6 +254,13 @@ class MyAppSpec:
         """
         pass
     
+    @pluggy.HookspecMarker(app_name)
+    def bio_context_updated(self):
+        """Hook called when biographical context (bio.md) has been created or updated.
+        Prediction plugins implement this to rebuild their prompt templates."""
+        pass
+
+    
     '''
         ************ AUTOCOMPLETE **************
     '''

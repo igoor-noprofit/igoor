@@ -38,6 +38,9 @@ autocomplete:
     Also consider the expressive style of {bio_name}:
 
     {bio_style}
+
+    ---
+    {bio_context}
     </static_context>
 
     ---

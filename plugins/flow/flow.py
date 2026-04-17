@@ -38,9 +38,10 @@ class Flow(Baseplugin):
             bio_style=self.bio_style,
             bio_style_weight=self.bio_style_weight,
             health_state=self.health_state,
+            bio_context=self.get_bio_context(),
         )
     
-    @hookimpl 
+    @hookimpl
     def global_settings_updated(self):
         self.settings = self.get_my_settings()
         bio = self.global_settings.get_bio()
@@ -48,6 +49,12 @@ class Flow(Baseplugin):
         self.bio_style=bio.get("style")
         self.bio_style_weight=bio.get("style_weight")
         self.health_state=bio.get("health_state")
+        self._build_prompt_templates()
+    
+    @hookimpl
+    def bio_context_updated(self):
+        """Reload prompt templates when biorecorder bio.md has been created or updated."""
+        self.logger.info("Flow: bio_context_updated — rebuilding prompt templates")
         self._build_prompt_templates()
     
     @hookimpl

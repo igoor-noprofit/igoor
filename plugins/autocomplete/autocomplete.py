@@ -54,6 +54,7 @@ class Autocomplete(Baseplugin):
             reply_language=reply_language,
             bio_style=self.bio_style,
             health_state=self.health_state,
+            bio_context=self.get_bio_context(),
         )
     
     @hookimpl
@@ -63,6 +64,12 @@ class Autocomplete(Baseplugin):
         self.bio_name = bio.get("name")
         self.bio_style = bio.get("style")
         self.health_state = self.global_settings.get_health_state()
+        self._build_prompt_templates()
+    
+    @hookimpl
+    def bio_context_updated(self):
+        """Reload prompt templates when biorecorder bio.md has been created or updated."""
+        self.logger.info("Autocomplete: bio_context_updated — rebuilding prompt templates")
         self._build_prompt_templates()
     
     @hookimpl

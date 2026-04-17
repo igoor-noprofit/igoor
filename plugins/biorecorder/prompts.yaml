@@ -1,18 +1,21 @@
-narrative_conversion:
+factual_conversion:
   system: |
-    You are a biographer. Convert the following questionnaire answers into a flowing third-person narrative.
+    You are a fact extractor. Convert the following questionnaire answers into structured factual statements.
 
     Rules:
-    - Use the person's name frequently throughout the text
-    - Write in third person (he/she/they)
-    - Keep all factual information accurate - do not omit any details
-    - Maintain the emotional tone of the original answers
-    - Do not add fictional details
-    - Do not mention that this is an interview or questionnaire
+    - Extract ONLY facts that are explicitly stated in the answers. Do NOT invent, infer, or add anything not directly mentioned.
+    - Do NOT write narrative prose, introductions, or transitions between facts.
+    - Do NOT mention that this is an interview or questionnaire.
+    - Preserve the person's name exactly as given.
+    - Group closely related facts about the same subject into a single bullet point. For example, if someone names their closest friends AND mentions details about one of them, merge those into one bullet rather than writing two separate lines.
+    - Each bullet should be self-contained and information-dense, but remain a short factual statement (1–2 clauses max). Never write long paragraphs.
+    - If an answer is empty or "Not answered", skip it entirely.
+
+    Output format: a list of bullet points, one per line, starting with "- ".
 
 chapter_structure:
   system: |
-    You are an editor. Organize the following narrative into a structured biography with these exact chapters:
+    You are an editor. Organize the following list of facts into a structured document with these exact chapter headings:
 
     ## GENERAL INFO
     (Identity, name, place of residence, home description, birth details)
@@ -33,37 +36,48 @@ chapter_structure:
     (Professional background, artistic and cultural tastes, opinions, values, memories, aspirations, personality, style)
 
     Rules:
-    - Preserve ALL information from the source - nothing should be lost
-    - Use appropriate chapter headers exactly as shown above
-    - Maintain the narrative style and the person's name throughout
-    - If information doesn't fit other categories, put it in OTHER
+    - Preserve ALL facts from the source — nothing should be lost or silently dropped.
+    - Use appropriate chapter headers exactly as shown above.
+    - Consolidate bullets that share the same subject or topic within a chapter: merge them into a single, denser bullet rather than listing each sub-fact separately. The goal is readability without prose.
+    - Each bullet must remain factual and short (1–2 clauses). Do NOT convert them into flowing prose sentences.
+    - Do NOT add invented details, summaries, or transitions between facts.
+    - If a fact does not fit any specific chapter, place it under OTHER.
+    - Omit chapter headings that have no facts to list.
 
 verification:
   system: |
-    You are a fact-checker. Compare the original questionnaire answers with the structured biography.
+    You are a fact-checker. Compare the original questionnaire answers with the structured fact document.
 
     Your task:
-    1. Check that all names are preserved correctly
-    2. Check that all dates and places are accurate
-    3. Check that all relationships are described correctly
-    4. Check that NO significant information was lost
+    1. Check that all names are preserved correctly.
+    2. Check that all dates, places, and key details are accurate.
+    3. Check that all relationships are described correctly.
+    4. Check that NO significant fact from the original answers was lost.
 
-    If all information is preserved correctly, respond with the exact text of the structured biography unchanged.
+    If all facts are present and correct, return the exact text of the structured document unchanged.
 
-    If there are missing details, integrate them into the appropriate sections of the structured biography and return the corrected version.
+    If any facts are missing, add them as bullet points under the appropriate chapter heading and return the corrected document.
 
-    Do not add any commentary - just return the biography text.
+    IMPORTANT: Do NOT convert bullet points into prose. Maintain the factual bullet-point format throughout.
+    Do not add any commentary — just return the document text.
 
 completeness_check:
   system: |
-    You are a fact-checker. Compare the questionnaire answers with the generated biography document.
+    You are a fact-checker. Compare the questionnaire answers with the generated fact document.
 
     Return a JSON object with exactly two fields:
-    - "is_complete": true if ALL substantive information from the answers is present in the document, false otherwise
-    - "missing_topics": a list of short descriptions of any missing information (empty list if complete)
+    - "is_complete": true if ALL substantive facts from the answers are present in the document, false otherwise
+    - "missing_topics": a list of short descriptions of any missing facts (empty list if complete)
 
-    Be strict: if a person's name, place, relationship, or key detail from the answers is absent from the document, mark it as missing.
-    Minor rewording or summarization is acceptable, but substantive facts must be preserved.
+    Be strict: if a person's name, place, relationship, date, or any key detail from the answers is absent from the document, mark it as missing.
+    Minor rewording is acceptable, but substantive facts must be preserved.
+
+    IMPORTANT EXCEPTIONS — do NOT flag these as missing:
+    - Answers expressing absence or non-information: "I don't know", "not really", "none", "no", "nothing special", "N/A"
+    - Negative statements about the absence of something: e.g. "no podcast", "no foods they dislike", "doesn't have a pet"
+    - Vague or non-committal answers that carry no factual substance
+    These are NOT substantive facts and the document is not required to include them.
+
     Respond ONLY with valid JSON, no other text.
 
 style_extraction:

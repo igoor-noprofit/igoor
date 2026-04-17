@@ -4,6 +4,8 @@ from status_manager import StatusManager
 from plugin_manager import hookimpl, PluginManager
 from websocket_server import websocket_server
 import os,json,asyncio
+from pathlib import Path
+from datetime import datetime
 from utils import resource_path
 from llm_manager import LLMManager
 from utils import setup_logger
@@ -100,7 +102,25 @@ class Baseplugin:
         except Exception as e:
             self.logger.error(f"Error loading prompts from {prompts_path}: {e}")
             return {}
-    
+
+    def get_bio_context(self) -> str:
+        """Load biorecorder bio.md and return a formatted context string for LLM prompts.
+        Returns an empty string if bio.md does not exist (plugin is optional)."""
+        bio_path = Path(self.appdata_path, self.app_name, 'plugins', 'biorecorder', 'bio.md')
+        if not bio_path.exists():
+            return ""
+        try:
+            content = bio_path.read_text(encoding='utf-8').strip()
+            mtime = datetime.fromtimestamp(bio_path.stat().st_mtime)
+            formatted_date = mtime.strftime("%Y-%m-%d %H:%M")
+            return (
+                f"Biographical information edited by the user or caregiver, "
+                f"last updated {formatted_date}:\n\n{content}"
+            )
+        except Exception as e:
+            self.logger.warning(f"Could not load bio context: {e}")
+            return ""
+
     def load_translation_file(self,translation_file_path):
         if not os.path.exists(translation_file_path):
             self.logger.warning(f"Translation file not found: {translation_file_path}")

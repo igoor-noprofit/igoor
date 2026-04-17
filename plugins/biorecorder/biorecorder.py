@@ -11,11 +11,16 @@ from typing import Optional, Dict, Any, List
 
 from fastapi import APIRouter, HTTPException, UploadFile, File
 from fastapi.responses import JSONResponse, FileResponse
+from pydantic import BaseModel
 
 from version import __appname__
 from plugins.baseplugin.baseplugin import Baseplugin
 from plugin_manager import hookimpl
 from utils import setup_logger, get_base_language_code
+
+
+class GenerateBioRequest(BaseModel):
+    generate_voice: bool = False
 
 
 class Biorecorder(Baseplugin):
@@ -160,8 +165,9 @@ class Biorecorder(Baseplugin):
             return self._get_progress()
 
         @self.router.post("/generate_bio")
-        async def generate_bio():
-            return await self._generate_bio()
+        async def generate_bio(data: GenerateBioRequest = None):
+            generate_voice = data.generate_voice if data else False
+            return await self._generate_bio(generate_voice=generate_voice)
 
         @self.router.get("/bio")
         async def get_bio():
@@ -277,18 +283,21 @@ class Biorecorder(Baseplugin):
                 pass
             raise HTTPException(status_code=500, detail=str(e))
 
-    async def _generate_bio(self) -> Dict:
+    async def _generate_bio(self, generate_voice: bool = True) -> Dict:
         answered = sum(1 for k in self.answers if self.answers[k].get("answer", "").strip())
         if answered == 0:
             raise HTTPException(status_code=400, detail="No questions answered yet")
 
         try:
             result = await self._run_bio_generation()
-            # Generate voice sample from recorded answers (non-critical)
-            try:
-                self._generate_voice_sample()
-            except Exception as e:
-                self.logger.warning(f"Voice sample generation failed (non-critical): {e}")
+            if generate_voice:
+                # Generate voice sample from recorded answers (non-critical)
+                try:
+                    self._generate_voice_sample()
+                except Exception as e:
+                    self.logger.warning(f"Voice sample generation failed (non-critical): {e}")
+            else:
+                self.logger.info("Voice sample generation skipped (generate_voice=False)")
             return result
         except Exception as e:
             self.logger.error(f"Error generating bio: {e}")
@@ -310,6 +319,8 @@ class Biorecorder(Baseplugin):
         try:
             bio_path.write_text(content, encoding='utf-8')
             self.logger.info("Bio content updated via editor")
+            # Notify prediction plugins to reload their prompt templates
+            asyncio.create_task(self.pm.trigger_hook(hook_name="bio_context_updated"))
             return {"status": "updated", "message": "Biography updated successfully"}
         except Exception as e:
             self.logger.error(f"Error updating bio content: {e}")
@@ -466,13 +477,13 @@ class Biorecorder(Baseplugin):
         )
         llm = LLMManager(provider, api_key, model_name, temperature=0.3)
 
-        # Step 1: 3rd person narrative
-        self.logger.info("Step 1/5: Converting to narrative...")
+        # Step 1: factual extraction from Q&A
+        self.logger.info("Step 1/5: Extracting facts from answers...")
         narrative_text = await self._run_llm_step_with_retry(
             llm,
-            prompts.get("narrative_conversion", {}).get("system", ""),
+            prompts.get("factual_conversion", {}).get("system", ""),
             f"Name: {bio_name}\n\n{answers_text}",
-            "Step 1 (narrative_conversion)",
+            "Step 1 (factual_conversion)",
             loop
         )
 
@@ -487,7 +498,7 @@ class Biorecorder(Baseplugin):
         )
 
         # Step 3+4: Verify completeness + completeness check (with retry loop)
-        max_completeness_retries = 3
+        max_completeness_retries = 5
         bio_content = None
 
         for attempt in range(1, max_completeness_retries + 1):
@@ -504,22 +515,31 @@ class Biorecorder(Baseplugin):
             # Step 4: Completeness check (LLM validates all info is present)
             self.logger.info(f"Step 4/5: Checking document completeness (attempt {attempt}/{max_completeness_retries})...")
             completeness_prompt = prompts.get("completeness_check", {}).get("system", "")
-            completeness_result = await loop.run_in_executor(
-                None, llm.invoke, completeness_prompt,
-                f"ANSWERS:\n{answers_text}\n\nDOCUMENT:\n{bio_content}"
-            )
-            completeness_raw = completeness_result.content if hasattr(completeness_result, 'content') else str(completeness_result)
 
-            # Parse the JSON response
-            try:
-                json_str = completeness_raw.strip()
-                if "```json" in json_str:
-                    json_str = json_str.split("```json")[1].split("```")[0].strip()
-                elif "```" in json_str:
-                    json_str = json_str.split("```")[1].split("```")[0].strip()
-                completeness_data = json_module.loads(json_str)
-            except (json_module.JSONDecodeError, IndexError) as e:
-                self.logger.warning(f"Could not parse completeness check JSON: {e}. Raw: {completeness_raw[:200]}")
+            # Retry the LLM call itself if JSON parsing fails (handles empty responses)
+            max_parse_retries = 2
+            completeness_data = None
+            for parse_retry in range(max_parse_retries):
+                completeness_result = await loop.run_in_executor(
+                    None, llm.invoke, completeness_prompt,
+                    f"ANSWERS:\n{answers_text}\n\nDOCUMENT:\n{bio_content}"
+                )
+                completeness_raw = completeness_result.content if hasattr(completeness_result, 'content') else str(completeness_result)
+
+                try:
+                    json_str = completeness_raw.strip()
+                    if "```json" in json_str:
+                        json_str = json_str.split("```json")[1].split("```")[0].strip()
+                    elif "```" in json_str:
+                        json_str = json_str.split("```")[1].split("```")[0].strip()
+                    completeness_data = json_module.loads(json_str)
+                    break
+                except (json_module.JSONDecodeError, IndexError) as e:
+                    self.logger.warning(f"Could not parse completeness check JSON (parse retry {parse_retry + 1}/{max_parse_retries}): {e}. Raw: {completeness_raw[:200]}")
+                    if parse_retry < max_parse_retries - 1:
+                        continue
+
+            if completeness_data is None:
                 completeness_data = {"is_complete": False, "missing_topics": ["Completeness check could not be parsed"]}
 
             if completeness_data.get("is_complete", False):
@@ -528,6 +548,17 @@ class Biorecorder(Baseplugin):
 
             missing = completeness_data.get("missing_topics", [])
             self.logger.warning(f"Completeness check failed (attempt {attempt}/{max_completeness_retries}). Missing: {missing}")
+
+            # Solution 3: After 3+ attempts, accept if all remaining missing items are trivial
+            if attempt >= 3 and missing:
+                trivial_patterns = ["i don't know", "don't know", "not really", "none", "nothing", "n/a", "no ", "not ", "could not be parsed"]
+                all_trivial = all(
+                    any(pat in item.lower() for pat in trivial_patterns)
+                    for item in missing
+                )
+                if all_trivial:
+                    self.logger.info(f"Step 4/5: Accepting document as complete (attempt {attempt}) — remaining missing items are all trivial/negative: {missing}")
+                    break
 
             if attempt == max_completeness_retries:
                 self.logger.error(f"Completeness check failed after {max_completeness_retries} attempts. Missing topics: {missing}")
@@ -550,37 +581,42 @@ class Biorecorder(Baseplugin):
         bio_path.write_text(bio_content, encoding='utf-8')
         self.logger.info(f"Bio saved to {bio_path}")
 
-        # Step 5: Extract and merge style
-        self.logger.info("Step 5/5: Extracting style...")
-        try:
-            new_style = await self._run_llm_step_with_retry(
-                llm,
-                prompts.get("style_extraction", {}).get("system", ""),
-                answers_text,
-                "Step 5 (style_extraction)",
-                loop
-            )
+        # Notify prediction plugins to reload their prompt templates
+        asyncio.create_task(self.pm.trigger_hook(hook_name="bio_context_updated"))
 
-            # Merge with existing style
-            existing_style = bio.get("style", "")
-            if new_style:
-                merged_style = f"{existing_style}\n{new_style}" if existing_style else new_style
+        # Step 5: Extract style (only if not already set)
+        existing_style = bio.get("style", "").strip()
+        existing_health_state = bio.get("health_state", "").strip()
 
-                # Update only the style field in onboarding bio, preserving name/health_state/etc.
-                current_bio = self.settings_manager.get_nested(["plugins", "onboarding", "bio"], default={})
-                current_bio["style"] = merged_style
-                self.settings_manager.update_plugin_settings("onboarding", {
-                    "bio": current_bio
-                }, self.pm)
-                self.logger.info("Style updated in onboarding settings")
-        except Exception as e:
-            self.logger.warning(f"Style extraction failed (non-critical): {e}")
-            # Style extraction failure should not prevent the bio from being marked as generated
+        if existing_style:
+            self.logger.info("Step 5/5: Style already set — skipping auto-extraction.")
+        else:
+            self.logger.info("Step 5/5: Extracting style (field is empty)...")
+            try:
+                new_style = await self._run_llm_step_with_retry(
+                    llm,
+                    prompts.get("style_extraction", {}).get("system", ""),
+                    answers_text,
+                    "Step 5 (style_extraction)",
+                    loop
+                )
+
+                if new_style:
+                    current_bio = self.settings_manager.get_nested(["plugins", "onboarding", "bio"], default={})
+                    current_bio["style"] = new_style
+                    self.settings_manager.update_plugin_settings("onboarding", {
+                        "bio": current_bio
+                    }, self.pm)
+                    self.logger.info("Style written to onboarding settings (was empty)")
+                    # Reload all plugin prompt caches so bio_style is picked up immediately
+                    asyncio.create_task(self.pm.trigger_hook(hook_name="global_settings_updated"))
+            except Exception as e:
+                self.logger.warning(f"Style extraction failed (non-critical): {e}")
 
         return {
             "status": "complete",
             "bio_file": str(bio_path),
-            "style_updated": True
+            "style_updated": not bool(existing_style)
         }
 
     def _generate_voice_sample(self):
