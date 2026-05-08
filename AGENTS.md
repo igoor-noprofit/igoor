@@ -113,7 +113,7 @@ If not:
 /venv/scripts/Activate
 python main.py
 THEN,leverage whatever MCP tool for browsing is available to browse @ http://127.0.0.1:9714/ (use Playwright if available)
-In the frontend, you have to click on the settings-gear top right in the header to access to access all the extensions. 
+In the frontend, you have to click on the settings-gear top right in the header to access all the extensions. 
 Once there,you have to click on the extensions tab,the plugin category etc.
 
 ## Checking the libraries documentation
