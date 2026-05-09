@@ -110,7 +110,7 @@
                 </label>
             </div>
             <div class="form-note">
-                {{ t('Only available for non-English languages. Requires model reload.') }}
+                {{ t('Optional for German, Italian, Portuguese, Spanish. French always uses 24L.') }}
             </div>
         </div>
 

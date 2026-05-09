@@ -93,9 +93,10 @@ DEFAULT_VOICE = {
     "spanish": "lola",
 }
 
-# Languages that ONLY have a 24-layer model (no standard variant available)
-# pocket-tts raises an error if you try to load these without the _24l suffix
-REQUIRES_24L = {"french", "portuguese", "spanish"}
+# Languages that ONLY have a 24-layer model (no standard variant available).
+# Verified from pocket_tts/config/ directory — only french has no standard .yaml.
+# Portuguese, Spanish, German, Italian all have both standard and _24l variants.
+REQUIRES_24L = {"french"}
 
 
 class TestSpeakPayload(BaseModel):
@@ -276,8 +277,8 @@ class Pockettts(Baseplugin):
             self._model_loading = True
             language = self._resolve_language()
             use_24l = self.settings.get("use_24l", False)
-            temp = self.settings.get("temp", 0.7)
-            eos_threshold = self.settings.get("eos_threshold", -4.0)
+            temp = float(self.settings.get("temp", 0.7))
+            eos_threshold = float(self.settings.get("eos_threshold", -4.0))
 
             # Some languages ONLY have a 24L model (French, Portuguese, Spanish).
             # The _24l suffix is passed as the `language` arg directly (e.g. "french_24l").
