@@ -82,6 +82,10 @@ DEFAULT_VOICE = {
     "spanish": "lola",
 }
 
+# Languages that ONLY have a 24-layer model (no standard variant available)
+# pocket-tts raises an error if you try to load these without the _24l suffix
+REQUIRES_24L = {"french", "portuguese", "spanish"}
+
 
 class TestSpeakPayload(BaseModel):
     message: str = "Hello, how are you doing? I feel better today!"
@@ -197,23 +201,33 @@ class Pockettts(Baseplugin):
             temp = self.settings.get("temp", 0.7)
             eos_threshold = self.settings.get("eos_threshold", -4.0)
 
-            # Determine config (24L variant for non-English)
-            config = None
-            if use_24l and language != "english":
-                config = f"{language}_24l"
+            # Some languages ONLY have a 24L model (French, Portuguese, Spanish).
+            # The _24l suffix is passed as the `language` arg directly (e.g. "french_24l").
+            # `config` is only for custom .yaml config file paths — do NOT use it here.
+            must_use_24l = language in REQUIRES_24L
+
+            if must_use_24l:
+                # French, Portuguese, Spanish require the 24L variant
+                tts_language = f"{language}_24l"
+                self.logger.info(f"Language '{language}' requires 24L — loading as language='{tts_language}'")
+            elif use_24l and language != "english":
+                # User opted into optional 24L
+                tts_language = f"{language}_24l"
+            else:
+                tts_language = language
 
             self.logger.info(
-                f"Loading pocket-tts model: language={language}, "
-                f"config={config}, temp={temp}, eos={eos_threshold}"
+                f"Loading pocket-tts model: language={tts_language}, temp={temp}, eos={eos_threshold}"
             )
 
             start = time.time()
             self.tts_model = TTSModel.load_model(
-                language=language,
-                config=config,
+                language=tts_language,
                 temp=temp,
                 eos_threshold=eos_threshold,
             )
+
+
             elapsed = time.time() - start
             self.model_language = language
             self.logger.info(f"Pocket-tts model loaded in {elapsed:.1f}s")
@@ -333,7 +347,6 @@ class Pockettts(Baseplugin):
     async def _clone_voice_from_biorecorder(self):
         """Clone voice from biorecorder's existing voice_sample.wav"""
         from pocket_tts import export_model_state
-        import aiohttp
 
         if self.tts_model is None:
             raise HTTPException(status_code=503, detail="Model not loaded yet")
