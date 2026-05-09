@@ -528,12 +528,15 @@ class Baseplugin:
         - the relevant toggle (translate_incoming / translate_outgoing) is off
         - translation fails (fail-safe)
         """
+        if not text or not text.strip():
+            return text
+
+        if self.pm and hasattr(self.pm, 'is_active') and not self.pm.is_active("translator"):
+            return text
+
         sm = self.settings_manager
         translator_settings = sm.get_plugin_settings("translator")
         self.logger.info(f"[TRANSLATE] direction={direction}, settings={translator_settings}")
-
-        if not text or not text.strip():
-            return text
 
         target_lang = translator_settings.get("interlocutor_language", "")
         if not target_lang:
