@@ -26,5 +26,6 @@
     "Failed to save settings": "Salvataggio impostazioni non riuscito",
     "Voice cloned successfully": "Voce clonata con successo",
     "Failed to clone voice": "Clonazione della voce non riuscita",
+    "Voice cloning requires HuggingFace login. Visit huggingface.co/kyutai/pocket-tts, accept terms, then run: uvx hf auth login": "Il clonaggio vocale richiede l'accesso a HuggingFace. Vai su huggingface.co/kyutai/pocket-tts, accetta i termini, poi esegui: uvx hf auth login",
     "Hello, how are you doing? I feel better today!": "Ciao, come stai? Oggi mi sento meglio!"
 }

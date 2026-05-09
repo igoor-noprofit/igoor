@@ -31,20 +31,65 @@
                 {{ t('Select a built-in voice or clone your own below') }}
             </div>
 
-            <!-- Voice cloning buttons -->
+            <!-- Voice cloning section -->
             <div class="voice-clone-section">
-                <button class="clone-btn" type="button" @click="useRecordedVoice"
-                    :disabled="!voiceSampleExists || isCloning || !modelLoaded"
-                    :title="!voiceSampleExists ? t('No recorded voice available') : t('Use your biorecorder voice samples to clone your voice')">
-                    <span v-if="isCloning && cloningSource === 'recorded'">{{ t('Cloning...') }}</span>
-                    <span v-else>{{ t('Use recorded voice') }}</span>
-                </button>
-                <button class="clone-btn" type="button" @click="triggerUploadClone"
-                    :disabled="isCloning || !modelLoaded">
-                    {{ t('Upload audio to clone voice') }}
-                </button>
-                <input type="file" ref="cloneFileInput" style="display:none"
-                    accept=".wav,.mp3,.ogg,.webm" @change="onCloneFileSelected" />
+                <!-- Cloning available: show action buttons -->
+                <template v-if="cloningAvailable">
+                    <button class="clone-btn" type="button" @click="useRecordedVoice"
+                        :disabled="!voiceSampleExists || isCloning || !modelLoaded"
+                        :title="!voiceSampleExists ? t('No recorded voice available') : t('Use your biorecorder voice samples to clone your voice')">
+                        <span v-if="isCloning && cloningSource === 'recorded'">{{ t('Cloning...') }}</span>
+                        <span v-else>{{ t('Use recorded voice') }}</span>
+                    </button>
+                    <button class="clone-btn" type="button" @click="triggerUploadClone"
+                        :disabled="isCloning || !modelLoaded">
+                        {{ t('Upload audio to clone voice') }}
+                    </button>
+                    <input type="file" ref="cloneFileInput" style="display:none"
+                        accept=".wav,.mp3,.ogg,.webm" @change="onCloneFileSelected" />
+                </template>
+
+                <!-- Cloning not available: show HF auth panel -->
+                <template v-else>
+                    <div class="hf-auth-panel">
+                        <div class="hf-auth-header" @click="showHfPanel = !showHfPanel">
+                            <span class="hf-lock-icon">🔒</span>
+                            <span>{{ t('Enable voice cloning') }}</span>
+                            <span class="hf-chevron">{{ showHfPanel ? '▲' : '▼' }}</span>
+                        </div>
+                        <div v-if="showHfPanel" class="hf-auth-body">
+                            <div class="hf-step">
+                                <span class="hf-step-num">1</span>
+                                <span>{{ t('Accept the model terms on HuggingFace') }}</span>
+                                <a href="https://huggingface.co/kyutai/pocket-tts" target="_blank" class="hf-link">
+                                    huggingface.co/kyutai/pocket-tts →
+                                </a>
+                            </div>
+                            <div class="hf-step">
+                                <span class="hf-step-num">2</span>
+                                <span>{{ t('Get your access token') }}</span>
+                                <a href="https://huggingface.co/settings/tokens" target="_blank" class="hf-link">
+                                    huggingface.co/settings/tokens →
+                                </a>
+                            </div>
+                            <div class="hf-step">
+                                <span class="hf-step-num">3</span>
+                                <span>{{ t('Paste your token here') }}</span>
+                            </div>
+                            <div class="hf-token-row">
+                                <input type="password" v-model="hfToken" class="hf-token-input"
+                                    :placeholder="t('hf_...')"
+                                    @keydown.enter="authenticateHF" />
+                                <button type="button" class="hf-auth-btn"
+                                    :disabled="!hfToken || isAuthenticating"
+                                    @click="authenticateHF">
+                                    <span v-if="isAuthenticating">{{ t('Connecting...') }}</span>
+                                    <span v-else>{{ t('Authenticate') }}</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </template>
             </div>
 
             <!-- Language display -->
@@ -170,6 +215,10 @@ export default {
             voiceSampleExists: false,
             isCloning: false,
             cloningSource: '',
+            cloningAvailable: false,
+            showHfPanel: false,
+            hfToken: '',
+            isAuthenticating: false,
             // Local v-model backing values
             tempValue: 0.7,
             eosValue: -4.0,
@@ -273,6 +322,51 @@ export default {
                 this.voiceSampleExists = false;
             }
         },
+        async checkHfStatus() {
+            try {
+                var data = await this.callPluginRestEndpoint('pockettts', 'hf_status');
+                this.cloningAvailable = data.cloning_available || data.cloning_model_cached;
+            } catch (e) {
+                this.cloningAvailable = false;
+            }
+        },
+        async authenticateHF() {
+            if (!this.hfToken || this.isAuthenticating) return;
+            this.isAuthenticating = true;
+            try {
+                var data = await this.callPluginRestEndpoint('pockettts', 'hf_login', {
+                    method: 'POST',
+                    data: { token: this.hfToken }
+                });
+                this.hfToken = '';
+                this.showHfPanel = false;
+                this.saveStatus = { type: 'success', message: this.t('Authenticated! Downloading voice cloning model...') };
+                // Poll until model reloads with cloning weights
+                var self = this;
+                var pollCount = 0;
+                var poll = setInterval(async function() {
+                    pollCount++;
+                    await self.checkHfStatus();
+                    if (self.cloningAvailable || pollCount > 60) {
+                        clearInterval(poll);
+                        self.saveStatus = null;
+                        if (self.cloningAvailable) {
+                            self.saveStatus = { type: 'success', message: self.t('Voice cloning is now available!') };
+                            setTimeout(function() { self.saveStatus = null; }, 4000);
+                        }
+                    }
+                }, 3000);
+            } catch (e) {
+                var msg = (e.message && e.message.includes('401'))
+                    ? this.t('Invalid token. Please check your HuggingFace token.')
+                    : (e.message || this.t('Authentication failed'));
+                this.saveStatus = { type: 'error', message: msg };
+                var self = this;
+                setTimeout(function() { self.saveStatus = null; }, 6000);
+            } finally {
+                this.isAuthenticating = false;
+            }
+        },
         async useRecordedVoice() {
             this.isCloning = true;
             this.cloningSource = 'recorded';
@@ -290,9 +384,12 @@ export default {
                 }
             } catch (e) {
                 console.error('Clone error:', e);
-                this.saveStatus = { type: 'error', message: e.message || this.t('Failed to clone voice') };
+                var msg = (e.status === 403 || (e.detail && e.detail.includes('HuggingFace')))
+                    ? this.t('Voice cloning requires HuggingFace login. Visit huggingface.co/kyutai/pocket-tts, accept terms, then run: uvx hf auth login')
+                    : (e.message || this.t('Failed to clone voice'));
+                this.saveStatus = { type: 'error', message: msg };
                 var self = this;
-                setTimeout(function() { self.saveStatus = null; }, 5000);
+                setTimeout(function() { self.saveStatus = null; }, 10000);
             } finally {
                 this.isCloning = false;
                 this.cloningSource = '';
@@ -327,9 +424,13 @@ export default {
                 setTimeout(function() { self.saveStatus = null; }, 3000);
             } catch (e) {
                 console.error('Clone error:', e);
-                this.saveStatus = { type: 'error', message: e.message || this.t('Failed to clone voice') };
+                var msg = (e.message && e.message.includes('HuggingFace'))
+                    ? this.t('Voice cloning requires HuggingFace login. Visit huggingface.co/kyutai/pocket-tts, accept terms, then run: uvx hf auth login')
+                    : (e.message || this.t('Failed to clone voice'));
+                this.saveStatus = { type: 'error', message: msg };
                 var self = this;
-                setTimeout(function() { self.saveStatus = null; }, 5000);
+                setTimeout(function() { self.saveStatus = null; }, 10000);
+
             } finally {
                 this.isCloning = false;
                 this.cloningSource = '';
@@ -390,6 +491,7 @@ export default {
     async created() {
         await this.loadTranslations();
         this.checkVoiceSample();
+        this.checkHfStatus();
         await this.checkModelStatus();
 
         // Poll model status until loaded
@@ -590,4 +692,95 @@ button:disabled {
 .clone-btn:hover:not(:disabled) {
     background: #3d6699;
 }
+
+/* HuggingFace auth panel */
+.hf-auth-panel {
+    width: 100%;
+    border: 1px solid rgba(255, 193, 7, 0.3);
+    border-radius: 8px;
+    overflow: hidden;
+    background: rgba(255, 193, 7, 0.05);
+}
+
+.hf-auth-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    cursor: pointer;
+    font-weight: 600;
+    color: #ffc107;
+    user-select: none;
+    transition: background 0.2s;
+}
+
+.hf-auth-header:hover {
+    background: rgba(255, 193, 7, 0.1);
+}
+
+.hf-lock-icon { font-size: 1.1em; }
+.hf-chevron { margin-left: auto; font-size: 0.8em; }
+
+.hf-auth-body {
+    padding: 12px 16px;
+    border-top: 1px solid rgba(255, 193, 7, 0.2);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.hf-step {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.95em;
+    color: #ddd;
+    flex-wrap: wrap;
+}
+
+.hf-step-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: rgba(255, 193, 7, 0.25);
+    color: #ffc107;
+    font-size: 0.85em;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+.hf-link {
+    color: #7ab3e0;
+    text-decoration: none;
+    font-size: 0.88em;
+    margin-left: auto;
+}
+
+.hf-link:hover { text-decoration: underline; }
+
+.hf-token-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.hf-token-input {
+    flex: 1;
+    font-family: monospace;
+    font-size: 0.9em;
+}
+
+.hf-auth-btn {
+    background: #ffc107;
+    color: #000;
+    font-weight: 700;
+    padding: 7px 18px;
+    white-space: nowrap;
+}
+
+.hf-auth-btn:hover:not(:disabled) { background: #e0a800; }
+.hf-auth-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 </style>

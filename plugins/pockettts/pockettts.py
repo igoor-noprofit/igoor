@@ -31,46 +31,57 @@ IGOOR_LANG_TO_POCKETTTS = {
 }
 
 # ── Built-in voice catalog ─────────────────────────────────────────────
-# Maps language → list of { name, label }
-# Source: https://kyutai-labs.github.io/pocket-tts/ built-in speaker prompts
+# Sourced from the actual pocket-tts error message (complete list).
+# Built-in voices work WITHOUT HuggingFace login.
+# Note: voices are cross-language — any voice can be used with any language model.
 BUILTIN_VOICES = {
     "english": [
-        {"name": "alba", "label": "Alba (Female)"},
-        {"name": "brielle", "label": "Brielle (Female)"},
-        {"name": "cassandra", "label": "Cassandra (Female)"},
-        {"name": "dustin", "label": "Dustin (Male)"},
-        {"name": "eleanor", "label": "Eleanor (Female)"},
-        {"name": "gavin", "label": "Gavin (Male)"},
-        {"name": "hailey", "label": "Hailey (Female)"},
-        {"name": "hunter", "label": "Hunter (Male)"},
-        {"name": "isabelle", "label": "Isabelle (Female)"},
-        {"name": "jess", "label": "Jess (Female)"},
-        {"name": "karl", "label": "Karl (Male)"},
-        {"name": "leo", "label": "Leo (Male)"},
-        {"name": "marco", "label": "Marco (Male)"},
-        {"name": "riley", "label": "Riley (Female)"},
+        {"name": "alba", "label": "Alba"},
+        {"name": "vera", "label": "Vera"},
+        {"name": "george", "label": "George"},
+        {"name": "mary", "label": "Mary"},
+        {"name": "jane", "label": "Jane"},
+        {"name": "michael", "label": "Michael"},
+        {"name": "eve", "label": "Eve"},
+        {"name": "anna", "label": "Anna"},
+        {"name": "charles", "label": "Charles"},
+        {"name": "paul", "label": "Paul"},
+        {"name": "bill_boerst", "label": "Bill"},
+        {"name": "peter_yearsley", "label": "Peter"},
+        {"name": "stuart_bell", "label": "Stuart"},
+        {"name": "caro_davy", "label": "Caro"},
     ],
     "french": [
-        {"name": "estelle", "label": "Estelle (Féminin)"},
-        {"name": "antoine", "label": "Antoine (Masculin)"},
+        {"name": "estelle", "label": "Estelle"},
+        {"name": "cosette", "label": "Cosette"},
+        {"name": "marius", "label": "Marius"},
+        {"name": "javert", "label": "Javert"},
+        {"name": "jean", "label": "Jean"},
+        {"name": "fantine", "label": "Fantine"},
+        {"name": "eponine", "label": "Éponine"},
+        {"name": "azelma", "label": "Azelma"},
     ],
     "italian": [
-        {"name": "giovanni", "label": "Giovanni (Maschile)"},
-        {"name": "sofia", "label": "Sofia (Femminile)"},
+        {"name": "giovanni", "label": "Giovanni"},
     ],
     "german": [
-        {"name": "juergen", "label": "Jürgen (Männlich)"},
-        {"name": "anna", "label": "Anna (Weiblich)"},
+        {"name": "juergen", "label": "Jürgen"},
     ],
     "portuguese": [
-        {"name": "rafael", "label": "Rafael (Masculino)"},
-        {"name": "marina", "label": "Marina (Feminino)"},
+        {"name": "rafael", "label": "Rafael"},
     ],
     "spanish": [
-        {"name": "lola", "label": "Lola (Femenino)"},
-        {"name": "carlos", "label": "Carlos (Masculino)"},
+        {"name": "lola", "label": "Lola"},
     ],
 }
+
+# Error key emitted by pocket-tts when voice cloning weights are not available
+VOICE_CLONING_UNAVAILABLE_MSG = "VOICE_CLONING_UNSUPPORTED"
+HF_CLONING_INSTRUCTIONS = (
+    "Voice cloning requires accepting the terms on HuggingFace and logging in. "
+    "Go to https://huggingface.co/kyutai/pocket-tts, accept the terms, "
+    "then run: uvx hf auth login"
+)
 
 # Default voice per language (first voice in each list)
 DEFAULT_VOICE = {
@@ -89,6 +100,10 @@ REQUIRES_24L = {"french", "portuguese", "spanish"}
 
 class TestSpeakPayload(BaseModel):
     message: str = "Hello, how are you doing? I feel better today!"
+
+
+class HfLoginPayload(BaseModel):
+    token: str
 
 
 class Pockettts(Baseplugin):
@@ -164,6 +179,50 @@ class Pockettts(Baseplugin):
             """Clone voice from biorecorder's voice_sample.wav"""
             return await self._clone_voice_from_biorecorder()
 
+        @self.router.get("/hf_status")
+        async def hf_status():
+            """Check if a HuggingFace token is stored and cloning is available."""
+            try:
+                from huggingface_hub import get_token
+                token = get_token()
+                has_token = token is not None and len(token) > 0
+            except Exception:
+                has_token = False
+
+            cloning_available = has_token and self.tts_model is not None and self.voice_state is not None
+            # Also check if the cloning model weights exist in cache
+            cloning_model_cached = self._check_cloning_model_cached()
+            return {
+                "has_token": has_token,
+                "cloning_model_cached": cloning_model_cached,
+                "cloning_available": cloning_available or cloning_model_cached,
+            }
+
+        @self.router.post("/hf_login")
+        async def hf_login(payload: HfLoginPayload):
+            """
+            Authenticate with HuggingFace using a user-provided token.
+            On success, reloads the model so cloning weights are downloaded.
+            """
+            token = payload.token.strip()
+            if not token:
+                raise HTTPException(status_code=400, detail="Token cannot be empty")
+            try:
+                from huggingface_hub import login as hf_login_fn
+                hf_login_fn(token=token, add_to_git_credential=False)
+                self.logger.info("HuggingFace authentication successful")
+            except Exception as e:
+                self.logger.error(f"HuggingFace login failed: {e}")
+                raise HTTPException(status_code=401, detail=f"Authentication failed: {str(e)}")
+
+            # Reload model in background — this time cloning weights will be downloaded
+            self.tts_model = None
+            self.voice_state = None
+            self.ready = False
+            model_thread = threading.Thread(target=self._load_model_threaded, daemon=True)
+            model_thread.start()
+            return {"status": "authenticated", "message": "Model reloading with voice cloning support…"}
+
     # ── Custom voices management ────────────────────────────────────────
 
     def _get_voices_dir(self):
@@ -186,6 +245,25 @@ class Pockettts(Baseplugin):
                     "is_custom": True,
                 })
         return custom
+
+    def _check_cloning_model_cached(self):
+        """Check if pocket-tts voice-cloning weights exist in HuggingFace cache."""
+        try:
+            cache_dir = os.path.join(os.path.expanduser("~"), ".cache", "huggingface", "hub")
+            cloning_model_dir = os.path.join(cache_dir, "models--kyutai--pocket-tts")
+            if not os.path.isdir(cloning_model_dir):
+                return False
+            # The cloning model has a significantly larger blob than the no-cloning one
+            blobs_dir = os.path.join(cloning_model_dir, "blobs")
+            if not os.path.isdir(blobs_dir):
+                return False
+            for fname in os.listdir(blobs_dir):
+                fpath = os.path.join(blobs_dir, fname)
+                if os.path.isfile(fpath) and os.path.getsize(fpath) > 50 * 1024 * 1024:
+                    return True
+            return False
+        except Exception:
+            return False
 
     # ── Model loading ───────────────────────────────────────────────────
 
@@ -340,6 +418,13 @@ class Pockettts(Baseplugin):
 
         except HTTPException:
             raise
+        except ValueError as e:
+            err_str = str(e)
+            if "voice cloning" in err_str.lower() or "VOICE_CLONING_UNSUPPORTED" in err_str:
+                self.logger.warning("Voice cloning unavailable: HuggingFace login required")
+                raise HTTPException(status_code=403, detail=HF_CLONING_INSTRUCTIONS)
+            self.logger.error(f"Error cloning voice: {e}", exc_info=True)
+            raise HTTPException(status_code=500, detail=f"Failed to clone voice: {str(e)}")
         except Exception as e:
             self.logger.error(f"Error cloning voice: {e}", exc_info=True)
             raise HTTPException(status_code=500, detail=f"Failed to clone voice: {str(e)}")
@@ -390,6 +475,13 @@ class Pockettts(Baseplugin):
 
         except HTTPException:
             raise
+        except ValueError as e:
+            err_str = str(e)
+            if "voice cloning" in err_str.lower() or "VOICE_CLONING_UNSUPPORTED" in err_str:
+                self.logger.warning("Voice cloning unavailable: HuggingFace login required")
+                raise HTTPException(status_code=403, detail=HF_CLONING_INSTRUCTIONS)
+            self.logger.error(f"Error cloning from biorecorder: {e}", exc_info=True)
+            raise HTTPException(status_code=500, detail=f"Failed to clone voice: {str(e)}")
         except Exception as e:
             self.logger.error(f"Error cloning from biorecorder: {e}", exc_info=True)
             raise HTTPException(status_code=500, detail=f"Failed to clone voice: {str(e)}")
