@@ -243,6 +243,13 @@ export default {
                 this.formData = Object.assign({}, this.formData, newVal);
                 this.tempValue = Number(newVal.temp != null ? newVal.temp : 0.7);
                 this.eosValue = Number(newVal.eos_threshold != null ? newVal.eos_threshold : -4.0);
+                // If a custom voice was previously saved, reconstruct the dropdown display value
+                // The backend stores voice='custom' + custom_voice_path, but the dropdown
+                // needs value='custom:filename' to show the selected item
+                if (newVal.voice === 'custom' && newVal.custom_voice_path) {
+                    var filename = newVal.custom_voice_path.split(/[\/\\]/).pop();
+                    this.formData.voice = 'custom:' + filename;
+                }
                 this.originalSettings = JSON.parse(JSON.stringify(this.formData));
             },
             immediate: true,
@@ -261,14 +268,17 @@ export default {
             this.formData.eos_threshold = parseFloat(this.eosValue.toFixed(1));
         },
         onVoiceChange() {
-            // If selecting a custom voice from the dropdown, update custom_voice_path
+            // When a custom voice is selected, sync custom_voice_path
+            // but keep formData.voice as 'custom:filename' for the dropdown to stay selected
             if (this.formData.voice && this.formData.voice.startsWith('custom:')) {
                 var fileName = this.formData.voice.replace('custom:', '');
                 var match = this.customVoices.find(function(v) { return v.name === fileName; });
                 if (match) {
                     this.formData.custom_voice_path = match.path;
-                    this.formData.voice = 'custom';
                 }
+            } else {
+                // Built-in voice selected — clear custom path
+                this.formData.custom_voice_path = '';
             }
         },
         resetControllers() {
@@ -375,9 +385,11 @@ export default {
                     method: 'POST'
                 });
                 if (data.status === 'cloned') {
-                    this.formData.voice = 'custom';
-                    this.formData.custom_voice_path = data.path;
                     await this.loadVoices();
+                    // Set dropdown to the newly cloned voice (full 'custom:filename' value)
+                    var filename = data.path.split(/[\/\\]/).pop();
+                    this.formData.voice = 'custom:' + filename;
+                    this.formData.custom_voice_path = data.path;
                     this.saveStatus = { type: 'success', message: this.t('Voice cloned successfully') };
                     var self = this;
                     setTimeout(function() { self.saveStatus = null; }, 3000);
@@ -416,9 +428,11 @@ export default {
                     throw new Error(err.detail || 'Clone failed');
                 }
                 var data = await response.json();
-                this.formData.voice = 'custom';
-                this.formData.custom_voice_path = data.path;
                 await this.loadVoices();
+                // Set dropdown to the newly cloned voice
+                var filename = data.path.split(/[\/\\]/).pop();
+                this.formData.voice = 'custom:' + filename;
+                this.formData.custom_voice_path = data.path;
                 this.saveStatus = { type: 'success', message: this.t('Voice cloned successfully') };
                 var self = this;
                 setTimeout(function() { self.saveStatus = null; }, 3000);
@@ -455,7 +469,17 @@ export default {
                 this.onTempChange();
                 this.onEosChange();
 
+                // Normalize custom voice before saving:
+                // Dropdown uses 'custom:filename' but backend expects voice='custom' + custom_voice_path
+                var origVoice = this.formData.voice;
+                if (origVoice && origVoice.startsWith('custom:')) {
+                    this.formData.voice = 'custom';
+                }
+
                 await this.updateSettings();
+
+                // Restore display value so dropdown stays selected
+                this.formData.voice = origVoice;
                 this.saveStatus = { type: 'success', message: this.t('Settings saved') };
                 this.originalSettings = JSON.parse(JSON.stringify(this.formData));
             } catch (err) {
