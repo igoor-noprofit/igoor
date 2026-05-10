@@ -84,10 +84,12 @@ plugin_name/
 ## Development Notes
 
 
-**Build Process**: 
+**Build Process**:
 - PyInstaller with custom webrtcvad hook
 - Fast build: `create_exe_fast.bat` (5-7 min)
 - Full build: `create_exe.bat` (8-10 min)
+- PyInstaller spec file: `igoor.spec.txt` is the source-of-truth committed to git. The `.spec` file used at build time is generated from it. Any changes to hiddenimports, datas, or excludes must be made in `igoor.spec.txt`.
+- **Important**: Plugins are loaded dynamically, so PyInstaller can't auto-detect their imports. If a plugin uses a package not imported in `main.py`, add it to `hiddenimports` in `igoor.spec.txt`.
 
 **Python Version**: Tested on 3.10.6 only
 
