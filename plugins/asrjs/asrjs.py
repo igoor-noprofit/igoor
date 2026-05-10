@@ -263,7 +263,7 @@ class Asrjs(Baseplugin):
             return
 
         print("Model is ready to use.")
-        await self.send_status("ready")
+        await self.send_status("ready" if self.continuous else "listening")
         self.send_settings_to_frontend()
         # await self.test_wake_word()
     
