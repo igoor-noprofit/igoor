@@ -1,0 +1,80 @@
+{
+    "en": {
+        "small": {
+            "name": "sherpa-onnx-streaming-zipformer-en-20M-2023-02-17",
+            "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-zipformer-en-20M-2023-02-17.tar.bz2",
+            "size": "42M",
+            "encoder": "encoder-epoch-99-avg-1.int8.onnx",
+            "decoder": "decoder-epoch-99-avg-1.onnx",
+            "joiner": "joiner-epoch-99-avg-1.int8.onnx"
+        },
+        "big": {
+            "name": "sherpa-onnx-streaming-zipformer-en-2023-06-26",
+            "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-zipformer-en-2023-06-26.tar.bz2",
+            "size": "70M",
+            "encoder": "encoder-epoch-99-avg-1-chunk-16-left-128.int8.onnx",
+            "decoder": "decoder-epoch-99-avg-1-chunk-16-left-128.onnx",
+            "joiner": "joiner-epoch-99-avg-1-chunk-16-left-128.int8.onnx"
+        }
+    },
+    "fr": {
+        "small": {
+            "name": "sherpa-onnx-streaming-zipformer-fr-2023-04-14",
+            "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-zipformer-fr-2023-04-14.tar.bz2",
+            "size": "122M",
+            "encoder": "encoder-epoch-29-avg-9-with-averaged-model.int8.onnx",
+            "decoder": "decoder-epoch-29-avg-9-with-averaged-model.onnx",
+            "joiner": "joiner-epoch-29-avg-9-with-averaged-model.int8.onnx"
+        },
+        "big": {
+            "name": "sherpa-onnx-streaming-zipformer-fr-2023-04-14",
+            "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-zipformer-fr-2023-04-14.tar.bz2",
+            "size": "282M",
+            "encoder": "encoder-epoch-29-avg-9-with-averaged-model.onnx",
+            "decoder": "decoder-epoch-29-avg-9-with-averaged-model.onnx",
+            "joiner": "joiner-epoch-29-avg-9-with-averaged-model.onnx"
+        }
+    },
+    "ko": {
+        "small": {
+            "name": "sherpa-onnx-streaming-zipformer-korean-2024-06-16",
+            "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-zipformer-korean-2024-06-16.tar.bz2",
+            "size": "125M",
+            "encoder": "encoder-epoch-99-avg-1.int8.onnx",
+            "decoder": "decoder-epoch-99-avg-1.onnx",
+            "joiner": "joiner-epoch-99-avg-1.int8.onnx"
+        },
+        "big": {
+            "name": "sherpa-onnx-streaming-zipformer-korean-2024-06-16",
+            "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-zipformer-korean-2024-06-16.tar.bz2",
+            "size": "300M",
+            "encoder": "encoder-epoch-99-avg-1.onnx",
+            "decoder": "decoder-epoch-99-avg-1.onnx",
+            "joiner": "joiner-epoch-99-avg-1.onnx"
+        }
+    },
+    "zh": {
+        "small": {
+            "name": "sherpa-onnx-streaming-zipformer-zh-14M-2023-02-23",
+            "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-zipformer-zh-14M-2023-02-23.tar.bz2",
+            "size": "25M",
+            "encoder": "encoder-epoch-99-avg-1.int8.onnx",
+            "decoder": "decoder-epoch-99-avg-1.onnx",
+            "joiner": "joiner-epoch-99-avg-1.int8.onnx"
+        },
+        "big": {
+            "name": "sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30",
+            "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30.tar.bz2",
+            "size": "160M",
+            "encoder": "encoder.int8.onnx",
+            "decoder": "decoder.onnx",
+            "joiner": "joiner.int8.onnx"
+        }
+    },
+    "_fallback": {
+        "name": "sherpa-onnx-whisper-tiny",
+        "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-whisper-tiny.tar.bz2",
+        "size": "75M",
+        "type": "whisper"
+    }
+}

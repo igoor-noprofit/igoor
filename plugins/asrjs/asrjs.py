@@ -2,7 +2,7 @@ from settings_manager import SettingsManager
 from plugins.baseplugin.baseplugin import Baseplugin
 from plugin_manager import hookimpl, PluginManager
 import threading
-import json,os, requests,time
+import json,os, requests,time,urllib.request
 import asyncio
 import pyaudio
 import wave
@@ -319,6 +319,8 @@ class Asrjs(Baseplugin):
                 # raise # Optionally re-raise
         elif (self.model_provider == "mistral"):
             self.model=self.settings.get("model_name", "voxtral-mini-latest")
+        elif self.model_provider == "sherpa":
+            self._load_sherpa_model()
 
         self.is_loaded = True
         # Only mark ready if wakeword isn't required, or if it loaded successfully
@@ -481,8 +483,10 @@ class Asrjs(Baseplugin):
             # ASR listens to the INTERLOCUTOR, so use their language when configured
             transcription_lang = self.lang_code  # Default: patient's language (fallback)
             translator_settings = self.settings_manager.get_plugin_settings("translator")
+            translator_enabled = self.settings_manager.get_nested(["plugins_activation", "translator"], default=False) is not False
+            translate_active = (translator_settings.get("translate_incoming", False) or translator_settings.get("translate_outgoing", False)) and translator_enabled
             interlocutor_lang = translator_settings.get("interlocutor_language", "")
-            if interlocutor_lang:
+            if interlocutor_lang and translate_active:
                 from utils import language_name_to_code
                 interlocutor_code = language_name_to_code(interlocutor_lang)
                 if interlocutor_code:
@@ -495,6 +499,8 @@ class Asrjs(Baseplugin):
                 result = await loop.run_in_executor(None, lambda: self._transcribe_with_groq(transcription_lang))
             elif (self.model_provider == "mistral"):
                 result = await loop.run_in_executor(None, lambda: self._transcribe_with_voxtral(transcription_lang))
+            elif self.model_provider == "sherpa":
+                result = await loop.run_in_executor(None, lambda: self._transcribe_with_sherpa())
             return result
         except Exception as e:
             self.logger.error(f"Error transcribing audio: {e}")
@@ -562,6 +568,108 @@ class Asrjs(Baseplugin):
                 return transcription.text
         except Exception as e:
             self.logger.error(f"Groq transcription error: {e}")
+            return ""
+
+    def _load_sherpa_model(self):
+        try:
+            import sherpa_onnx
+            model_info = self._get_sherpa_model_info()
+            if not model_info:
+                self.logger.error("No sherpa-onnx model found for current language")
+                return
+            model_path = self._ensure_sherpa_model_downloaded(model_info)
+
+            if model_info.get("type") == "whisper":
+                self.sherpa_recognizer = sherpa_onnx.OfflineRecognizer.from_whisper(
+                    model=model_path,
+                    num_threads=self.settings.get("sherpa_num_threads", 1),
+                    provider="cpu",
+                )
+            else:
+                self.sherpa_recognizer = sherpa_onnx.OnlineRecognizer.from_transducer(
+                    tokens=os.path.join(model_path, "tokens.txt"),
+                    encoder=os.path.join(model_path, model_info["encoder"]),
+                    decoder=os.path.join(model_path, model_info["decoder"]),
+                    joiner=os.path.join(model_path, model_info["joiner"]),
+                    num_threads=self.settings.get("sherpa_num_threads", 1),
+                    sample_rate=16000,
+                    feature_dim=80,
+                    decoding_method="greedy_search",
+                    provider="cpu",
+                )
+            self.logger.info(f"sherpa-onnx model loaded from {model_path}")
+        except ImportError:
+            self.logger.error("sherpa-onnx not installed. Run: pip install sherpa-onnx")
+        except Exception as e:
+            self.logger.error(f"Error loading sherpa-onnx model: {e}")
+
+    def _get_sherpa_model_info(self):
+        catalog_path = os.path.join(os.path.dirname(__file__), "sherpa_models.json")
+        with open(catalog_path, "r") as f:
+            catalog = json.load(f)
+        lang = self.lang_code
+        size = self.settings.get("sherpa_model_size", "small")
+        if lang in catalog:
+            return catalog[lang][size]
+        return catalog.get("_fallback")
+
+    def _ensure_sherpa_model_downloaded(self, model_info):
+        model_dir = os.path.join(self.plugin_folder, "models", "sherpa", model_info["name"])
+        if os.path.exists(model_dir) and os.listdir(model_dir):
+            return model_dir
+
+        self.logger.info(f"Downloading sherpa-onnx model: {model_info['name']} ({model_info.get('size', '?')})...")
+        os.makedirs(model_dir, exist_ok=True)
+
+        temp_file = os.path.join(self.plugin_folder, "models", "sherpa", "temp.tar.bz2")
+        urllib.request.urlretrieve(model_info["url"], temp_file)
+
+        import tarfile
+        with tarfile.open(temp_file, "r:bz2") as tar:
+            tar.extractall(path=os.path.join(self.plugin_folder, "models", "sherpa"))
+
+        os.remove(temp_file)
+        self.logger.info(f"sherpa-onnx model downloaded to {model_dir}")
+        return model_dir
+
+    def _transcribe_with_sherpa(self):
+        try:
+            import wave
+            import numpy as np
+
+            if not hasattr(self, 'sherpa_recognizer') or self.sherpa_recognizer is None:
+                self.logger.error("sherpa-onnx recognizer not loaded")
+                return ""
+
+            with wave.open(self.temp_audio_file, "rb") as wf:
+                sample_rate = wf.getframerate()
+                frames = wf.readframes(wf.getnframes())
+                samples = np.frombuffer(frames, dtype=np.int16).astype(np.float32) / 32768.0
+
+            stream = self.sherpa_recognizer.create_stream()
+            stream.accept_waveform(sample_rate, samples)
+
+            # OnlineRecognizer: feed chunks until done, then signal end of input
+            if hasattr(self.sherpa_recognizer, 'is_ready'):
+                while self.sherpa_recognizer.is_ready(stream):
+                    self.sherpa_recognizer.decode_stream(stream)
+                stream.input_finished()
+                while self.sherpa_recognizer.is_ready(stream):
+                    self.sherpa_recognizer.decode_stream(stream)
+                text = self.sherpa_recognizer.get_result(stream)
+            else:
+                self.sherpa_recognizer.decode_stream(stream)
+                text = stream.result.text
+
+            text = text.strip().lower()
+            # Capitalize first letter
+            if text:
+                text = text[0].upper() + text[1:]
+
+            self.logger.info(f"sherpa-onnx transcribed: {text[:100]}...")
+            return text
+        except Exception as e:
+            self.logger.error(f"sherpa-onnx transcription error: {e}")
             return ""
     
     def _setup_custom_wakeword_dir(self):
