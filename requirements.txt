@@ -166,6 +166,7 @@ resampy==0.4.3
 rich==13.9.4
 safetensors>=0.5.2
 scikit-learn>=1.6.1
+sherpa-onnx>=1.10.0
 scipy>=1.15.1
 seaborn==0.13.2
 sentence-transformers==3.2.1
