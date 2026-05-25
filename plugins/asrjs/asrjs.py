@@ -183,12 +183,8 @@ class Asrjs(Baseplugin):
         if self.continuous and self.wakeword_enabled:
             self._load_wakeword_model()
         
-        self.model_provider = self.settings.get("model_provider", "groq")  # Default to Groq if not set
-        if self.model_provider not in self.settings.get("allowed_model_providers", []):
-            self.logger.error(f"Model provider '{self.model_provider}' is not allowed. Defaulting to groq")
-            self.model_provider = "groq"
-            print("Model provider not found, using default model provider: Groq")
-        
+        self.model_provider = self.settings.get("model_provider", "groq")
+
         self.model_thread = threading.Thread(target=self.load_model, daemon=True)
         self.model_thread.start()
         print("Started loading model in background.")
