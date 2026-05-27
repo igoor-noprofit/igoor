@@ -41,6 +41,7 @@ http://localhost:9714/api/plugins/asrjs/settings
 - When choosing colors,always start from predefined colors in /css/app.less
 
 **Interface guidelines**: Since the interface is for users who have physical conditions,buttons should generally be big.
+Also, MINIMIZE the number of clicks needed for each action.
 
 ## Plugin Development
 
