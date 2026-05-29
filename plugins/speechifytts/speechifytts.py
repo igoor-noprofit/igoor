@@ -15,6 +15,7 @@ from pydub.playback import play
 import io
 import base64
 import json
+from typing import Dict
 '''
 Language	Code
 English	en
