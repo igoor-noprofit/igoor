@@ -317,6 +317,9 @@ class Asrjs(Baseplugin):
             self.model=self.settings.get("model_name", "voxtral-mini-latest")
         elif self.model_provider == "sherpa":
             self._load_sherpa_model()
+            if not hasattr(self, 'sherpa_recognizer') or self.sherpa_recognizer is None:
+                self.is_loaded = False
+                return
 
         self.is_loaded = True
         # Only mark ready if wakeword isn't required, or if it loaded successfully
@@ -577,7 +580,10 @@ class Asrjs(Baseplugin):
 
             if model_info.get("type") == "whisper":
                 self.sherpa_recognizer = sherpa_onnx.OfflineRecognizer.from_whisper(
-                    model=model_path,
+                    encoder=os.path.join(model_path, model_info["encoder"]),
+                    decoder=os.path.join(model_path, model_info["decoder"]),
+                    tokens=os.path.join(model_path, model_info["tokens"]),
+                    language=self.lang_code,
                     num_threads=self.settings.get("sherpa_num_threads", 1),
                     provider="cpu",
                 )

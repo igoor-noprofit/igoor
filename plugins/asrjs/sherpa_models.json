@@ -71,10 +71,33 @@
             "joiner": "joiner.int8.onnx"
         }
     },
+    "it": {
+        "small": {
+            "name": "sherpa-onnx-whisper-tiny",
+            "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-whisper-tiny.tar.bz2",
+            "size": "75M",
+            "type": "whisper",
+            "encoder": "tiny-encoder.int8.onnx",
+            "decoder": "tiny-decoder.int8.onnx",
+            "tokens": "tiny-tokens.txt"
+        },
+        "big": {
+            "name": "sherpa-onnx-whisper-base",
+            "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-whisper-base.tar.bz2",
+            "size": "150M",
+            "type": "whisper",
+            "encoder": "base-encoder.int8.onnx",
+            "decoder": "base-decoder.int8.onnx",
+            "tokens": "base-tokens.txt"
+        }
+    },
     "_fallback": {
         "name": "sherpa-onnx-whisper-tiny",
         "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-whisper-tiny.tar.bz2",
         "size": "75M",
-        "type": "whisper"
+        "type": "whisper",
+        "encoder": "tiny-encoder.int8.onnx",
+        "decoder": "tiny-decoder.int8.onnx",
+        "tokens": "tiny-tokens.txt"
     }
 }
