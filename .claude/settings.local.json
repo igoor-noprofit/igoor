@@ -10,7 +10,8 @@
       "Bash(pip show *)",
       "Bash(python -c \"import sherpa_onnx; print\\('sherpa-onnx version:', sherpa_onnx.__version__\\)\")",
       "Bash(./venv/Scripts/python.exe -c ' *)",
-      "Bash(./venv/Scripts/python.exe -c \"import json; d=json.load\\(open\\('plugins/asrjs/sherpa_models.json'\\)\\); print\\('Valid JSON. Keys:', list\\(d.keys\\(\\)\\)\\); print\\('it:', d['it']['big']['name']\\); print\\('_fallback has tokens:', 'tokens' in d['_fallback']\\)\")"
+      "Bash(./venv/Scripts/python.exe -c \"import json; d=json.load\\(open\\('plugins/asrjs/sherpa_models.json'\\)\\); print\\('Valid JSON. Keys:', list\\(d.keys\\(\\)\\)\\); print\\('it:', d['it']['big']['name']\\); print\\('_fallback has tokens:', 'tokens' in d['_fallback']\\)\")",
+      "Bash(python -c \"import json; json.load\\(open\\('plugins/elevenlabstts/locales/fr_FR/elevenlabstts_fr_FR.json', encoding='utf-8'\\)\\); json.load\\(open\\('plugins/elevenlabstts/locales/it_IT/elevenlabstts_it_IT.json', encoding='utf-8'\\)\\); print\\('JSON OK'\\)\")"
     ],
     "additionalDirectories": [
       "C:\\AIKU\\experiments\\igoor\\plugins\\asrjs\\__pycache__"
