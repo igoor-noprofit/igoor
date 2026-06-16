@@ -11,7 +11,9 @@
       "Bash(git -C c:/igoor ls-files)",
       "Bash(git -C c:/igoor check-ignore -v pretrained_models)",
       "Bash(git -C c:/igoor status --ignored --short)",
-      "Bash(venv/Scripts/pip.exe list *)"
+      "Bash(venv/Scripts/pip.exe list *)",
+      "Bash(./venv/Scripts/python.exe -c ' *)",
+      "Bash(awk -F: '$1>=995 && $1<=1070')"
     ]
   }
 }

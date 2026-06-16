@@ -59,5 +59,9 @@
     "Delete custom model": "Elimina modello personalizzato",
     "failed to load wakeword model": "impossibile caricare il modello parola chiave",
     "Default model": "Modello predefinito",
-    "Browse": "Sfoglia"
+    "Browse": "Sfoglia",
+    "Model size": "Dimensione modello",
+    "Small (fast, less accurate)": "Piccolo (veloce, meno preciso)",
+    "Big (slower, more accurate)": "Grande (più lento, più preciso)",
+    "Model is auto-selected based on your language. Downloaded once, then used offline.": "Il modello viene selezionato automaticamente in base alla tua lingua. Scaricato una volta, poi usato offline."
 }

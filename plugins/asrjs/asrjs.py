@@ -584,7 +584,7 @@ class Asrjs(Baseplugin):
                     decoder=os.path.join(model_path, model_info["decoder"]),
                     tokens=os.path.join(model_path, model_info["tokens"]),
                     language=self.lang_code,
-                    num_threads=self.settings.get("sherpa_num_threads", 1),
+                    num_threads=min(4, os.cpu_count() or 1),
                     provider="cpu",
                 )
             else:
@@ -593,7 +593,7 @@ class Asrjs(Baseplugin):
                     encoder=os.path.join(model_path, model_info["encoder"]),
                     decoder=os.path.join(model_path, model_info["decoder"]),
                     joiner=os.path.join(model_path, model_info["joiner"]),
-                    num_threads=self.settings.get("sherpa_num_threads", 1),
+                    num_threads=min(4, os.cpu_count() or 1),
                     sample_rate=16000,
                     feature_dim=80,
                     decoding_method="greedy_search",

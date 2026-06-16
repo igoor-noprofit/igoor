@@ -53,12 +53,6 @@
                     </select>
                 </div>
                 <div class="form-note">{{t('Model is auto-selected based on your language. Downloaded once, then used offline.')}}</div>
-
-                <div class="form-label">{{t('Threads')}}</div>
-                <div class="form-input">
-                    <input type="number" v-model.number="formData.sherpa_num_threads" min="1" max="8" style="width: 60px;" />
-                </div>
-                <div class="form-note">{{t('Number of CPU threads for inference. Default: 1')}}</div>
             </template>
 
             <!-- MISTRAL API KEY -->
@@ -295,8 +289,7 @@ export default {
                 positiveSpeechThreshold: 0.5,
                 redemptionFrames: 24,
                 shortcut: '',
-                sherpa_model_size: 'small',
-                sherpa_num_threads: 1
+                sherpa_model_size: 'small'
             },
             defaultSettings: {
                 positiveSpeechThreshold: 0.5,
