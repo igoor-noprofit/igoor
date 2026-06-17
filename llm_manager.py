@@ -103,6 +103,41 @@ class LLMManager:
         """Returns a chat instance with tools explicitly disabled."""
         return self.chat_instance.bind(tool_choice="none")
 
+    def _extract_usage_info(self, response):
+        """Extract reasoning-token and prompt-cache info from a langchain response's
+        response_metadata. Shared by the JSON-schema and unstructured invoke paths so
+        that cache hits (e.g. Groq's prompt_tokens_details.cached_tokens) are recorded
+        for EVERY call — previously only the unstructured branch captured them.
+        Returns (reasoning_log_content: str, cache_log: dict)."""
+        reasoning_log_content = ""
+        cache_log = {}
+        if hasattr(response, 'response_metadata'):
+            metadata = response.response_metadata
+            if 'token_usage' in metadata:
+                usage = metadata['token_usage']
+                if isinstance(usage, dict):
+                    if 'reasoning_tokens' in usage:
+                        reasoning_log_content = f"Reasoning tokens: {usage['reasoning_tokens']}"
+                        self.logger.info(f"Reasoning tokens used: {usage['reasoning_tokens']}")
+                    prompt_tokens = usage.get('prompt_tokens', 0)
+                    cached_tokens = 0
+                    # Different providers report cached tokens under different keys
+                    if 'cached_tokens' in usage:
+                        cached_tokens = usage['cached_tokens']
+                    elif 'prompt_tokens_details' in usage:
+                        ptd = usage['prompt_tokens_details']
+                        if isinstance(ptd, dict):
+                            cached_tokens = ptd.get('cached_tokens', 0)
+                    if cached_tokens > 0 and prompt_tokens > 0:
+                        hit_rate = (cached_tokens / prompt_tokens * 100)
+                        self.logger.info(f"Cache: {cached_tokens}/{prompt_tokens} tokens cached → {hit_rate:.1f}%")
+                        cache_log = {
+                            "cached_tokens": cached_tokens,
+                            "prompt_tokens": prompt_tokens,
+                            "cache_hit_pct": round(hit_rate, 1)
+                        }
+        return reasoning_log_content, cache_log
+
     def invoke(self, system_prompt, prompt, retries=3, reasoning_effort=None):
         import json
         attempt = 0
@@ -123,6 +158,9 @@ class LLMManager:
                             ("system", system_prompt + json_instruction),
                             ("human", prompt)
                         ])
+
+                        # Extract provider usage/cache info (shared with the unstructured path)
+                        reasoning_log_content, cache_log = self._extract_usage_info(response)
 
                         # Parse JSON from response
                         raw_content = response.content
@@ -151,40 +189,8 @@ class LLMManager:
                     response_content = response
                     response_log_content = str(response_content)
 
-                    # Try to extract provider-specific metadata (reasoning, cache info)
-                    if hasattr(response, 'response_metadata'):
-                        metadata = response.response_metadata
-
-                        # Check for reasoning in token_usage (some providers include it)
-                        if 'token_usage' in metadata:
-                            usage = metadata['token_usage']
-
-                            # Check for reasoning tokens (varies by provider)
-                            if isinstance(usage, dict):
-                                if 'reasoning_tokens' in usage:
-                                    reasoning_log_content = f"Reasoning tokens: {usage['reasoning_tokens']}"
-                                    self.logger.info(f"Reasoning tokens used: {usage['reasoning_tokens']}")
-
-                                # Check for cache information (Groq, etc.)
-                                prompt_tokens = usage.get('prompt_tokens', 0)
-                                cached_tokens = 0
-
-                                # Try different cache field names used by providers
-                                if 'cached_tokens' in usage:
-                                    cached_tokens = usage['cached_tokens']
-                                elif 'prompt_tokens_details' in usage:
-                                    ptd = usage['prompt_tokens_details']
-                                    if isinstance(ptd, dict):
-                                        cached_tokens = ptd.get('cached_tokens', 0)
-
-                                if cached_tokens > 0 and prompt_tokens > 0:
-                                    hit_rate = (cached_tokens / prompt_tokens * 100)
-                                    self.logger.info(f"Cache: {cached_tokens}/{prompt_tokens} tokens cached → {hit_rate:.1f}%")
-                                    cache_log = {
-                                        "cached_tokens": cached_tokens,
-                                        "prompt_tokens": prompt_tokens,
-                                        "cache_hit_pct": round(hit_rate, 1)
-                                    }
+                    # Extract provider-specific metadata (reasoning, cache info)
+                    reasoning_log_content, cache_log = self._extract_usage_info(response)
 
                 # Log invocation details to JSONL file
                 log_data = {
