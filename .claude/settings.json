@@ -20,7 +20,13 @@
       "Read(//c/c/Users/inovi/AppData/Roaming/**)",
       "Bash(./venv/Scripts/python.exe -m py_compile utils.py)",
       "Bash(./venv/Scripts/python.exe -m py_compile utils.py plugin_manager.py plugins/baseplugin/baseplugin.py plugins/autocomplete/autocomplete.py plugins/daily/daily.py plugins/memory/memory.py plugins/flow/flow.py)",
-      "Bash(./venv/Scripts/python.exe -m py_compile plugins/baseplugin/baseplugin.py plugins/autocomplete/autocomplete.py plugins/daily/daily.py plugins/flow/flow.py plugins/memory/memory.py)"
+      "Bash(./venv/Scripts/python.exe -m py_compile plugins/baseplugin/baseplugin.py plugins/autocomplete/autocomplete.py plugins/daily/daily.py plugins/flow/flow.py plugins/memory/memory.py)",
+      "Bash(git --no-pager diff plugins/flow/prompts.yaml)",
+      "Bash(git --no-pager diff --stat llm_manager.py)",
+      "Bash(git --no-pager diff llm_manager.py)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git --no-pager log --oneline -3)"
     ]
   }
 }
