@@ -13,7 +13,14 @@
       "Bash(git -C c:/igoor status --ignored --short)",
       "Bash(venv/Scripts/pip.exe list *)",
       "Bash(./venv/Scripts/python.exe -c ' *)",
-      "Bash(awk -F: '$1>=995 && $1<=1070')"
+      "Bash(awk -F: '$1>=995 && $1<=1070')",
+      "Bash(./venv/Scripts/python.exe -m py_compile plugin_manager.py plugins/baseplugin/baseplugin.py plugins/autocomplete/autocomplete.py plugins/daily/daily.py plugins/memory/memory.py plugins/flow/flow.py)",
+      "Bash(export PYTHONIOENCODING=utf-8)",
+      "Bash(cd /c/Users/inovi/AppData/Roaming/igoor && ls -t *.log logs/*.log 2>/dev/null | head; echo \"=== 'Loading plugins' / 'Running boot warmup' counts in pm.log ===\"; grep -c \"Loading plugins\" pm.log 2>/dev/null; grep -c \"Running boot warmup\" pm.log 2>/dev/null; echo \"=== context around warmup lines \\(15:09 boot\\) ===\"; grep -n \"Running boot warmup\\\\|Warmup complete\\\\|Warmup OK\" pm.log 2>/dev/null | tail -20)",
+      "Read(//c/c/Users/inovi/AppData/Roaming/**)",
+      "Bash(./venv/Scripts/python.exe -m py_compile utils.py)",
+      "Bash(./venv/Scripts/python.exe -m py_compile utils.py plugin_manager.py plugins/baseplugin/baseplugin.py plugins/autocomplete/autocomplete.py plugins/daily/daily.py plugins/memory/memory.py plugins/flow/flow.py)",
+      "Bash(./venv/Scripts/python.exe -m py_compile plugins/baseplugin/baseplugin.py plugins/autocomplete/autocomplete.py plugins/daily/daily.py plugins/flow/flow.py plugins/memory/memory.py)"
     ]
   }
 }

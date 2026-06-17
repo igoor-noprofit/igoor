@@ -43,6 +43,13 @@ class MyAppSpec:
     def startup(self):
         """Hook for plugins to perform startup activities"""
         pass
+
+    @pluggy.HookspecMarker(app_name)
+    def warmup(self):
+        """Boot-time warmup hook. Plugins make a throwaway LLM call to pre-warm
+        the connection/model and populate the provider prefix-cache before the
+        first real request. Runs after all plugins report ready, in the background."""
+        pass
     
     @pluggy.HookspecMarker(app_name)
     def run_tests(self):
@@ -540,6 +547,8 @@ class PluginManager:
                         pass
                 if total > 0 and ready >= total:
                     self._boot_progress_stop.set()
+                    # All plugins ready → run boot warmup in the background (best-effort, non-blocking)
+                    threading.Thread(target=self._run_warmup, daemon=True).start()
                     break
                 if time.time() - self._boot_progress_started_at >= 600:
                     self._boot_progress_stop.set()
@@ -548,6 +557,38 @@ class PluginManager:
 
         self._boot_progress_thread = threading.Thread(target=run, daemon=True)
         self._boot_progress_thread.start()
+
+    def _run_warmup(self):
+        """Fire the boot-time warmup hook across plugins. Best-effort: never raises,
+        never blocks boot (always called from a background thread)."""
+        try:
+            ai = SettingsManager().get_nested(["plugins", "onboarding", "ai"], default={})
+            if not ai.get("warmup_enabled", True):
+                self.logger.info("Boot warmup disabled (warmup_enabled=false); skipping.")
+                return
+            # Nothing to warm without a configured LLM provider/key/model
+            if not (ai.get("provider") and ai.get("api_key") and ai.get("model_name")):
+                self.logger.info("Boot warmup skipped: LLM provider/key/model not configured.")
+                return
+
+            warmup_plugins = [p for p in self.plugins if callable(getattr(p, "warmup", None))]
+            if not warmup_plugins:
+                return
+            self.logger.info(f"Running boot warmup for {len(warmup_plugins)} plugin(s)...")
+
+            from concurrent.futures import ThreadPoolExecutor
+            def _do_warmup(plugin):
+                name = getattr(plugin, "plugin_name", plugin.__class__.__name__)
+                try:
+                    plugin.warmup()
+                    self.logger.info(f"Warmup complete: {name}")
+                except Exception as e:
+                    self.logger.warning(f"Warmup failed for {name}: {e}")
+
+            with ThreadPoolExecutor(max_workers=4) as pool:
+                list(pool.map(_do_warmup, warmup_plugins))
+        except Exception as e:
+            self.logger.warning(f"Boot warmup error (non-fatal): {e}")
         
     def get_plugin_manager(self):
         return self

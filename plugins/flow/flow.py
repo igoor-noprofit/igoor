@@ -56,6 +56,23 @@ class Flow(Baseplugin):
         """Reload prompt templates when biorecorder bio.md has been created or updated."""
         self.logger.info("Flow: bio_context_updated — rebuilding prompt templates")
         self._build_prompt_templates()
+
+    @hookimpl
+    def warmup(self):
+        """Boot warmup: pre-warm the LLM client/cache with the real flow prompt.
+        Sends the full filled user prompt (static fields filled, dynamic fields blanked)
+        so the largest stable prefix is cached."""
+        if not (getattr(self, "_flow_system_prompt", None) and getattr(self, "_flow_usr_pm", None)):
+            return
+        try:
+            user_prompt = self._flow_usr_pm.create_prompt(
+                static_context="", long_term="", short_term="",
+                dynamic_context={}, conversation="", last_conversations=""
+            )
+            self._warmup_llm(self._flow_system_prompt, user_prompt=user_prompt)
+        except Exception as e:
+            self.logger.warning(f"Flow warmup render failed, falling back to system-only: {e}")
+            self._warmup_llm(self._flow_system_prompt)
     
     @hookimpl
     def startup(self):

@@ -228,6 +228,13 @@
                                     </select>
                                     <p>{{ t("Higher reasoning means slower, more expensive, but usually more intelligent responses.") }}</p>
                                 </div>
+                                <div>
+                                    <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;">
+                                        <input type="checkbox" v-model="ai.warmup_enabled" style="margin-top:0.25em;flex-shrink:0;" />
+                                        <span>{{ t("Warm up AI at startup (faster first response)") }}</span>
+                                    </label>
+                                    <p>{{ t("Sends a small request to each AI plugin when IGOOR starts, so the first real response is faster. Uses a few tokens per boot.") }}</p>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -362,7 +369,8 @@ export default {
                 model_name: "",
                 base_url: "",
                 temperature: "",
-                reasoning_effort: ""
+                reasoning_effort: "",
+                warmup_enabled: true
             },
             isSaving: false,
             saveStatus: null,
