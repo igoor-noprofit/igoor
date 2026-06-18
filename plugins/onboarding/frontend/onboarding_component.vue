@@ -491,15 +491,11 @@ export default {
         providerModels() {
             const modelsByProvider = {
                 'groq': [
-                    { value: 'llama-3.3-70b-versatile', label: 'Llama 3.3-70B' },
                     { value: 'openai/gpt-oss-120b', label: 'OpenAI OSS-GPT-120B' },
-                    { value: 'openai/gpt-oss-20b', label: 'OpenAI OSS-GPT-20B' },
-                    { value: 'meta-llama/llama-4-scout-17b-16e-instruct', label: 'Llama 4-17b-16e (preview)' }
+                    { value: 'openai/gpt-oss-20b', label: 'OpenAI OSS-GPT-20B' }
                 ],
                 'cerebras': [
-                    { value: 'llama3.1-8b', label: 'Llama 3.1 8B (~2200 t/s)' },
-                    { value: 'gpt-oss-120b', label: 'GPT-OSS 120B (~3000 t/s)' },
-                    { value: 'qwen-3-235b-a22b-instruct-2507', label: 'Qwen 3 235B (preview)' }
+                    { value: 'gpt-oss-120b', label: 'GPT-OSS 120B (~3000 t/s)' }
                 ],
                 'mistral': [
                     { value: 'mistral-small-latest', label: 'Mistral Small' },
