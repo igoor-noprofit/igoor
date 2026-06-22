@@ -107,7 +107,7 @@ numba>=0.62.0
 numpy>=2.2.2
 onnxruntime==1.19.2
 openai==1.63.2
-openwakeword=0.6.0
+openwakeword==0.6.0
 orjson==3.10.10
 packaging==24.1
 paginate==0.5.7
