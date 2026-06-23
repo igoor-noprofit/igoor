@@ -1,10 +1,5 @@
 {
-    "Get your free API key from OpenWeatherMap": "Ottieni la tua chiave API gratuita da OpenWeatherMap",
-    "OpenWeatherMap API Key": "Chiave API OpenWeatherMap",
-    "Enter your OpenWeatherMap API key": "Inserisci la tua chiave API OpenWeatherMap",
-    "API Key is required": "La chiave API è richiesta",
-    "Invalid API Key": "Chiave API non valida",
-    "Could not validate API key": "Impossibile validare la chiave API",
+    "Weather data by Open-Meteo": "Dati meteo di Open-Meteo",
     "Home Latitude": "Latitudine casa",
     "Home Longitude": "Longitudine casa",
     "ex. 13.12292393": "es. 13.12292393",
@@ -14,11 +9,8 @@
     "Geocoding...": "Geocodifica...",
     "Geocoded location": "Posizione geocodificata",
     "Address not found": "Indirizzo non trovato",
-    "Invalid API Key for geocoding": "Chiave API non valida per la geocodifica",
     "Could not connect to geocoding service": "Impossibile connettersi al servizio di geocodifica",
     "Geocoding failed": "Geocodifica fallita",
-    "Please enter a valid address to get coordinates": "Inserisci un indirizzo valido per ottenere le coordinate",
-    "API key is required for geocoding": "La chiave API è richiesta per la geocodifica",
     "Latitude": "Latitudine",
     "Longitude": "Longitudine"
 }

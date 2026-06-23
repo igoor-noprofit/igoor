@@ -191,19 +191,6 @@ and hooks-contrib
 pip install --upgrade pyinstaller-hooks-contrib
 ```
 
-### WEBRTCVAD-WHEELS
-
-Modify the hook in the virtual environment folder:
-
-\venv\lib\site-packages\_pyinstaller_hooks_contrib\stdhooks\hook-webrtcvad.py
-
-Replace code with this code:
-```
-from PyInstaller.utils.hooks import copy_metadata
-
-datas = copy_metadata('webrtcvad-wheels')
-```
-
 ### CREATE THE EXECUTABLE / INNOSETUP 
 
 In powershell (VS Code terminal):

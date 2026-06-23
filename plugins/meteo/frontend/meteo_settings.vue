@@ -1,28 +1,13 @@
 <template>
     <div class="meteo-plugin-settings form-grid">
-        <!-- Signup Link -->
+        <!-- Attribution (CC BY 4.0) -->
         <div class="form-label"></div>
         <div class="form-input">
-            <a href="https://home.openweathermap.org/users/sign_up" target="_blank" class="signup-link">
-                {{ t('Get your free API key from OpenWeatherMap') }}
+            <a href="https://open-meteo.com/" target="_blank" class="signup-link">
+                {{ t('Weather data by Open-Meteo') }}
             </a>
         </div>
         <div class="form-note"></div>
-
-        <!-- API Key -->
-        <div class="form-label">{{ t('OpenWeatherMap API Key') }}</div>
-        <div class="form-input" style="display: flex; align-items: center; gap: 8px;">
-            <input
-                type="password"
-                v-model="formData.api_key"
-                :class="{'input-error': apiKeyError, 'input-success': apiKeyValid}"
-                :placeholder="t('Enter your OpenWeatherMap API key')"
-            />
-            <span v-if="apiKeyValid" class="valid-icon">✓</span>
-        </div>
-        <div class="form-note" :style="{color: apiKeyError ? '#ff6666' : undefined}">
-            {{ apiKeyError ? (apiKeyErrorMessage || t('Invalid API Key')) : '' }}
-        </div>
 
         <!-- Home Address -->
         <div class="form-label">{{ t('Home address') }}</div>
@@ -113,17 +98,12 @@ export default {
     data() {
         return {
             formData: {
-                api_key: '',
                 lat_home: '',
                 lng_home: '',
                 always_home: false,
                 home_address: ''
             },
-            apiKeyError: false,
-            apiKeyErrorMessage: '',
-            apiKeyValid: false,
             isSaving: false,
-            validationDebounce: null,
             // Geocoding properties
             geocodedLat: null,
             geocodedLon: null,
@@ -166,21 +146,6 @@ export default {
             immediate: true,
             deep: true
         },
-        'formData.api_key'(newValue) {
-            // Debounce API key validation
-            if (this.validationDebounce) {
-                clearTimeout(this.validationDebounce);
-            }
-            if (newValue && newValue.trim()) {
-                this.validationDebounce = setTimeout(() => {
-                    this.validateApiKey(newValue);
-                }, 500);
-            } else {
-                this.apiKeyError = false;
-                this.apiKeyErrorMessage = '';
-                this.apiKeyValid = false;
-            }
-        },
         'formData.home_address'(newValue) {
             // Debounce address geocoding
             if (this.geocodingDebounce) {
@@ -209,7 +174,7 @@ export default {
 
                     // Check if formData is a simple object (not a proxy yet)
                     // If formData is still empty defaults, merge with backend settings
-                    const needsMerge = !this.formData.api_key && !this.formData.lat_home &&
+                    const needsMerge = !this.formData.lat_home &&
                                       !this.formData.lng_home && !this.formData.home_address;
 
                     console.log('  needsMerge:', needsMerge);
@@ -217,7 +182,6 @@ export default {
                     if (needsMerge) {
                         // Merge backend settings with defaults
                         this.formData = {
-                            api_key: newVal.api_key || '',
                             lat_home: newVal.lat_home || '',
                             lng_home: newVal.lng_home || '',
                             always_home: newVal.always_home !== undefined ? newVal.always_home : false,
@@ -227,7 +191,6 @@ export default {
                     } else {
                         // Settings already loaded via BasePluginComponent,
                         // just ensure we have the values
-                        if (newVal.api_key) this.formData.api_key = newVal.api_key;
                         if (newVal.lat_home) this.formData.lat_home = newVal.lat_home;
                         if (newVal.lng_home) this.formData.lng_home = newVal.lng_home;
                         if (newVal.home_address) this.formData.home_address = newVal.home_address;
@@ -242,34 +205,6 @@ export default {
         }
     },
     methods: {
-        async validateApiKey(apiKey) {
-            if (!apiKey || !apiKey.trim()) {
-                this.apiKeyError = false;
-                this.apiKeyErrorMessage = '';
-                return;
-            }
-
-            try {
-                const response = await fetch(`/api/plugins/meteo/validate_api_key?api_key=${encodeURIComponent(apiKey)}`);
-                const data = await response.json();
-
-                if (response.ok) {
-                    this.apiKeyError = false;
-                    this.apiKeyErrorMessage = '';
-                    this.apiKeyValid = true;
-                } else {
-                    this.apiKeyError = true;
-                    this.apiKeyErrorMessage = data.detail || this.t('Invalid API Key');
-                    this.apiKeyValid = false;
-                }
-            } catch (error) {
-                console.error('API key validation error:', error);
-                this.apiKeyError = true;
-                this.apiKeyErrorMessage = this.t('Could not validate API key');
-                this.apiKeyValid = false;
-            }
-        },
-
         async geocodeAddress() {
             if (!this.formData.home_address || !this.formData.home_address.trim()) {
                 this.addressError = false;
@@ -322,22 +257,8 @@ export default {
         checkBeforeUpdating() {
             console.log('checkBeforeUpdating called');
             console.log('  formData:', this.formData);
-            console.log('  apiKeyError:', this.apiKeyError);
-            console.log('  addressError:', this.addressError);
 
-            // Only mandatory field: API key
-            if (!this.formData.api_key || !this.formData.api_key.trim()) {
-                console.log('  BLOCK: API key is empty');
-                this.apiKeyError = true;
-                this.apiKeyErrorMessage = this.t('API Key is required');
-                return;
-            }
-            if (this.apiKeyError) {
-                console.log('  BLOCK: API key has error');
-                return; // Don't save if API key has validation error
-            }
-
-            console.log('  PASS: API key is valid, saving...');
+            // No API key required anymore (Open-Meteo is key-free). Just save.
             this.isSaving = true;
             this.saveSettings().finally(() => {
                 this.isSaving = false;
@@ -350,9 +271,6 @@ export default {
         // formData will be set in originalSettings watcher with defaults merged
     },
     beforeDestroy() {
-        if (this.validationDebounce) {
-            clearTimeout(this.validationDebounce);
-        }
         if (this.geocodingDebounce) {
             clearTimeout(this.geocodingDebounce);
         }
