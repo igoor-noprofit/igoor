@@ -45,14 +45,17 @@
 
             <!-- SHERPA MODEL SIZE (only when sherpa selected) -->
             <template v-if="formData.model_provider === 'sherpa'">
-                <div class="form-label">{{t('Model size')}}</div>
+                <div class="form-label">
+                    {{t('Model size')}}
+                    <HelpPopover :text="t('Model is auto-selected based on your language. Downloaded once, then used offline.')" :t="t" :lang="lang"/>
+                </div>
                 <div class="form-input">
                     <select name="sherpa_model_size" v-model="formData.sherpa_model_size">
                         <option value="small">{{t('Small (fast, less accurate)')}}</option>
                         <option value="big">{{t('Big (slower, more accurate)')}}</option>
                     </select>
                 </div>
-                <div class="form-note">{{t('Model is auto-selected based on your language. Downloaded once, then used offline.')}}</div>
+                <div class="form-note"></div>
             </template>
 
             <!-- MISTRAL API KEY -->
@@ -74,7 +77,14 @@
             </div>
 
             <!-- Shortcut -->
-            <div class="form-label">{{t('Microphone Activation Shortcut')}}</div>
+            <div class="form-label">
+                {{t('Microphone Activation Shortcut')}}
+                <HelpPopover
+                    :text="t('Click the box and press a key or combination (e.g., Ctrl+R) to set the shortcut.') + ' ' + t('This keyboard combination STARTS / STOPS the speech detection process')"
+                    :t="t"
+                    :lang="lang"
+                />
+            </div>
             <div class="form-input" style="display: flex; align-items: center; gap: 8px;">
                 <input
                     type="text"
@@ -89,11 +99,7 @@
                 />
                 <button type="button" @click="clearShortcut" style="margin-left: 4px;" :disabled="!formData.shortcut">{{t('Clear')}}</button>
             </div>
-            <div class="form-note">
-                {{t('Click the box and press a key or combination (e.g., Ctrl+R) to set the shortcut.')}}
-                <br>
-                {{t('This keyboard combination STARTS / STOPS the speech detection process')}}
-            </div>
+            <div class="form-note"></div>
 
             <!-- Microphone Volume Indicator -->
             <div class="form-label">{{t('Microphone Level')}}</div>
@@ -105,7 +111,10 @@
             </div>
             <div class="form-note"></div>
             <!-- Continuous Mode -->
-            <div class="form-label">{{t('Continuous Listening Mode')}}</div>
+            <div class="form-label">
+                {{t('Continuous Listening Mode')}}
+                <HelpPopover :text="t('When enabled, the microphone listens continuously and automatically detects speech.')" :t="t" :lang="lang"/>
+            </div>
             <div class="form-input">
                 <label class="toggle-switch">
                     <input type="checkbox" v-model="formData.continuous" />
@@ -113,9 +122,7 @@
                 </label>
                 <span style="margin-left: 8px;">{{ formData.continuous ? t('Enabled') : t('Disabled') }}</span>
             </div>
-            <div class="form-note">
-                {{t('When enabled, the microphone listens continuously and automatically detects speech.')}}<br>
-            </div>
+            <div class="form-note"></div>
         </div>
 
         <div class="bio right">
@@ -134,7 +141,10 @@
 
             <!-- Speech Detection Threshold (only shown when continuous is enabled) -->
             <template v-if="formData.continuous">
-                <div class="form-label">{{t('Speech Threshold')}}</div>
+                <div class="form-label">
+                    {{t('Speech Threshold')}}
+                    <HelpPopover :text="t('Lower = more sensitive (may pick up noise), Higher = less sensitive (may miss soft speech)')" :t="t" :lang="lang"/>
+                </div>
                 <div class="form-input" style="display: flex; align-items: center; gap: 12px;">
                     <input
                         type="range"
@@ -153,12 +163,17 @@
                         style="width: 60px;"
                     />
                 </div>
-                <div class="form-note">
-                    {{t('Lower = more sensitive (may pick up noise), Higher = less sensitive (may miss soft speech)')}}
-                </div>
+                <div class="form-note"></div>
 
                 <!-- Pause Tolerance (redemptionFrames) -->
-                <div class="form-label">{{t('Pause Tolerance')}}</div>
+                <div class="form-label">
+                    {{t('Pause Tolerance')}}
+                    <HelpPopover
+                        :text="t('How long to wait after speech stops before transcribing.') + ' ' + t('Higher values help with speakers who pause frequently.')"
+                        :t="t"
+                        :lang="lang"
+                    />
+                </div>
                 <div class="form-input">
                     <select name="redemptionFrames" v-model.number="formData.redemptionFrames">
                         <option value="12">12 frames (~380ms) - Fast</option>
@@ -168,13 +183,13 @@
                         <option value="72">72 frames (~2300ms) - Very slow</option>
                     </select>
                 </div>
-                <!--div class="form-note">
-                    {{t('How long to wait after speech stops before transcribing.')}}<br>
-                    {{t('Higher values help with speakers who pause frequently.')}}
-                </div-->
+                <div class="form-note"></div>
 
                 <!-- Always Generate (bypass semantic VAD) -->
-                <div class="form-label">{{t('Always generate predictions')}}</div>
+                <div class="form-label">
+                    {{t('Always generate predictions')}}
+                    <HelpPopover :text="t('When enabled, bypasses the semantic VAD check and generates immediately after speech ends.')" :t="t" :lang="lang"/>
+                </div>
                 <div class="form-input">
                     <label class="toggle-switch">
                         <input type="checkbox" v-model="formData.always_generate" />
@@ -182,14 +197,14 @@
                     </label>
                     <span style="margin-left: 8px;">{{ formData.always_generate ? t('Enabled') : t('Disabled') }}</span>
                 </div>
-            <!--div class="form-note">
-                {{t('When enabled, bypasses the semantic VAD check and generates immediately after speech ends.')}}<br>
-            </div-->
         </template>
 
         <!-- Wakeword Detection Section -->
         <template v-if="formData.continuous">
-            <div class="form-label">{{t('Wakeword Detection')}}</div>
+            <div class="form-label">
+                {{t('Wakeword Detection')}}
+                <HelpPopover :text="t('Say &quot;Hey Igor&quot; to activate voice recognition hands-free.')" :t="t" :lang="lang"/>
+            </div>
             <div class="form-input">
                 <label class="toggle-switch">
                     <input type="checkbox" v-model="formData.wakeword_enabled" />
@@ -197,13 +212,18 @@
                 </label>
                 <span style="margin-left: 8px;">{{ formData.wakeword_enabled ? t('Enabled') : t('Disabled') }}</span>
             </div>
-            <!--div class="form-note">
-                {{t('Say "Hey Igor" to activate voice recognition hands-free.')}}
-            </div-->
+            <div class="form-note"></div>
 
             <!-- Wakeword Sensitivity (only shown when wakeword enabled) -->
             <template v-if="formData.wakeword_enabled">
-                <div class="form-label">{{t('Wakeword Sensitivity')}}</div>
+                <div class="form-label">
+                    {{t('Wakeword Sensitivity')}}
+                    <HelpPopover
+                        :text="t('Lower = fewer false positives, Higher = more sensitive') + ' ' + t('Adjust based on your environment and microphone quality.')"
+                        :t="t"
+                        :lang="lang"
+                    />
+                </div>
                 <div class="form-input" style="display: flex; align-items: center; gap: 12px;">
                     <input
                         type="range"
@@ -222,10 +242,7 @@
                         style="width: 60px;"
                     />
                 </div>
-                <!--div class="form-note">
-                    {{t('Lower = fewer false positives, Higher = more sensitive')}}<br>
-                    {{t('Adjust based on your environment and microphone quality.')}}
-                </div-->
+                <div class="form-note"></div>
 
                 <!-- Wakeword Model Selection -->
                 <div class="form-input" style="display: flex; align-items: center; gap: 8px;">
@@ -255,6 +272,7 @@
 <script>
 import BasePluginComponent from '/js/BasePluginComponent.js';
 import SaveSettingsButton from '/js/SaveSettingsButton.vue';
+import HelpPopover from '/js/HelpPopover.vue';
 
 function formatShortcut(e) {
     let keys = [];
@@ -275,7 +293,8 @@ export default {
     },
     mixins: [BasePluginComponent],
     components: {
-        SaveSettingsButton
+        SaveSettingsButton,
+        HelpPopover
     },
     data() {
         return {
