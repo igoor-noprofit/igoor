@@ -170,9 +170,10 @@ module.exports = {
 }
 
 .help-trigger i {
-  /* Fixed size so the icon stays clearly visible regardless of the
-     (often small) inherited label font-size. Big target for eye-tracking. */
-  font-size: 18px;
+  /* Fixed size so the icon is clearly visible regardless of the inherited
+     label font-size (which varies a lot between settings pages). Big target
+     for eye-tracking users. */
+  font-size: 26px;
   line-height: 1;
 }
 

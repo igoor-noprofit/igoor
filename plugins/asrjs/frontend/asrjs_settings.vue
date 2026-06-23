@@ -182,11 +182,11 @@
                 </div>
                 <div class="form-input">
                     <select name="redemptionFrames" v-model.number="formData.redemptionFrames">
-                        <option value="12">12 frames (~380ms) - Fast</option>
-                        <option value="24">24 frames (~770ms) - Default</option>
-                        <option value="36">36 frames (~1150ms) - Medium</option>
-                        <option value="48">48 frames (~1540ms) - Slow</option>
-                        <option value="72">72 frames (~2300ms) - Very slow</option>
+                        <option value="12">12 frames (~380ms) - {{t('Fast')}}</option>
+                        <option value="24">24 frames (~770ms) - {{t('Default')}}</option>
+                        <option value="36">36 frames (~1150ms) - {{t('Medium')}}</option>
+                        <option value="48">48 frames (~1540ms) - {{t('Slow')}}</option>
+                        <option value="72">72 frames (~2300ms) - {{t('Very slow')}}</option>
                     </select>
                 </div>
                 <div class="form-note"></div>

@@ -65,5 +65,10 @@
     "Model size": "Dimensione modello",
     "Small (fast, less accurate)": "Piccolo (veloce, meno preciso)",
     "Big (slower, more accurate)": "Grande (più lento, più preciso)",
-    "Model is auto-selected based on your language. Downloaded once, then used offline.": "Il modello viene selezionato automaticamente in base alla tua lingua. Scaricato una volta, poi usato offline."
+    "Model is auto-selected based on your language. Downloaded once, then used offline.": "Il modello viene selezionato automaticamente in base alla tua lingua. Scaricato una volta, poi usato offline.",
+    "Fast": "Veloce",
+    "Default": "Predefinito",
+    "Medium": "Medio",
+    "Slow": "Lento",
+    "Very slow": "Molto lento"
 }
