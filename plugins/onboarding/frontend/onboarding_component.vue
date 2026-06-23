@@ -229,9 +229,10 @@
                                     <p>{{ t("Higher reasoning means slower, more expensive, but usually more intelligent responses.") }}</p>
                                 </div>
                                 <div>
-                                    <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;">
-                                        <input type="checkbox" v-model="ai.warmup_enabled" style="margin-top:0.25em;flex-shrink:0;" />
-                                        <span>{{ t("Warm up AI at startup (faster first response)") }}</span>
+                                    <label>{{ t("Warm up AI at startup (faster first response)") }}</label>
+                                    <label class="switch">
+                                        <input type="checkbox" v-model="ai.warmup_enabled" />
+                                        <span class="slider round"></span>
                                     </label>
                                     <p>{{ t("Sends a small request to each AI plugin when IGOOR starts, so the first real response is faster. Uses a few tokens per boot.") }}</p>
                                 </div>
