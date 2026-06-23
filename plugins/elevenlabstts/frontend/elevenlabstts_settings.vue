@@ -28,19 +28,23 @@
                 {{ voiceIdError ? t('Voice ID is required') : '' }}
             </div>
 
-            <!-- Voice cloning buttons -->
-            <div class="voice-clone-section">
-                <button class="clone-btn" type="button" @click="useRecordedVoice"
-                    :disabled="!voiceSampleExists || isCloning" :title="!voiceSampleExists ? t('No recorded voice available') : t('Use your biorecorder voice samples to clone your voice')">
-                    <span v-if="isCloning">{{ t('Cloning...') }}</span>
-                    <span v-else>{{ t('Use recorded voice') }}</span>
-                </button>
-                <button class="clone-btn" type="button" @click="triggerUploadClone" :disabled="isCloning">
-                    {{ t('Upload audio to clone voice') }}
-                </button>
-                <input type="file" ref="cloneFileInput" style="display:none"
-                    accept=".wav,.mp3,.ogg,.webm" @change="onCloneFileSelected" />
+            <!-- Voice cloning -->
+            <div class="form-label">{{ t('Voice cloning') }}</div>
+            <div class="form-input">
+                <div class="voice-clone-section">
+                    <button class="clone-btn" type="button" @click="useRecordedVoice"
+                        :disabled="!voiceSampleExists || isCloning" :title="!voiceSampleExists ? t('No recorded voice available') : t('Use your biorecorder voice samples to clone your voice')">
+                        <span v-if="isCloning">{{ t('Cloning...') }}</span>
+                        <span v-else>{{ t('Use recorded voice') }}</span>
+                    </button>
+                    <button class="clone-btn" type="button" @click="triggerUploadClone" :disabled="isCloning">
+                        {{ t('Upload audio') }}
+                    </button>
+                    <input type="file" ref="cloneFileInput" style="display:none"
+                        accept=".wav,.mp3,.ogg,.webm" @change="onCloneFileSelected" />
+                </div>
             </div>
+            <div class="form-note"></div>
 
             <!-- Model Selection -->
             <div class="form-label">{{ t('Model selection') }}</div>

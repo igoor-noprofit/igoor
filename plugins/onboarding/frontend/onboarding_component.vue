@@ -228,6 +228,14 @@
                                     </select>
                                     <p>{{ t("Higher reasoning means slower, more expensive, but usually more intelligent responses.") }}</p>
                                 </div>
+                                <div>
+                                    <label>{{ t("Warm up AI at startup (faster first response)") }}</label>
+                                    <label class="switch">
+                                        <input type="checkbox" v-model="ai.warmup_enabled" />
+                                        <span class="slider round"></span>
+                                    </label>
+                                    <p>{{ t("Sends a small request to each AI plugin when IGOOR starts, so the first real response is faster. Uses a few tokens per boot.") }}</p>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -362,7 +370,8 @@ export default {
                 model_name: "",
                 base_url: "",
                 temperature: "",
-                reasoning_effort: ""
+                reasoning_effort: "",
+                warmup_enabled: true
             },
             isSaving: false,
             saveStatus: null,
@@ -483,15 +492,11 @@ export default {
         providerModels() {
             const modelsByProvider = {
                 'groq': [
-                    { value: 'llama-3.3-70b-versatile', label: 'Llama 3.3-70B' },
                     { value: 'openai/gpt-oss-120b', label: 'OpenAI OSS-GPT-120B' },
-                    { value: 'openai/gpt-oss-20b', label: 'OpenAI OSS-GPT-20B' },
-                    { value: 'meta-llama/llama-4-scout-17b-16e-instruct', label: 'Llama 4-17b-16e (preview)' }
+                    { value: 'openai/gpt-oss-20b', label: 'OpenAI OSS-GPT-20B' }
                 ],
                 'cerebras': [
-                    { value: 'llama3.1-8b', label: 'Llama 3.1 8B (~2200 t/s)' },
-                    { value: 'gpt-oss-120b', label: 'GPT-OSS 120B (~3000 t/s)' },
-                    { value: 'qwen-3-235b-a22b-instruct-2507', label: 'Qwen 3 235B (preview)' }
+                    { value: 'gpt-oss-120b', label: 'GPT-OSS 120B (~3000 t/s)' }
                 ],
                 'mistral': [
                     { value: 'mistral-small-latest', label: 'Mistral Small' },

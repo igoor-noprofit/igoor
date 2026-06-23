@@ -59,5 +59,9 @@
     "Delete custom model": "Supprimer le modèle personnalisé",
     "failed to load wakeword model": "Échec du chargement du modèle de mot-clé",
     "Default model": "Modèle par défaut",
-    "Browse": "Parcourir"
+    "Browse": "Parcourir",
+    "Model size": "Taille du modèle",
+    "Small (fast, less accurate)": "Petit (rapide, moins précis)",
+    "Big (slower, more accurate)": "Grand (plus lent, plus précis)",
+    "Model is auto-selected based on your language. Downloaded once, then used offline.": "Le modèle est sélectionné automatiquement selon votre langue. Téléchargé une fois, puis utilisé hors ligne."
 }

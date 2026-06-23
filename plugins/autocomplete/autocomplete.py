@@ -71,6 +71,24 @@ class Autocomplete(Baseplugin):
         """Reload prompt templates when biorecorder bio.md has been created or updated."""
         self.logger.info("Autocomplete: bio_context_updated — rebuilding prompt templates")
         self._build_prompt_templates()
+
+    @hookimpl
+    def warmup(self):
+        """Boot warmup: pre-warm the LLM client/cache with the real autocomplete prompt.
+        Sends the full filled user prompt (static fields filled, dynamic fields blanked)
+        so the largest stable prefix is cached."""
+        if not (getattr(self, "_auto_system_prompt", None) and getattr(self, "_auto_usr_pm", None)):
+            return
+        try:
+            user_prompt = self._auto_usr_pm.create_prompt(
+                static_context="", long_term="", short_term="",
+                dynamic_context={}, conversation="", successful_predictions="",
+                past_conversations_msgs="", input="", last_conversations=""
+            )
+            self._warmup_llm(self._auto_system_prompt, user_prompt=user_prompt)
+        except Exception as e:
+            self.logger.warning(f"Autocomplete warmup render failed, falling back to system-only: {e}")
+            self._warmup_llm(self._auto_system_prompt)
     
     @hookimpl
     def startup(self):

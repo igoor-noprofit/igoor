@@ -11,8 +11,8 @@
   "model_name": "whisper-large-v3-turbo",
   "api_key": "",
   "voxtral_api_key": "",
-  "allowed_model_providers": ["groq", "mistral"],
   "wakeword_enabled": false,
   "wakeword_sensitivity": 0.5,
-  "wakeword_model": ""
+  "wakeword_model": "",
+  "sherpa_model_size": "small"
 }

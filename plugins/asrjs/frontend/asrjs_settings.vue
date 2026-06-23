@@ -7,20 +7,23 @@
                 <select name="model_provider" v-model="formData.model_provider" @change="onProviderChange">
                     <option value="groq">Groq</option>
                     <option value="mistral">Mistral (BETA)</option>
+                    <option value="sherpa">Sherpa-ONNX (Local)</option>
                 </select>
             </div>
             <div class="form-note"></div>
 
             <!-- Model Name -->
-            <div class="form-label">{{t('Model name')}}</div>
-            <div class="form-input">
-                <select name="model_name" v-model="formData.model_name">
-                    <option value="whisper-large-v3" v-show="formData.model_provider === 'groq'">Whisper Large v3</option>
-                    <option value="whisper-large-v3-turbo" v-show="formData.model_provider === 'groq'">Whisper Large v3 Turbo</option>
-                    <option value="voxtral-mini-latest" v-show="formData.model_provider === 'mistral'">Voxtral Mini Latest</option>
-                </select>
-            </div>
-            <div class="form-note"></div>
+            <template v-if="formData.model_provider !== 'sherpa'">
+                <div class="form-label">{{t('Model name')}}</div>
+                <div class="form-input">
+                    <select name="model_name" v-model="formData.model_name">
+                        <option value="whisper-large-v3" v-show="formData.model_provider === 'groq'">Whisper Large v3</option>
+                        <option value="whisper-large-v3-turbo" v-show="formData.model_provider === 'groq'">Whisper Large v3 Turbo</option>
+                        <option value="voxtral-mini-latest" v-show="formData.model_provider === 'mistral'">Voxtral Mini Latest</option>
+                    </select>
+                </div>
+                <div class="form-note"></div>
+            </template>
 
             <!-- GROQ API KEY -->
             <div class="form-label" v-show="formData.model_provider === 'groq' && !usingOnboardingGroqKey">{{t('Groq API Key')}}</div>
@@ -39,6 +42,18 @@
             <div class="form-note" v-show="formData.model_provider === 'groq' && usingOnboardingGroqKey" style="color: #4caf50;">
                 {{ t('Using Groq API Key from global AI settings') }}
             </div>
+
+            <!-- SHERPA MODEL SIZE (only when sherpa selected) -->
+            <template v-if="formData.model_provider === 'sherpa'">
+                <div class="form-label">{{t('Model size')}}</div>
+                <div class="form-input">
+                    <select name="sherpa_model_size" v-model="formData.sherpa_model_size">
+                        <option value="small">{{t('Small (fast, less accurate)')}}</option>
+                        <option value="big">{{t('Big (slower, more accurate)')}}</option>
+                    </select>
+                </div>
+                <div class="form-note">{{t('Model is auto-selected based on your language. Downloaded once, then used offline.')}}</div>
+            </template>
 
             <!-- MISTRAL API KEY -->
             <div class="form-label" v-show="formData.model_provider === 'mistral' && !usingOnboardingMistralKey">{{t('Voxtral API Key (BETA)')}}</div>
@@ -273,7 +288,8 @@ export default {
                 always_generate: false,
                 positiveSpeechThreshold: 0.5,
                 redemptionFrames: 24,
-                shortcut: ''
+                shortcut: '',
+                sherpa_model_size: 'small'
             },
             defaultSettings: {
                 positiveSpeechThreshold: 0.5,
@@ -376,6 +392,8 @@ export default {
                 if (this.formData.model_name !== 'voxtral-mini-latest') {
                     this.formData.model_name = 'voxtral-mini-latest';
                 }
+            } else if (this.formData.model_provider === 'sherpa') {
+                this.formData.model_name = 'sherpa-local';
             }
         },
         checkBeforeUpdating() {

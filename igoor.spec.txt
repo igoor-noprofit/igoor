@@ -57,7 +57,8 @@ a = Analysis(
         'vosk',
         'numpy',
         'groq',
-        
+        'sherpa_onnx',
+
         # === CORE SENTENCE TRANSFORMERS (Required) ===
         'sentence_transformers',
         'sentence_transformers.models',

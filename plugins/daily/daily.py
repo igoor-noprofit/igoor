@@ -40,7 +40,23 @@ class Daily(Baseplugin):
             health_state=self.health_state,
             bio_context=self.get_bio_context(),
         )
-        
+
+    @hookimpl
+    def warmup(self):
+        """Boot warmup: pre-warm the LLM client/cache with the real daily prompt.
+        Sends the full filled user prompt (static fields filled, dynamic fields blanked)
+        so the largest stable prefix is cached."""
+        if not (getattr(self, "_daily_system_prompt", None) and getattr(self, "_daily_usr_pm", None)):
+            return
+        try:
+            user_prompt = self._daily_usr_pm.create_prompt(
+                static_context="", long_term="", short_term="",
+                dynamic_context={}, category="", theme="", tags=""
+            )
+            self._warmup_llm(self._daily_system_prompt, user_prompt=user_prompt)
+        except Exception as e:
+            self.logger.warning(f"Daily warmup render failed, falling back to system-only: {e}")
+            self._warmup_llm(self._daily_system_prompt)
     def load_settings(self):
         self.settings = self.get_my_settings()
         

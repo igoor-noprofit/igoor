@@ -8,11 +8,25 @@
       "Bash(curl -s \"https://api.github.com/search/code?q=OnlineRecognizer+repo:k2-fsa/sherpa-onnx+path:python&per_page=5\")",
       "Bash(python -m py_compile plugins/asrjs/asrjs.py)",
       "Bash(python -c \"import json; json.load\\(open\\('plugins/asrjs/settings.json'\\)\\); json.load\\(open\\('plugins/asrjs/sherpa_models.json'\\)\\); print\\('All JSON valid'\\)\")",
-      "Bash(mkdir -p \"c:/AIKU/experiments/igoor/.claude/skills/add-language\")",
-      "Edit(/.claude/skills/add-language/**)"
-    ],
-    "additionalDirectories": [
-      "c:\\AIKU\\experiments\\igoor\\.claude\\skills"
+      "Bash(git -C c:/igoor ls-files)",
+      "Bash(git -C c:/igoor check-ignore -v pretrained_models)",
+      "Bash(git -C c:/igoor status --ignored --short)",
+      "Bash(venv/Scripts/pip.exe list *)",
+      "Bash(./venv/Scripts/python.exe -c ' *)",
+      "Bash(awk -F: '$1>=995 && $1<=1070')",
+      "Bash(./venv/Scripts/python.exe -m py_compile plugin_manager.py plugins/baseplugin/baseplugin.py plugins/autocomplete/autocomplete.py plugins/daily/daily.py plugins/memory/memory.py plugins/flow/flow.py)",
+      "Bash(export PYTHONIOENCODING=utf-8)",
+      "Bash(cd /c/Users/inovi/AppData/Roaming/igoor && ls -t *.log logs/*.log 2>/dev/null | head; echo \"=== 'Loading plugins' / 'Running boot warmup' counts in pm.log ===\"; grep -c \"Loading plugins\" pm.log 2>/dev/null; grep -c \"Running boot warmup\" pm.log 2>/dev/null; echo \"=== context around warmup lines \\(15:09 boot\\) ===\"; grep -n \"Running boot warmup\\\\|Warmup complete\\\\|Warmup OK\" pm.log 2>/dev/null | tail -20)",
+      "Read(//c/c/Users/inovi/AppData/Roaming/**)",
+      "Bash(./venv/Scripts/python.exe -m py_compile utils.py)",
+      "Bash(./venv/Scripts/python.exe -m py_compile utils.py plugin_manager.py plugins/baseplugin/baseplugin.py plugins/autocomplete/autocomplete.py plugins/daily/daily.py plugins/memory/memory.py plugins/flow/flow.py)",
+      "Bash(./venv/Scripts/python.exe -m py_compile plugins/baseplugin/baseplugin.py plugins/autocomplete/autocomplete.py plugins/daily/daily.py plugins/flow/flow.py plugins/memory/memory.py)",
+      "Bash(git --no-pager diff plugins/flow/prompts.yaml)",
+      "Bash(git --no-pager diff --stat llm_manager.py)",
+      "Bash(git --no-pager diff llm_manager.py)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git --no-pager log --oneline -3)"
     ]
   }
 }

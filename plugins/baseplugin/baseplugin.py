@@ -63,6 +63,24 @@ class Baseplugin:
         print(f"PLUGIN ROOT = {self._app_plugin_folder}")
     def mark_ready(self):
         self.ready = True
+
+    def _warmup_llm(self, system_prompt, user_prompt="ready", retries=1):
+        """Make one throwaway LLM invoke to pre-warm the client connection/model-load
+        and populate the provider's prefix-cache so the first real request is fast.
+        Pass the plugin's real filled user prompt via `user_prompt` to cache the
+        largest stable prompt prefix (system + static user fields). Best-effort:
+        never raises. Called from a plugin's warmup() hookimpl at boot."""
+        try:
+            ai = self.settings_manager.get_nested(["plugins", "onboarding", "ai"], default={})
+            # Nothing to warm if the LLM isn't configured (e.g. offline / unconfigured)
+            if not (ai.get("provider") and ai.get("api_key") and ai.get("model_name")):
+                self.logger.info(f"Warmup skipped for {self.plugin_name}: LLM not configured.")
+                return
+            llm = LLMManager(ai.get("provider"), ai.get("api_key"), ai.get("model_name"))
+            llm.invoke(system_prompt, user_prompt, retries=retries)
+            self.logger.info(f"Warmup OK: {self.plugin_name}")
+        except Exception as e:
+            self.logger.warning(f"Warmup failed for {getattr(self, 'plugin_name', '?')}: {e}")
         
     @hookimpl
     def get_frontend_components(self):
