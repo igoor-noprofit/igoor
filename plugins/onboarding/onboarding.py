@@ -1,7 +1,5 @@
 from plugins.baseplugin.baseplugin import Baseplugin
 from plugin_manager import hookimpl, PluginManager
-from pyowm.owm import OWM
-from pyowm.utils.config import get_default_config
 import json
 import os
 import asyncio
