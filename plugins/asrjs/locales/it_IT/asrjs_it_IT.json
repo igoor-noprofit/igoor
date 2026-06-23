@@ -23,6 +23,8 @@
     "This keyboard combination STARTS / STOPS the speech detection process": "Questa combinazione di tasti AVVIA / FERMA il processo di rilevamento vocale",
     "Mistral API Key is required for Voxtral models": "La chiave API Mistral è richiesta per i modelli Voxtral",
     "Mistral API Key is required": "La chiave API Mistral è obbligatoria",
+    "Groq API Key is required for Whisper models": "La chiave API Groq è richiesta per i modelli Whisper",
+    "Groq API Key is required": "La chiave API Groq è obbligatoria",
     "Voxtral API Key (BETA)": "Chiave API Voxtral (BETA)",
     "Required for Voxtral": "Richiesto per Voxtral",
     "Transcription API URL": "URL API trascrizione",

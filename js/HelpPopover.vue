@@ -145,9 +145,9 @@ module.exports = {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
-  margin-left: 6px;
+  width: 32px;
+  height: 32px;
+  margin-left: 8px;
   padding: 0;
   border: none;
   background: transparent;
@@ -170,7 +170,9 @@ module.exports = {
 }
 
 .help-trigger i {
-  font-size: 1.05em;
+  /* Fixed size so the icon stays clearly visible regardless of the
+     (often small) inherited label font-size. Big target for eye-tracking. */
+  font-size: 18px;
   line-height: 1;
 }
 

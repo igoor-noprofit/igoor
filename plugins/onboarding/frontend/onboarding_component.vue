@@ -220,21 +220,23 @@
                                     </div>
                                 </div>
                                 <div v-if="supportsReasoning">
-                                    <label>{{ t("Reasoning effort") }}</label>
+                                    <label>{{ t("Reasoning effort") }}
+                                        <HelpPopover :text="t('Higher reasoning means slower, more expensive, but usually more intelligent responses.')" :t="t" :lang="lang"/>
+                                    </label>
                                     <select v-model="ai.reasoning_effort">
                                         <option value="low">{{ t("Low") }}</option>
                                         <option value="medium">{{ t("Medium") }}</option>
                                         <option value="high">{{ t("High") }}</option>
                                     </select>
-                                    <p>{{ t("Higher reasoning means slower, more expensive, but usually more intelligent responses.") }}</p>
                                 </div>
                                 <div>
-                                    <label>{{ t("Warm up AI at startup (faster first response)") }}</label>
+                                    <label>{{ t("Warm up AI at startup (faster first response)") }}
+                                        <HelpPopover :text="t('Sends a small request to each AI plugin when IGOOR starts, so the first real response is faster. Uses a few tokens per boot.')" :t="t" :lang="lang"/>
+                                    </label>
                                     <label class="switch">
                                         <input type="checkbox" v-model="ai.warmup_enabled" />
                                         <span class="slider round"></span>
                                     </label>
-                                    <p>{{ t("Sends a small request to each AI plugin when IGOOR starts, so the first real response is faster. Uses a few tokens per boot.") }}</p>
                                 </div>
                             </div>
                         </div>
@@ -343,10 +345,14 @@
 <script>
 import BasePluginComponent from '/js/BasePluginComponent.js';
 import { ensureBackendApi } from '/js/ensureBackendApi.js';
+import HelpPopover from '/js/HelpPopover.vue';
 
 export default {
     name: "onboarding",
     mixins: [BasePluginComponent], // Use the mixin
+    components: {
+        HelpPopover
+    },
     data() {
         return {
             activeTab: 'core', // Initialize with a default category to prevent empty state

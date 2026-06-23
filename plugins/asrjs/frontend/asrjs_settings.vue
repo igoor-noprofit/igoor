@@ -26,7 +26,10 @@
             </template>
 
             <!-- GROQ API KEY -->
-            <div class="form-label" v-show="formData.model_provider === 'groq' && !usingOnboardingGroqKey">{{t('Groq API Key')}}</div>
+            <div class="form-label" v-show="formData.model_provider === 'groq' && !usingOnboardingGroqKey">
+                {{t('Groq API Key')}}
+                <HelpPopover :text="t('Groq API Key is required for Whisper models')" :t="t" :lang="lang"/>
+            </div>
             <div class="form-input" v-show="formData.model_provider === 'groq' && !usingOnboardingGroqKey">
                 <input
                     type="password"
@@ -36,8 +39,8 @@
                     required
                 />
             </div>
-            <div class="form-note" :style="{color: groqKeyError ? '#ff6666' : undefined}" v-show="formData.model_provider === 'groq' && !usingOnboardingGroqKey">
-                {{ groqKeyError ? t('Groq API Key is required') : t('Groq API Key is required for Whisper models') }}
+            <div class="form-note" :style="{color: '#ff6666'}" v-show="formData.model_provider === 'groq' && !usingOnboardingGroqKey && groqKeyError">
+                {{ t('Groq API Key is required') }}
             </div>
             <div class="form-note" v-show="formData.model_provider === 'groq' && usingOnboardingGroqKey" style="color: #4caf50;">
                 {{ t('Using Groq API Key from global AI settings') }}
@@ -59,7 +62,10 @@
             </template>
 
             <!-- MISTRAL API KEY -->
-            <div class="form-label" v-show="formData.model_provider === 'mistral' && !usingOnboardingMistralKey">{{t('Voxtral API Key (BETA)')}}</div>
+            <div class="form-label" v-show="formData.model_provider === 'mistral' && !usingOnboardingMistralKey">
+                {{t('Voxtral API Key (BETA)')}}
+                <HelpPopover :text="t('Mistral API Key is required for Voxtral models')" :t="t" :lang="lang"/>
+            </div>
             <div class="form-input" v-show="formData.model_provider === 'mistral' && !usingOnboardingMistralKey">
                 <input
                     type="password"
@@ -69,8 +75,8 @@
                     required
                 />
             </div>
-            <div class="form-note" :style="{color: voxtralKeyError ? '#ff6666' : undefined}" v-show="formData.model_provider === 'mistral' && !usingOnboardingMistralKey">
-                {{ voxtralKeyError ? t('Mistral API Key is required') : t('Mistral API Key is required for Voxtral models') }}
+            <div class="form-note" :style="{color: '#ff6666'}" v-show="formData.model_provider === 'mistral' && !usingOnboardingMistralKey && voxtralKeyError">
+                {{ t('Mistral API Key is required') }}
             </div>
             <div class="form-note" v-show="formData.model_provider === 'mistral' && usingOnboardingMistralKey" style="color: #4caf50;">
                 {{ t('Using Mistral API Key from global AI settings') }}
