@@ -170,9 +170,6 @@ module.exports = {
 }
 
 .help-trigger i {
-  /* Fixed size so the icon is clearly visible regardless of the inherited
-     label font-size (which varies a lot between settings pages). Big target
-     for eye-tracking users. */
   font-size: 26px;
   line-height: 1;
 }
