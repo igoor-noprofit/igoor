@@ -82,7 +82,7 @@
   "Medium": "Moyen",
   "High": "Élevé",
   "Higher reasoning means slower, more expensive, but usually more intelligent responses.": "Un raisonnement plus élevé signifie des réponses plus lentes, plus coûteuses, mais généralement plus intelligentes.",
-  "Warm up AI at startup (faster first response)": "Préchauffer l'IA au démarrage (première réponse plus rapide)",
+  "Warm up AI at startup": "Préchauffer l'IA au démarrage",
   "Sends a small request to each AI plugin when IGOOR starts, so the first real response is faster. Uses a few tokens per boot.": "Envoie une petite requête à chaque plugin IA au démarrage d'IGOOR, afin que la première vraie réponse soit plus rapide. Utilise quelques jetons à chaque démarrage.",
   "Knowledge Base": "Base de connaissances",
   "Context": "Contexte",

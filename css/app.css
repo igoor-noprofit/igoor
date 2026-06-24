@@ -357,6 +357,8 @@ footer.shrink {
 }
 .onboarding.plugin label {
   display: flex;
+  align-items: center;
+  gap: 4px;
   color: #a6bfbf;
   margin: 20px 0 6px 0;
 }

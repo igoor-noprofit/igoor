@@ -562,6 +562,10 @@ export default {
     padding-top: 6px;
     color: #e0e0e0;
     min-width: 200px;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 2px;
 }
 
 .form-input {
@@ -623,6 +627,11 @@ button:disabled {
     opacity: 0;
     width: 0;
     height: 0;
+}
+
+/* Native range sliders: use the project blue when active, matching onboarding. */
+input[type="range"] {
+    accent-color: #2196F3;
 }
 
 .toggle-slider {

@@ -229,13 +229,13 @@
                                         <option value="high">{{ t("High") }}</option>
                                     </select>
                                 </div>
-                                <div>
-                                    <label>{{ t("Warm up AI at startup (faster first response)") }}
-                                        <HelpPopover :text="t('Sends a small request to each AI plugin when IGOOR starts, so the first real response is faster. Uses a few tokens per boot.')" :t="t" :lang="lang"/>
-                                    </label>
-                                    <label class="switch">
+                                <div style="display: flex; align-items: center; gap: 12px;">
+                                    <label class="switch" style="margin: 0;">
                                         <input type="checkbox" v-model="ai.warmup_enabled" />
                                         <span class="slider round"></span>
+                                    </label>
+                                    <label style="margin: 0;">{{ t("Warm up AI at startup") }}
+                                        <HelpPopover :text="t('Sends a small request to each AI plugin when IGOOR starts, so the first real response is faster. Uses a few tokens per boot.')" :t="t" :lang="lang"/>
                                     </label>
                                 </div>
                             </div>
