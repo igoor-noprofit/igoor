@@ -147,9 +147,11 @@ class Flow(Baseplugin):
 
         # SEMANTIC VAD GATE: Check if speaker has finished speaking
         always_generate = False
+        asrjs_continuous = False
         asrjs_configs = await self.pm.trigger_hook(hook_name="get_asrjs_config")
         if asrjs_configs and asrjs_configs[0]:
             always_generate = asrjs_configs[0].get("always_generate", False)
+            asrjs_continuous = asrjs_configs[0].get("continuous", False)
         # Fall back to global onboarding settings for semantic model
         ai = self.global_settings.get_nested(["plugins", "onboarding", "ai"], default={})
         flow_semantic_model = self.settings.get("semantic_model_name")
@@ -158,7 +160,7 @@ class Flow(Baseplugin):
         else:
             semantic_model = ai.get("semantic_model_name") or ai.get("model_name")
         
-        if semantic_model and not always_generate:
+        if semantic_model and not always_generate and asrjs_continuous:
             vad_result = await self.semantic_vad(conversation)
             if vad_result == "nok":
                 print("Semantic VAD: Speaker has not finished speaking")
