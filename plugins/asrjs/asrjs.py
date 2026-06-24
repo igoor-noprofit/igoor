@@ -883,6 +883,10 @@ class Asrjs(Baseplugin):
                 detected = self.wakeword_detector.process_chunk(raw_pcm_data)
                 if detected:
                     print("WAKEWORD DETECTED! Notifying frontend...")
+                    # Reset detector state so the wake-word features lingering in the
+                    # streaming melspectrogram context don't cause an immediate false
+                    # re-detection when the wakeword is re-armed (e.g. after a mic click).
+                    self.wakeword_detector.reset()
                     # Notify frontend to start VAD and resume listening
                     self.send_message_to_frontend({
                         "action": "wakeword_detected"

@@ -1184,6 +1184,12 @@ export default {
                         this.vad.pause();
                         this.status = 'ready';
                         this.$_resetAudioBuffer();
+                        // Re-enable wakeword detection when going back to ready
+                        if (this.wakewordEnabled && this.processor) {
+                            this.wakewordDetected = false;
+                            this.processor.port.postMessage({ type: 'enable-wakeword' });
+                            console.log('Wakeword re-enabled after listen pause');
+                        }
                         console.log('VAD paused — click again to resume');
                     }
                 } else if (this.status === 'ready' || this.status === 'waiting_for_more') {
@@ -1202,6 +1208,7 @@ export default {
                         this.$_resetAudioBuffer();
                         // Re-enable wakeword detection when going back to ready
                         if (this.wakewordEnabled && this.processor) {
+                            this.wakewordDetected = false;
                             this.processor.port.postMessage({ type: 'enable-wakeword' });
                             console.log('Wakeword re-enabled after recording pause');
                         }
@@ -1216,6 +1223,7 @@ export default {
                         this.$_resetAudioBuffer();
                         // Re-enable wakeword detection when going back to ready
                         if (this.wakewordEnabled && this.processor) {
+                            this.wakewordDetected = false;
                             this.processor.port.postMessage({ type: 'enable-wakeword' });
                             console.log('Wakeword re-enabled after transcription pause');
                         }
