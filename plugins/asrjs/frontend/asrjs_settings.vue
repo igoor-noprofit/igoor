@@ -118,17 +118,13 @@
             <div class="form-note"></div>
             <!-- Continuous Mode -->
             <div class="form-label">
-                {{t('Continuous Listening Mode')}}
-                <HelpPopover :text="t('When enabled, the microphone listens continuously and automatically detects speech.')" :t="t" :lang="lang"/>
-            </div>
-            <div class="form-input">
                 <label class="toggle-switch">
                     <input type="checkbox" v-model="formData.continuous" />
                     <span class="toggle-slider"></span>
                 </label>
-                <span style="margin-left: 8px;">{{ formData.continuous ? t('Enabled') : t('Disabled') }}</span>
+                {{t('Continuous Listening Mode')}}
+                <HelpPopover :text="t('When enabled, the microphone listens continuously and automatically detects speech.')" :t="t" :lang="lang"/>
             </div>
-            <div class="form-note"></div>
         </div>
 
         <div class="bio right">
@@ -193,32 +189,25 @@
 
                 <!-- Always Generate (bypass semantic VAD) -->
                 <div class="form-label">
-                    {{t('Always generate predictions')}}
-                    <HelpPopover :text="t('When enabled, bypasses the semantic VAD check and generates immediately after speech ends.')" :t="t" :lang="lang"/>
-                </div>
-                <div class="form-input">
                     <label class="toggle-switch">
                         <input type="checkbox" v-model="formData.always_generate" />
                         <span class="toggle-slider"></span>
                     </label>
-                    <span style="margin-left: 8px;">{{ formData.always_generate ? t('Enabled') : t('Disabled') }}</span>
+                    {{t('Always generate predictions')}}
+                    <HelpPopover :text="t('When enabled, bypasses the semantic VAD check and generates immediately after speech ends.')" :t="t" :lang="lang"/>
                 </div>
         </template>
 
         <!-- Wakeword Detection Section -->
         <template v-if="formData.continuous">
             <div class="form-label">
-                {{t('Wakeword Detection')}}
-                <HelpPopover :text="t('Say &quot;Hey Igor&quot; to activate voice recognition hands-free.')" :t="t" :lang="lang"/>
-            </div>
-            <div class="form-input">
                 <label class="toggle-switch">
                     <input type="checkbox" v-model="formData.wakeword_enabled" />
                     <span class="toggle-slider"></span>
                 </label>
-                <span style="margin-left: 8px;">{{ formData.wakeword_enabled ? t('Enabled') : t('Disabled') }}</span>
+                {{t('Wakeword Detection')}}
+                <HelpPopover :text="t('Say &quot;Hey Igor&quot; to activate voice recognition hands-free.')" :t="t" :lang="lang"/>
             </div>
-            <div class="form-note"></div>
 
             <!-- Wakeword Sensitivity (only shown when wakeword enabled) -->
             <template v-if="formData.wakeword_enabled">
@@ -565,7 +554,13 @@ export default {
     display: flex;
     align-items: center;
     flex-wrap: wrap;
-    gap: 2px;
+    gap: 8px;
+}
+
+/* The help trigger carries its own margin-left for inline contexts; inside a
+   flex form-label the container gap already handles spacing, so neutralize it. */
+.form-label .help-trigger {
+    margin-left: 0;
 }
 
 .form-input {
