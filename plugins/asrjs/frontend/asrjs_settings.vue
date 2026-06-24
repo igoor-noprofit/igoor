@@ -619,8 +619,8 @@ button:disabled {
 .toggle-switch {
     position: relative;
     display: inline-block;
-    width: 44px;
-    height: 24px;
+    width: 60px;
+    height: 34px;
 }
 
 .toggle-switch input {
@@ -641,29 +641,29 @@ input[type="range"] {
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: #444;
-    transition: 0.3s;
-    border-radius: 24px;
+    background-color: #ccc;
+    transition: .4s;
+    border-radius: 34px;
 }
 
 .toggle-slider:before {
     position: absolute;
     content: "";
-    height: 18px;
-    width: 18px;
-    left: 3px;
-    bottom: 3px;
-    background-color: #ccc;
-    transition: 0.3s;
+    height: 26px;
+    width: 26px;
+    left: 4px;
+    bottom: 4px;
+    background-color: white;
+    transition: .4s;
     border-radius: 50%;
 }
 
 .toggle-switch input:checked + .toggle-slider {
-    background-color: #3ca23c;
+    background-color: #2196F3;
 }
 
 .toggle-switch input:checked + .toggle-slider:before {
-    transform: translateX(20px);
+    transform: translateX(26px);
 }
 
 .volume-meter {
