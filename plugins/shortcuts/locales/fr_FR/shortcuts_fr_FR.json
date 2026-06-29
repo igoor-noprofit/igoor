@@ -24,5 +24,9 @@
     "Test sound": "Tester le son",
     "0 means repeat forever": "0 signifie répéter indéfiniment",
     "Can you repeat for the AI?": "Est-ce que tu peux répéter pour l'IA ?",
-    "Repeat": "Répéter"
+    "Repeat": "Répéter",
+    "I speak via a tool": "Je parle avec un outil",
+    "Hello, I use a communication tool to speak, so please give me a moment.": "Bonjour, j'utilise un outil de communication pour parler, merci de m'accorder un instant.",
+    "Visible buttons": "Boutons visibles",
+    "Uncheck to hide a button from the footer": "Décochez pour masquer un bouton de la barre"
 }
