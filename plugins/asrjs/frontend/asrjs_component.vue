@@ -4,7 +4,7 @@
             {{ errorMessage }}
         </div>
         <div v-if="!hasError" class="mic clickable" :class="[status]" @click="$_handleMicClick">
-            <img src="/img/mic.png">
+            <img :src="micIcon" alt="">
         </div>
     </div>
 </template>
@@ -51,6 +51,14 @@ export default {
                 return '';
             }
             return this.error.message || this.t('Microphone access problem. Verify that Windows has access to your microphone, then restart IGOOR.');
+        },
+        micIcon() {
+            // Slashed mic = ASR is unavailable right now (still loading, or muted during TTS)
+            if (this.status === 'loading' || this.status === 'paused') {
+                return '/img/icons/src/microphone-slash.svg';
+            }
+            // Plain mic = ASR available (listening / recording / wakeword-armed)
+            return '/img/icons/src/microphone.svg';
         }
     },
     created() {
