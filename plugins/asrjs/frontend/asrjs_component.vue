@@ -1289,7 +1289,7 @@ export default {
 }
 
 .mic img {
-    max-height: 50px;
-    max-width: 50px;
+    height: 75%;
+    width: 75%;
 }
 </style>
