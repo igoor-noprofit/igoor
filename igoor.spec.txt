@@ -37,6 +37,10 @@ a = Analysis(
         'pyaudio',
         'vosk',
         'huggingface_hub',
+        # pockettts: Google Drive weight downloads (gdown + its deps)
+        'gdown',
+        'bs4',
+        'filelock',
         'prompt_manager',
         'context_manager',
         'settings_manager',

@@ -34,6 +34,13 @@ IGOOR_LANG_TO_POCKETTTS = {
 # Sourced from the actual pocket-tts error message (complete list).
 # Built-in voices work WITHOUT HuggingFace login.
 # Note: voices are cross-language — any voice can be used with any language model.
+#
+# License note (IGOOR is AGPLv3): only voices whose source recordings are
+# AGPLv3-compatible are listed. Excluded for license incompatibility:
+#   - cosette (expresso/, CC BY-NC 4.0 — non-commercial)
+#   - jean    (ears/,      CC BY-NC 4.0 — non-commercial)
+#   - rafael  (kyutai/pocket-tts — license unverified, excluded conservatively)
+# Remaining voices are CC0 or CC BY 4.0 (attribution), both AGPLv3-compatible.
 BUILTIN_VOICES = {
     "english": [
         {"name": "alba", "label": "Alba"},
@@ -53,10 +60,8 @@ BUILTIN_VOICES = {
     ],
     "french": [
         {"name": "estelle", "label": "Estelle"},
-        {"name": "cosette", "label": "Cosette"},
         {"name": "marius", "label": "Marius"},
         {"name": "javert", "label": "Javert"},
-        {"name": "jean", "label": "Jean"},
         {"name": "fantine", "label": "Fantine"},
         {"name": "eponine", "label": "Éponine"},
         {"name": "azelma", "label": "Azelma"},
@@ -67,9 +72,9 @@ BUILTIN_VOICES = {
     "german": [
         {"name": "juergen", "label": "Jürgen"},
     ],
-    "portuguese": [
-        {"name": "rafael", "label": "Rafael"},
-    ],
+    # portuguese: no AGPLv3-compatible preset voice available (rafael excluded).
+    # 'auto' for Portuguese falls back to DEFAULT_VOICE → "alba" (cross-language).
+    "portuguese": [],
     "spanish": [
         {"name": "lola", "label": "Lola"},
     ],
@@ -83,13 +88,14 @@ HF_CLONING_INSTRUCTIONS = (
     "then run: uvx hf auth login"
 )
 
-# Default voice per language (first voice in each list)
+# Default voice per language (first voice in each list). Portuguese has no
+# AGPLv3-compatible preset, so it's omitted and auto-falls back to "alba"
+# (voices are cross-language — see note above BUILTIN_VOICES).
 DEFAULT_VOICE = {
     "english": "alba",
     "french": "estelle",
     "italian": "giovanni",
     "german": "juergen",
-    "portuguese": "rafael",
     "spanish": "lola",
 }
 
@@ -97,6 +103,38 @@ DEFAULT_VOICE = {
 # Verified from pocket_tts/config/ directory — only french has no standard .yaml.
 # Portuguese, Spanish, German, Italian all have both standard and _24l variants.
 REQUIRES_24L = {"french"}
+
+# ── Google Drive model download ─────────────────────────────────────────
+# The model weights are gated on HuggingFace (kyutai/pocket-tts). To avoid
+# forcing users to create an HF account, we mirror the weights on public
+# Google Drive folders (one per language variant) and download only the
+# currently-selected language. The folders mirror the gated repo (they
+# include voice-cloning weights).
+#
+# The variant → folder-URL mapping lives in plugins/pockettts/models.csv
+# (kept out of the source so it can be updated without touching code). Each
+# row is: <variant>,<https://drive.google.com/drive/folders/<id>>. A variant
+# absent from the CSV falls back to the public HF without-voice-cloning repo.
+MODELS_CSV = os.path.join(os.path.dirname(__file__), "models.csv")
+
+
+def _load_gdrive_models():
+    """Parse models.csv into {variant: folder_url}. Returns {} on any failure."""
+    mapping = {}
+    try:
+        import csv
+        with open(MODELS_CSV, newline="") as f:
+            for row in csv.DictReader(f):
+                variant = (row.get("model") or "").strip()
+                url = (row.get("url") or "").strip()
+                if variant and url:
+                    mapping[variant] = url
+    except Exception:
+        pass
+    return mapping
+
+
+GDRIVE_MODELS = _load_gdrive_models()
 
 
 class TestSpeakPayload(BaseModel):
@@ -266,6 +304,83 @@ class Pockettts(Baseplugin):
         except Exception:
             return False
 
+    # ── Google Drive model download ───────────────────────────────────────
+
+    def _get_models_dir(self):
+        """Local folder where per-language Drive-downloaded weights live."""
+        models_dir = os.path.join(self.plugin_folder, "models")
+        os.makedirs(models_dir, exist_ok=True)
+        return models_dir
+
+    def _resolve_drive_folder(self, tts_language):
+        """Return the Google Drive folder URL for a (already 24L-suffixed) pocket-tts
+        variant, or None if it isn't listed in models.csv."""
+        return GDRIVE_MODELS.get(tts_language)
+
+    def _ensure_lang_downloaded(self, tts_language):
+        """Download the Drive folder for `tts_language` and locate the model +
+        tokenizer files inside it.
+
+        Returns {"model": <path>, "tokenizer": <path>} on success, or None if the
+        variant isn't on Drive or the download fails (caller falls back to HF).
+        Idempotent: gdown resume= skips files already present.
+        """
+        folder_url = self._resolve_drive_folder(tts_language)
+        if folder_url is None:
+            return None
+
+        import gdown
+        lang_dir = os.path.join(self._get_models_dir(), tts_language)
+        os.makedirs(lang_dir, exist_ok=True)
+        try:
+            self.logger.info(f"Downloading '{tts_language}' from Google Drive → {lang_dir}")
+            # resume=True skips already-downloaded files (idempotent reloads).
+            gdown.download_folder(url=folder_url, output=lang_dir, quiet=False, resume=True)
+        except Exception as e:
+            self.logger.warning(
+                f"Drive download failed for '{tts_language}', falling back to HuggingFace: {e}"
+            )
+            return None
+
+        # The folder contains model.safetensors + tokenizer.model at its root
+        # (plus an embeddings/ subdir of preset voices).
+        local_files = {
+            "model": os.path.join(lang_dir, "model.safetensors"),
+            "tokenizer": os.path.join(lang_dir, "tokenizer.model"),
+        }
+        missing = [k for k, p in local_files.items()
+                   if not (os.path.isfile(p) and os.path.getsize(p) > 0)]
+        if missing:
+            self.logger.warning(
+                f"Drive folder for '{tts_language}' missing required files {missing}; "
+                f"falling back to HuggingFace"
+            )
+            return None
+        self.logger.info(f"'{tts_language}' available locally from Google Drive")
+        return local_files
+
+    def _write_local_config_yaml(self, tts_language, local_files):
+        """Clone the library's bundled config for `tts_language`, override the two
+        weight/tokenizer paths to point at the local Drive-downloaded files, and
+        write it next to them. Returns the path to the generated YAML.
+
+        Only these two keys are changed so the config still validates under the
+        library's StrictModel (extra='forbid').
+        """
+        import yaml
+        from pocket_tts.utils.config import CONFIGS_DIR
+
+        src = CONFIGS_DIR / f"{tts_language}.yaml"
+        with open(src, "r") as f:
+            cfg = yaml.safe_load(f)
+        cfg["weights_path"] = local_files["model"]
+        cfg["flow_lm"]["lookup_table"]["tokenizer_path"] = local_files["tokenizer"]
+
+        out_path = os.path.join(self._get_models_dir(), tts_language, "local_config.yaml")
+        with open(out_path, "w") as f:
+            yaml.safe_dump(cfg, f, sort_keys=False)
+        return out_path
+
     # ── Model loading ───────────────────────────────────────────────────
 
     def _load_model_threaded(self):
@@ -300,11 +415,25 @@ class Pockettts(Baseplugin):
             )
 
             start = time.time()
-            self.tts_model = TTSModel.load_model(
-                language=tts_language,
-                temp=temp,
-                eos_threshold=eos_threshold,
-            )
+            # Prefer locally-downloaded Drive weights (no HF account needed);
+            # fall back to the library's HF download path if Drive isn't
+            # configured for this language or the download failed.
+            local_files = self._ensure_lang_downloaded(tts_language)
+            if local_files is not None:
+                config_path = self._write_local_config_yaml(tts_language, local_files)
+                self.logger.info(f"Loading pocket-tts from local Google Drive weights: {config_path}")
+                self.tts_model = TTSModel.load_model(
+                    config=config_path,
+                    temp=temp,
+                    eos_threshold=eos_threshold,
+                )
+            else:
+                self.logger.info("Loading pocket-tts from HuggingFace (Drive path unavailable)")
+                self.tts_model = TTSModel.load_model(
+                    language=tts_language,
+                    temp=temp,
+                    eos_threshold=eos_threshold,
+                )
 
 
             elapsed = time.time() - start
