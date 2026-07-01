@@ -154,6 +154,11 @@ class Pockettts(Baseplugin):
         self.voice_state = None
         self.model_language = None
         self._model_loading = False
+        # When the model is loaded from local Drive-downloaded weights, this holds
+        # the language dir (containing model.safetensors + embeddings/). Used to
+        # resolve built-in voice names to local .safetensors paths, since the
+        # pocket-tts library rejects predefined voice names for non-CONFIGS origins.
+        self._local_lang_dir = None
 
     # ── Language helpers ────────────────────────────────────────────────
 
@@ -321,13 +326,13 @@ class Pockettts(Baseplugin):
         """Download the Drive folder for `tts_language` and locate the model +
         tokenizer files inside it.
 
-        Returns {"model": <path>, "tokenizer": <path>} on success, or None if the
-        variant isn't on Drive or the download fails (caller falls back to HF).
-        Idempotent: gdown resume= skips files already present.
+        Returns ({"model": <path>, "tokenizer": <path>}, lang_dir) on success, or
+        (None, None) if the variant isn't on Drive or the download fails (caller
+        falls back to HF). Idempotent: gdown resume= skips files already present.
         """
         folder_url = self._resolve_drive_folder(tts_language)
         if folder_url is None:
-            return None
+            return None, None
 
         import gdown
         lang_dir = os.path.join(self._get_models_dir(), tts_language)
@@ -340,7 +345,7 @@ class Pockettts(Baseplugin):
             self.logger.warning(
                 f"Drive download failed for '{tts_language}', falling back to HuggingFace: {e}"
             )
-            return None
+            return None, None
 
         # The folder contains model.safetensors + tokenizer.model at its root
         # (plus an embeddings/ subdir of preset voices).
@@ -355,9 +360,9 @@ class Pockettts(Baseplugin):
                 f"Drive folder for '{tts_language}' missing required files {missing}; "
                 f"falling back to HuggingFace"
             )
-            return None
+            return None, None
         self.logger.info(f"'{tts_language}' available locally from Google Drive")
-        return local_files
+        return local_files, lang_dir
 
     def _write_local_config_yaml(self, tts_language, local_files):
         """Clone the library's bundled config for `tts_language`, override the two
@@ -418,7 +423,7 @@ class Pockettts(Baseplugin):
             # Prefer locally-downloaded Drive weights (no HF account needed);
             # fall back to the library's HF download path if Drive isn't
             # configured for this language or the download failed.
-            local_files = self._ensure_lang_downloaded(tts_language)
+            local_files, lang_dir = self._ensure_lang_downloaded(tts_language)
             if local_files is not None:
                 config_path = self._write_local_config_yaml(tts_language, local_files)
                 self.logger.info(f"Loading pocket-tts from local Google Drive weights: {config_path}")
@@ -427,6 +432,10 @@ class Pockettts(Baseplugin):
                     temp=temp,
                     eos_threshold=eos_threshold,
                 )
+                # Remember the dir so built-in voice names can be resolved to the
+                # local embeddings/*.safetensors (the library rejects predefined
+                # voice names for non-CONFIGS config origins).
+                self._local_lang_dir = lang_dir
             else:
                 self.logger.info("Loading pocket-tts from HuggingFace (Drive path unavailable)")
                 self.tts_model = TTSModel.load_model(
@@ -434,6 +443,7 @@ class Pockettts(Baseplugin):
                     temp=temp,
                     eos_threshold=eos_threshold,
                 )
+                self._local_lang_dir = None
 
 
             elapsed = time.time() - start
@@ -452,6 +462,23 @@ class Pockettts(Baseplugin):
             self._model_loading = False
             self.logger.error(f"Failed to load pocket-tts model: {e}", exc_info=True)
 
+    def _resolve_voice_prompt(self, voice_name):
+        """Translate a built-in voice NAME into something get_state_for_audio_prompt
+        accepts given how the model was loaded.
+
+        pocket-tts rejects predefined voice names unless the model's config origin
+        is under its bundled CONFIGS_DIR. When we load from local Drive weights the
+        origin is our APPDATA yaml, so that path is unavailable. But the Drive
+        folder ships the same voices as local embeddings/*.safetensors — and
+        passing a local .safetensors path works regardless of origin. So map the
+        name to that file when present; otherwise return the bare name (HF path).
+        """
+        if self._local_lang_dir:
+            local_emb = os.path.join(self._local_lang_dir, "embeddings", f"{voice_name}.safetensors")
+            if os.path.isfile(local_emb):
+                return local_emb
+        return voice_name
+
     def _load_voice_state(self):
         """Load the voice state (built-in or custom) based on current settings."""
         if self.tts_model is None:
@@ -465,7 +492,9 @@ class Pockettts(Baseplugin):
                 # Auto-select default voice for current language
                 voice_name = DEFAULT_VOICE.get(language, "alba")
                 self.logger.info(f"Auto-selecting voice '{voice_name}' for language '{language}'")
-                self.voice_state = self.tts_model.get_state_for_audio_prompt(voice_name)
+                self.voice_state = self.tts_model.get_state_for_audio_prompt(
+                    self._resolve_voice_prompt(voice_name)
+                )
 
             elif voice == "custom":
                 # Load custom voice from safetensors or wav path
@@ -476,12 +505,16 @@ class Pockettts(Baseplugin):
                 else:
                     self.logger.warning(f"Custom voice path not found: {custom_path}, falling back to auto")
                     voice_name = DEFAULT_VOICE.get(language, "alba")
-                    self.voice_state = self.tts_model.get_state_for_audio_prompt(voice_name)
+                    self.voice_state = self.tts_model.get_state_for_audio_prompt(
+                        self._resolve_voice_prompt(voice_name)
+                    )
 
             else:
                 # Specific built-in voice name (e.g. "estelle")
                 self.logger.info(f"Loading built-in voice: {voice}")
-                self.voice_state = self.tts_model.get_state_for_audio_prompt(voice)
+                self.voice_state = self.tts_model.get_state_for_audio_prompt(
+                    self._resolve_voice_prompt(voice)
+                )
 
             self.logger.info("Voice state loaded successfully")
 
@@ -491,7 +524,9 @@ class Pockettts(Baseplugin):
             try:
                 voice_name = DEFAULT_VOICE.get(language, "alba")
                 self.logger.info(f"Fallback: loading default voice '{voice_name}'")
-                self.voice_state = self.tts_model.get_state_for_audio_prompt(voice_name)
+                self.voice_state = self.tts_model.get_state_for_audio_prompt(
+                    self._resolve_voice_prompt(voice_name)
+                )
             except Exception as e2:
                 self.logger.error(f"Even fallback voice failed: {e2}")
                 self.voice_state = None
