@@ -278,11 +278,15 @@ footer {
   .mic {
     text-align: center;
     &.listening,
-    &.recording {
+    &.recording,
+    &.transcribing {
       background: @green;
     }
     &.ready {
       background: @gray_900;
+      img {
+        opacity: 0.4;
+      }
     }
 
     &.listening {
@@ -298,8 +302,16 @@ footer {
         animation: pulse_rec 2s infinite;
       }
     }
+    &.transcribing {
+      img {
+        opacity: 0.4;
+      }
+    }
     &.paused {
-      background: @accent_500;
+      background: @gray_900;
+      img {
+        opacity: 0.4;
+      }
     }
     &.loading {
       background: #444;
