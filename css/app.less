@@ -292,8 +292,14 @@ footer {
     &.listening {
       background: @gray_900;
       img {
-        opacity: 0.4;
+        opacity: 1;
         animation: pulse_rec 2s infinite;
+      }
+    }
+    &.non-continuous.listening {
+      img {
+        animation: none;
+        opacity: 0.4;
       }
     }
     &.recording {

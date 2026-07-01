@@ -3,7 +3,7 @@
         <div v-if="hasError" class="error-banner">
             {{ errorMessage }}
         </div>
-        <div v-if="!hasError" class="mic clickable" :class="[status]" @click="$_handleMicClick">
+        <div v-if="!hasError" class="mic clickable" :class="[status, continuous ? 'continuous' : 'non-continuous']" @click="$_handleMicClick">
             <img :src="micIcon" alt="">
         </div>
     </div>
