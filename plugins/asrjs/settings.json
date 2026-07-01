@@ -12,7 +12,7 @@
   "api_key": "",
   "voxtral_api_key": "",
   "wakeword_enabled": false,
-  "wakeword_sensitivity": 0.5,
+  "wakeword_sensitivity": 0.1,
   "wakeword_model": "",
   "sherpa_model_size": "small"
 }

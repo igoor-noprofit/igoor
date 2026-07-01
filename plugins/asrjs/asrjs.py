@@ -1059,13 +1059,29 @@ class Asrjs(Baseplugin):
 
     @hookimpl
     def global_settings_updated(self):
-        """Called when global settings are updated - reload Groq client if API key changed."""
+        """Called when global settings are updated - reload ASR client and wakeword model if changed."""
         self.logger.info("ASRJS: global_settings_updated - reloading Groq client")
         # Reload settings from disk
         self.settings = self.get_my_settings()
         # Reload model provider from settings
         self.model_provider = self.settings.get("model_provider", "groq")
-        # Reinitialize the model/client with new settings
+        # Refresh wakeword/continuous config so the detector check uses current values
+        self.continuous = self.settings.get("continuous", False)
+        self.wakeword_enabled = self.settings.get("wakeword_enabled", False)
+        self.wakeword_sensitivity = self.settings.get("wakeword_sensitivity", 0.5)
+        # Reload wakeword detector FIRST (before load_model, which can be slow). Decide by
+        # comparing the model the current settings resolve to against the model the detector
+        # ACTUALLY has loaded — not a cached snapshot — so the detector always converges to
+        # the settings even if an earlier save desynced the two.
+        if self.continuous and self.wakeword_enabled:
+            desired_path = self._get_custom_wakeword_model_path() or self._get_default_wakeword_model_path()
+            loaded_path = self.wakeword_detector.model_path if self.wakeword_detector else None
+            loaded_sensitivity = self.wakeword_detector.sensitivity if self.wakeword_detector else None
+            self.logger.info(f"ASRJS: wakeword check desired={desired_path} loaded={loaded_path} sens={self.wakeword_sensitivity}/{loaded_sensitivity}")
+            if desired_path != loaded_path or self.wakeword_sensitivity != loaded_sensitivity:
+                self.logger.info("ASRJS: wakeword model/sensitivity changed - reloading wakeword model")
+                self._load_wakeword_model()
+        # Reinitialize the ASR model/client with new settings (may download/select a model)
         self.load_model()
         # Send updated settings to frontend
         self.send_settings_to_frontend()
