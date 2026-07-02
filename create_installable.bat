@@ -102,8 +102,8 @@ echo.
 
 echo Step 3: Creating installer with InnoSetup...
 echo ----------------------------------------
-set "ISCC_PATH=C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
-set "ISS_FILE=C:\TMP\IGOOR\DEV\INNOSETUP\igoor_setup\igoor.iss"
+set "ISCC_PATH=C:\Users\carlo\AppData\Local\Programs\Inno Setup 6\ISCC.exe"
+set "ISS_FILE=C:\Users\carlo\Documents\IGOOR\DEV\INNOSETUP\igoor_setup\igoor.iss"
 
 if not exist "!ISCC_PATH!" (
     echo ERROR: InnoSetup compiler not found at: !ISCC_PATH!
@@ -190,7 +190,7 @@ set "GITHUB_TOKEN=!GITHUB_TOKEN: =!"
 echo GitHub token found.
 
 rem Set paths
-set "INSTALLER_PATH=C:\TMP\IGOOR\DEV\INNOSETUP\RELEASES\!__version!\IGOOR.exe"
+set "INSTALLER_PATH=C:\Users\carlo\Documents\IGOOR\DEV\INNOSETUP\RELEASES\!__version!\IGOOR.exe"
 set "RELEASE_TAG=v!__version!"
 set "GITHUB_API=https://api.github.com/repos/igoor-noprofit/igoor"
 

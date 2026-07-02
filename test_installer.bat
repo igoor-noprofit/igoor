@@ -27,8 +27,8 @@ echo.
 
 echo Step 2: Creating installer with InnoSetup...
 echo ----------------------------------------
-set "ISCC_PATH=C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
-set "ISS_FILE=C:\TMP\IGOOR\DEV\INNOSETUP\igoor_setup\igoor.iss"
+set "ISCC_PATH=C:\Users\carlo\AppData\Local\Programs\Inno Setup 6\ISCC.exe"
+set "ISS_FILE=C:\Users\carlo\Documents\IGOOR\DEV\INNOSETUP\igoor_setup\igoor.iss"
 
 if not exist "!ISCC_PATH!" (
     echo ERROR: InnoSetup compiler not found at: !ISCC_PATH!
