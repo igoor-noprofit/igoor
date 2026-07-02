@@ -8,6 +8,11 @@ webview_datas = collect_data_files('webview', includes=['js/*'])
 # Collect vosk DLL files
 vosk_datas = collect_data_files('vosk')
 
+# Collect openwakeword model data (melspectrogram/embedding/wakeword .onnx/.tflite).
+# These live inside the package (resources/models); without them the wakeword model
+# can't initialize, and download_models() would try to write into the read-only _internal dir.
+openwakeword_datas = collect_data_files('openwakeword')
+
 # Merge with your existing datas
 datas = [
     ('css', 'css'),
@@ -20,7 +25,7 @@ datas = [
     ('.env', '.'),
     ('README.md', '.'),
     ('index.html', '.')
-] + webview_datas + vosk_datas
+] + webview_datas + vosk_datas + openwakeword_datas
 
 a = Analysis(
     ['main.py'],
@@ -56,6 +61,7 @@ a = Analysis(
         'numpy',
         'groq',
         'sherpa_onnx',
+        'openwakeword',
 
         # === CORE SENTENCE TRANSFORMERS (Required) ===
         'sentence_transformers',
