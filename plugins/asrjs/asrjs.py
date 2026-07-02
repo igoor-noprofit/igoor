@@ -1088,7 +1088,7 @@ class Asrjs(Baseplugin):
     @hookimpl
     def global_settings_updated(self):
         """Called when global settings are updated - reload ASR client and wakeword model if changed."""
-        self.logger.info("ASRJS: global_settings_updated - reloading Groq client")
+        self.logger.info("ASRJS: global_settings_updated - reloading ASR model")
         # Reload settings from disk
         self.settings = self.get_my_settings()
         # Reload model provider from settings
@@ -1097,19 +1097,55 @@ class Asrjs(Baseplugin):
         self.continuous = self.settings.get("continuous", False)
         self.wakeword_enabled = self.settings.get("wakeword_enabled", False)
         self.wakeword_sensitivity = self.settings.get("wakeword_sensitivity", 0.5)
-        # Reload wakeword detector FIRST (before load_model, which can be slow). Decide by
-        # comparing the model the current settings resolve to against the model the detector
-        # ACTUALLY has loaded — not a cached snapshot — so the detector always converges to
-        # the settings even if an earlier save desynced the two.
-        if self.continuous and self.wakeword_enabled:
-            desired_path = self._get_custom_wakeword_model_path() or self._get_default_wakeword_model_path()
-            loaded_path = self.wakeword_detector.model_path if self.wakeword_detector else None
-            loaded_sensitivity = self.wakeword_detector.sensitivity if self.wakeword_detector else None
-            self.logger.info(f"ASRJS: wakeword check desired={desired_path} loaded={loaded_path} sens={self.wakeword_sensitivity}/{loaded_sensitivity}")
-            if desired_path != loaded_path or self.wakeword_sensitivity != loaded_sensitivity:
-                self.logger.info("ASRJS: wakeword model/sensitivity changed - reloading wakeword model")
-                self._load_wakeword_model()
-        # Reinitialize the ASR model/client with new settings (may download/select a model)
-        self.load_model()
+
+        # Signal that we're reloading: mic icon -> loading (slashed mic) and the app
+        # boot-progress bar -> asrjs listed as not-ready. Done BEFORE the reload so the
+        # UI reflects it immediately.
+        self.is_loaded = False
+        self.mark_not_ready()
+        try:
+            asyncio.get_event_loop().create_task(self.send_status("loading"))
+        except RuntimeError:
+            self.logger.warning("ASRJS: no running event loop to broadcast 'loading' status")
+
+        # Reload OFF the event loop: switching to the local sherpa model downloads a model
+        # and can take minutes, which must not block the event loop / WebSocket. The helper
+        # reloads wakeword + ASR, then re-broadcasts readiness (mic icon back on, bar hidden).
+        threading.Thread(target=self._reload_model_background, daemon=True).start()
+
         # Send updated settings to frontend
         self.send_settings_to_frontend()
+
+    def _reload_model_background(self):
+        """Reload wakeword + ASR model off the event loop, then broadcast readiness.
+        Mirrors startup: load_model() sets is_loaded and calls mark_ready(), and
+        run_monitor_loading() sends the 'ready'/'listening' status (flipping the mic
+        icon back and letting the boot-progress monitor hide the bar once all ready)."""
+        try:
+            # Reload wakeword detector if changed. Decide by comparing the model the current
+            # settings resolve to against the model the detector ACTUALLY has loaded — not a
+            # cached snapshot — so the detector always converges to the settings even if an
+            # earlier save desynced the two.
+            if self.continuous and self.wakeword_enabled:
+                desired_path = self._get_custom_wakeword_model_path() or self._get_default_wakeword_model_path()
+                loaded_path = self.wakeword_detector.model_path if self.wakeword_detector else None
+                loaded_sensitivity = self.wakeword_detector.sensitivity if self.wakeword_detector else None
+                self.logger.info(f"ASRJS: wakeword check desired={desired_path} loaded={loaded_path} sens={self.wakeword_sensitivity}/{loaded_sensitivity}")
+                if desired_path != loaded_path or self.wakeword_sensitivity != loaded_sensitivity:
+                    self.logger.info("ASRJS: wakeword model/sensitivity changed - reloading wakeword model")
+                    self._load_wakeword_model()
+            # Reinitialize the ASR model/client with new settings (may download a model)
+            self.load_model()
+        except Exception as e:
+            self.logger.error(f"ASR model reload failed: {e}")
+            self.is_loaded = False
+        if self.is_loaded:
+            # Broadcast ready status + update boot progress (load_model set is_loaded + mark_ready).
+            self.run_monitor_loading()
+        else:
+            # Reload failed (e.g. sherpa download error): show error on the mic and keep
+            # asrjs not-ready on the boot bar so the user knows it needs attention.
+            try:
+                asyncio.run(self.send_status("error"))
+            except Exception as e:
+                self.logger.error(f"ASRJS: could not broadcast error status: {e}")

@@ -64,6 +64,18 @@ class Baseplugin:
     def mark_ready(self):
         self.ready = True
 
+    def mark_not_ready(self):
+        """Mark this plugin as not-ready (e.g. while reloading a model) and re-arm
+        the app boot-progress bar so it re-appears with this plugin listed as
+        not-ready. The companion mark_ready() (plus the running monitor) hides the
+        bar again once the plugin is ready."""
+        self.ready = False
+        if self.pm and hasattr(self.pm, "request_boot_progress_update"):
+            try:
+                self.pm.request_boot_progress_update()
+            except Exception as e:
+                self.logger.warning(f"Could not notify boot progress of not-ready: {e}")
+
     def _warmup_llm(self, system_prompt, user_prompt="ready", retries=1):
         """Make one throwaway LLM invoke to pre-warm the client connection/model-load
         and populate the provider's prefix-cache so the first real request is fast.

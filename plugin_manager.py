@@ -558,6 +558,13 @@ class PluginManager:
         self._boot_progress_thread = threading.Thread(target=run, daemon=True)
         self._boot_progress_thread.start()
 
+    def request_boot_progress_update(self):
+        """Re-arm the boot-progress monitor so a plugin that just became not-ready
+        (e.g. asrjs reloading its model after a settings change) is reflected in the
+        app boot progress bar. The monitor is a no-op if already running, and stops
+        itself again once every plugin is ready."""
+        self._start_boot_progress_monitor()
+
     def _run_warmup(self):
         """Fire the boot-time warmup hook across plugins. Best-effort: never raises,
         never blocks boot (always called from a background thread)."""
