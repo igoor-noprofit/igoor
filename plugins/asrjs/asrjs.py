@@ -105,6 +105,25 @@ class WakewordDetector:
         if self.logger:
             self.logger.debug("WakewordDetector buffer and state reset")
 
+    def prime(self, duration_seconds: float = 1.5):
+        """Pre-warm the model after reset() so the first wakeword after re-arm isn't
+        lost to openWakeWord's cold-start: predict() forces scores to 0.0 for the first
+        5 frames (400ms) and needs ~780ms+ of audio to rebuild melspectrogram context.
+        Feeding neutral silence clears that window, mirroring the natural startup warmup."""
+        if not self.is_loaded or self.model is None:
+            return
+        try:
+            chunk_dur = self.chunk_size / self.sample_rate              # 1280/16000 = 80ms
+            n_chunks = max(5, int(round(duration_seconds / chunk_dur)))  # ~19 chunks for 1.5s
+            silence = np.zeros(self.chunk_size, dtype=np.int16)
+            for _ in range(n_chunks):
+                self.model.predict(silence)
+            if self.logger:
+                self.logger.debug(f"WakewordDetector primed with {n_chunks} silence chunks (~{duration_seconds}s)")
+        except Exception as e:
+            if self.logger:
+                self.logger.error(f"Error priming wakeword detector: {e}")
+
     def destroy(self):
         self.model = None
         self.is_loaded = False
@@ -226,6 +245,11 @@ class Asrjs(Baseplugin):
                 self.is_paused = False
                 self.wakeword_detected = True
                 new_status = "listening"  # VAD handles speech detection
+                # Pre-warm the wakeword detector (it was reset at detection time and
+                # starved of audio during the whole conversation). Without this, the
+                # first wakeword after re-arm is lost to openWakeWord's cold-start.
+                if self.wakeword_enabled and self.wakeword_detector:
+                    self.wakeword_detector.prime()
         else:
             new_status="listening"
         print(f"ASRJS restart_asr sending status: {new_status}")
@@ -1021,6 +1045,10 @@ class Asrjs(Baseplugin):
             # Reset wakeword detector buffer to prevent false positives from residual audio
             if self.wakeword_detector:
                 self.wakeword_detector.reset()
+            # Pre-warm so the next wakeword (after frontend re-arms on "ready") isn't
+            # lost to openWakeWord's cold-start blind window following the reset above.
+            if self.continuous and self.wakeword_enabled and self.wakeword_detector:
+                self.wakeword_detector.prime()
 
             # Mark conversation as abandoned to prevent status reset after transcription
             self.conversation_abandoned = True
