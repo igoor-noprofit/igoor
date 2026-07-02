@@ -168,8 +168,10 @@ IGOOR_FOLDER/plugins/asrvosk/models/language/model_size
 NOTE: Because of its high WER compared to Whisper and Voxtral, we recommend using Vosk only if audio privacy is paramount.
 VOSK will be probably deprecated in favor of another ASR model.
 
-# PYWEBVIEW: cache problems after updating version
-After updating, if you have problems with cache, but only in Pywebview window (as opposed to localhost:9714), delete this folder to delete Pywebview cache:
+# PYWEBVIEW: cache invalidation after updating version
+IGOOR auto-invalidates the JS/Vue/HTML cache on upgrade: every frontend asset is requested with a `?v=<IGOOR_VERSION>` query string (the version comes from `version.py`) and `index.html` is served with `Cache-Control: no-store`. When you bump the version, Edge WebView2 fetches the new files automatically — no manual steps required.
+
+If, in an edge case, you still see stale assets in the Pywebview window only (not at `localhost:9714`), you can force-clear the WebView2 cache by deleting this folder:
 
 ```
 C:\Users\<user_name>\AppData\Roaming\pywebview\EBWebView

@@ -31,7 +31,7 @@ function registerReadypy(fn) {
   }
 }
 
-const backendApiReady = import("/js/backend_api.js").then((module) => {
+const backendApiReady = import("/js/backend_api.js?v={{VERSION}}").then((module) => {
   if (module?.backendApi && typeof window !== "undefined") {
     window.backendApi = module.backendApi;
     window.dispatchEvent(new Event("backendApiReady"));
@@ -77,7 +77,7 @@ const backendApiPromise = window.ensureBackendApi();
 const { loadModule, version } = window["vue3-sfc-loader"];
 async function initializeApp() {
   console.log("initializing app");
-  const appTemplate = await options.getFile("/js/app.vue");
+  const appTemplate = await options.getFile("/js/app.vue?v={{VERSION}}");
   app = Vue.createApp({
     data() {
       return {

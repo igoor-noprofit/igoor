@@ -196,7 +196,7 @@ def load_frontend_components(lang):
         if plugins_activation.get(plugin_name, False):
             logger.info(f"Plugin {plugin_name} is active")
             component_name = ''.join(word.capitalize() for word in plugin_name.split('_'))
-            component_path = f"/plugins/{plugin_name}/frontend/{plugin_name}_component.vue"
+            component_path = f"/plugins/{plugin_name}/frontend/{plugin_name}_component.vue?v={IGOOR_VERSION}"
             frontend = metadata.get('frontend', {})
             events = frontend.get('events', [])
             event_bindings = ' '.join(
@@ -255,6 +255,7 @@ def load_frontend_components(lang):
         js_content = f.read()
 
     js_content = js_content.replace('{{LANG}}', f'{lang}')
+    js_content = js_content.replace('{{VERSION}}', IGOOR_VERSION)
 
     replacements = {
         '//** JS_COMPONENTS */': ', '.join(vue_component_definitions)
@@ -339,8 +340,8 @@ def start_webview():
         # Create window
         logger.info("Creating webview window...")
         window = webview.create_window(
-            "IGOOR", 
-            "http://127.0.0.1:9714/index.html", 
+            "IGOOR",
+            f"http://127.0.0.1:9714/index.html?v={IGOOR_VERSION}",
             js_api=Api(), 
             resizable=True, 
             fullscreen=fullscreen,
