@@ -36,6 +36,11 @@ http://localhost:9714/api/plugins/asrjs/settings
 - IMPORTANT: the only files you will find in APPDATA subfolder (/web/) are app.js and app.vue
 - IMPORTANT: NEVER edit `app.js` or `app.vue` directly, nor even in the APPDATA_FOLDER (they are just builds): ALWAYS edit `app_template.js` and `app_template.vue` instead
 - IMPORTANT: NEVER edit `css/app.css`, ALWAYS edit `css/app.less` instead
+- IMPORTANT: After editing `css/app.less`, you MUST recompile it to `css/app.css`, since the running app serves `app.css` and changes to `.less` are not picked up automatically. The project has no build watcher or `package.json`/eslint tooling — run the compiler manually from the repo root:
+  ```
+  npx --yes less css/app.less css/app.css
+  ```
+  (This fetches the `less` npm package on first run via `npx`, no global install needed. Commit BOTH `css/app.less` and `css/app.css` so they stay in sync.)
 - Component methods prefixed with `$_` to avoid global conflicts
 - Dynamic component loading via httpVueLoader
 - When choosing colors,always start from predefined colors in /css/app.less

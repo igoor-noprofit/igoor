@@ -24,5 +24,9 @@
     "Test sound": "Testa suono",
     "0 means repeat forever": "0 significa ripetere per sempre",
     "Can you repeat for the AI?": "Puoi ripetere per l'IA?",
-    "Repeat": "Ripeti"
+    "Repeat": "Ripeti",
+    "I speak via a tool": "Parlo con uno strumento",
+    "Hello, I use a communication tool to speak, so please give me a moment.": "Salve, uso uno strumento di comunicazione per parlare, ti chiedo un momento di pazienza.",
+    "Visible buttons": "Pulsanti visibili",
+    "Uncheck to hide a button from the footer": "Deseleziona per nascondere un pulsante dalla barra"
 }
