@@ -39,7 +39,9 @@ export default {
             chunkDuration: 3.0, // Fixed chunk duration in seconds for speakerid
             wakewordEnabled: false, // Wakeword detection enabled from settings
             wakewordProcessing: false, // Flag to prevent overlapping wakeword requests
-            wakewordDetected: false // Flag to track if wakeword was detected
+            wakewordDetected: false, // Flag to track if wakeword was detected
+            microphoneDeviceId: '', // Selected input device ('' = system default)
+            levelMonitorFrame: null // requestAnimationFrame id for the level monitor
         };
     },
     computed: {
@@ -79,6 +81,7 @@ export default {
             this.settings = settings;
             this.continuous = settings.continuous || false;
             this.wakewordEnabled = settings.wakeword_enabled || false;
+            this.microphoneDeviceId = settings.microphone_device_id || '';
             if (settings.shortcut) {
                 console.log('ASRJS SHORTCUT:', settings.shortcut);
                 this.keyboardShortcut = settings.shortcut;
@@ -111,19 +114,9 @@ export default {
             this.vad.destroy();
         }
 
-        // Cleanup Web Audio API components
-        if (this.processor) {
-            this.processor.disconnect();
-        }
-        if (this.source) {
-            this.source.disconnect();
-        }
-        if (this.audioContext && this.audioContext.state !== 'closed') {
-            this.audioContext.close();
-        }
-        if (this.mediaStream) {
-            this.mediaStream.getTracks().forEach(track => track.stop());
-        }
+        // Cleanup Web Audio API components + release the mic
+        this.$_teardownMicrophone();
+
         if (this.chunkInterval) {
             clearInterval(this.chunkInterval);
         }
@@ -285,7 +278,7 @@ export default {
                     if (average > 5 && levelCount % 30 === 0) {
                         console.log(`Audio level: ${average.toFixed(2)} (0-255 scale) at ${this.nativeSampleRate} Hz`);
                     }
-                    requestAnimationFrame(monitorAudio);
+                    this.levelMonitorFrame = requestAnimationFrame(monitorAudio);
                 };
                 monitorAudio();
 
@@ -301,15 +294,20 @@ export default {
         async $_initializeMicrophone() {
             try {
                 // Request microphone permission at native frequency - no sample rate constraint
+                // Pin the chosen input device when set; otherwise the system default is used.
+                const audioConstraints = {
+                    channelCount: 1,
+                    echoCancellation: false,
+                    noiseSuppression: false,
+                    autoGainControl: false,
+                    volume: 1.0,  // Force maximum volume
+                    latency: 0    // Minimal latency
+                };
+                if (this.microphoneDeviceId) {
+                    audioConstraints.deviceId = { exact: this.microphoneDeviceId };
+                }
                 const stream = await navigator.mediaDevices.getUserMedia({
-                    audio: {
-                        channelCount: 1,
-                        echoCancellation: false,
-                        noiseSuppression: false,
-                        autoGainControl: false,
-                        volume: 1.0,  // Force maximum volume
-                        latency: 0    // Minimal latency
-                    }
+                    audio: audioConstraints
                 });
 
                 // Verify actual sample rate from stream
@@ -375,7 +373,7 @@ export default {
                     if (average > 5 && levelCount % 30 === 0) { // Log every ~30 frames when audio detected
                         console.log(`Audio level: ${average.toFixed(2)} (0-255 scale) at ${this.nativeSampleRate} Hz`);
                     }
-                    requestAnimationFrame(monitorAudio);
+                    this.levelMonitorFrame = requestAnimationFrame(monitorAudio);
                 };
                 monitorAudio();
 
@@ -415,6 +413,47 @@ export default {
             }
         },
 
+        $_teardownMicrophone() {
+            // Stop the level-monitor loop
+            if (this.levelMonitorFrame) {
+                cancelAnimationFrame(this.levelMonitorFrame);
+                this.levelMonitorFrame = null;
+            }
+            // Disconnect Web Audio nodes
+            if (this.processor) {
+                this.processor.disconnect();
+                this.processor = null;
+            }
+            if (this.source) {
+                this.source.disconnect();
+                this.source = null;
+            }
+            if (this.audioContext && this.audioContext.state !== 'closed') {
+                this.audioContext.close();
+            }
+            this.audioContext = null;
+            // Stop the mic tracks so the device is released
+            if (this.mediaStream) {
+                this.mediaStream.getTracks().forEach(track => track.stop());
+                this.mediaStream = null;
+            }
+        },
+
+        async $_reinitializeMicrophone() {
+            // Tear down the current capture graph and reopen it for the newly-selected device.
+            console.log('Re-initializing microphone with device:', this.microphoneDeviceId || '(default)');
+            this.$_teardownMicrophone();
+            this.isRecording = false;
+            this.recordingBuffer = [];
+            await this.$_initializeMicrophone();
+            // Re-arm wakeword detection on the fresh AudioWorklet if applicable
+            if (this.wakewordEnabled && this.continuous && this.processor) {
+                this.wakewordDetected = false;
+                this.processor.port.postMessage({ type: 'enable-wakeword' });
+                console.log('Wakeword detection re-enabled after mic re-init');
+            }
+        },
+
         async $_initializeVAD() {
             try {
                 // VAD library should now be loaded
@@ -433,6 +472,30 @@ export default {
                     baseAssetPath: "/plugins/asrjs/static/vad/",
                     // ONNX Runtime WASM binaries served from CDN (matching ort.js v1.22.0)
                     onnxWASMBasePath: "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/",
+
+                    // Override the VAD's internal mic stream so it uses the selected device.
+                    // Defaults mirror the VAD's own getStream; deviceId pins the chosen input.
+                    getStream: async () => {
+                        const baseAudio = {
+                            channelCount: 1,
+                            echoCancellation: true,
+                            autoGainControl: true,
+                            noiseSuppression: true
+                        };
+                        const audio = this.microphoneDeviceId
+                            ? { ...baseAudio, deviceId: { exact: this.microphoneDeviceId } }
+                            : baseAudio;
+                        try {
+                            return await navigator.mediaDevices.getUserMedia({ audio });
+                        } catch (e) {
+                            // Fall back to the system default if the chosen device is unavailable
+                            if (this.microphoneDeviceId) {
+                                console.warn('Selected mic unavailable for VAD, falling back to default:', e);
+                                return await navigator.mediaDevices.getUserMedia({ audio: baseAudio });
+                            }
+                            throw e;
+                        }
+                    },
 
                     // Don't start listening until user clicks mic
                     startOnLoad: false,
@@ -1035,9 +1098,13 @@ export default {
                     const continuousChanged = this.settings &&
                         data.settings.continuous !== this.settings.continuous;
 
+                    // Check if the selected microphone changed (requires re-opening the capture stream)
+                    const micChanged = this.microphoneDeviceId !== (data.settings.microphone_device_id || '');
+
                     // Update all settings
                     this.settings = data.settings;
                     this.continuous = this.settings.continuous || false;
+                    this.microphoneDeviceId = this.settings.microphone_device_id || '';
 
                     // Check if wakeword setting changed
                     const wakewordChanged = this.wakewordEnabled !== (this.settings.wakeword_enabled || false);
@@ -1054,11 +1121,20 @@ export default {
                         console.log('Wakeword detection enabled after settings change');
                     }
 
+                    // If the selected microphone changed, re-open the capture stream (recording +
+                    // wakeword path) so it points at the new device without an app restart.
+                    if (micChanged) {
+                        console.log('Microphone changed, re-initializing capture stream...');
+                        await this.$_reinitializeMicrophone();
+                    }
+
                     // Re-initialize VAD if:
                     // 1. VAD-related settings changed (thresholds) AND continuous mode is on
                     // 2. OR continuous mode was toggled
+                    // 3. OR the microphone changed (VAD binds its own stream to the device)
                     if ((vadSettingsChanged && this.continuous && this.vadInitialized) ||
-                        (continuousChanged && this.vadInitialized)) {
+                        (continuousChanged && this.vadInitialized) ||
+                        (micChanged && this.continuous && this.vadInitialized)) {
                         console.log('Settings changed, re-initializing VAD...');
                         this.vad.destroy();
                         this.vadInitialized = false;

@@ -107,6 +107,19 @@
             </div>
             <div class="form-note"></div>
 
+            <!-- Microphone Selector -->
+            <div class="form-label">
+                {{t('Microphone')}}
+                <HelpPopover :text="t('Select which microphone IGOOR uses. The level meter below reflects the selected mic. Changes apply immediately after saving.')" :t="t" :lang="lang"/>
+            </div>
+            <div class="form-input">
+                <select name="microphone_device_id" v-model="formData.microphone_device_id" :disabled="availableMics.length === 0">
+                    <option value="">{{t('System default microphone')}}</option>
+                    <option v-for="mic in availableMics" :key="mic.deviceId" :value="mic.deviceId">{{ mic.label }}</option>
+                </select>
+            </div>
+            <div class="form-note"></div>
+
             <!-- Microphone Volume Indicator -->
             <div class="form-label">{{t('Microphone Level')}}</div>
             <div class="form-input" style="display: flex; align-items: center; gap: 8px;">
@@ -303,7 +316,8 @@ export default {
                 positiveSpeechThreshold: 0.5,
                 redemptionFrames: 24,
                 shortcut: '',
-                sherpa_model_size: 'small'
+                sherpa_model_size: 'small',
+                microphone_device_id: ''
             },
             defaultSettings: {
                 positiveSpeechThreshold: 0.5,
@@ -321,9 +335,12 @@ export default {
             audioContext: null,
             analyser: null,
             microphone: null,
+            monitorStream: null,
             volumeCheckInterval: null,
             // Custom wakeword model
-            customModels: []  // List of custom model filenames
+            customModels: [],  // List of custom model filenames
+            // Microphone selector (UI-only, not persisted directly here)
+            availableMics: []  // [{deviceId, label}] from enumerateDevices()
         };
     },
     computed: {
@@ -343,6 +360,10 @@ export default {
         }
     },
     watch: {
+        // Live-preview the chosen mic on the volume meter before saving
+        'formData.microphone_device_id'() {
+            this.$_restartVolumeMonitor();
+        },
         initialSettings: {
             handler(newVal) {
                 if (newVal) {
@@ -364,11 +385,19 @@ export default {
         }
     },
     mounted() {
-        this.startVolumeMonitor();
+        this.$_restartVolumeMonitor();
+        this.loadAvailableMics();
         this.fetchCustomModels();
+        // Refresh the device list when mics are plugged/unplugged
+        if (navigator.mediaDevices) {
+            navigator.mediaDevices.addEventListener('devicechange', this.loadAvailableMics);
+        }
     },
     beforeDestroy() {
         this.stopVolumeMonitor();
+        if (navigator.mediaDevices) {
+            navigator.mediaDevices.removeEventListener('devicechange', this.loadAvailableMics);
+        }
     },
     methods: {
         startRecordingShortcut(e) {
@@ -434,7 +463,15 @@ export default {
         },
         async startVolumeMonitor() {
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                // Use the selected mic (if any) so the meter reflects what will be captured
+                const audio = this.formData.microphone_device_id
+                    ? { deviceId: { exact: this.formData.microphone_device_id } }
+                    : true;
+                const stream = await navigator.mediaDevices.getUserMedia({ audio });
+                // Keep track of the stream so it can be stopped when the device changes
+                this.monitorStream = stream;
+                // Permission is now guaranteed — refresh device labels if they were empty
+                this.loadAvailableMics();
                 this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
                 this.microphone = this.audioContext.createMediaStreamSource(stream);
                 this.analyser = this.audioContext.createAnalyser();
@@ -468,10 +505,41 @@ export default {
                 this.microphone.disconnect();
                 this.microphone = null;
             }
+            if (this.monitorStream) {
+                this.monitorStream.getTracks().forEach(track => track.stop());
+                this.monitorStream = null;
+            }
             if (this.audioContext) {
                 this.audioContext.close();
                 this.audioContext = null;
             }
+        },
+        async loadAvailableMics() {
+            try {
+                // Labels are only populated once mic permission is granted;
+                // the volume monitor's getUserMedia (started in mounted) triggers that grant.
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                this.availableMics = devices
+                    .filter(d => d.kind === 'audioinput')
+                    .map(d => ({ deviceId: d.deviceId, label: d.label || this.t('Microphone') }));
+            } catch (e) {
+                console.error('Could not enumerate microphones:', e);
+            }
+        },
+        // Serialize + coalesce monitor restarts so overlapping device changes can't
+        // orphan a getUserMedia stream (each restart fully awaits before the next).
+        async $_restartVolumeMonitor() {
+            if (this._volumeRestarting) {
+                this._volumeRestartAgain = true;
+                return;
+            }
+            this._volumeRestarting = true;
+            do {
+                this._volumeRestartAgain = false;
+                this.stopVolumeMonitor();
+                await this.startVolumeMonitor();
+            } while (this._volumeRestartAgain);
+            this._volumeRestarting = false;
         },
         async fetchCustomModels() {
             try {

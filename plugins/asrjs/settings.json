@@ -14,5 +14,6 @@
   "wakeword_enabled": false,
   "wakeword_sensitivity": 0.1,
   "wakeword_model": "",
-  "sherpa_model_size": "small"
+  "sherpa_model_size": "small",
+  "microphone_device_id": ""
 }
