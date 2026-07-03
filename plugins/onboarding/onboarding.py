@@ -83,6 +83,17 @@ class Onboarding(Baseplugin):
                 else:
                     raise HTTPException(status_code=400, detail=f"API Key validation failed: {str(e)}")
 
+        @self.router.post("/open_sound_settings")
+        async def open_sound_settings_endpoint():
+            """Open Windows Sound settings so the user can choose the default microphone."""
+            try:
+                if os.name == 'nt':
+                    os.startfile('ms-settings:sound')
+                    return {"status": "success"}
+                return {"status": "error", "message": "Not supported on this platform"}
+            except Exception as e:
+                return {"status": "error", "message": str(e)}
+
     @hookimpl
     def startup(self):
         self._ensure_router()

@@ -70,5 +70,7 @@
     "Default": "Predefinito",
     "Medium": "Medio",
     "Slow": "Lento",
-    "Very slow": "Molto lento"
+    "Very slow": "Molto lento",
+    "Open Windows microphone settings": "Apri le impostazioni del microfono di Windows",
+    "IGOOR uses your Windows default microphone.": "IGOOR utilizza il microfono predefinito di Windows."
 }

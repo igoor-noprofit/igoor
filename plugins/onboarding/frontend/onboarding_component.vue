@@ -54,6 +54,11 @@
                                         <span class="shortcut-icon">{{ shortcut.icon }}</span>
                                         <span class="shortcut-label">{{ t(shortcut.label) }}</span>
                                     </button>
+                                    <button v-if="categoryItem.category === 'Speech Recognition'"
+                                            class="shortcut-item btn btn-primary"
+                                            @click="openWindowsMicSettings">
+                                        <span class="shortcut-label">{{ t("Open Windows microphone settings") }}</span>
+                                    </button>
                                 </div>
                             </div>
                             <div class="dashboard-card">
@@ -612,6 +617,14 @@ export default {
         }
     },
     methods: {
+        async openWindowsMicSettings() {
+            // IGOOR captures from the Windows default mic; let the user manage it in the OS.
+            try {
+                await fetch('/api/plugins/onboarding/open_sound_settings', { method: 'POST' });
+            } catch (e) {
+                console.error('Could not open Windows microphone settings:', e);
+            }
+        },
         onProviderChange() {
             // Auto-populate base_url for known providers if empty
             const defaultUrls = {

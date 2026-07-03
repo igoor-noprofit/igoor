@@ -998,6 +998,22 @@ class Asrjs(Baseplugin):
                 self.logger.error(f"Error deleting custom wakeword model: {e}")
                 return {"status": "error", "message": str(e)}
 
+        @self.router.post("/open_sound_settings")
+        async def open_sound_settings_endpoint():
+            """Open Windows Sound settings so the user can choose/verify the default microphone.
+
+            IGOOR captures from the Windows default input device, so device choice is managed
+            in the OS rather than in-app (browser deviceIds are not durable across sessions).
+            """
+            try:
+                if os.name == 'nt':
+                    os.startfile('ms-settings:sound')
+                    return {"status": "success"}
+                return {"status": "error", "message": "Not supported on this platform"}
+            except Exception as e:
+                self.logger.error(f"Error opening sound settings: {e}")
+                return {"status": "error", "message": str(e)}
+
     def clean_whisper_silence(self, text):
         print(f"Transcribed text: {text}")
         SILENCE_STRINGS = [
