@@ -39,7 +39,8 @@ export default {
             chunkDuration: 3.0, // Fixed chunk duration in seconds for speakerid
             wakewordEnabled: false, // Wakeword detection enabled from settings
             wakewordProcessing: false, // Flag to prevent overlapping wakeword requests
-            wakewordDetected: false // Flag to track if wakeword was detected
+            wakewordDetected: false, // Flag to track if wakeword was detected
+            wakewordChannelOpened: false // One-shot gate: once the channel is opened (wake/click) it stays open until the conversation ends
         };
     },
     computed: {
@@ -264,7 +265,7 @@ export default {
                 this.processor.connect(this.audioContext.destination);
 
                 // Enable wakeword detection if enabled in settings
-                if (this.wakewordEnabled && this.continuous) {
+                if (this.wakewordEnabled && this.continuous && !this.wakewordChannelOpened) {
                     this.processor.port.postMessage({ type: 'enable-wakeword' });
                     console.log('Wakeword detection enabled in AudioWorklet');
                 }
@@ -354,7 +355,7 @@ export default {
                 this.processor.connect(this.audioContext.destination);
 
                 // Enable wakeword detection if enabled in settings
-                if (this.wakewordEnabled && this.continuous) {
+                if (this.wakewordEnabled && this.continuous && !this.wakewordChannelOpened) {
                     this.processor.port.postMessage({ type: 'enable-wakeword' });
                     console.log('Wakeword detection enabled in AudioWorklet');
                 }
@@ -540,6 +541,9 @@ export default {
             }
             // Re-enable wakeword detection when ready in continuous mode with wakeword enabled
             if (status === 'ready' && this.continuous && this.wakewordEnabled && this.processor) {
+                // 'ready' from the backend means the channel is closed (conversation ended
+                // or fresh start) → re-arm the one-shot wakeword gate for the next conversation.
+                this.wakewordChannelOpened = false;
                 this.wakewordDetected = false;
                 this.processor.port.postMessage({ type: 'enable-wakeword' });
                 console.log('Wakeword detection re-enabled (ready state)');
@@ -549,7 +553,7 @@ export default {
                 console.log('VAD: status is listening in continuous mode, resuming VAD');
                 this.vad.start();
                 // Re-enable wakeword detection if enabled
-                if (this.wakewordEnabled && this.processor) {
+                if (this.wakewordEnabled && this.processor && !this.wakewordChannelOpened) {
                     this.wakewordDetected = false;
                     this.processor.port.postMessage({ type: 'enable-wakeword' });
                     console.log('Wakeword detection re-enabled');
@@ -711,6 +715,7 @@ export default {
             // Skip if already processing, wakeword already detected, disabled,
             // or not in a state where wakeword should be processed (not during recording/transcription)
             if (this.wakewordProcessing || this.wakewordDetected || !this.wakewordEnabled ||
+                !this.continuous ||
                 (this.status !== 'listening' && this.status !== 'ready' && this.status !== 'loading')) {
                 return;
             }
@@ -1043,6 +1048,12 @@ export default {
                     const wakewordChanged = this.wakewordEnabled !== (this.settings.wakeword_enabled || false);
                     this.wakewordEnabled = this.settings.wakeword_enabled || false;
 
+                    // A continuous/wakeword toggle starts a fresh listening session: reset the
+                    // one-shot gate so the wakeword can open the channel again.
+                    if (continuousChanged || wakewordChanged) {
+                        this.wakewordChannelOpened = false;
+                    }
+
                     // Handle shortcut (always update, even if empty)
                     console.log('ASRJS SHORTCUT:', this.settings.shortcut);
                     this.keyboardShortcut = this.settings.shortcut || null;
@@ -1052,6 +1063,17 @@ export default {
                         this.wakewordDetected = false;
                         this.processor.port.postMessage({ type: 'enable-wakeword' });
                         console.log('Wakeword detection enabled after settings change');
+                    }
+
+                    // Disarm wakeword if continuous or wakeword was disabled — otherwise the
+                    // AudioWorklet keeps producing wakeword-chunk (and we keep POSTing
+                    // /wakeword_chunk) after continuous mode is turned off. Only a wakeword
+                    // detection ever sends disable-wakeword, so settings changes must do it too.
+                    if ((continuousChanged || wakewordChanged) && this.processor &&
+                        (!this.continuous || !this.wakewordEnabled)) {
+                        this.wakewordDetected = false;
+                        this.processor.port.postMessage({ type: 'disable-wakeword' });
+                        console.log('Wakeword detection disabled after settings change');
                     }
 
                     // Re-initialize VAD if:
@@ -1105,28 +1127,7 @@ export default {
 
                 // Handle wakeword detected from backend
                 if (data.action === "wakeword_detected") {
-                    // Only play sound and process if not already detected
-                    if (!this.wakewordDetected) {
-                        console.log('Wakeword detected! Starting VAD listening...');
-                        this.wakewordDetected = true;
-
-                        // Play confirmation beep (non-blocking)
-                        if (this.wakewordSound) {
-                            this.wakewordSound.currentTime = 0;
-                            this.wakewordSound.play().catch(() => {}); // Silent fail
-                        }
-
-                        // Disable wakeword detection in AudioWorklet
-                        if (this.processor) {
-                            this.processor.port.postMessage({ type: 'disable-wakeword' });
-                        }
-                        // Start VAD listening - it will detect speech and handle transcription
-                        if (this.vad && this.vadInitialized) {
-                            this.vad.start();
-                            this.status = 'listening';
-                            console.log('VAD started after wakeword detection');
-                        }
-                    }
+                    this.$_triggerWakewordDetected(false);
                     return;
                 }
 
@@ -1146,6 +1147,35 @@ export default {
                 }
             } catch (e) {
                 console.error("Error parsing message:", e);
+            }
+        },
+
+        $_triggerWakewordDetected(manual = false) {
+            // Treat a wake-word detection — or a manual mic click while the wakeword is
+            // armed — as "open the channel": stop listening for the wakeword and start VAD.
+            if (this.wakewordDetected) return;
+            this.wakewordDetected = true;
+            this.wakewordChannelOpened = true; // Channel is open for this conversation — stop auto-re-arming the wakeword
+            console.log(manual
+                ? 'Manual wake: starting VAD listening...'
+                : 'Wakeword detected! Starting VAD listening...');
+
+            // Confirmation beep (skipped for a manual click — the user initiated it)
+            if (!manual && this.wakewordSound) {
+                this.wakewordSound.currentTime = 0;
+                this.wakewordSound.play().catch(() => {}); // Silent fail
+            }
+
+            // Stop listening for the wakeword now that the channel is open
+            if (this.processor) {
+                this.processor.port.postMessage({ type: 'disable-wakeword' });
+            }
+
+            // Start VAD listening — it will detect speech and handle transcription
+            if (this.vad && this.vadInitialized) {
+                this.vad.start();
+                this.status = 'listening';
+                console.log(manual ? 'VAD started (manual wake)' : 'VAD started after wakeword detection');
             }
         },
 
@@ -1192,7 +1222,9 @@ export default {
                         this.vad.pause();
                         this.status = 'ready';
                         this.$_resetAudioBuffer();
-                        // Re-enable wakeword detection when going back to ready
+                        // Closing the channel: re-arm the wakeword gate so the system goes
+                        // back to wakeword detection (click again, or say the wake word, to reopen).
+                        this.wakewordChannelOpened = false;
                         if (this.wakewordEnabled && this.processor) {
                             this.wakewordDetected = false;
                             this.processor.port.postMessage({ type: 'enable-wakeword' });
@@ -1200,8 +1232,19 @@ export default {
                         }
                         console.log('VAD paused — click again to resume');
                     }
-                } else if (this.status === 'ready' || this.status === 'waiting_for_more') {
-                    // VAD initialized but paused — start/resume listening
+                } else if (this.status === 'ready') {
+                    // 'ready' is the continuous rest state. When the wakeword is armed here,
+                    // a manual mic click acts as a manual wake-word: open the channel (start
+                    // VAD) and stop listening for the wakeword. Otherwise just resume VAD.
+                    if (this.wakewordEnabled && !this.wakewordChannelOpened) {
+                        this.$_triggerWakewordDetected(true);
+                    } else if (this.vad && this.vadInitialized) {
+                        this.vad.start();
+                        this.status = 'listening';
+                        console.log('VAD started');
+                    }
+                } else if (this.status === 'waiting_for_more') {
+                    // Semantic VAD still accumulating — resume listening
                     if (this.vad && this.vadInitialized) {
                         this.vad.start();
                         this.status = 'listening';
@@ -1214,7 +1257,9 @@ export default {
                         this.vad.pause();
                         this.status = 'ready';
                         this.$_resetAudioBuffer();
-                        // Re-enable wakeword detection when going back to ready
+                        // Closing the channel: re-arm the wakeword gate so the system goes
+                        // back to wakeword detection (click again, or say the wake word, to reopen).
+                        this.wakewordChannelOpened = false;
                         if (this.wakewordEnabled && this.processor) {
                             this.wakewordDetected = false;
                             this.processor.port.postMessage({ type: 'enable-wakeword' });
@@ -1229,7 +1274,9 @@ export default {
                         this.vad.pause();
                         this.status = 'ready';
                         this.$_resetAudioBuffer();
-                        // Re-enable wakeword detection when going back to ready
+                        // Closing the channel: re-arm the wakeword gate so the system goes
+                        // back to wakeword detection (click again, or say the wake word, to reopen).
+                        this.wakewordChannelOpened = false;
                         if (this.wakewordEnabled && this.processor) {
                             this.wakewordDetected = false;
                             this.processor.port.postMessage({ type: 'enable-wakeword' });

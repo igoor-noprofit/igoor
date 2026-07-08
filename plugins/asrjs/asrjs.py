@@ -885,7 +885,7 @@ class Asrjs(Baseplugin):
         async def wakeword_chunk_endpoint(audio_chunk: UploadFile = File(...)):
             """Receive audio chunk for wakeword detection"""
             try:
-                if not self.wakeword_detector or not self.wakeword_enabled:
+                if not self.continuous or not self.wakeword_detector or not self.wakeword_enabled:
                     return {"error": "Wakeword detection not enabled"}
 
                 # Read audio chunk - frontend sends raw Int16 PCM data (not WAV)
