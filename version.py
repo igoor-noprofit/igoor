@@ -1,3 +1,3 @@
 __appname__ = "igoor"
-__version__ = "0.4.0.2"
+__version__ = "0.5.0.0"
 __codename__ = "BETA"
