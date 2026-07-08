@@ -22,6 +22,17 @@ class AudioProcessor extends AudioWorkletProcessor {
                 this.isRecording = true;
             } else if (event.data.type === 'stop-recording') {
                 this.isRecording = false;
+                // Flush the partial tail accumulated since the last 4096-boundary audio-data
+                // post, then signal completion so the main thread can build the WAV without
+                // losing the end (it only receives audio-data on exact bufferSize boundaries).
+                const remainder = this.recordingBuffer.length % this.bufferSize;
+                if (remainder > 0) {
+                    this.port.postMessage({
+                        type: 'audio-data',
+                        data: this.recordingBuffer.slice(-remainder)
+                    });
+                }
+                this.port.postMessage({ type: 'recording-stopped' });
             } else if (event.data.type === 'enable-wakeword') {
                 this.wakewordEnabled = true;
                 this.wakewordBuffer = [];  // Clear buffer when enabling

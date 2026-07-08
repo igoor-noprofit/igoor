@@ -672,6 +672,16 @@ class Asrjs(Baseplugin):
                 frames = wf.readframes(wf.getnframes())
                 samples = np.frombuffer(frames, dtype=np.int16).astype(np.float32) / 32768.0
 
+            # Pad ~0.5s of trailing silence. The streaming (OnlineRecognizer) Zipformer emits
+            # each token only once it has seen the audio *following* it, so a push-to-talk
+            # recording that ends abruptly at the stop-click loses its final token(s). This
+            # mirrors the trailing silence the continuous-mode VAD naturally appends
+            # (redemptionFrames), giving the decoder the context it needs to flush the tail.
+            # Harmless for the offline Whisper path, which has no such emission delay.
+            pad_samples = int(sample_rate * 0.5)
+            if pad_samples > 0:
+                samples = np.concatenate([samples, np.zeros(pad_samples, dtype=np.float32)])
+
             stream = self.sherpa_recognizer.create_stream()
             stream.accept_waveform(sample_rate, samples)
 
