@@ -334,10 +334,12 @@ class Elevenlabstts(Baseplugin):
             request_params["voice_settings"] = voice_settings
             
             # Add optional parameters if provided
-            if "latency_optimization" in test_settings:
-                request_params["optimize_streaming_latency"] = test_settings["latency_optimization"]
-            elif "latency_optimization" in self.settings:
-                request_params["optimize_streaming_latency"] = self.settings["latency_optimization"]
+            # optimize_streaming_latency is not supported by the eleven_v3 model
+            if request_params.get("model_id") != "eleven_v3":
+                if "latency_optimization" in test_settings:
+                    request_params["optimize_streaming_latency"] = test_settings["latency_optimization"]
+                elif "latency_optimization" in self.settings:
+                    request_params["optimize_streaming_latency"] = self.settings["latency_optimization"]
                 
             if "enable_logging" in test_settings:
                 request_params["enable_logging"] = test_settings["enable_logging"]
@@ -476,7 +478,8 @@ class Elevenlabstts(Baseplugin):
                 request_params["voice_settings"] = voice_settings
 
                 # Add optional parameters if configured
-                if "latency_optimization" in self.settings:
+                # optimize_streaming_latency is not supported by the eleven_v3 model
+                if request_params.get("model_id") != "eleven_v3" and "latency_optimization" in self.settings:
                     request_params["optimize_streaming_latency"] = self.settings["latency_optimization"]
 
                 if "enable_logging" in self.settings:

@@ -166,9 +166,13 @@
 
                     <!-- Latency Optimization Row -->
                     <div class="ssml-row">
-                        <div class="ssml-left">{{ t('Latency Optimization') }}</div>
+                        <div class="ssml-left">
+                            {{ t('Latency Optimization') }}
+                            <div v-if="isV3Model" class="disabled-note">{{ t('Not available for Eleven v3') }}</div>
+                        </div>
                         <div class="ssml-center">
-                            <select id="latencyOptimizationSlider" v-model="latencyOptimizationValue" @change="onLatencyOptimizationChange">
+                            <select id="latencyOptimizationSlider" v-model="latencyOptimizationValue"
+                                :disabled="isV3Model" @change="onLatencyOptimizationChange">
                                 <option :value="0">{{ t('Best Quality') }}</option>
                                 <option :value="1">{{ t('Quality') }}</option>
                                 <option :value="2">{{ t('Balanced') }}</option>
@@ -178,7 +182,7 @@
                         </div>
                         <div class="ssml-right">
                             <input type="number" class="numeric-input" v-model.number="latencyOptimizationValue"
-                                @change="onLatencyOptimizationChange" min="0" max="4" />
+                                :disabled="isV3Model" @change="onLatencyOptimizationChange" min="0" max="4" />
                         </div>
                     </div>
 
@@ -270,6 +274,10 @@ export default {
             return voices
                 .slice()
                 .sort((a, b) => a.display_name.localeCompare(b.display_name, undefined, { sensitivity: 'base' }));
+        },
+        isV3Model() {
+            // eleven_v3 does not support optimize_streaming_latency
+            return this.formData.model_id === 'eleven_v3';
         }
     },
     watch: {
@@ -689,6 +697,22 @@ button:hover {
 .disabled {
     opacity: 0.5;
     cursor: not-allowed;
+}
+
+select:disabled,
+input[type="number"]:disabled,
+input[type="text"]:disabled,
+input[type="password"]:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.disabled-note {
+    font-size: 0.78em;
+    color: #ff9b9b;
+    font-weight: 400;
+    line-height: 1.3;
+    margin-top: 2px;
 }
 
 .input-error {
