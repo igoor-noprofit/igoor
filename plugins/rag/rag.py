@@ -963,24 +963,36 @@ class Rag(Baseplugin):
                 self.logger.info("Embedding model downloaded and cached")
                 return hf
         else:
-            # For Jina and other models requiring trust_remote_code
-            # Try online first (custom code needs to be downloaded)
-            model_kwargs_online = {
+            # Jina/GTE and other models requiring trust_remote_code.
+            # Try the local cache FIRST so startup does not block (or stall on
+            # 5 retries) when there is no Internet connection but the model is
+            # already downloaded. Falls back to an online download only when the
+            # cache miss genuinely requires it (first run).
+            model_kwargs = {
                 "device": "cpu",
-                "trust_remote_code": True
+                "trust_remote_code": True,
+                "local_files_only": True
             }
             try:
                 hf = HuggingFaceEmbeddings(
                     model_name=embedding_model,
-                    model_kwargs=model_kwargs_online,
+                    model_kwargs=model_kwargs,
                     encode_kwargs={"normalize_embeddings": True},
                     cache_folder=cache_folder
                 )
-                self.logger.info("Embedding model loaded successfully")
+                self.logger.info("Embedding model loaded from local cache")
                 return hf
             except Exception as e:
-                self.logger.error(f"Failed to load embedding model: {e}")
-                raise
+                self.logger.warning(f"Failed to load from cache: {e}. Trying online...")
+                model_kwargs["local_files_only"] = False
+                hf = HuggingFaceEmbeddings(
+                    model_name=embedding_model,
+                    model_kwargs=model_kwargs,
+                    encode_kwargs={"normalize_embeddings": True},
+                    cache_folder=cache_folder
+                )
+                self.logger.info("Embedding model downloaded and cached")
+                return hf
 
     def create_index(self):
         self.logger.info("CREATING DB, PLEASE WAIT...")
