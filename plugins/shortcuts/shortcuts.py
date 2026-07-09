@@ -144,7 +144,7 @@ class Shortcuts(Baseplugin):
                     bid = message_dict.get("bid")
                     print (f"Speaking {msg}")
                     if msg:
-                        asyncio.create_task(self.pm.trigger_hook(hook_name="speak", message=msg))
+                        asyncio.create_task(self.pm.trigger_hook(hook_name="speak", message=msg, skip_asr=True))
                         onboarding_flag = 1 if self.is_onboarding_on else 0
                         if bid is None:
                             self.logger.warning("Shortcut speak action missing bid; defaulting to -1")

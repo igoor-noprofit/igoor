@@ -395,30 +395,30 @@ class Elevenlabstts(Baseplugin):
 
         
     @hookimpl
-    def speak(self, message):
+    def speak(self, message, skip_asr=False):
         print("§§§§ ELEVENLABS SPEAKING *********************************************** :", message)
         # Schedule the speak_func to run in the background (with translation)
-        asyncio.create_task(self.run_speak_func_with_translation(message))
+        asyncio.create_task(self.run_speak_func_with_translation(message, skip_asr=skip_asr))
         asyncio.create_task(self.pm.trigger_hook(hook_name="reset_conversation_timeout"))
 
-    def run_restart_asr(self):
-        asyncio.create_task(self.restart_asr())
+    def run_restart_asr(self, force_ready=False):
+        asyncio.create_task(self.restart_asr(force_ready))
         
-    async def restart_asr(self):
-        await self.pm.trigger_hook(hook_name="restart_asr")
+    async def restart_asr(self, force_ready=False):
+        await self.pm.trigger_hook(hook_name="restart_asr", force_ready=force_ready)
 
-    async def run_speak_func(self, message):
-        success = await self.safe_speak_func(message)
+    async def run_speak_func(self, message, skip_asr=False):
+        success = await self.safe_speak_func(message, skip_asr=skip_asr)
 
-    async def run_speak_func_with_translation(self, message):
+    async def run_speak_func_with_translation(self, message, skip_asr=False):
         """Translate outgoing speech before speaking"""
         translated_message = await self.translate_for_interlocutor(message, direction="outgoing")
-        await self.run_speak_func(translated_message)
+        await self.run_speak_func(translated_message, skip_asr=skip_asr)
 
-    async def safe_speak_func(self, message):
+    async def safe_speak_func(self, message, skip_asr=False):
         print("SAFE SPEAK FUNC:", message)
         try:
-            result = await self.speak_func(message)
+            result = await self.speak_func(message, skip_asr=skip_asr)
             print(f"RESULT OF SPEAK FUNC: {result}")
             if not result:
                 print("Speak function encountered an issue but handled gracefully.")
@@ -427,7 +427,7 @@ class Elevenlabstts(Baseplugin):
             print(f"An unexpected error occurred: {e}")
             await self.call_fallback(message=message)
 
-    async def speak_func(self, message):
+    async def speak_func(self, message, skip_asr=False):
         print("SPEAK FUNC:" + message)
         try:
             # Ensure settings are initialized
@@ -494,7 +494,7 @@ class Elevenlabstts(Baseplugin):
                 output_format = request_params.get("output_format", "mp3_44100_128")
                 await asyncio.to_thread(self._play_audio, audio, output_format)
                 await asyncio.to_thread(self._play_audio, audio, request_params.get("output_format", "mp3_44100_128"))
-                self.run_restart_asr()
+                self.run_restart_asr(force_ready=skip_asr)
                 return True
             except Exception as inner_e:
                 print(f"Error generating audio data: {inner_e}")

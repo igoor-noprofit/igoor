@@ -235,9 +235,16 @@ class Asrjs(Baseplugin):
         })
 
     @hookimpl
-    async def restart_asr(self):
-        print(f"ASRJS restart_asr called: continuous={self.continuous}, conversation_abandoned={self.conversation_abandoned}, is_paused={self.is_paused}")
-        if (self.continuous):
+    async def restart_asr(self, force_ready=False):
+        print(f"ASRJS restart_asr called: continuous={self.continuous}, conversation_abandoned={self.conversation_abandoned}, is_paused={self.is_paused}, force_ready={force_ready}")
+        if force_ready:
+            # Caller (e.g. an emergency shortcut speak) requested NOT to reopen the
+            # ASR channel: return to idle (wakeword-armed) instead of listening.
+            self.is_paused = False
+            new_status = "ready"
+            if self.continuous and self.wakeword_enabled and self.wakeword_detector:
+                self.wakeword_detector.prime()
+        elif (self.continuous):
             # Don't resume listening if conversation was abandoned
             if self.conversation_abandoned:
                 new_status = "ready"
