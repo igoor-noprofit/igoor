@@ -150,7 +150,7 @@ class Speechifytts(Baseplugin):
             print(f"SpeechifyTTS NOT ready: api_key={bool(api_key)}, voice_id={bool(voice_id)}")
 
     @hookimpl
-    def speak(self, message, skip_asr=False):
+    def speak(self, message, skip_asr):
         print("§§§§ SPEECHIFY SPEAKING *********************************************** :", message)
         # Schedule the speak_func to run in the background (with translation)
         asyncio.create_task(self.run_speak_func_with_translation(message, skip_asr=skip_asr))

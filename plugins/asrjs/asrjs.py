@@ -235,7 +235,7 @@ class Asrjs(Baseplugin):
         })
 
     @hookimpl
-    async def restart_asr(self, force_ready=False):
+    async def restart_asr(self, force_ready):
         print(f"ASRJS restart_asr called: continuous={self.continuous}, conversation_abandoned={self.conversation_abandoned}, is_paused={self.is_paused}, force_ready={force_ready}")
         if force_ready:
             # Caller (e.g. an emergency shortcut speak) requested NOT to reopen the
@@ -259,7 +259,7 @@ class Asrjs(Baseplugin):
                     self.wakeword_detector.prime()
         else:
             new_status="listening"
-        print(f"ASRJS restart_asr sending status: {new_status}")
+        print(f"ASRJS restart_asr sending status: {new_status} (force_ready={force_ready})")
         await self.send_status(new_status)
     
     def run_monitor_loading(self):

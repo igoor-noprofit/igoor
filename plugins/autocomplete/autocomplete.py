@@ -142,7 +142,7 @@ class Autocomplete(Baseplugin):
                     msg = message_dict.get("msg")
                     print (f"Speaking {msg}")
                     if msg:
-                        asyncio.create_task(self.pm.trigger_hook(hook_name="speak", message=msg))
+                        asyncio.create_task(self.pm.trigger_hook(hook_name="speak", message=msg, skip_asr=False))
                         asyncio.create_task(self.pm.trigger_hook(hook_name="add_msg_to_conversation", msg=msg, author="master", msg_input="auto"))
                     else:
                         print("Speak action is present but msg is empty.")

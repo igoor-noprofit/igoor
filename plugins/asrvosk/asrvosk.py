@@ -83,7 +83,7 @@ class Asrvosk(Baseplugin):
         self.send_message_to_frontend("listening")
         
     @hookimpl
-    def restart_asr(self, force_ready=False):
+    def restart_asr(self, force_ready):
         if force_ready:
             # Caller requested NOT to reopen the ASR channel: return to idle.
             self.is_paused = False

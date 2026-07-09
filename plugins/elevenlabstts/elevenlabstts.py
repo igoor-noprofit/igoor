@@ -395,7 +395,7 @@ class Elevenlabstts(Baseplugin):
 
         
     @hookimpl
-    def speak(self, message, skip_asr=False):
+    def speak(self, message, skip_asr):
         print("§§§§ ELEVENLABS SPEAKING *********************************************** :", message)
         # Schedule the speak_func to run in the background (with translation)
         asyncio.create_task(self.run_speak_func_with_translation(message, skip_asr=skip_asr))

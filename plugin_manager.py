@@ -111,7 +111,7 @@ class MyAppSpec:
     '''
     
     @pluggy.HookspecMarker(app_name)
-    def speak(self,message: str, skip_asr=False):
+    def speak(self,message: str, skip_asr):
         pass
     
     @pluggy.HookspecMarker(app_name)
@@ -142,7 +142,7 @@ class MyAppSpec:
         pass
     
     @pluggy.HookspecMarker(app_name)
-    def restart_asr(self, force_ready=False):
+    def restart_asr(self, force_ready):
         pass
 
     @pluggy.HookspecMarker(app_name)

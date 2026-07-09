@@ -128,7 +128,7 @@ class Ttsdefault(Baseplugin):
     '''
         
     @hookimpl
-    def speak(self, message, skip_asr=False):
+    def speak(self, message, skip_asr):
         if self.is_loaded and not self.fallback_only:
             self.logger.info("§§§§ SPEAKING *********************************************** : %s", message)
             # Schedule the speak_func to run in the background (with translation)
@@ -151,7 +151,7 @@ class Ttsdefault(Baseplugin):
         asyncio.create_task(self.restart_asr())
         
     async def restart_asr(self):
-        await self.pm.trigger_hook(hook_name="restart_asr")
+        await self.pm.trigger_hook(hook_name="restart_asr", force_ready=False)
 
     async def run_speak_func(self, message, skip_asr=False):
         await self.pm.trigger_hook(hook_name="pause_asr")

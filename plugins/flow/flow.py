@@ -110,7 +110,7 @@ class Flow(Baseplugin):
                 if  action == "speak":
                     msg = message_dict.get("msg", "")
                     # Trigger hook in plugin manager with msg
-                    asyncio.create_task(self.pm.trigger_hook(hook_name="speak", message=msg))
+                    asyncio.create_task(self.pm.trigger_hook(hook_name="speak", message=msg, skip_asr=False))
                     asyncio.create_task(self.pm.trigger_hook(hook_name="add_msg_to_conversation", msg=msg, author="master", msg_input="flow"))
                 elif action == "abandon_conversation":
                     asyncio.create_task(self.pm.trigger_hook(hook_name="abandon_conversation", cause="abandoned"))
