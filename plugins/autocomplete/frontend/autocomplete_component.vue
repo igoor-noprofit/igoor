@@ -129,6 +129,12 @@ module.exports = {
         // Auto-focus when the autocomplete view appears so the OS-level keyboard
         // (TabTip / TD Control) opens without an extra click.
         this.$nextTick(() => this.$_focusInput());
+        // Re-focus once boot finishes: the boot overlay can steal the focus set
+        // above at mount time.
+        window.addEventListener("boot-complete", this.$_onBootComplete);
+    },
+    beforeDestroy() {
+        window.removeEventListener("boot-complete", this.$_onBootComplete);
     },
     methods: {
         $_showKeyboard() {
@@ -154,6 +160,10 @@ module.exports = {
             if (this.$refs.autocompleteInput) {
                 this.$refs.autocompleteInput.focus();
             }
+        },
+        $_onBootComplete() {
+            // The app dispatches "boot-complete" once the boot overlay is dismissed.
+            this.$nextTick(() => this.$_focusInput());
         },
         $_reset() {
             this.wordSuggestions = [];
@@ -454,7 +464,7 @@ button {
     height: 100%;
     width: 100%;
     display: flex;
-    justify-content: center;
+    justify-content: flex-end;
     align-items: center;
     gap: 8px;
     padding: 0 12px;
@@ -475,8 +485,9 @@ button {
     color: #fff;
     font-family: inherit;
     font-size: inherit;
-    text-align: center;
-    caret-color: #0095c0;
+    text-align: right;
+    caret-color: #fff;
+    /* caret-shape: block; */
 }
 .real-input::placeholder {
     color: #999;
