@@ -166,7 +166,7 @@ class Shortcuts(Baseplugin):
                                 )
                         except Exception as exc:
                             self.logger.error(f"Failed to store shortcut usage: {exc}")
-                        # asyncio.create_task(self.pm.trigger_hook(hook_name="add_msg_to_conversation", msg=msg, author="master",msg_input="shortcuts"))
+                            # asyncio.create_task(self.pm.trigger_hook(hook_name="add_msg_to_conversation", msg=msg, author="master",msg_input="shortcuts"))
                     else:
                         print("Speak action is present but msg is empty.")
                         
