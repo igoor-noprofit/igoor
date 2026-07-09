@@ -41,7 +41,7 @@ const BasePluginComponent = {
           this.translations = {};
           return;
         }
-        const url = `/plugins/${pluginName}/locales/${lang}/${pluginName}_${lang}.json`;
+        const url = `/plugins/${pluginName}/locales/${lang}/${pluginName}_${lang}.json${window.IGOOR_VERSION ? "?v=" + encodeURIComponent(window.IGOOR_VERSION) : ""}`;
         const response = await fetch(url);
         if (!response.ok) throw new Error(`Could not load ${url}`);
         this.translations = await response.json();
