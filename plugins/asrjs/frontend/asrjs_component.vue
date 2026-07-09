@@ -932,9 +932,28 @@ export default {
             // Stop Web Audio API recording
             this.isRecording = false;
 
-            // Tell AudioWorklet to stop recording
+            // Tell AudioWorklet to stop recording, and wait for it to flush its final partial
+            // chunk. The worklet only posts audio-data on 4096-sample boundaries, so without
+            // this the last <4096 samples (~85ms @ 48kHz) never reach the main thread and the
+            // recording is truncated at the very end (affects BOTH ASR providers, and a very
+            // short click <4096 samples would otherwise produce an empty WAV).
             if (this.processor) {
+                const flushed = new Promise((resolve) => {
+                    const handler = (event) => {
+                        if (event.data.type === 'recording-stopped') {
+                            this.processor.port.removeEventListener('message', handler);
+                            resolve();
+                        }
+                    };
+                    this.processor.port.addEventListener('message', handler);
+                    // Fallback: never block transcription if the flush signal is lost.
+                    setTimeout(() => {
+                        this.processor.port.removeEventListener('message', handler);
+                        resolve();
+                    }, 500);
+                });
                 this.processor.port.postMessage({ type: 'stop-recording' });
+                await flushed;
             }
 
             console.log(`Recording stopped, collected ${this.recordingBuffer.length} native samples and ${this.speakerIdBuffer.length} downsampled samples`);
