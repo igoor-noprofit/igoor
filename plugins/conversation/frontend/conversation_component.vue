@@ -105,6 +105,7 @@ module.exports = {
             console.table(data);
             if (data.action == "abandon_conversation") {
                 this.thread = [];
+                this.status = '';            // hide the transcribing dots immediately
                 this.resetProgressBar();
             } else if (data.action == "startCountdown") {
                 // Handle start countdown logic
