@@ -1,8 +1,7 @@
 from plugins.baseplugin.baseplugin import Baseplugin
 from plugin_manager import hookimpl, PluginManager
-from pyowm.owm import OWM
-from pyowm.utils.config import get_default_config
 import json
+import os
 import asyncio
 from dotenv import load_dotenv
 load_dotenv()
@@ -31,39 +30,69 @@ class Onboarding(Baseplugin):
         self.router = APIRouter(prefix="/api/plugins/onboarding", tags=["onboarding"])
 
         @self.router.get("/validate_api_key")
-        async def validate_api_key(provider: str = "groq", api_key: str = "", model_name: str = ""):
-            """Validate API key and model for a provider"""
+        async def validate_api_key(provider: str = "groq", api_key: str = "", model_name: str = "", base_url: str = ""):
+            """Validate API key and model for any OpenAI-compatible provider"""
             if not api_key or not api_key.strip():
                 raise HTTPException(status_code=400, detail="API key is required")
             if not model_name or not model_name.strip():
                 raise HTTPException(status_code=400, detail="Model name is required")
 
+            # Default base URLs for known providers
+            provider_base_urls = {
+                "groq": "https://api.groq.com/openai/v1",
+                "cerebras": "https://api.cerebras.ai/v1",
+                "mistral": "https://api.mistral.ai/v1",
+                "openai": None,
+                "ollama": "http://localhost:11434/v1",
+                "ollama-cloud": "https://api.ollama.com/v1",
+                "lmstudio": "http://localhost:1234/v1",
+            }
+
+            # Determine base_url to use
+            if base_url and base_url.strip():
+                validation_base_url = base_url.strip()
+            elif provider in provider_base_urls:
+                validation_base_url = provider_base_urls[provider]
+            else:
+                validation_base_url = None
+
             try:
-                if provider == "groq":
-                    from groq import Groq
-                    client = Groq(api_key=api_key.strip())
-                    messages = [{"role": "user", "content": "Hi"}]
-                    response = client.chat.completions.create(
-                        model=model_name.strip(),
-                        messages=messages,
-                        max_tokens=5
-                    )
-                    return {"valid": True}
-                else:
-                    raise HTTPException(status_code=400, detail=f"Unsupported provider: {provider}")
+                from openai import OpenAI
+                client = OpenAI(
+                    api_key=api_key.strip(),
+                    base_url=validation_base_url
+                )
+                messages = [{"role": "user", "content": "Hi"}]
+                response = client.chat.completions.create(
+                    model=model_name.strip(),
+                    messages=messages,
+                    max_tokens=5
+                )
+                return {"valid": True}
             except Exception as e:
                 error_msg = str(e).lower()
-                # Handle Groq-specific errors
+                # Handle common API errors
                 if 'unauthorized' in error_msg or 'invalid api key' in error_msg:
                     raise HTTPException(status_code=400, detail="Invalid API Key")
-                elif 'unsupported model' in error_msg or '2025' in error_msg:
+                elif 'unsupported model' in error_msg or 'model not found' in error_msg:
                     raise HTTPException(status_code=400, detail="Unsupported model")
                 elif '401' in error_msg or 'authentication' in error_msg:
                     raise HTTPException(status_code=400, detail="Invalid API Key")
-                elif 'timeout' in error_msg or 'connection' in error_msg:
+                elif 'timeout' in error_msg or 'connection' in error_msg or 'connect' in error_msg:
                     raise HTTPException(status_code=400, detail="Connection error: could not validate API key")
                 else:
                     raise HTTPException(status_code=400, detail=f"API Key validation failed: {str(e)}")
+
+        @self.router.post("/open_sound_settings")
+        async def open_sound_settings_endpoint():
+            """Open Windows Sound settings so the user can choose the default microphone."""
+            try:
+                if os.name == 'nt':
+                    os.startfile('ms-settings:sound')
+                    return {"status": "success"}
+                return {"status": "error", "message": "Not supported on this platform"}
+            except Exception as e:
+                return {"status": "error", "message": str(e)}
 
     @hookimpl
     def startup(self):
@@ -151,22 +180,38 @@ class Onboarding(Baseplugin):
                 try:
                     # Get current settings to preserve any existing values not in new_settings
                     current_settings = self.pm.settings_manager.get_plugin_settings('onboarding') or {}
-                    
+
+                    # Capture old provider BEFORE any mutations (get_plugin_settings returns a reference)
+                    old_provider = current_settings.get('ai', {}).get('provider')
+                    print(f"[PRESETS] Old provider: {old_provider}")
+
                     # Update each section separately to preserve structure
                     for section in ['bio', 'prefs', 'ai']:
                         if section in new_settings:
                             if section not in current_settings:
                                 current_settings[section] = {}
                             current_settings[section].update(new_settings[section])
-                    
+
                     if (self.mass_update_my_settings(current_settings)):
                         # Update local settings
                         self.settings = current_settings
                         self.onboarding_completed = True
-                        
+
+                        # Sync API key to asrjs plugin if needed
+                        self._sync_api_key_to_asrjs(new_settings.get('ai', {}))
+
+                        # Check if provider changed and apply presets to other plugins
+                        new_provider = new_settings.get('ai', {}).get('provider')
+                        print(f"[PRESETS] New provider: {new_provider}")
+                        print(f"[PRESETS] Provider changed: {new_provider != old_provider}")
+
+                        if new_provider and new_provider != old_provider:
+                            print(f"[PRESETS] Triggering preset application for '{new_provider}'")
+                            self._apply_provider_presets(new_provider)
+
                         # Switch view
                         asyncio.create_task(self.send_switch_view_to_app('daily'))
-                        
+
                         # Send success response
                         self.send_message_to_frontend({
                             'type': 'success',
@@ -200,7 +245,69 @@ class Onboarding(Baseplugin):
                 'type': 'error',
                 'message': f'Failed to save settings: {str(e)}'
             })
-        
+
+    def _apply_provider_presets(self, provider):
+        """Apply provider-specific presets to other plugins."""
+        import yaml
+
+        presets_path = os.path.join(os.path.dirname(__file__), 'provider_presets.yaml')
+        print(f"[PRESETS] Looking for presets file: {presets_path}")
+
+        try:
+            with open(presets_path, 'r', encoding='utf-8') as f:
+                presets = yaml.safe_load(f)
+
+            print(f"[PRESETS] Loaded presets for providers: {list(presets.keys())}")
+
+            if provider in presets:
+                print(f"[PRESETS] Found presets for '{provider}': {presets[provider]}")
+                for plugin_name, settings in presets[provider].items():
+                    print(f"[PRESETS] Applying to {plugin_name}: {settings}")
+                    self.pm.settings_manager.update_plugin_settings(
+                        plugin_name,
+                        settings,
+                        self.pm
+                    )
+                print(f"[PRESETS] Successfully applied presets for provider '{provider}'")
+            else:
+                print(f"[PRESETS] No presets found for provider '{provider}'")
+        except FileNotFoundError:
+            print(f"[PRESETS] File not found: {presets_path}")
+        except Exception as e:
+            print(f"[PRESETS] Error: {e}")
+            import traceback
+            print(f"[PRESETS] Traceback: {traceback.format_exc()}")
+
+    def _sync_api_key_to_asrjs(self, ai_settings):
+        """Sync API key to asrjs plugin if it doesn't have one for the current provider."""
+        provider = ai_settings.get('provider')
+        api_key = ai_settings.get('api_key')
+
+        if not provider or not api_key:
+            return
+
+        # Get asrjs current settings
+        asrjs_settings = self.pm.settings_manager.get_plugin_settings('asrjs') or {}
+
+        if provider == 'groq':
+            # For Groq, asrjs uses 'api_key' field
+            if not asrjs_settings.get('api_key'):
+                print(f"[ASRJS SYNC] Syncing Groq API key to asrjs plugin")
+                self.pm.settings_manager.update_plugin_settings(
+                    'asrjs',
+                    {'api_key': api_key},
+                    self.pm
+                )
+        elif provider == 'mistral':
+            # For Mistral, asrjs uses 'voxtral_api_key' field
+            if not asrjs_settings.get('voxtral_api_key'):
+                print(f"[ASRJS SYNC] Syncing Mistral API key to asrjs plugin")
+                self.pm.settings_manager.update_plugin_settings(
+                    'asrjs',
+                    {'voxtral_api_key': api_key},
+                    self.pm
+                )
+
     @hookimpl
     async def global_settings_updated(self):
         """Called when global settings are updated - reload onboarding settings from disk."""

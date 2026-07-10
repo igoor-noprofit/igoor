@@ -70,9 +70,36 @@ class SettingsManager:
     def get_prefs(self):
         return self.get_nested(["plugins", "onboarding", "prefs"], default={})
     
+    LANG_TO_NAME = {
+        "fr_FR": "French",
+        "en_EN": "English",
+        "it_IT": "Italian",
+        "es_ES": "Spanish",
+        "de_DE": "German",
+        "pt_PT": "Portuguese",
+    }
+
     def get_lang(self):
         prefs = self.get_prefs()
         return prefs.get("lang")
+
+    # Language-specific style rules (register, tone, cultural conventions)
+    LANG_STYLE_NOTES = {
+        "fr_FR": "TOUJOURS utiliser le tutoiement (tu/toi), JAMAIS le vouvoiement (vous). Langage familier et chaleureux.",
+        "de_DE": "Immer 'du' verwenden, nie 'Sie'. Informeller, warmer Ton.",
+        "it_IT": "Usare sempre il 'tu', mai il 'Lei'. Tono informale e caloroso.",
+        "es_ES": "Usar siempre 'tú', nunca 'usted'. Tono informal y cercano.",
+        "pt_PT": "Usar sempre 'tu', nunca 'você' formal. Tom informal e próximo.",
+        "en_EN": "",  # English has no T-V distinction
+    }
+
+    def get_reply_language(self):
+        """Return the human-readable language name for LLM prompt injection."""
+        return self.LANG_TO_NAME.get(self.get_lang(), "English")
+    
+    def get_reply_language_style(self):
+        """Return language-specific style notes (register, tone)."""
+        return self.LANG_STYLE_NOTES.get(self.get_lang(), "")
     
     def get_bio(self):
         return self.get_nested(["plugins", "onboarding", "bio"], default={})

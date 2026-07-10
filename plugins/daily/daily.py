@@ -20,8 +20,43 @@ class Daily(Baseplugin):
         self.load_settings()
         bio = self.settings_manager.get_bio()
         self.bio_name = bio.get("name")
+        self.health_state = self.settings_manager.get_health_state()
         self.daily_data = None
+        self._build_prompt_templates()
+    
+    def _build_prompt_templates(self):
+        """Pre-build PromptManagers with static vars filled in."""
+        reply_language = self.settings_manager.get_reply_language()
         
+        # Pre-fill system prompt (contains {reply_language})
+        sys_template = self.prompts.get("daily", {}).get("system", "")
+        self._daily_system_prompt = sys_template.replace("{reply_language}", reply_language)
+        
+        # Pre-fill user prompt template with static vars
+        self._daily_usr_pm = PromptManager(template=self.prompts.get("daily", {}).get("usr"))
+        self._daily_usr_pm.partial(
+            bio_name=self.bio_name,
+            reply_language=reply_language,
+            health_state=self.health_state,
+            bio_context=self.get_bio_context(),
+        )
+
+    @hookimpl
+    def warmup(self):
+        """Boot warmup: pre-warm the LLM client/cache with the real daily prompt.
+        Sends the full filled user prompt (static fields filled, dynamic fields blanked)
+        so the largest stable prefix is cached."""
+        if not (getattr(self, "_daily_system_prompt", None) and getattr(self, "_daily_usr_pm", None)):
+            return
+        try:
+            user_prompt = self._daily_usr_pm.create_prompt(
+                static_context="", long_term="", short_term="",
+                dynamic_context={}, category="", theme="", tags=""
+            )
+            self._warmup_llm(self._daily_system_prompt, user_prompt=user_prompt)
+        except Exception as e:
+            self.logger.warning(f"Daily warmup render failed, falling back to system-only: {e}")
+            self._warmup_llm(self._daily_system_prompt)
     def load_settings(self):
         self.settings = self.get_my_settings()
         
@@ -81,9 +116,17 @@ class Daily(Baseplugin):
         # Reload all cached values from updated onboarding settings
         bio = self.settings_manager.get_bio()
         self.bio_name = bio.get("name")
+        self.health_state = self.settings_manager.get_health_state()
         # Reload language and prompts in case language was changed
         self.lang = self.settings_manager.get_lang()
         self.prompts = self.get_my_prompts()
+        self._build_prompt_templates()
+
+    @hookimpl
+    def bio_context_updated(self):
+        """Reload prompt templates when biorecorder bio.md has been created or updated."""
+        self.logger.info("Daily: bio_context_updated — rebuilding prompt templates")
+        self._build_prompt_templates()
     
     @hookimpl
     def abandon_conversation(self, cause=None):
@@ -119,7 +162,7 @@ class Daily(Baseplugin):
                     asyncio.create_task(self.send_switch_view_to_app(view="flow"))
                     msg = message_data.get("msg", "")
                     # Trigger hook in plugin manager with msg
-                    asyncio.create_task(self.pm.trigger_hook(hook_name="speak", message=msg))
+                    asyncio.create_task(self.pm.trigger_hook(hook_name="speak", message=msg, skip_asr=False))
                     asyncio.create_task(self.pm.trigger_hook(hook_name="add_msg_to_conversation", msg=msg, author="master",msg_input="daily"))    
         except json.JSONDecodeError:
             print(f"Invalid JSON message received: {message}")
@@ -154,21 +197,17 @@ class Daily(Baseplugin):
         # self.logger.info(f"FILTERED RESULTS: {filtered_results}")
         actual_filtered_results = normalize_filter_by_timeframe_result(filtered_results)
         # del dynamic_context["conversation"]
-        system_prompt = self.prompts.get("daily", {}).get("system")
+        system_prompt = self._daily_system_prompt
         print(f"SYSTEM PROMPT IS : {system_prompt}")   
-        pm = PromptManager(template=self.prompts.get("daily", {}).get("usr"))
-        dynamic_context = dynamic_context
-        prompt = pm.create_prompt(
-            bio_name=bio_name,
-            health_state=health_state,
-            static_context='\n'.join(actual_filtered_results.get(0, [])), # Use actual_filtered_results
-            long_term='\n'.join(actual_filtered_results.get(1, [])),  # Use actual_filtered_results
-            short_term='\n'.join(actual_filtered_results.get(2, [])), # Use actual_filtered_results
+        # Only pass dynamic vars (static ones are pre-filled via partial)
+        prompt = self._daily_usr_pm.create_prompt(
+            static_context='\n'.join(actual_filtered_results.get(0, [])),
+            long_term='\n'.join(actual_filtered_results.get(1, [])),
+            short_term='\n'.join(actual_filtered_results.get(2, [])),
             dynamic_context=dynamic_context, 
             category=category,
             theme=theme, 
-            tags="",
-            log_folder=self.plugin_folder)       
+            tags="")       
         print(f"FINAL PROMPT : {prompt}")
         try:
             llm = LLMManager(self.settings.get("provider"), self.settings.get("api_key"), self.settings.get("model_name"))

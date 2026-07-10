@@ -1,0 +1,1 @@
+All project instructions, conventions and memory live in AGENTS.md — read and follow it first.

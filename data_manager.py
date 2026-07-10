@@ -92,12 +92,24 @@ class DataManager:
             with tempfile.TemporaryDirectory() as temp_dir:
                 temp_path = Path(temp_dir)
                 
+                # Read current embedding model from RAG settings
+                rag_settings_path = os.path.join(self.appdata_dir, "plugins", "rag", "settings.json")
+                embedding_model = None
+                if os.path.exists(rag_settings_path):
+                    try:
+                        with open(rag_settings_path, 'r', encoding='utf-8') as f:
+                            rag_settings = json.load(f)
+                            embedding_model = rag_settings.get("embedding_model")
+                    except Exception as e:
+                        self.logger.warning(f"Could not read RAG settings for export metadata: {e}")
+
                 # Create metadata.json
                 metadata = {
                     "igoor_version": __version__,
                     "export_timestamp": datetime.now().isoformat(),
                     "export_type": "user_data",
-                    "include_rag": include_rag
+                    "include_rag": include_rag,
+                    "embedding_model": embedding_model
                 }
                 
                 metadata_path = temp_path / "metadata.json"
@@ -130,6 +142,14 @@ class DataManager:
                         self.logger.info("Exported plugins/rag folder")
                     else:
                         self.logger.warning("plugins/rag folder not found")
+
+                # Export custom wakeword models
+                custom_wakeword_folder = os.path.join(self.appdata_dir, "plugins", "asrjs", "custom_wakeword")
+                if os.path.exists(custom_wakeword_folder):
+                    shutil.copytree(custom_wakeword_folder, temp_path / "plugins" / "asrjs" / "custom_wakeword")
+                    self.logger.info("Exported plugins/asrjs/custom_wakeword folder")
+                else:
+                    self.logger.warning("plugins/asrjs/custom_wakeword folder not found")
                 
                 # Create ZIP file
                 with zipfile.ZipFile(output_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
@@ -229,13 +249,23 @@ class DataManager:
                 # Backup RAG folder
                 current_rag_folder = os.path.join(self.appdata_dir, "plugins", "rag")
                 imported_rag_path = temp_path / "plugins" / "rag"
-                
+
                 if imported_rag_path.exists() and os.path.exists(current_rag_folder):
                     backup_rag_path = os.path.join(backup_path, "plugins", "rag")
                     shutil.copytree(current_rag_folder, backup_rag_path)
                     backup_items.append("plugins/rag")
                     self.logger.info("Backed up plugins/rag folder")
-                
+
+                # Backup custom wakeword folder
+                current_wakeword_folder = os.path.join(self.appdata_dir, "plugins", "asrjs", "custom_wakeword")
+                imported_wakeword_path = temp_path / "plugins" / "asrjs" / "custom_wakeword"
+
+                if imported_wakeword_path.exists() and os.path.exists(current_wakeword_folder):
+                    backup_wakeword_path = os.path.join(backup_path, "plugins", "asrjs", "custom_wakeword")
+                    shutil.copytree(current_wakeword_folder, backup_wakeword_path)
+                    backup_items.append("plugins/asrjs/custom_wakeword")
+                    self.logger.info("Backed up plugins/asrjs/custom_wakeword folder")
+
                 warnings = []
                 
                 # Handle settings.json
@@ -250,12 +280,35 @@ class DataManager:
                         imported_settings_data = json.load(f)
                     
                     merged_settings = self._deep_merge(current_settings_data, imported_settings_data)
-                    
+
+                    # Always use the current version's default RAG settings for embedding-related values
+                    # This prevents old exports from using incompatible settings
+                    # Note: rag settings are inside "plugins" object
+                    plugin_rag_settings = os.path.join(
+                        os.path.dirname(os.path.abspath(__file__)),
+                        "plugins", "rag", "settings.json"
+                    )
+                    if os.path.exists(plugin_rag_settings):
+                        try:
+                            with open(plugin_rag_settings, 'r', encoding='utf-8') as f:
+                                default_rag_settings = json.load(f)
+                                if "plugins" in merged_settings and "rag" in merged_settings.get("plugins", {}):
+                                    # Preserve embedding_model
+                                    if "embedding_model" in default_rag_settings:
+                                        merged_settings["plugins"]["rag"]["embedding_model"] = default_rag_settings["embedding_model"]
+                                        self.logger.info(f"Preserved embedding_model: {default_rag_settings['embedding_model']}")
+                                    # Preserve score_threshold (important for embedding model compatibility)
+                                    if "score_threshold" in default_rag_settings:
+                                        merged_settings["plugins"]["rag"]["score_threshold"] = default_rag_settings["score_threshold"]
+                                        self.logger.info(f"Preserved score_threshold: {default_rag_settings['score_threshold']}")
+                        except Exception as e:
+                            self.logger.warning(f"Could not read plugin default settings: {e}")
+
                     with open(current_settings, 'w', encoding='utf-8') as f:
                         json.dump(merged_settings, f, indent=4)
-                    
+
                     self.logger.info("Settings deep merged")
-                    
+
                     # Check for obsolete settings
                     obsolete_keys = self._find_obsolete_keys(imported_settings_data, current_settings_data)
                     if obsolete_keys:
@@ -288,13 +341,59 @@ class DataManager:
                         self.logger.error(f"Failed to restore database: {e}")
                         raise Exception(f"Database file is in use. Please restart IGOOR and try again.") from e
                 
-                # Restore RAG folder
+                # Restore RAG folder — with embedding model compatibility check
                 if imported_rag_path.exists():
-                    if os.path.exists(current_rag_folder):
-                        shutil.rmtree(current_rag_folder)
-                    shutil.copytree(imported_rag_path, current_rag_folder)
-                    self.logger.info("plugins/rag folder restored")
-                
+                    # Detect embedding model mismatch
+                    imported_embedding = metadata.get("embedding_model")  # None for old exports
+                    current_embedding = None
+                    # Read from user's APPDATA settings (current_settings), not plugin defaults
+                    if os.path.exists(current_settings):
+                        try:
+                            with open(current_settings, 'r', encoding='utf-8') as f:
+                                current_embedding = json.load(f).get("rag", {}).get("embedding_model")
+                        except Exception as e:
+                            self.logger.warning(f"Could not read current RAG settings: {e}")
+
+                    needs_reembedding = (imported_embedding != current_embedding)
+
+                    if needs_reembedding:
+                        self.logger.warning(
+                            f"Embedding model mismatch: export used '{imported_embedding}', "
+                            f"current is '{current_embedding}'. FAISS indexes will be rebuilt."
+                        )
+                        # Import only source documents (medias), not the stale FAISS indexes
+                        os.makedirs(current_rag_folder, exist_ok=True)
+                        imported_medias = imported_rag_path / "medias"
+                        if imported_medias.exists():
+                            target_medias = os.path.join(current_rag_folder, "medias")
+                            if os.path.exists(target_medias):
+                                shutil.rmtree(target_medias)
+                            shutil.copytree(str(imported_medias), target_medias)
+                            self.logger.info("Restored plugins/rag/medias (source documents only)")
+                        # Wipe any existing stale FAISS index folders so RAG rebuilds from DB
+                        for idx_folder in ["ingested", "long", "short"]:
+                            idx_path = os.path.join(current_rag_folder, idx_folder)
+                            if os.path.exists(idx_path):
+                                shutil.rmtree(idx_path)
+                                self.logger.info(f"Deleted stale FAISS folder: {idx_folder}")
+                        warnings.append(
+                            "Embedding model changed from previous version. "
+                            "Memory and document indexes will be rebuilt automatically on next startup."
+                        )
+                    else:
+                        # Models match — safe to restore indexes as-is
+                        if os.path.exists(current_rag_folder):
+                            shutil.rmtree(current_rag_folder)
+                        shutil.copytree(str(imported_rag_path), current_rag_folder)
+                        self.logger.info("plugins/rag folder restored (embedding model compatible)")
+
+                # Restore custom wakeword folder
+                if imported_wakeword_path.exists():
+                    if os.path.exists(current_wakeword_folder):
+                        shutil.rmtree(current_wakeword_folder)
+                    shutil.copytree(imported_wakeword_path, current_wakeword_folder)
+                    self.logger.info("plugins/asrjs/custom_wakeword folder restored")
+
                 self.logger.info("Import completed successfully")
                 
                 # Import hook - let plugins know data was imported

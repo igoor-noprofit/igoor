@@ -7,7 +7,7 @@
         "birth_date": "",
         "health_state": "",
         "style": "",
-        "style_weight": "2 r\u00e9ponses sur 6 maximum"
+        "style_weight": "2 réponses sur 6 maximum"
       },
       "prefs": {
         "lang": "fr_FR",
@@ -20,7 +20,8 @@
         "api_key": "",
         "model_name": "openai/gpt-oss-20b",
         "temperature": 0.7,
-        "reasoning_effort": "low"
+        "reasoning_effort": "low",
+        "warmup_enabled": true
       }
     }
   },
@@ -40,6 +41,7 @@
     "rag": true,
     "memory": true,
     "extkeyb": false,
-    "weather": false
+    "weather": false,
+    "recorder": true
   }
 }

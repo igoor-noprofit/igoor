@@ -1,113 +1,279 @@
 <template>
-    <div class="asrjs-plugin-settings form-grid">
-        <!-- Model Provider -->
-        <div class="form-label">{{t('Model provider')}}</div>
-        <div class="form-input">
-            <select name="model_provider" v-model="formData.model_provider" @change="onProviderChange">
-                <option value="groq">Groq</option>
-                <option value="mistral">Mistral (BETA)</option>
-            </select>
-        </div>
-        <div class="form-note"></div>
-        <!-- Model Name -->
-        <div class="form-label">{{t('Model name')}}</div>
-        <div class="form-input">
-            <select name="model_name" v-model="formData.model_name">
-                <option value="whisper-large-v3" v-show="formData.model_provider === 'groq'">Whisper Large v3</option>
-                <option value="whisper-large-v3-turbo" v-show="formData.model_provider === 'groq'">Whisper Large v3 Turbo</option>
-                <option value="voxtral-mini-latest" v-show="formData.model_provider === 'mistral'">Voxtral Mini Latest</option>
-            </select>
-        </div>
-        <div class="form-note"></div>
-        <!-- MISTRAL API KEY -->
-        <div class="form-label" v-show="formData.model_name === 'voxtral-mini-latest'">{{t('Voxtral API Key (BETA)')}}</div>
-        <div class="form-input" v-show="formData.model_name === 'voxtral-mini-latest'">
-            <input
-                type="password"
-                v-model="formData.voxtral_api_key"
-                :class="{'input-error': voxtralKeyError}"
-                :placeholder="t('Required for Voxtral')"
-                required
-            />
-        </div>
-        <div class="form-note" :style="{color: voxtralKeyError ? '#ff6666' : undefined}" v-show="formData.model_name === 'voxtral-mini-latest'">
-            {{ voxtralKeyError ? t('Mistral API Key is required') : t('Mistral API Key is required for Voxtral models') }}
+    <div class="asrjs-plugin-settings form-grid bio-container">
+        <div class="bio left">
+            <!-- Model Provider -->
+            <div class="form-label">{{t('Model provider')}}</div>
+            <div class="form-input">
+                <select name="model_provider" v-model="formData.model_provider" @change="onProviderChange">
+                    <option value="groq">Groq</option>
+                    <option value="mistral">Mistral (BETA)</option>
+                    <option value="sherpa">Sherpa-ONNX (Local)</option>
+                </select>
+            </div>
+            <div class="form-note"></div>
+
+            <!-- Model Name -->
+            <template v-if="formData.model_provider !== 'sherpa'">
+                <div class="form-label">{{t('Model name')}}</div>
+                <div class="form-input">
+                    <select name="model_name" v-model="formData.model_name">
+                        <option value="whisper-large-v3" v-show="formData.model_provider === 'groq'">Whisper Large v3</option>
+                        <option value="whisper-large-v3-turbo" v-show="formData.model_provider === 'groq'">Whisper Large v3 Turbo</option>
+                        <option value="voxtral-mini-latest" v-show="formData.model_provider === 'mistral'">Voxtral Mini Latest</option>
+                    </select>
+                </div>
+                <div class="form-note"></div>
+            </template>
+
+            <!-- GROQ API KEY -->
+            <div class="form-label" v-show="formData.model_provider === 'groq' && !usingOnboardingGroqKey">
+                {{t('Groq API Key')}}
+                <HelpPopover :text="t('Groq API Key is required for Whisper models')" :t="t" :lang="lang"/>
+            </div>
+            <div class="form-input" v-show="formData.model_provider === 'groq' && !usingOnboardingGroqKey">
+                <input
+                    type="password"
+                    v-model="formData.api_key"
+                    :class="{'input-error': groqKeyError}"
+                    :placeholder="t('Required for Groq')"
+                    required
+                />
+            </div>
+            <div class="form-note" :style="{color: '#ff6666'}" v-show="formData.model_provider === 'groq' && !usingOnboardingGroqKey && groqKeyError">
+                {{ t('Groq API Key is required') }}
+            </div>
+            <div class="form-note" v-show="formData.model_provider === 'groq' && usingOnboardingGroqKey" style="color: #4caf50;">
+                {{ t('Using Groq API Key from global AI settings') }}
+            </div>
+
+            <!-- SHERPA MODEL SIZE (only when sherpa selected) -->
+            <template v-if="formData.model_provider === 'sherpa'">
+                <div class="form-label">
+                    {{t('Model size')}}
+                    <HelpPopover :text="t('Model is auto-selected based on your language. Downloaded once, then used offline.')" :t="t" :lang="lang"/>
+                </div>
+                <div class="form-input">
+                    <select name="sherpa_model_size" v-model="formData.sherpa_model_size">
+                        <option value="small">{{t('Small (fast, less accurate)')}}</option>
+                        <option value="big">{{t('Big (slower, more accurate)')}}</option>
+                    </select>
+                </div>
+                <div class="form-note"></div>
+            </template>
+
+            <!-- MISTRAL API KEY -->
+            <div class="form-label" v-show="formData.model_provider === 'mistral' && !usingOnboardingMistralKey">
+                {{t('Voxtral API Key (BETA)')}}
+                <HelpPopover :text="t('Mistral API Key is required for Voxtral models')" :t="t" :lang="lang"/>
+            </div>
+            <div class="form-input" v-show="formData.model_provider === 'mistral' && !usingOnboardingMistralKey">
+                <input
+                    type="password"
+                    v-model="formData.voxtral_api_key"
+                    :class="{'input-error': voxtralKeyError}"
+                    :placeholder="t('Required for Voxtral')"
+                    required
+                />
+            </div>
+            <div class="form-note" :style="{color: '#ff6666'}" v-show="formData.model_provider === 'mistral' && !usingOnboardingMistralKey && voxtralKeyError">
+                {{ t('Mistral API Key is required') }}
+            </div>
+            <div class="form-note" v-show="formData.model_provider === 'mistral' && usingOnboardingMistralKey" style="color: #4caf50;">
+                {{ t('Using Mistral API Key from global AI settings') }}
+            </div>
+
+            <!-- Shortcut -->
+            <div class="form-label">
+                {{t('Microphone Activation Shortcut')}}
+                <HelpPopover
+                    :text="t('Click the box and press a key or combination (e.g., Ctrl+R) to set the shortcut.') + ' ' + t('This keyboard combination STARTS / STOPS the speech detection process')"
+                    :t="t"
+                    :lang="lang"
+                />
+            </div>
+            <div class="form-input" style="display: flex; align-items: center; gap: 8px;">
+                <input
+                    type="text"
+                    readonly
+                    :value="formData.shortcut"
+                    @focus="startRecordingShortcut"
+                    @keydown.prevent="recordShortcut"
+                    @blur="stopRecordingShortcut"
+                    v-bind:placeholder="t('Key shortcut')"
+                    style="width: 180px;"
+                    tabindex="0"
+                />
+                <button type="button" @click="clearShortcut" style="margin-left: 4px;" :disabled="!formData.shortcut">{{t('Clear')}}</button>
+            </div>
+            <div class="form-note"></div>
+
+            <!-- Microphone -->
+            <div class="form-input" style="display: flex; align-items: center; gap: 8px;">
+                <button type="button" @click="openWindowsMicSettings">{{t('Open Windows microphone settings')}}</button>
+                <HelpPopover :text="t('IGOOR uses your Windows default microphone.')" :t="t" :lang="lang"/>
+            </div>
+
+            <!-- Microphone Volume Indicator -->
+            <div class="form-label">{{t('Microphone Level')}}</div>
+            <div class="form-input" style="display: flex; align-items: center; gap: 8px;">
+                <div class="volume-meter">
+                    <div class="volume-bar" :style="{ width: volumeLevel + '%' }"></div>
+                </div>
+                <span class="volume-value">{{ volumeLevel }}%</span>
+            </div>
+            <div class="form-note"></div>
+            <!-- Continuous Mode -->
+            <div class="form-label">
+                <label class="toggle-switch">
+                    <input type="checkbox" v-model="formData.continuous" />
+                    <span class="toggle-slider"></span>
+                </label>
+                {{t('Continuous Listening Mode')}}
+                <HelpPopover :text="t('When enabled, the microphone listens continuously and automatically detects speech.')" :t="t" :lang="lang"/>
+            </div>
         </div>
 
-        <!-- VAD Level -->
-        <div class="form-label">{{t('VAD level')}}</div>
-        <div class="form-input">
-            <select name="vad_level" v-model.number="formData.vad_level" >
-                <option value="-1">{{t('Disabled')}}</option>
-                <option value="0">0 ({{t('Less aggressive')}})</option>
-                <option value="1">1</option>
-                <option value="2">2 ({{t('Recommended')}})</option>
-                <option value="3">3 ({{t('Most aggressive')}})</option>
-            </select>
-        </div>
-        <div class="form-note">
-            {{t('The VAD level determines how aggressive the algorithm is at detecting speech.')}}<br>
-            {{t('Higher levels work better in noisy environments. Disabled will bypass VAD entirely.')}}
-        </div>
+        <div class="bio right">
+             <!-- Save Button -->
+            <div class="form-label"></div>
+            <div class="form-input">
+                <SaveSettingsButton
+                    :hasChanges="hasUnsavedChanges"
+                    :loading="loading"
+                    :t="t"
+                    :lang="lang"
+                    @save="checkBeforeUpdating"
+                    @cancel="resetSettings"
+                />
+            </div>
 
-        <!-- Silence Frames -->
-        <div class="form-label">{{t('Silence Frames')}}</div>
-        <div class="form-input">
-            <select name="silence_frames" v-model.number="formData.silence_frames">
-                <option value="500">500: {{t('Faster ASR')}}</option>
-                <option value="1250">1250: {{t('Recommended for most cases')}}</option>
-                <option value="1500">1500: {{t('Recommended for most cases')}}</option>
-                <option value="2000">2000: {{t('Slower ASR: For people making big pauses')}}</option>
-            </select>
-        </div>
-        <div class="form-note">
-            {{t('The lower,the faster the transcription starts,but risks of cutting people speaking after a pause')}}<br>
-            {{t('The higher,the slower the transcription starts, but less risky for people making big pauses speaking')}}
-        </div>
+            <!-- Speech Detection Threshold (only shown when continuous is enabled) -->
+            <template v-if="formData.continuous">
+                <div class="form-label">
+                    {{t('Speech Threshold')}}
+                    <HelpPopover :text="t('Lower = more sensitive (may pick up noise), Higher = less sensitive (may miss soft speech)')" :t="t" :lang="lang"/>
+                </div>
+                <div class="form-input" style="display: flex; align-items: center; gap: 12px;">
+                    <input
+                        type="range"
+                        min="0.2"
+                        max="0.8"
+                        step="0.05"
+                        v-model.number="formData.positiveSpeechThreshold"
+                        style="flex: 1 1 60%;"
+                    />
+                    <input
+                        type="number"
+                        v-model.number="formData.positiveSpeechThreshold"
+                        step="0.05"
+                        min="0.2"
+                        max="0.8"
+                        style="width: 60px;"
+                    />
+                </div>
+                <div class="form-note"></div>
 
-        <!-- Shortcut -->
-        <div class="form-label">{{t('Microphone Activation Shortcut')}}</div>
-        <div class="form-input" style="display: flex; align-items: center; gap: 8px;">
-            <input
-                type="text"
-                readonly
-                :value="formData.shortcut"
-                @focus="startRecordingShortcut"
-                @keydown.prevent="recordShortcut"
-                @blur="stopRecordingShortcut"
-                v-bind:placeholder="t('Key shortcut')"
-                style="width: 180px;"
-                tabindex="0"
-            />
-            <button type="button" @click="clearShortcut" style="margin-left: 4px;" :disabled="!formData.shortcut">{{t('Clear')}}</button>
-        </div>
-        <div class="form-note">
-            {{t('Click the box and press a key or combination (e.g., Ctrl+R) to set the shortcut.')}}
-            <br>
-            {{t('This keyboard combination STARTS / STOPS the speech detection process')}}
-        </div>
+                <!-- Pause Tolerance (redemptionFrames) -->
+                <div class="form-label">
+                    {{t('Pause Tolerance')}}
+                    <HelpPopover
+                        :text="t('How long to wait after speech stops before transcribing.') + ' ' + t('Higher values help with speakers who pause frequently.')"
+                        :t="t"
+                        :lang="lang"
+                    />
+                </div>
+                <div class="form-input">
+                    <select name="redemptionFrames" v-model.number="formData.redemptionFrames">
+                        <option value="12">12 frames (~380ms) - {{t('Fast')}}</option>
+                        <option value="24">24 frames (~770ms) - {{t('Default')}}</option>
+                        <option value="36">36 frames (~1150ms) - {{t('Medium')}}</option>
+                        <option value="48">48 frames (~1540ms) - {{t('Slow')}}</option>
+                        <option value="72">72 frames (~2300ms) - {{t('Very slow')}}</option>
+                    </select>
+                </div>
+                <div class="form-note"></div>
 
+                <!-- Always Generate (bypass semantic VAD) -->
+                <div class="form-label">
+                    <label class="toggle-switch">
+                        <input type="checkbox" v-model="formData.always_generate" />
+                        <span class="toggle-slider"></span>
+                    </label>
+                    {{t('Always generate predictions')}}
+                    <HelpPopover :text="t('When enabled, bypasses the semantic VAD check and generates immediately after speech ends.')" :t="t" :lang="lang"/>
+                </div>
+        </template>
 
+        <!-- Wakeword Detection Section -->
+        <template v-if="formData.continuous">
+            <div class="form-label">
+                <label class="toggle-switch">
+                    <input type="checkbox" v-model="formData.wakeword_enabled" />
+                    <span class="toggle-slider"></span>
+                </label>
+                {{t('Wakeword Detection')}}
+                <HelpPopover :text="t('Say &quot;Hey Igor&quot; to activate voice recognition hands-free.')" :t="t" :lang="lang"/>
+            </div>
 
-        <!-- Save Button (spans all columns) -->
-        <div class="form-label"></div>
-        <div class="form-input">
-            <SaveSettingsButton
-                :hasChanges="hasUnsavedChanges"
-                :loading="loading"
-                :t="t"
-                :lang="lang"
-                @save="checkBeforeUpdating"
-                @cancel="resetSettings"
-            />
+            <!-- Wakeword Sensitivity (only shown when wakeword enabled) -->
+            <template v-if="formData.wakeword_enabled">
+                <div class="form-label">
+                    {{t('Wakeword Sensitivity')}}
+                    <HelpPopover
+                        :text="t('Lower = fewer false positives, Higher = more sensitive') + ' ' + t('Adjust based on your environment and microphone quality.')"
+                        :t="t"
+                        :lang="lang"
+                    />
+                </div>
+                <div class="form-input" style="display: flex; align-items: center; gap: 12px;">
+                    <input
+                        type="range"
+                        min="0.1"
+                        max="0.9"
+                        step="0.1"
+                        v-model.number="formData.wakeword_sensitivity"
+                        style="flex: 1 1 60%;"
+                    />
+                    <input
+                        type="number"
+                        v-model.number="formData.wakeword_sensitivity"
+                        step="0.1"
+                        min="0.1"
+                        max="0.9"
+                        style="width: 60px;"
+                    />
+                </div>
+                <div class="form-note"></div>
+
+                <!-- Wakeword Model Selection -->
+                <div class="form-input" style="display: flex; align-items: center; gap: 8px;">
+                    <select v-model="formData.wakeword_model" style="flex: 1;">
+                        <option value="">{{t('Default model')}}</option>
+                        <option v-for="model in customModels" :key="model" :value="model">{{ model }}</option>
+                    </select>
+                    <input
+                        type="file"
+                        ref="wakewordFileInput"
+                        accept=".onnx"
+                        style="display: none"
+                        @change="handleWakewordFileSelect"
+                    />
+                    <button type="button" class="btn btn-primary" @click="$refs.wakewordFileInput.click()">
+                        <i class="ph-light ph-folder"></i>
+                        <span>{{ t('Browse') }}</span>
+                    </button>
+                </div>
+            </template>
+        </template>
+           
         </div>
-        <div class="form-note"></div>
     </div>
 </template>
 
 <script>
 import BasePluginComponent from '/js/BasePluginComponent.js';
 import SaveSettingsButton from '/js/SaveSettingsButton.vue';
+import HelpPopover from '/js/HelpPopover.vue';
 
 function formatShortcut(e) {
     let keys = [];
@@ -115,7 +281,6 @@ function formatShortcut(e) {
     if (e.altKey) keys.push('Alt');
     if (e.shiftKey) keys.push('Shift');
     if (e.metaKey) keys.push('Meta');
-    // Ignore modifier-only
     if (e.key && !['Control', 'Shift', 'Alt', 'Meta'].includes(e.key)) {
         keys.push(e.key.length === 1 ? e.key.toUpperCase() : e.key);
     }
@@ -129,44 +294,87 @@ export default {
     },
     mixins: [BasePluginComponent],
     components: {
-        SaveSettingsButton
+        SaveSettingsButton,
+        HelpPopover
     },
     data() {
         return {
             formData: {
                 model_provider: 'groq',
-                model_name: 'whisper-large-v3',
+                model_name: 'whisper-large-v3-turbo',
+                api_key: '',
                 voxtral_api_key: '',
-                vad_level: 2,
-                silence_frames: 1500,
-                shortcut: ''
+                continuous: false,
+                always_generate: false,
+                positiveSpeechThreshold: 0.5,
+                redemptionFrames: 24,
+                shortcut: '',
+                sherpa_model_size: 'small'
             },
+            defaultSettings: {
+                positiveSpeechThreshold: 0.5,
+                redemptionFrames: 24,
+                continuous: false,
+                always_generate: false
+            },
+            onboarding_ai: null,  // Store onboarding AI settings
             isRecordingShortcut: false,
+            groqKeyError: false,
             voxtralKeyError: false,
-            loading: false
+            loading: false,
+            // Volume meter
+            volumeLevel: 0,
+            audioContext: null,
+            analyser: null,
+            microphone: null,
+            volumeCheckInterval: null,
+            // Custom wakeword model
+            customModels: []  // List of custom model filenames
         };
     },
     computed: {
         hasUnsavedChanges() {
             if (!this.originalSettings || !this.formData) return false;
             return JSON.stringify(this.formData) !== JSON.stringify(this.originalSettings);
+        },
+        usingOnboardingGroqKey() {
+            return this.onboarding_ai &&
+                this.onboarding_ai.provider === 'groq' &&
+                this.onboarding_ai.api_key;
+        },
+        usingOnboardingMistralKey() {
+            return this.onboarding_ai &&
+                this.onboarding_ai.provider === 'mistral' &&
+                this.onboarding_ai.api_key;
         }
     },
     watch: {
         initialSettings: {
             handler(newVal) {
                 if (newVal) {
-                    // Only set originalSettings after we've received initialSettings
                     this.$nextTick(() => {
+                        // Extract onboarding_ai if present
+                        if (newVal.onboarding_ai) {
+                            this.onboarding_ai = newVal.onboarding_ai;
+                        }
                         this.setOriginalSettings(newVal);
-                        // Then update formData with actual values (not default)
-                        this.formData = { ...newVal };
+                        this.formData = {
+                            ...this.defaultSettings,
+                            ...newVal
+                        };
                     });
                 }
             },
             immediate: true,
             deep: true
         }
+    },
+    mounted() {
+        this.startVolumeMonitor();
+        this.fetchCustomModels();
+    },
+    beforeDestroy() {
+        this.stopVolumeMonitor();
     },
     methods: {
         startRecordingShortcut(e) {
@@ -177,7 +385,6 @@ export default {
         },
         recordShortcut(e) {
             if (!this.isRecordingShortcut) return;
-            // Only set shortcut if a non-modifier key is pressed
             if (!['Control', 'Shift', 'Alt', 'Meta'].includes(e.key)) {
                 const shortcut = formatShortcut(e);
                 if (shortcut) {
@@ -190,34 +397,131 @@ export default {
         clearShortcut() {
             this.formData.shortcut = '';
         },
+        async openWindowsMicSettings() {
+            // IGOOR captures from the Windows default mic; let the user manage it in the OS.
+            try {
+                await this.callPluginRestEndpoint('asrjs', 'open_sound_settings', { method: 'POST' });
+            } catch (e) {
+                console.error('Could not open Windows microphone settings:', e);
+            }
+        },
         onProviderChange() {
-            // Reset model_name if not compatible with provider
             if (this.formData.model_provider === 'groq') {
                 if (!['whisper-large-v3', 'whisper-large-v3-turbo'].includes(this.formData.model_name)) {
-                    this.formData.model_name = 'whisper-large-v3';
+                    this.formData.model_name = 'whisper-large-v3-turbo';
                 }
             } else if (this.formData.model_provider === 'mistral') {
                 if (this.formData.model_name !== 'voxtral-mini-latest') {
                     this.formData.model_name = 'voxtral-mini-latest';
                 }
+            } else if (this.formData.model_provider === 'sherpa') {
+                this.formData.model_name = 'sherpa-local';
             }
         },
         checkBeforeUpdating() {
             console.log("Updating settings with:", this.formData);
-            // Require Voxtral API key if voxtral model is selected
-            if (
-                this.formData.model_name === 'voxtral-mini-latest' &&
-                (!this.formData.voxtral_api_key || !this.formData.voxtral_api_key.trim())
-            ) {
-                this.voxtralKeyError = true;
-                console.warn('Voxtral API Key is required for Voxtral models.');
-                return;
+
+            // Validate Groq API key if needed
+            if (this.formData.model_provider === 'groq' && !this.usingOnboardingGroqKey) {
+                if (!this.formData.api_key || !this.formData.api_key.trim()) {
+                    this.groqKeyError = true;
+                    console.warn('Groq API Key is required for Groq models.');
+                    return;
+                }
+            }
+            this.groqKeyError = false;
+
+            // Validate Mistral API key if needed
+            if (this.formData.model_provider === 'mistral' && !this.usingOnboardingMistralKey) {
+                if (!this.formData.voxtral_api_key || !this.formData.voxtral_api_key.trim()) {
+                    this.voxtralKeyError = true;
+                    console.warn('Voxtral API Key is required for Voxtral models.');
+                    return;
+                }
             }
             this.voxtralKeyError = false;
+
             this.loading = true;
             this.saveSettings().finally(() => {
                 this.loading = false;
             });
+        },
+        async startVolumeMonitor() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                this.microphone = this.audioContext.createMediaStreamSource(stream);
+                this.analyser = this.audioContext.createAnalyser();
+                this.analyser.fftSize = 2048;
+                this.microphone.connect(this.analyser);
+
+                const dataArray = new Uint8Array(this.analyser.frequencyBinCount);
+                this.volumeCheckInterval = setInterval(() => {
+                    // Use time domain data for proper amplitude measurement
+                    this.analyser.getByteTimeDomainData(dataArray);
+                    // Calculate RMS (root mean square) for volume
+                    let sum = 0;
+                    for (let i = 0; i < dataArray.length; i++) {
+                        const normalized = (dataArray[i] - 128) / 128;
+                        sum += normalized * normalized;
+                    }
+                    const rms = Math.sqrt(sum / dataArray.length);
+                    // Scale to 0-100% with some boost for visibility
+                    this.volumeLevel = Math.min(100, Math.round(rms * 400));
+                }, 100);
+            } catch (e) {
+                console.error('Could not access microphone:', e);
+            }
+        },
+        stopVolumeMonitor() {
+            if (this.volumeCheckInterval) {
+                clearInterval(this.volumeCheckInterval);
+                this.volumeCheckInterval = null;
+            }
+            if (this.microphone) {
+                this.microphone.disconnect();
+                this.microphone = null;
+            }
+            if (this.audioContext) {
+                this.audioContext.close();
+                this.audioContext = null;
+            }
+        },
+        async fetchCustomModels() {
+            try {
+                const response = await fetch('http://127.0.0.1:9714/api/plugins/asrjs/list_custom_wakeword_models');
+                const result = await response.json();
+                if (result.models) {
+                    this.customModels = result.models;
+                }
+            } catch (error) {
+                console.error('Error fetching custom models:', error);
+            }
+        },
+        async handleWakewordFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch('http://127.0.0.1:9714/api/plugins/asrjs/upload_wakeword_model', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+                if (result.status === 'success') {
+                    // Refresh the list and select the new model
+                    await this.fetchCustomModels();
+                    this.formData.wakeword_model = result.filename;
+                    console.log('Custom model uploaded:', result.path);
+                } else {
+                    console.error('Upload failed:', result.message);
+                }
+            } catch (error) {
+                console.error('Error uploading model:', error);
+            }
         }
     }
 };
@@ -225,24 +529,54 @@ export default {
 
 <style scoped>
 .asrjs-plugin-settings.form-grid {
-    display: grid;
-    grid-template-columns: 200px 1fr 2fr;
     gap: 12px 18px;
     align-items: start;
     background: none;
-    padding: 18px 0;
+    padding: 10px;
 }
+
+.bio-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px 18px;
+    align-items: start;
+}
+.bio{
+    width: 100%;
+}
+.bio.left {
+    display: flex;
+    flex-direction: column;
+}
+
+.bio.right {
+    display: flex;
+    flex-direction: column;
+}
+
 .form-label {
     font-weight: 500;
     padding-top: 6px;
     color: #e0e0e0;
-    text-align: right;
+    min-width: 200px;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
 }
+
+/* The help trigger carries its own margin-left for inline contexts; inside a
+   flex form-label the container gap already handles spacing, so neutralize it. */
+.form-label .help-trigger {
+    margin-left: 0;
+}
+
 .form-input {
     display: flex;
     align-items: center;
     gap: 8px;
 }
+
 .form-note {
     font-size: 0.97em;
     color: #aaa;
@@ -250,7 +584,8 @@ export default {
     padding-top: 2px;
     text-align: left;
 }
-select, input[type="text"], input[type="url"], input[type="password"] {
+
+select, input[type="text"], input[type="password"], input[type="number"] {
     background: #222;
     color: #fff;
     border: 1px solid #444;
@@ -258,6 +593,7 @@ select, input[type="text"], input[type="url"], input[type="password"] {
     padding: 6px 10px;
     font-size: 1em;
 }
+
 button {
     background: #3ca23c;
     color: #fff;
@@ -268,11 +604,89 @@ button {
     cursor: pointer;
     transition: background 0.2s;
 }
+
 button:hover {
     background: #338a33;
 }
+
+button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
 .input-error {
     border-color: #ff6666;
     background: #2a1818;
+}
+
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 60px;
+    height: 34px;
+}
+
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+/* Native range sliders: use the project blue when active, matching onboarding. */
+input[type="range"] {
+    accent-color: #2196F3;
+}
+
+.toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: .4s;
+    border-radius: 34px;
+}
+
+.toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 26px;
+    width: 26px;
+    left: 4px;
+    bottom: 4px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+}
+
+.toggle-switch input:checked + .toggle-slider {
+    background-color: #2196F3;
+}
+
+.toggle-switch input:checked + .toggle-slider:before {
+    transform: translateX(26px);
+}
+
+.volume-meter {
+    width: 150px;
+    height: 20px;
+    background: #333;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid #555;
+}
+
+.volume-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #3ca23c, #7cb342, #fdd835, #ff5722);
+    transition: width 0.05s ease-out;
+}
+
+.volume-value {
+    font-size: 0.9em;
+    color: #aaa;
+    min-width: 40px;
 }
 </style>

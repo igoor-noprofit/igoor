@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(rm -rf /c/AIKU/experiments/igoor/plugins/asrjs/__pycache__)",
+      "Bash(python -m py_compile /c/AIKU/experiments/igoor/plugins/asrjs/asrjs.py)",
+      "Read(//c/AIKU/experiments/slrecorder/**)",
+      "Bash(cp \"C:/AIKU/experiments/slrecorder/questions/questions_en.json\" \"c:/AIKU/experiments/igoor/plugins/biorecorder/locales/en_EN/questions_en_EN.json\")",
+      "Bash(cp \"C:/AIKU/experiments/slrecorder/questions/questions_fr.json\" \"c:/AIKU/experiments/igoor/plugins/biorecorder/locales/fr_FR/questions_fr_FR.json\")",
+      "Bash(cp \"C:/AIKU/experiments/slrecorder/questions/questions_it.json\" \"c:/AIKU/experiments/igoor/plugins/biorecorder/locales/it_IT/questions_it_IT.json\")",
+      "Bash(pip show *)",
+      "Bash(python -c \"import sherpa_onnx; print\\('sherpa-onnx version:', sherpa_onnx.__version__\\)\")",
+      "Bash(./venv/Scripts/python.exe -c ' *)",
+      "Bash(./venv/Scripts/python.exe -c \"import json; d=json.load\\(open\\('plugins/asrjs/sherpa_models.json'\\)\\); print\\('Valid JSON. Keys:', list\\(d.keys\\(\\)\\)\\); print\\('it:', d['it']['big']['name']\\); print\\('_fallback has tokens:', 'tokens' in d['_fallback']\\)\")",
+      "Bash(python -c \"import json; json.load\\(open\\('plugins/elevenlabstts/locales/fr_FR/elevenlabstts_fr_FR.json', encoding='utf-8'\\)\\); json.load\\(open\\('plugins/elevenlabstts/locales/it_IT/elevenlabstts_it_IT.json', encoding='utf-8'\\)\\); print\\('JSON OK'\\)\")",
+      "Bash(python -c \"import json; json.load\\(open\\('plugins/speechifytts/locales/fr_FR/speechifytts_fr_FR.json',encoding='utf-8'\\)\\); json.load\\(open\\('plugins/speechifytts/locales/it_IT/speechifytts_it_IT.json',encoding='utf-8'\\)\\); print\\('JSON OK'\\)\")",
+      "Bash(curl -s -o /dev/null -w \"9714:%{http_code}\\\\n\" --max-time 3 http://127.0.0.1:9714/)",
+      "Bash(curl -s -o /dev/null -w \"9715:%{http_code}\\\\n\" --max-time 3 http://127.0.0.1:9715/)",
+      "Bash(curl -s --max-time 5 \"http://127.0.0.1:9714/plugins/onboarding/frontend/onboarding_component.vue\")"
+    ],
+    "additionalDirectories": [
+      "C:\\AIKU\\experiments\\igoor\\plugins\\asrjs\\__pycache__"
+    ]
+  }
+}

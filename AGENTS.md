@@ -2,6 +2,7 @@
 
 IGOOR is an open-source and free conversational application, controllable also by eye-tracking, designed to provide people with neurodegenerative diseases or paralysis a smooth and natural means of communication.
 
+
 ## Core Architecture
 
 **Plugin-Based System**: IGOOR uses Pluggy for plugin management. Each plugin has:
@@ -14,7 +15,7 @@ IGOOR is an open-source and free conversational application, controllable also b
 **Communication Patterns**:
 - Backend-to-backend: Via Pluggy hooks `await self.pm.trigger_hook(hook_name, data)`
 - Frontend-to-backend: WebSocket on `ws://localhost:9715/plugin_name` using `sendMsgToBackend(data)`
-- REST fallback: FastAPI now exposes REST endpoints (e.g. `/api/plugins/<name>/settings`, `/api/plugins/by-category`, `/api/hooks/<name>`, `/api/app/change-view`) mirroring the former `window.pywebview.api` bridge. Everything is also available at localhost:9714, so you can test directly when the app is running CURL, for ex. at:
+- REST fallback: FastAPI now exposes REST endpoints (e.g. `/api/plugins/<name>/settings`, `/api/plugins/by-category`, `/api/hooks/<name>`, `/api/app/change-view`) mirroring the former `window.pywebview.api` bridge. Everything is also available at localhost:9714, so ALWAYS test endpoints directly when the app is running with CURL, ex.:
 http://localhost:9714/api/plugins/asrjs/settings
 - Frontend readiness: `window.ensureBackendApi()` lazily resolves a `BackendApi` wrapper that chooses between the PyWebView bridge and REST calls; the root app calls `readypy()` automatically when no bridge is detected
 - Plugins can use callPluginRestEndpoint to call the API endpoints (own plugin and other plugins; supports GET and POST)
@@ -35,11 +36,17 @@ http://localhost:9714/api/plugins/asrjs/settings
 - IMPORTANT: the only files you will find in APPDATA subfolder (/web/) are app.js and app.vue
 - IMPORTANT: NEVER edit `app.js` or `app.vue` directly, nor even in the APPDATA_FOLDER (they are just builds): ALWAYS edit `app_template.js` and `app_template.vue` instead
 - IMPORTANT: NEVER edit `css/app.css`, ALWAYS edit `css/app.less` instead
+- IMPORTANT: After editing `css/app.less`, you MUST recompile it to `css/app.css`, since the running app serves `app.css` and changes to `.less` are not picked up automatically. The project has no build watcher or `package.json`/eslint tooling — run the compiler manually from the repo root:
+  ```
+  npx --yes less css/app.less css/app.css
+  ```
+  (This fetches the `less` npm package on first run via `npx`, no global install needed. Commit BOTH `css/app.less` and `css/app.css` so they stay in sync.)
 - Component methods prefixed with `$_` to avoid global conflicts
 - Dynamic component loading via httpVueLoader
 - When choosing colors,always start from predefined colors in /css/app.less
 
 **Interface guidelines**: Since the interface is for users who have physical conditions,buttons should generally be big.
+Also, MINIMIZE the number of clicks needed for each action.
 
 ## Plugin Development
 
@@ -83,12 +90,31 @@ plugin_name/
 ## Development Notes
 
 
-**Build Process**: 
-- PyInstaller with custom webrtcvad hook
+**Build Process**:
+- PyInstaller with custom hooks
 - Fast build: `create_exe_fast.bat` (5-7 min)
 - Full build: `create_exe.bat` (8-10 min)
+- PyInstaller spec file: `igoor.spec.txt` is the source-of-truth committed to git. The `.spec` file used at build time is generated from it. Any changes to hiddenimports, datas, or excludes must be made in `igoor.spec.txt`.
+- **Important**: Plugins are loaded dynamically, so PyInstaller can't auto-detect their imports. If a plugin uses a package not imported in `main.py`, add it to `hiddenimports` in `igoor.spec.txt`.
 
 **Python Version**: Tested on 3.10.6 only
+
+## Testing Python syntax
+If you modify a python file, ALWAYS test syntax with:
+
+python -m scriptname.py
+
+before telling me you finished.
+
+## Testing .js/.vue syntax
+After you finish modifying .js/.vue files:
+
+1. List exactly which files you changed
+2. Run the project's lint command on those files only (npm run lint -- <files>)
+3. Run type checker (tsc --noEmit or vue-tsc --noEmit)
+4. Show me any errors/warnings
+5. If there are errors → propose fixes and apply them in a follow-up edit
+6. Only tell me "ready" when lint + types are clean
 
 ## Accesing and testing the frontend
 To test the frontend verify if IGOOR is running in Python. 
@@ -96,8 +122,70 @@ If not:
 /venv/scripts/Activate
 python main.py
 THEN,leverage whatever MCP tool for browsing is available to browse @ http://127.0.0.1:9714/ (use Playwright if available)
-In the frontend, you have to click on the settings-gear top right in the header to access to access all the extensions. 
+In the frontend, you have to click on the settings-gear top right in the header to access all the extensions. 
 Once there,you have to click on the extensions tab,the plugin category etc.
 
 ## Checking the libraries documentation
 ALWAYS use Context7 MCP to access the documentation corresponding to the installed python libraries.
+
+Behavioral guidelines to reduce common LLM coding mistakes:
+
+## 1. Think Before Coding
+
+**Don't assume. Don't hide confusion. Surface tradeoffs.**
+
+Before implementing:
+- State your assumptions explicitly. If uncertain, ask.
+- If multiple interpretations exist, present them - don't pick silently.
+- If a simpler approach exists, say so. Push back when warranted.
+- If something is unclear, stop. Name what's confusing. Ask.
+
+## 2. Simplicity First
+
+**Minimum code that solves the problem. Nothing speculative.**
+
+- No features beyond what was asked.
+- No abstractions for single-use code.
+- No "flexibility" or "configurability" that wasn't requested.
+- No error handling for impossible scenarios.
+- If you write 200 lines and it could be 50, rewrite it.
+
+Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
+
+## 3. Surgical Changes
+
+**Touch only what you must. Clean up only your own mess.**
+
+When editing existing code:
+- Don't "improve" adjacent code, comments, or formatting.
+- Don't refactor things that aren't broken.
+- Match existing style, even if you'd do it differently.
+- If you notice unrelated dead code, mention it - don't delete it.
+
+When your changes create orphans:
+- Remove imports/variables/functions that YOUR changes made unused.
+- Don't remove pre-existing dead code unless asked.
+
+The test: Every changed line should trace directly to the user's request.
+
+## 4. Goal-Driven Execution
+
+**Define success criteria. Loop until verified.**
+
+Transform tasks into verifiable goals:
+- "Add validation" → "Write tests for invalid inputs, then make them pass"
+- "Fix the bug" → "Write a test that reproduces it, then make it pass"
+- "Refactor X" → "Ensure tests pass before and after"
+
+For multi-step tasks, state a brief plan:
+```
+1. [Step] → verify: [check]
+2. [Step] → verify: [check]
+3. [Step] → verify: [check]
+```
+
+Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
+
+---
+
+**These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.

@@ -1,0 +1,47 @@
+{
+  "plugins": {
+    "onboarding": {
+      "bio": {
+        "name": "",
+        "pronoun": "",
+        "birth_date": "",
+        "health_state": "",
+        "style": "",
+        "style_weight": "2 risposte su 6 max"
+      },
+      "prefs": {
+        "lang": "it_IT",
+        "darklight": "light",
+        "locale": "it_IT.UTF-8",
+        "idle_threshold": 600
+      },
+      "ai": {
+        "provider": "groq",
+        "api_key": "",
+        "model_name": "openai/gpt-oss-20b",
+        "temperature": 0.7,
+        "reasoning_effort": "low",
+        "warmup_enabled": true
+      }
+    }
+  },
+  "plugins_activation": {
+    "asrjs": true,
+    "asrvosk": false,
+    "autocomplete": true,
+    "bugreport": false,
+    "clock": true,
+    "conversation": true,
+    "daily": true,
+    "flow": true,
+    "onboarding": true,
+    "shortcuts": true,
+    "ttsdefault": true,
+    "speechifytts": false,
+    "rag": true,
+    "memory": true,
+    "extkeyb": false,
+    "weather": false,
+    "recorder": true
+  }
+}

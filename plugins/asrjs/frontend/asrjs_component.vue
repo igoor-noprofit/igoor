@@ -3,12 +3,9 @@
         <div v-if="hasError" class="error-banner">
             {{ errorMessage }}
         </div>
-        <div v-if="!hasError" class="mic" :class="[status, { 'clickable': !continuous }]" @click="$_handleMicClick">
-            <img src="/img/mic.png">
+        <div v-if="!hasError" class="mic clickable" :class="[status, continuous ? 'continuous' : 'non-continuous']" @click="$_handleMicClick">
+            <img :src="micIcon" alt="">
         </div>
-        <button v-show="continuous" class="mode-toggle btn btn-small" :class="{ 'active': continuous }"
-            @click="$_toggleMode" title="Toggle continuous mode">{{ t('Continuous mode') }}
-        </button>
     </div>
 </template>
 
@@ -24,8 +21,10 @@ export default {
             audio: {},
             continuous: false,
             keyboardShortcut: null,
-            // vad: null, // Store VAD instance - COMMENTED OUT
-            // vadInitialized: false,
+            vad: null, // Store VAD instance
+            vadInitialized: false,
+            accumulatedAudioBuffer: null, // Float32Array for audio accumulation on semantic VAD "nok"
+            pendingTranscription: false, // Flag to prevent duplicate transcriptions
             audioChunks: [], // Store audio chunks for transcription
             speakerIdAvailable: false, // Cache speakerid availability
             audioContext: null,
@@ -37,7 +36,11 @@ export default {
             nativeSampleRate: null, // Store the actual native sample rate (typically 48kHz)
             speakerIdBuffer: [], // Buffer for downsampled audio for speakerid
             lastChunkSentTime: 0, // Track when we last sent a chunk to speakerid
-            chunkDuration: 3.0 // Fixed chunk duration in seconds for speakerid
+            chunkDuration: 3.0, // Fixed chunk duration in seconds for speakerid
+            wakewordEnabled: false, // Wakeword detection enabled from settings
+            wakewordProcessing: false, // Flag to prevent overlapping wakeword requests
+            wakewordDetected: false, // Flag to track if wakeword was detected
+            wakewordChannelOpened: false // One-shot gate: once the channel is opened (wake/click) it stays open until the conversation ends
         };
     },
     computed: {
@@ -49,6 +52,14 @@ export default {
                 return '';
             }
             return this.error.message || this.t('Microphone access problem. Verify that Windows has access to your microphone, then restart IGOOR.');
+        },
+        micIcon() {
+            // Slashed mic = ASR is unavailable right now (still loading, or muted during TTS)
+            if (this.status === 'loading' || this.status === 'paused') {
+                return '/img/icons/src/microphone-slash.svg';
+            }
+            // Plain mic = ASR available (listening / recording / wakeword-armed)
+            return '/img/icons/src/microphone.svg';
         }
     },
     created() {
@@ -56,6 +67,9 @@ export default {
             on: new Audio('/plugins/asrvosk/samples/on.wav'),
             off: new Audio('/plugins/asrvosk/samples/off.wav')
         };
+        // Wakeword detection sound
+        this.wakewordSound = new Audio('/plugins/asrjs/samples/on.wav');
+        this.wakewordSound.load();
         Object.values(this.audio).forEach(audio => audio.load());
     },
     async mounted() {
@@ -65,6 +79,7 @@ export default {
             console.log('ASRJS settings received:', settings);
             this.settings = settings;
             this.continuous = settings.continuous || false;
+            this.wakewordEnabled = settings.wakeword_enabled || false;
             if (settings.shortcut) {
                 console.log('ASRJS SHORTCUT:', settings.shortcut);
                 this.keyboardShortcut = settings.shortcut;
@@ -74,11 +89,14 @@ export default {
         }
 
         window.addEventListener('keydown', this.$_handleKeyPress);
-        // Load VAD library dynamically, then initialize - COMMENTED OUT
-        // await this.$_loadVADLibrary();
 
-        // Set status to listening since we're not using VAD
-        this.status = 'listening';
+        // If continuous mode, load VAD library for automatic speech detection
+        if (this.continuous) {
+            await this.$_loadVADLibrary();
+        } else {
+            // Non-continuous: set status to listening immediately
+            this.status = 'listening';
+        }
 
         // Check speakerid availability during initialization
         await this.$_checkSpeakerIdAvailability();
@@ -89,10 +107,10 @@ export default {
     beforeDestroy() {
         window.removeEventListener('keydown', this.$_handleKeyPress);
 
-        // Cleanup VAD - COMMENTED OUT
-        // if (this.vad) {
-        //     this.vad.destroy();
-        // }
+        // Cleanup VAD
+        if (this.vad) {
+            this.vad.destroy();
+        }
 
         // Cleanup Web Audio API components
         if (this.processor) {
@@ -112,54 +130,93 @@ export default {
         }
     },
     methods: {
-        // $_loadVADLibrary() {
-        //     return new Promise((resolve, reject) => {
-        //         // Check if already loaded
-        //         if (window.vad) {
-        //             console.log('VAD library already loaded, skipping');
-        //             resolve();
-        //             return;
-        //         }
+        $_loadVADLibrary() {
+            return new Promise(async (resolve, reject) => {
+                // Check if already loaded (check both window and self for PyWebView compatibility)
+                if (window.vad || self.vad) {
+                    if (!window.vad && self.vad) window.vad = self.vad;
+                    console.log('VAD library already loaded, skipping');
+                    this.$_initializeVAD().then(resolve);
+                    return;
+                }
 
-        //         // Check if script tag already exists (prevents duplicate loading)
-        //         const existingScript = document.querySelector('script[src="/plugins/asrjs/static/vad/bundle.min.js"]');
-        //         if (existingScript) {
-        //             console.log('VAD library script already added, waiting for load...');
-        //             // Wait for it to load
-        //             const checkInterval = setInterval(async() => {
-        //                 if (window.vad) {
-        //                     clearInterval(checkInterval);
-        //                     console.log('VAD library ready');
-        //                     await this.$_initializeVAD();
-        //                     resolve();
-        //                 }
-        //                 else{
-        //                     console.log('Waiting for VAD library to load...');
-        //                 }
-        //             }, 100);
-        //             return;
-        //         }
+                try {
+                    // Step 1: Load ONNX Runtime (ort.js) — required dependency for VAD bundle
+                    await this.$_loadScript('/plugins/asrjs/static/vad/ort.js', 'ort');
+                    console.log('ONNX Runtime loaded, window.ort available:', !!window.ort);
 
-        //         // Create script element
-        //         const script = document.createElement('script');
-        //         script.src = '/plugins/asrjs/static/vad/bundle.min.js';
-        //         script.async = true;
+                    // CRITICAL: The VAD bundle UMD reads self.ort at parse-time (before onload).
+                    // In PyWebView/WebView2, self !== window, so we must sync BEFORE loading the bundle.
+                    if (window.ort && !self.ort) {
+                        console.log('Syncing window.ort → self.ort (required before VAD bundle loads)');
+                        self.ort = window.ort;
+                    }
 
-        //         script.onload = () => {
-        //             console.log('VAD library loaded successfully');
-        //             resolve();
-        //         };
+                    // Step 2: Load VAD bundle (depends on self.ort at parse-time)
+                    await this.$_loadScript('/plugins/asrjs/static/vad/bundle.min.js', 'vad');
+                    console.log('VAD bundle loaded, window.vad available:', !!window.vad);
 
-        //         script.onerror = () => {
-        //             console.error('Failed to load VAD library');
-        //             this.status = 'error';
-        //             reject(new Error('Failed to load VAD library'));
-        //         };
+                    if (!window.vad) {
+                        throw new Error('VAD bundle loaded but window.vad is not defined');
+                    }
 
-        //         // Append to document
-        //         document.head.appendChild(script);
-        //     });
-        // },
+                    await this.$_initializeVAD();
+                    resolve();
+                } catch (error) {
+                    console.error('Failed to load VAD library:', error);
+                    this.status = 'error';
+                    reject(error);
+                }
+            });
+        },
+
+        $_loadScript(src, globalName) {
+            return new Promise((resolve, reject) => {
+                // If the global is already available, skip loading
+                if (window[globalName] || self[globalName]) {
+                    this.$_syncGlobal(globalName);
+                    resolve();
+                    return;
+                }
+
+                // Remove any stale script tag (from a previous failed load)
+                const existingScript = document.querySelector(`script[src="${src}"]`);
+                if (existingScript) {
+                    console.log(`Removing stale script tag for ${src}`);
+                    existingScript.remove();
+                }
+
+                const script = document.createElement('script');
+                script.src = src;
+                script.async = true;
+
+                script.onload = () => {
+                    console.log(`Script loaded: ${src}`);
+                    // Sync between self and window (PyWebView/WebView2: self !== window)
+                    this.$_syncGlobal(globalName);
+                    resolve();
+                };
+
+                script.onerror = () => {
+                    console.error(`Failed to load script: ${src}`);
+                    reject(new Error(`Failed to load script: ${src}`));
+                };
+
+                document.head.appendChild(script);
+            });
+        },
+
+        // PyWebView/WebView2: self !== window. Some scripts set window[name] (var-based),
+        // some UMD bundles use self[name]. Sync both directions so all code can find them.
+        $_syncGlobal(name) {
+            if (window[name] && !self[name]) {
+                console.log(`Syncing window.${name} → self.${name}`);
+                self[name] = window[name];
+            } else if (self[name] && !window[name]) {
+                console.log(`Syncing self.${name} → window.${name}`);
+                window[name] = self[name];
+            }
+        },
 
         async $_initializeMicrophoneMinimal() {
             try {
@@ -197,12 +254,21 @@ export default {
                     } else if (event.data.type === 'audio-data') {
                         // Store audio data for final WAV file
                         this.recordingBuffer = this.recordingBuffer.concat(event.data.data);
+                    } else if (event.data.type === 'wakeword-chunk') {
+                        // Send chunk to wakeword detection
+                        this.$_sendWakewordChunk(event.data.data);
                     }
                 };
 
                 // Connect the audio nodes
                 this.source.connect(this.processor);
                 this.processor.connect(this.audioContext.destination);
+
+                // Enable wakeword detection if enabled in settings
+                if (this.wakewordEnabled && this.continuous && !this.wakewordChannelOpened) {
+                    this.processor.port.postMessage({ type: 'enable-wakeword' });
+                    console.log('Wakeword detection enabled in AudioWorklet');
+                }
 
                 // Set up audio level monitoring
                 const analyser = this.audioContext.createAnalyser();
@@ -278,12 +344,21 @@ export default {
                     } else if (event.data.type === 'audio-data') {
                         // Store audio data for final WAV file
                         this.recordingBuffer = this.recordingBuffer.concat(event.data.data);
+                    } else if (event.data.type === 'wakeword-chunk') {
+                        // Send chunk to wakeword detection
+                        this.$_sendWakewordChunk(event.data.data);
                     }
                 };
 
                 // Connect the audio nodes
                 this.source.connect(this.processor);
                 this.processor.connect(this.audioContext.destination);
+
+                // Enable wakeword detection if enabled in settings
+                if (this.wakewordEnabled && this.continuous && !this.wakewordChannelOpened) {
+                    this.processor.port.postMessage({ type: 'enable-wakeword' });
+                    console.log('Wakeword detection enabled in AudioWorklet');
+                }
 
                 // Set up audio level monitoring
                 const analyser = this.audioContext.createAnalyser();
@@ -341,75 +416,150 @@ export default {
             }
         },
 
-        // async $_initializeVAD() {
-        //     try {
-        //         // VAD library should now be loaded
-        //         if (!window.vad) {
-        //             throw new Error('VAD library not available');
-        //         }
+        async $_initializeVAD() {
+            try {
+                // VAD library should now be loaded
+                if (!window.vad) {
+                    throw new Error('VAD library not available');
+                }
 
-        //         this.vad = await window.vad.MicVAD.new({
-        //             // If bundling locally, specify paths:
-        //             baseAssetPath: "/plugins/asrjs/static/vad-assets",
-        //             onnxWASMBasePath: "/plugins/asrjs/static/onnx-wasm",
+                // Get settings with defaults
+                const positiveThreshold = this.settings?.positiveSpeechThreshold || 0.5;
+                const redemptionFrames = this.settings?.redemptionFrames || 24;
 
-        //             // VAD configuration
-        //             positiveSpeechThreshold: 0.5,
-        //             negativeSpeechThreshold: 0.35,
-        //             redemptionFrames: 8,
-        //             preSpeechPadFrames: 1,
-        //             minSpeechFrames: 3,
+                this.vad = await window.vad.MicVAD.new({
+                    // Use v5 model for better accuracy (fewer false positives)
+                    model: "v5",
+                    // Model files are in /plugins/asrjs/static/vad/
+                    baseAssetPath: "/plugins/asrjs/static/vad/",
+                    // ONNX Runtime WASM binaries served from CDN (matching ort.js v1.22.0)
+                    onnxWASMBasePath: "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/",
 
-        //             // Callbacks
-        //             onSpeechStart: () => {
-        //                 console.log("Speech started");
-        //                 this.audioChunks = [];
-        //                 if (this.continuous) {
-        //                     this.status = 'recording';
-        //                     this.audio.on.play();
-        //                 }
-        //             },
+                    // Don't start listening until user clicks mic
+                    startOnLoad: false,
 
-        //             onSpeechEnd: (audio) => {
-        //                 console.log("Speech ended", audio);
-        //                 if (this.continuous || this.status === 'recording') {
-        //                     this.$_processAudio(audio);
-        //                     this.audio.off.play();
-        //                 }
-        //             },
+                    // VAD configuration (from settings)
+                    positiveSpeechThreshold: positiveThreshold,
+                    negativeSpeechThreshold: positiveThreshold - 0.15, // Keep relative to positive
+                    redemptionFrames: redemptionFrames,
+                    preSpeechPadFrames: 1,
+                    minSpeechFrames: 3,
 
-        //             onVADMisfire: () => {
-        //                 console.log("VAD misfire - false positive");
-        //                 this.status = 'empty';
-        //                 this.audio.off.play();
-        //                 setTimeout(() => {
-        //                     this.status = 'listening';
-        //                 }, 500);
-        //             }
-        //         });
+                    // Callbacks
+                    onSpeechStart: async() => {
+                        console.log("Speech started");
+                        this.audioChunks = [];
+                        if (this.continuous) {
+                            this.status = 'recording';
+                            // Send status message to conversation plugin to show typing indicator
+                            try {
+                                const response = await this.callPluginRestEndpoint('conversation', 'start_transcribing');
+                            } catch (error) {
+                                console.error('Error sending transcribing_started status:', error);
+                            }
+                            // this.audio.on.play();
+                        }
+                    },
 
-        //         this.vadInitialized = true;
-        //         this.status = 'ready';
-        //         console.log('VAD initialized successfully');
+                    onSpeechEnd: (audio) => {
+                        console.log("Speech ended", audio);
+                        if (this.continuous || this.status === 'recording') {
+                            // Audio accumulation: if we have accumulated audio from previous "nok",
+                            // concatenate with new audio before transcribing
+                            if (this.accumulatedAudioBuffer) {
+                                console.log('Concatenating accumulated audio with new segment');
+                                audio = this.$_concatenateAudio(this.accumulatedAudioBuffer, audio);
+                            }
+                            this.pendingTranscription = true;
+                            this.$_processAudio(audio);
+                            // this.audio.off.play();
+                        }
+                    },
 
-        //     } catch (error) {
-        //         console.error('Failed to initialize VAD:', error);
-        //         this.status = 'error';
-        //     }
-        // },
+                    onVADMisfire: async() => {
+                        const response = await this.callPluginRestEndpoint('conversation', 'end_transcribing');
+                        console.log("VAD misfire - false positive");
+                        this.status = 'empty';
+                        this.audio.off.play();
+                        setTimeout(() => {
+                            this.status = 'listening';
+                        }, 500);
+                        
+                    }
+                });
 
-        // async $_processAudio(audioData) {
-        //     // Convert Float32Array audio to WAV blob
-        //     const wavBlob = this.$_audioToWav(audioData);
+                this.vadInitialized = true;
+                // Don't set ready here - wait for backend to confirm all models loaded
+                // Backend will send 'ready' status when ASR + wakeword models are ready
+                console.log('VAD initialized successfully with Silero v5 model, waiting for backend ready...');
 
-        //     // Send to backend for transcription
-        //     this.sendMsgToBackend({
-        //         action: 'transcribe_audio',
-        //         audio: await this.$_blobToBase64(wavBlob)
-        //     });
+            } catch (error) {
+                console.error('Failed to initialize VAD:', error);
+                this.status = 'error';
+            }
+        },
 
-        //     this.status = 'transcribing';
-        // },
+        async $_processAudio(audioData) {
+            // Determine sample rate based on mode
+            // Continuous mode: VAD resamples to 16000 Hz internally
+            // Non-continuous mode: Use native sample rate (48000 Hz)
+            const sampleRate = this.continuous ? 16000 : this.nativeSampleRate;
+            
+            // Convert Float32Array audio to WAV blob
+            const wavBlob = this.$_audioToWav(audioData, sampleRate);
+
+            // Store the current audio data for potential accumulation on "nok"
+            this._lastProcessedAudio = audioData;
+
+            // Set status BEFORE sending (not after — the backend sends "listening" via WebSocket
+            // during the request, which would be overwritten if we set status after await)
+            this.status = 'transcribing';
+
+            // Send to backend for transcription
+            await this.$_sendAudioToTranscribe(wavBlob);
+        },
+
+        $_concatenateAudio(buffer1, buffer2) {
+            // Concatenate two Float32Arrays
+            const result = new Float32Array(buffer1.length + buffer2.length);
+            result.set(buffer1, 0);
+            result.set(buffer2, buffer1.length);
+            return result;
+        },
+
+        $_resetAudioBuffer() {
+            this.accumulatedAudioBuffer = null;
+            this._lastProcessedAudio = null;
+        },
+
+        $_handleVADStatusChange(status) {
+            // Pause VAD when receiving "ready" or "paused" status (e.g., TTS speaking, abandon)
+            if ((status === 'ready' || status === 'paused') && this.vad && this.vadInitialized) {
+                console.log(`VAD: status is ${status}, pausing VAD`);
+                this.vad.pause();
+                this.$_resetAudioBuffer();
+            }
+            // Re-enable wakeword detection when ready in continuous mode with wakeword enabled
+            if (status === 'ready' && this.continuous && this.wakewordEnabled && this.processor) {
+                // 'ready' from the backend means the channel is closed (conversation ended
+                // or fresh start) → re-arm the one-shot wakeword gate for the next conversation.
+                this.wakewordChannelOpened = false;
+                this.wakewordDetected = false;
+                this.processor.port.postMessage({ type: 'enable-wakeword' });
+                console.log('Wakeword detection re-enabled (ready state)');
+            }
+            // Resume VAD when receiving "listening" status in continuous mode (e.g., TTS finished)
+            if (status === 'listening' && this.continuous && this.vad && this.vadInitialized) {
+                console.log('VAD: status is listening in continuous mode, resuming VAD');
+                this.vad.start();
+                // Re-enable wakeword detection if enabled
+                if (this.wakewordEnabled && this.processor && !this.wakewordChannelOpened) {
+                    this.wakewordDetected = false;
+                    this.processor.port.postMessage({ type: 'enable-wakeword' });
+                    console.log('Wakeword detection re-enabled');
+                }
+            }
+        },
 
         $_createWAVChunk(float32Array, sampleRate) {
             // Create a mini WAV file from a chunk of audio data
@@ -435,8 +585,8 @@ export default {
             view.setUint32(16, 16, true);
             view.setUint16(20, 1, true);
             view.setUint16(22, numChannels, true);
-            view.setUint32(24, sampleRate, true);
-            view.setUint32(28, sampleRate * numChannels * bitsPerSample / 8, true);
+            view.setUint32(24, rate, true);
+            view.setUint32(28, rate * numChannels * bitsPerSample / 8, true);
             view.setUint16(32, numChannels * bitsPerSample / 8, true);
             view.setUint16(34, bitsPerSample, true);
             this.$_writeString(view, 36, 'data');
@@ -451,9 +601,10 @@ export default {
             return new Blob([buffer], { type: 'audio/wav' });
         },
 
-        $_audioToWav(float32Array) {
-            // Convert Float32Array to WAV format (use native sample rate)
-            const sampleRate = this.nativeSampleRate || 48000;
+        $_audioToWav(float32Array, sampleRate = null) {
+            // Convert Float32Array to WAV format
+            // Use provided sampleRate, or fallback to native sample rate
+            const rate = sampleRate || this.nativeSampleRate || 48000;
             const numChannels = 1;
             const bitsPerSample = 16;
 
@@ -476,8 +627,8 @@ export default {
             view.setUint32(16, 16, true);
             view.setUint16(20, 1, true);
             view.setUint16(22, numChannels, true);
-            view.setUint32(24, sampleRate, true);
-            view.setUint32(28, sampleRate * numChannels * bitsPerSample / 8, true);
+            view.setUint32(24, rate, true);
+            view.setUint32(28, rate * numChannels * bitsPerSample / 8, true);
             view.setUint16(32, numChannels * bitsPerSample / 8, true);
             view.setUint16(34, bitsPerSample, true);
             this.$_writeString(view, 36, 'data');
@@ -557,6 +708,92 @@ export default {
             } catch (error) {
                 console.error('Error sending fixed chunk to speakerid:', error);
             }
+        },
+
+        async $_sendWakewordChunk(int16Chunk) {
+            // Send audio chunk to wakeword detection endpoint
+            // Skip if already processing, wakeword already detected, disabled,
+            // or not in a state where wakeword should be processed (not during recording/transcription)
+            if (this.wakewordProcessing || this.wakewordDetected || !this.wakewordEnabled ||
+                !this.continuous ||
+                (this.status !== 'listening' && this.status !== 'ready' && this.status !== 'loading')) {
+                return;
+            }
+
+            this.wakewordProcessing = true;
+
+            try {
+                // Create WAV blob from Int16 data
+                const wavBlob = this.$_createWavFromInt16(int16Chunk, 16000);
+
+                // Send to wakeword endpoint
+                const formData = new FormData();
+                formData.append('audio_chunk', wavBlob, 'wakeword_chunk.wav');
+
+                const response = await fetch('http://127.0.0.1:9714/api/plugins/asrjs/wakeword_chunk', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    if (result.detected) {
+                        console.log('WAKEWORD DETECTED!');
+                        this.wakewordDetected = true;
+                        // Disable wakeword detection until transcription is done
+                        if (this.processor) {
+                            this.processor.port.postMessage({ type: 'disable-wakeword' });
+                        }
+                        // Trigger VAD/listening - the backend will send wakeword_detected action
+                    }
+                } else {
+                    console.error('Error sending wakeword chunk:', response.status);
+                }
+            } catch (error) {
+                console.error('Error sending wakeword chunk:', error);
+            } finally {
+                this.wakewordProcessing = false;
+            }
+        },
+
+        $_createWavFromInt16(int16Data, sampleRate) {
+            // Create WAV file from Int16Array
+            const numChannels = 1;
+            const bitsPerSample = 16;
+            const byteRate = sampleRate * numChannels * bitsPerSample / 8;
+            const blockAlign = numChannels * bitsPerSample / 8;
+            const dataSize = int16Data.length * 2;
+            const buffer = new ArrayBuffer(44 + dataSize);
+            const view = new DataView(buffer);
+
+            // WAV header
+            const writeString = (offset, string) => {
+                for (let i = 0; i < string.length; i++) {
+                    view.setUint8(offset + i, string.charCodeAt(i));
+                }
+            };
+
+            writeString(0, 'RIFF');
+            view.setUint32(4, 36 + dataSize, true);
+            writeString(8, 'WAVE');
+            writeString(12, 'fmt ');
+            view.setUint32(16, 16, true);
+            view.setUint16(20, 1, true);
+            view.setUint16(22, numChannels, true);
+            view.setUint32(24, sampleRate, true);
+            view.setUint32(28, byteRate, true);
+            view.setUint16(32, blockAlign, true);
+            view.setUint16(34, bitsPerSample, true);
+            writeString(36, 'data');
+            view.setUint32(40, dataSize, true);
+
+            // Write audio data
+            const dataOffset = 44;
+            for (let i = 0; i < int16Data.length; i++) {
+                view.setInt16(dataOffset + i * 2, int16Data[i], true);
+            }
+
+            return new Blob([buffer], { type: 'audio/wav' });
         },
 
         async $_checkSpeakerIdAvailability() {
@@ -695,9 +932,28 @@ export default {
             // Stop Web Audio API recording
             this.isRecording = false;
 
-            // Tell AudioWorklet to stop recording
+            // Tell AudioWorklet to stop recording, and wait for it to flush its final partial
+            // chunk. The worklet only posts audio-data on 4096-sample boundaries, so without
+            // this the last <4096 samples (~85ms @ 48kHz) never reach the main thread and the
+            // recording is truncated at the very end (affects BOTH ASR providers, and a very
+            // short click <4096 samples would otherwise produce an empty WAV).
             if (this.processor) {
+                const flushed = new Promise((resolve) => {
+                    const handler = (event) => {
+                        if (event.data.type === 'recording-stopped') {
+                            this.processor.port.removeEventListener('message', handler);
+                            resolve();
+                        }
+                    };
+                    this.processor.port.addEventListener('message', handler);
+                    // Fallback: never block transcription if the flush signal is lost.
+                    setTimeout(() => {
+                        this.processor.port.removeEventListener('message', handler);
+                        resolve();
+                    }, 500);
+                });
                 this.processor.port.postMessage({ type: 'stop-recording' });
+                await flushed;
             }
 
             console.log(`Recording stopped, collected ${this.recordingBuffer.length} native samples and ${this.speakerIdBuffer.length} downsampled samples`);
@@ -784,43 +1040,90 @@ export default {
             }
         },
 
-        $_toggleMode() {
-            this.continuous = !this.continuous;
 
-            // VAD functionality commented out
-            // if (this.continuous) {
-            //     // Start VAD listening
-            //     if (this.vad && this.vadInitialized) {
-            //         this.vad.start();
-            //         this.status = 'listening';
-            //     }
-            // } else {
-            //     // Pause VAD
-            //     if (this.vad) {
-            //         this.vad.pause();
-            //         this.status = 'ready';
-            //     }
-            // }
 
-            this.sendMsgToBackend({
-                action: 'set_continuous_mode',
-                continuous: this.continuous
-            });
-        },
-
-        handleIncomingMessage(event) {
+        async handleIncomingMessage(event) {
             const handled = BasePluginComponent.methods.handleIncomingMessage.call(this, event);
             if (handled) {
                 // Base component handled the message, check if it was settings
                 const data = JSON.parse(event.data);
                 if (data.settings) {
                     console.log('ASRJS SETTINGS:', data.settings);
+
+                    // Check if VAD-related settings changed (thresholds that require VAD re-init)
+                    const vadSettingsChanged = this.settings &&
+                        (data.settings.positiveSpeechThreshold !== this.settings.positiveSpeechThreshold ||
+                         data.settings.redemptionFrames !== this.settings.redemptionFrames);
+
+                    // Check if continuous mode changed
+                    const continuousChanged = this.settings &&
+                        data.settings.continuous !== this.settings.continuous;
+
+                    // Update all settings
                     this.settings = data.settings;
                     this.continuous = this.settings.continuous || false;
-                    if (this.settings.shortcut) {
-                        console.log('ASRJS SHORTCUT:', this.settings.shortcut);
-                        this.keyboardShortcut = this.settings.shortcut;
+
+                    // Check if wakeword setting changed
+                    const wakewordChanged = this.wakewordEnabled !== (this.settings.wakeword_enabled || false);
+                    this.wakewordEnabled = this.settings.wakeword_enabled || false;
+
+                    // A continuous/wakeword toggle starts a fresh listening session: reset the
+                    // one-shot gate so the wakeword can open the channel again.
+                    if (continuousChanged || wakewordChanged) {
+                        this.wakewordChannelOpened = false;
                     }
+
+                    // Handle shortcut (always update, even if empty)
+                    console.log('ASRJS SHORTCUT:', this.settings.shortcut);
+                    this.keyboardShortcut = this.settings.shortcut || null;
+
+                    // If wakeword was just enabled and continuous mode is on, notify AudioWorklet
+                    if (wakewordChanged && this.wakewordEnabled && this.continuous && this.processor) {
+                        this.wakewordDetected = false;
+                        this.processor.port.postMessage({ type: 'enable-wakeword' });
+                        console.log('Wakeword detection enabled after settings change');
+                    }
+
+                    // Disarm wakeword if continuous or wakeword was disabled — otherwise the
+                    // AudioWorklet keeps producing wakeword-chunk (and we keep POSTing
+                    // /wakeword_chunk) after continuous mode is turned off. Only a wakeword
+                    // detection ever sends disable-wakeword, so settings changes must do it too.
+                    if ((continuousChanged || wakewordChanged) && this.processor &&
+                        (!this.continuous || !this.wakewordEnabled)) {
+                        this.wakewordDetected = false;
+                        this.processor.port.postMessage({ type: 'disable-wakeword' });
+                        console.log('Wakeword detection disabled after settings change');
+                    }
+
+                    // Re-initialize VAD if:
+                    // 1. VAD-related settings changed (thresholds) AND continuous mode is on
+                    // 2. OR continuous mode was toggled
+                    if ((vadSettingsChanged && this.continuous && this.vadInitialized) ||
+                        (continuousChanged && this.vadInitialized)) {
+                        console.log('Settings changed, re-initializing VAD...');
+                        this.vad.destroy();
+                        this.vadInitialized = false;
+
+                        if (this.continuous) {
+                            await this.$_initializeVAD();
+                            // Restart VAD listening after re-initialization
+                            if (this.vad && this.vadInitialized) {
+                                this.vad.start();
+                                this.status = 'listening';
+                                console.log('VAD restarted after settings change');
+                            }
+                        }
+                    }
+
+                    // If continuous mode was just enabled and VAD not initialized, initialize it
+                    if (continuousChanged && this.continuous && !this.vadInitialized) {
+                        this.$_loadVADLibrary();
+                    }
+                }
+                // BasePluginComponent intercepts 'ready' status — handle VAD pause here too
+                if (data.status) {
+                    this.status = data.status;
+                    this.$_handleVADStatusChange(data.status);
                 }
                 return true;
             }
@@ -828,18 +1131,70 @@ export default {
 
             try {
                 const data = JSON.parse(event.data);
+
+                // Semantic VAD "nok" — backend says speaker is not done
+                if (data.action === "listening" && data.status === "waiting_for_more") {
+                    console.log('Semantic VAD: Speaker not finished, keeping audio buffer');
+                    this.status = 'listening';
+                    this.pendingTranscription = false;
+                    // Keep accumulated audio — the last processed audio becomes the accumulated buffer
+                    if (this._lastProcessedAudio) {
+                        this.accumulatedAudioBuffer = this._lastProcessedAudio;
+                    }
+                    return;
+                }
+
+                // Handle wakeword detected from backend
+                if (data.action === "wakeword_detected") {
+                    this.$_triggerWakewordDetected(false);
+                    return;
+                }
+
                 if (data.type === "transcription_result") {
                     // Handle transcription result from backend
                     console.log('Transcription result:', data.text);
                     if (data.text && data.text.trim()) {
                         this.status = 'listening';
+                        // Semantic VAD passed (or not active) — reset audio buffer
+                        this.$_resetAudioBuffer();
+                        this.pendingTranscription = false;
                     }
                 }
-                if (data.status) {
+                if (data.status && data.action !== "listening") {
                     this.status = data.status;
+                    this.$_handleVADStatusChange(data.status);
                 }
             } catch (e) {
                 console.error("Error parsing message:", e);
+            }
+        },
+
+        $_triggerWakewordDetected(manual = false) {
+            // Treat a wake-word detection — or a manual mic click while the wakeword is
+            // armed — as "open the channel": stop listening for the wakeword and start VAD.
+            if (this.wakewordDetected) return;
+            this.wakewordDetected = true;
+            this.wakewordChannelOpened = true; // Channel is open for this conversation — stop auto-re-arming the wakeword
+            console.log(manual
+                ? 'Manual wake: starting VAD listening...'
+                : 'Wakeword detected! Starting VAD listening...');
+
+            // Confirmation beep (skipped for a manual click — the user initiated it)
+            if (!manual && this.wakewordSound) {
+                this.wakewordSound.currentTime = 0;
+                this.wakewordSound.play().catch(() => {}); // Silent fail
+            }
+
+            // Stop listening for the wakeword now that the channel is open
+            if (this.processor) {
+                this.processor.port.postMessage({ type: 'disable-wakeword' });
+            }
+
+            // Start VAD listening — it will detect speech and handle transcription
+            if (this.vad && this.vadInitialized) {
+                this.vad.start();
+                this.status = 'listening';
+                console.log(manual ? 'VAD started (manual wake)' : 'VAD started after wakeword detection');
             }
         },
 
@@ -851,6 +1206,7 @@ export default {
             });
 
             if (!this.continuous) {
+                // NON-CONTINUOUS (push-to-talk): click to start, click to stop + transcribe
                 if (this.status === 'listening' || this.status === 'ready') {
                     // Manual push-to-talk: start recording
                     this.status = 'recording';
@@ -877,7 +1233,87 @@ export default {
                     this.audioChunks = [];
                 }
             } else {
-                console.warn("Cannot click when in continuous mode");
+                // CONTINUOUS mode: click to start/stop VAD listening
+                // Does NOT end conversation — conversation ends via abandon button or timeout
+                if (this.status === 'listening') {
+                    // Currently listening — pause VAD
+                    if (this.vad && this.vadInitialized) {
+                        this.vad.pause();
+                        this.status = 'ready';
+                        this.$_resetAudioBuffer();
+                        // Closing the channel: re-arm the wakeword gate so the system goes
+                        // back to wakeword detection (click again, or say the wake word, to reopen).
+                        this.wakewordChannelOpened = false;
+                        if (this.wakewordEnabled && this.processor) {
+                            this.wakewordDetected = false;
+                            this.processor.port.postMessage({ type: 'enable-wakeword' });
+                            console.log('Wakeword re-enabled after listen pause');
+                        }
+                        console.log('VAD paused — click again to resume');
+                    }
+                } else if (this.status === 'ready') {
+                    // 'ready' is the continuous rest state. When the wakeword is armed here,
+                    // a manual mic click acts as a manual wake-word: open the channel (start
+                    // VAD) and stop listening for the wakeword. Otherwise just resume VAD.
+                    if (this.wakewordEnabled && !this.wakewordChannelOpened) {
+                        this.$_triggerWakewordDetected(true);
+                    } else if (this.vad && this.vadInitialized) {
+                        this.vad.start();
+                        this.status = 'listening';
+                        console.log('VAD started');
+                    }
+                } else if (this.status === 'waiting_for_more') {
+                    // Semantic VAD still accumulating — resume listening
+                    if (this.vad && this.vadInitialized) {
+                        this.vad.start();
+                        this.status = 'listening';
+                        console.log('VAD started');
+                    }
+                } else if (this.status === 'recording') {
+                    // Currently recording in continuous mode — pause VAD and re-enable wakeword
+                    console.log('Pausing VAD during recording in continuous mode');
+                    if (this.vad && this.vadInitialized) {
+                        this.vad.pause();
+                        this.status = 'ready';
+                        this.$_resetAudioBuffer();
+                        // Closing the channel: re-arm the wakeword gate so the system goes
+                        // back to wakeword detection (click again, or say the wake word, to reopen).
+                        this.wakewordChannelOpened = false;
+                        if (this.wakewordEnabled && this.processor) {
+                            this.wakewordDetected = false;
+                            this.processor.port.postMessage({ type: 'enable-wakeword' });
+                            console.log('Wakeword re-enabled after recording pause');
+                        }
+                        console.log('VAD paused during recording');
+                    }
+                } else if (this.status === 'transcribing') {
+                    // Currently transcribing — pause VAD and re-enable wakeword
+                    console.log('Pausing VAD during transcription in continuous mode');
+                    if (this.vad && this.vadInitialized) {
+                        this.vad.pause();
+                        this.status = 'ready';
+                        this.$_resetAudioBuffer();
+                        // Closing the channel: re-arm the wakeword gate so the system goes
+                        // back to wakeword detection (click again, or say the wake word, to reopen).
+                        this.wakewordChannelOpened = false;
+                        if (this.wakewordEnabled && this.processor) {
+                            this.wakewordDetected = false;
+                            this.processor.port.postMessage({ type: 'enable-wakeword' });
+                            console.log('Wakeword re-enabled after transcription pause');
+                        }
+                        console.log('VAD paused during transcription');
+                    }
+                } else if (this.status === 'loading' || this.status === 'error') {
+                    // VAD not yet loaded — load and start
+                    if (!this.vadInitialized) {
+                        await this.$_loadVADLibrary();
+                    }
+                    if (this.vad && this.vadInitialized) {
+                        this.vad.start();
+                        this.status = 'listening';
+                        console.log('VAD started');
+                    }
+                }
             }
         },
     },
@@ -887,14 +1323,14 @@ export default {
                 if (oldStatus === 'loading' && newStatus === 'listening') {
                     console.log("listening");
                 } else if (oldStatus === 'listening' && newStatus === 'recording') {
-                    this.audio.on.play();
+                    // this.audio.on.play();
                 } else if (oldStatus === 'recording' && newStatus === 'listening') {
-                    this.audio.off.play();
+                    // this.audio.off.play();
                 }
             }
             if (newStatus === 'empty') {
                 console.warn("Playing OFF sound");
-                this.audio.off.play();
+                //this.audio.off.play();
                 this.status = 'listening';
             }
         }
@@ -919,27 +1355,7 @@ export default {
 }
 
 .mic img {
-    max-height: 50px;
-    max-width: 50px;
-}
-
-.mode-toggle {
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-top: 5px;
-    background: #444;
-    transition: all 0.3s ease;
-}
-
-.mode-toggle.active {
-    background: #2196F3;
-    box-shadow: 0 0 10px rgba(33, 150, 243, 0.5);
-}
-
-.mode-toggle span {
-    font-size: 18px;
-    color: white;
+    height: 60%;
+    width: 60%;
 }
 </style>

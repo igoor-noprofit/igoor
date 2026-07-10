@@ -128,11 +128,11 @@ class Ttsdefault(Baseplugin):
     '''
         
     @hookimpl
-    def speak(self, message):
+    def speak(self, message, skip_asr):
         if self.is_loaded and not self.fallback_only:
             self.logger.info("§§§§ SPEAKING *********************************************** : %s", message)
-            # Schedule the speak_func to run in the background
-            asyncio.create_task(self.run_speak_func(message))
+            # Schedule the speak_func to run in the background (with translation)
+            asyncio.create_task(self.run_speak_func_with_translation(message, skip_asr=skip_asr))
 
     @hookimpl
     def speak_fallback(self, message):
@@ -151,16 +151,23 @@ class Ttsdefault(Baseplugin):
         asyncio.create_task(self.restart_asr())
         
     async def restart_asr(self):
-        await self.pm.trigger_hook(hook_name="restart_asr")
+        await self.pm.trigger_hook(hook_name="restart_asr", force_ready=False)
 
-    async def run_speak_func(self, message):
+    async def run_speak_func(self, message, skip_asr=False):
         await self.pm.trigger_hook(hook_name="pause_asr")
+        await asyncio.sleep(0.1)  # Ensure pause message reaches frontend
         success = await self.speak_func(message)
-        await self.pm.trigger_hook(hook_name="restart_asr")
+        await self.pm.trigger_hook(hook_name="restart_asr", force_ready=skip_asr)
+
+    async def run_speak_func_with_translation(self, message, skip_asr=False):
+        """Translate outgoing speech before speaking"""
+        translated_message = await self.translate_for_interlocutor(message, direction="outgoing")
+        await self.run_speak_func(translated_message, skip_asr=skip_asr)
 
     async def speak_func(self, message):
         self.logger.info("SPEAK FUNC:" + message)
         try:
+            # Run SAPI speech in a separate thread to avoid blocking
             await asyncio.to_thread(self.speaker.Speak, message)
             return True
 

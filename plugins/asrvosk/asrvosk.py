@@ -83,8 +83,12 @@ class Asrvosk(Baseplugin):
         self.send_message_to_frontend("listening")
         
     @hookimpl
-    def restart_asr(self):
-        if (self.continuous):
+    def restart_asr(self, force_ready):
+        if force_ready:
+            # Caller requested NOT to reopen the ASR channel: return to idle.
+            self.is_paused = False
+            new_status = "ready"
+        elif (self.continuous):
             self.is_paused = False
             self.wakeword_detected = True
             new_status="recording"

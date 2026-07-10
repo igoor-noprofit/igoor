@@ -28,6 +28,24 @@
                 {{ voiceIdError ? t('Voice ID is required') : '' }}
             </div>
 
+            <!-- Voice cloning -->
+            <div class="form-label">{{ t('Voice cloning') }}</div>
+            <div class="form-input">
+                <div class="voice-clone-section">
+                    <button class="clone-btn" type="button" @click="useRecordedVoice"
+                        :disabled="!voiceSampleExists || isCloning" :title="!voiceSampleExists ? t('No recorded voice available') : t('Use your biorecorder voice samples to clone your voice')">
+                        <span v-if="isCloning">{{ t('Cloning...') }}</span>
+                        <span v-else>{{ t('Use recorded voice') }}</span>
+                    </button>
+                    <button class="clone-btn" type="button" @click="triggerUploadClone" :disabled="isCloning">
+                        {{ t('Upload audio') }}
+                    </button>
+                    <input type="file" ref="cloneFileInput" style="display:none"
+                        accept=".wav,.mp3,.ogg,.webm" @change="onCloneFileSelected" />
+                </div>
+            </div>
+            <div class="form-note"></div>
+
             <!-- Model Selection -->
             <div class="form-label">{{ t('Model selection') }}</div>
             <div class="form-input">
@@ -148,9 +166,13 @@
 
                     <!-- Latency Optimization Row -->
                     <div class="ssml-row">
-                        <div class="ssml-left">{{ t('Latency Optimization') }}</div>
+                        <div class="ssml-left">
+                            {{ t('Latency Optimization') }}
+                            <div v-if="isV3Model" class="disabled-note">{{ t('Not available for Eleven v3') }}</div>
+                        </div>
                         <div class="ssml-center">
-                            <select id="latencyOptimizationSlider" v-model="latencyOptimizationValue" @change="onLatencyOptimizationChange">
+                            <select id="latencyOptimizationSlider" v-model="latencyOptimizationValue"
+                                :disabled="isV3Model" @change="onLatencyOptimizationChange">
                                 <option :value="0">{{ t('Best Quality') }}</option>
                                 <option :value="1">{{ t('Quality') }}</option>
                                 <option :value="2">{{ t('Balanced') }}</option>
@@ -160,7 +182,7 @@
                         </div>
                         <div class="ssml-right">
                             <input type="number" class="numeric-input" v-model.number="latencyOptimizationValue"
-                                @change="onLatencyOptimizationChange" min="0" max="4" />
+                                :disabled="isV3Model" @change="onLatencyOptimizationChange" min="0" max="4" />
                         </div>
                     </div>
 
@@ -235,7 +257,9 @@ export default {
             speedValue: 1.0,
             latencyOptimizationValue: 0,
             outputFormatValue: 'mp3_44100_128',
-            enableLoggingValue: true
+            enableLoggingValue: true,
+            voiceSampleExists: false,
+            isCloning: false
         };
     },
     computed: {
@@ -250,6 +274,10 @@ export default {
             return voices
                 .slice()
                 .sort((a, b) => a.display_name.localeCompare(b.display_name, undefined, { sensitivity: 'base' }));
+        },
+        isV3Model() {
+            // eleven_v3 does not support optimize_streaming_latency
+            return this.formData.model_id === 'eleven_v3';
         }
     },
     watch: {
@@ -368,6 +396,80 @@ export default {
                 this.apiKeyErrorMessage = '';
                 this.apiKeyValid = false;
                 this.voiceIdError = false;
+            }
+        },
+        async checkVoiceSample() {
+            try {
+                const response = await fetch('/api/plugins/biorecorder/voice_sample');
+                if (response.ok) {
+                    const data = await response.json();
+                    this.voiceSampleExists = data.exists;
+                }
+            } catch (e) {
+                this.voiceSampleExists = false;
+            }
+        },
+        async useRecordedVoice() {
+            this.isCloning = true;
+            try {
+                const audioResp = await fetch('/api/plugins/biorecorder/voice_sample/file');
+                if (!audioResp.ok) throw new Error('Voice sample not found');
+                const blob = await audioResp.blob();
+                const formData = new FormData();
+                formData.append('audio_file', blob, 'voice_sample.wav');
+                formData.append('name', 'Voice Clone ' + new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' }));
+                const response = await fetch('/api/plugins/elevenlabstts/clone_voice', {
+                    method: 'POST',
+                    body: formData
+                });
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.detail || 'Clone failed');
+                }
+                const data = await response.json();
+                this.formData.voice_id = data.voice_id;
+                await this.loadVoiceListFromRest();
+                this.saveStatus = { type: 'success', message: this.t('Voice cloned successfully') };
+                setTimeout(() => { this.saveStatus = null; }, 3000);
+            } catch (e) {
+                console.error('Clone error:', e);
+                this.saveStatus = { type: 'error', message: e.message || this.t('Failed to clone voice') };
+                setTimeout(() => { this.saveStatus = null; }, 5000);
+            } finally {
+                this.isCloning = false;
+            }
+        },
+        triggerUploadClone() {
+            this.$refs.cloneFileInput.click();
+        },
+        async onCloneFileSelected(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            this.isCloning = true;
+            try {
+                const formData = new FormData();
+                formData.append('audio_file', file);
+                formData.append('name', 'Voice Clone ' + new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' }));
+                const response = await fetch('/api/plugins/elevenlabstts/clone_voice', {
+                    method: 'POST',
+                    body: formData
+                });
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.detail || 'Clone failed');
+                }
+                const data = await response.json();
+                this.formData.voice_id = data.voice_id;
+                await this.loadVoiceListFromRest();
+                this.saveStatus = { type: 'success', message: this.t('Voice cloned successfully') };
+                setTimeout(() => { this.saveStatus = null; }, 3000);
+            } catch (e) {
+                console.error('Clone error:', e);
+                this.saveStatus = { type: 'error', message: e.message || this.t('Failed to clone voice') };
+                setTimeout(() => { this.saveStatus = null; }, 5000);
+            } finally {
+                this.isCloning = false;
+                event.target.value = '';
             }
         },
         async loadVoiceListFromRest() {
@@ -527,6 +629,7 @@ export default {
 
     async created() {
         await this.loadTranslations();
+        this.checkVoiceSample();
         
         // Load voice list if API key is already available from initial settings
         if (this.initialSettings?.api_key && this.initialSettings.api_key.trim()) {
@@ -594,6 +697,22 @@ button:hover {
 .disabled {
     opacity: 0.5;
     cursor: not-allowed;
+}
+
+select:disabled,
+input[type="number"]:disabled,
+input[type="text"]:disabled,
+input[type="password"]:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.disabled-note {
+    font-size: 0.78em;
+    color: #ff9b9b;
+    font-weight: 400;
+    line-height: 1.3;
+    margin-top: 2px;
 }
 
 .input-error {
@@ -698,5 +817,33 @@ button:hover {
 
 .checkbox-column input[type="checkbox"] {
     margin: 0;
+}
+
+.voice-clone-section {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+}
+
+.clone-btn {
+    background: #216776;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    padding: 6px 12px;
+    font-size: 0.9em;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s;
+    white-space: nowrap;
+}
+
+.clone-btn:hover:not(:disabled) {
+    background: #2a8fa8;
+}
+
+.clone-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
 }
 </style>

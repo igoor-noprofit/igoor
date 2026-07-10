@@ -1,10 +1,9 @@
 {
   "wakeword": "Igor",
   "continuous": false,
-  "silence_frames": 1250,
-  "max_recording_time": 60,
-  "vad_level": -1,
-  "shortcut": "Ctrl+K",
+  "always_generate": true,
+  "positiveSpeechThreshold": 0.5,
+  "redemptionFrames": 24,
   "chunk_duration_ms": 30,
   "sample_rate": 48000,
   "audio_format": "PCM_16",
@@ -12,5 +11,8 @@
   "model_name": "whisper-large-v3-turbo",
   "api_key": "",
   "voxtral_api_key": "",
-  "allowed_model_providers": ["groq", "mistral"]
+  "wakeword_enabled": false,
+  "wakeword_sensitivity": 0.1,
+  "wakeword_model": "",
+  "sherpa_model_size": "small"
 }

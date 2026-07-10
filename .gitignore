@@ -9,7 +9,7 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-.playwright-mcp/
+.playwright-mcp
 
 gitleaks-report.json
 
@@ -17,8 +17,6 @@ gitleaks-report.json
 test_elevenlabstts.py
 # C extensions
 *.so
-
-.playwright-mcp/
 
 # Factory AI Droid
 AI/

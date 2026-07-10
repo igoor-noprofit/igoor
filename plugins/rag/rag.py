@@ -7,7 +7,7 @@ import pymupdf4llm
 from langchain_community.vectorstores import FAISS
 from langchain_text_splitters import CharacterTextSplitter
 from langchain.schema import Document  # Ensure all documents are of this type
-from langchain_community.embeddings import HuggingFaceBgeEmbeddings
+from langchain_community.embeddings import HuggingFaceBgeEmbeddings, HuggingFaceEmbeddings
 import time,sys, asyncio, threading
 import numpy as np
 from typing import Union, List, Dict, Optional
@@ -131,9 +131,35 @@ class Rag(Baseplugin):
         else:
             self.logger.warning(f"Media folder '{self.medias_folder_name}' does not exist")
         
-        # 4. Load all three FAISS indexes
-        self.logger.info("Loading FAISS indexes...")
-        await self.load_all_indexes()
+        # 4. Check if FAISS indexes need to be rebuilt from DB (e.g., after import with different embedding model)
+        indexes_missing = all(
+            not os.path.exists(os.path.join(self.plugin_folder, folder_name))
+            or self.is_folder_empty(folder_name)
+            for folder_name in self.index_folder_names.values()
+        )
+
+        if indexes_missing:
+            # Check if there's existing data in the DB that warrants a rebuild
+            try:
+                result = await self.db_execute("SELECT COUNT(*) as cnt FROM chunks")
+                has_chunks = result and result[0]['cnt'] > 0
+            except Exception:
+                has_chunks = False
+
+            if has_chunks:
+                self.logger.info(
+                    "FAISS indexes missing but chunks exist in DB — "
+                    "rebuilding indexes with current embedding model..."
+                )
+                await self.rebuild_all_indexes()
+            else:
+                # No data at all, create fresh empty indexes
+                self.logger.info("Loading FAISS indexes (first run)...")
+                await self.load_all_indexes()
+        else:
+            # Normal path: load existing indexes
+            self.logger.info("Loading FAISS indexes...")
+            await self.load_all_indexes()
         
         # Signal that loading is complete
         self.is_loaded = True
@@ -909,27 +935,64 @@ class Rag(Baseplugin):
         }
         encode_kwargs = {"normalize_embeddings": True}
 
-        try:
-            hf = HuggingFaceBgeEmbeddings(
-                model_name=embedding_model,
-                model_kwargs=model_kwargs,
-                encode_kwargs=encode_kwargs,
-                cache_folder=cache_folder
-            )
-            self.logger.info("Embedding model loaded from local cache")
-            return hf
-        except Exception as e:
-            # If local cache fails, try online (for first-time setup)
-            self.logger.warning(f"Failed to load from cache: {e}. Trying online...")
-            model_kwargs['local_files_only'] = False
-            hf = HuggingFaceBgeEmbeddings(
-                model_name=embedding_model,
-                model_kwargs=model_kwargs,
-                encode_kwargs=encode_kwargs,
-                cache_folder=cache_folder
-            )
-            self.logger.info("Embedding model downloaded and cached")
-            return hf
+        # Detect if model is BGE-compatible (dangvantuan models are BGE-based)
+        model_name_lower = embedding_model.lower()
+        is_bge_model = "bge" in model_name_lower or "dangvantuan" in model_name_lower
+
+        # For non-BGE models (like Jina), we need trust_remote_code at top level
+        # and should try online first since custom model code may need downloading
+        if is_bge_model:
+            try:
+                hf = HuggingFaceBgeEmbeddings(
+                    model_name=embedding_model,
+                    model_kwargs=model_kwargs,
+                    encode_kwargs=encode_kwargs,
+                    cache_folder=cache_folder
+                )
+                self.logger.info("Embedding model loaded from local cache")
+                return hf
+            except Exception as e:
+                self.logger.warning(f"Failed to load from cache: {e}. Trying online...")
+                model_kwargs['local_files_only'] = False
+                hf = HuggingFaceBgeEmbeddings(
+                    model_name=embedding_model,
+                    model_kwargs=model_kwargs,
+                    encode_kwargs=encode_kwargs,
+                    cache_folder=cache_folder
+                )
+                self.logger.info("Embedding model downloaded and cached")
+                return hf
+        else:
+            # Jina/GTE and other models requiring trust_remote_code.
+            # Try the local cache FIRST so startup does not block (or stall on
+            # 5 retries) when there is no Internet connection but the model is
+            # already downloaded. Falls back to an online download only when the
+            # cache miss genuinely requires it (first run).
+            model_kwargs = {
+                "device": "cpu",
+                "trust_remote_code": True,
+                "local_files_only": True
+            }
+            try:
+                hf = HuggingFaceEmbeddings(
+                    model_name=embedding_model,
+                    model_kwargs=model_kwargs,
+                    encode_kwargs={"normalize_embeddings": True},
+                    cache_folder=cache_folder
+                )
+                self.logger.info("Embedding model loaded from local cache")
+                return hf
+            except Exception as e:
+                self.logger.warning(f"Failed to load from cache: {e}. Trying online...")
+                model_kwargs["local_files_only"] = False
+                hf = HuggingFaceEmbeddings(
+                    model_name=embedding_model,
+                    model_kwargs=model_kwargs,
+                    encode_kwargs={"normalize_embeddings": True},
+                    cache_folder=cache_folder
+                )
+                self.logger.info("Embedding model downloaded and cached")
+                return hf
 
     def create_index(self):
         self.logger.info("CREATING DB, PLEASE WAIT...")
@@ -1074,7 +1137,7 @@ class Rag(Baseplugin):
                     results = await self.search_short_term_memory(query_text=query_text)
                 else:
                     # For INGESTED and LONG_TERM, use the regular chunk_num approach
-                    results = await self.search_in_FAISS(query_text=query_text,store_type=store_type,k=chunk_num,score_threshold=1)
+                    results = await self.search_in_FAISS(query_text=query_text,store_type=store_type,k=chunk_num,score_threshold=self.score_threshold)
                     search_end_time = time.time()
                     self.logger.debug(f"Store type {store_type} search time: {search_end_time - start_time:.2f} seconds")
                 
@@ -1451,40 +1514,154 @@ class Rag(Baseplugin):
             # Return whatever was processed so far, or an empty list
             return processed_results if processed_results else []
     
+    async def rebuild_all_indexes(self):
+        """
+        Rebuild all FAISS indexes from chunk text stored in SQLite.
+        Called automatically after importing data from an older IGOOR version
+        that used a different embedding model.
+        """
+        self.logger.info("REBUILDING ALL FAISS INDEXES from database text — please wait...")
+        print("[RAG] *** Embedding model migration: rebuilding FAISS indexes from database. This may take several minutes. ***")
+
+        for store_type in [INGESTED, LONG_TERM, SHORT_TERM]:
+            folder_name = self.index_folder_names[store_type]
+            self.logger.info(f"Rebuilding index for store type {store_type} ({folder_name})...")
+
+            try:
+                chunks = await self.db_execute(
+                    "SELECT id, content FROM chunks WHERE type = ? ORDER BY id ASC",
+                    (store_type,)
+                )
+
+                # Filter out empty/null content
+                valid_chunks = [c for c in chunks if c.get('content')] if chunks else []
+
+                if not valid_chunks:
+                    # No data — create empty placeholder index
+                    self.logger.info(f"No chunks for store {store_type}, creating empty index")
+                    print(f"[RAG] {folder_name}: no data, creating empty index.")
+                    self.vector_stores[store_type] = FAISS.from_documents(
+                        [Document(page_content="Initial empty document", metadata={"source": "init"})],
+                        self.embedding_function
+                    )
+                    self.index_loaded[store_type] = True
+                    await self.save_index(store_type)
+                    continue
+
+                # Build LangChain Document list from DB text
+                docs = [
+                    Document(
+                        page_content=c['content'],
+                        metadata={"db_id": c['id'], "source": "rebuild"}
+                    )
+                    for c in valid_chunks
+                ]
+
+                self.logger.info(f"Embedding {len(docs)} chunks for store type {store_type}...")
+                print(f"[RAG] {folder_name}: embedding {len(docs)} chunks — please wait...")
+                loop = asyncio.get_event_loop()
+                new_store = await loop.run_in_executor(
+                    None,
+                    lambda d=docs: FAISS.from_documents(d, self.embedding_function)
+                )
+                self.vector_stores[store_type] = new_store
+                self.index_loaded[store_type] = True
+
+                # Build a reliable db_id → docstore_id map using metadata (not positional order)
+                db_id_to_docstore_id = {}
+                for docstore_id, stored_doc in new_store.docstore._dict.items():
+                    db_id = stored_doc.metadata.get("db_id")
+                    if db_id is not None:
+                        db_id_to_docstore_id[db_id] = docstore_id
+                        stored_doc.metadata["docstore_id"] = docstore_id  # needed by search_in_FAISS
+
+                self.logger.info(f"Store {store_type}: mapped {len(db_id_to_docstore_id)} db_ids to FAISS docstore_ids")
+
+                # Update SQLite docstore_id column using the reliable map
+                missing = 0
+                for chunk in valid_chunks:
+                    db_id = chunk['id']
+                    docstore_id = db_id_to_docstore_id.get(db_id)
+                    if docstore_id:
+                        await self.db_execute(
+                            "UPDATE chunks SET docstore_id = ? WHERE id = ?",
+                            (docstore_id, db_id)
+                        )
+                    else:
+                        missing += 1
+                        self.logger.warning(f"Store {store_type}: no FAISS id found for DB chunk id={db_id}")
+
+                if missing:
+                    self.logger.warning(f"Store {store_type}: {missing}/{len(valid_chunks)} chunks could not be mapped.")
+                else:
+                    self.logger.info(f"Store {store_type}: all {len(valid_chunks)} chunks mapped successfully.")
+
+                await self.save_index(store_type)
+                self.logger.info(
+                    f"Store type {store_type} rebuilt successfully with {len(docs)} chunks."
+                )
+                print(f"[RAG] {folder_name}: done ({len(docs)} chunks embedded).")
+
+            except Exception as e:
+                self.logger.error(f"Error rebuilding index for store type {store_type}: {e}")
+                import traceback
+                self.logger.error(traceback.format_exc())
+                # Create empty index so the rest of startup doesn't crash
+                try:
+                    self.vector_stores[store_type] = FAISS.from_documents(
+                        [Document(page_content="Initial empty document", metadata={"source": "init"})],
+                        self.embedding_function
+                    )
+                    self.index_loaded[store_type] = True
+                    await self.save_index(store_type)
+                except Exception as inner_e:
+                    self.logger.error(f"Could not create fallback empty index for {store_type}: {inner_e}")
+
+        self.logger.info("FAISS index rebuild complete.")
+        print("[RAG] *** Index rebuild complete. RAG is ready. ***")
+
     @hookimpl
     async def data_imported(self, backup_path: str = None):
         """
-        Called when user data is imported. Reload FAISS indexes.
-        
+        Called when user data is imported. Reload or rebuild FAISS indexes.
+
         Args:
             backup_path (str): Path to the backup created during import.
         """
-        self.logger.info(f"Data import detected, reloading FAISS indexes (backup: {backup_path})")
-        
+        self.logger.info(f"Data import detected, checking FAISS indexes (backup: {backup_path})")
+
         if not self.is_loaded:
             self.logger.warning("RAG plugin not loaded yet, skipping index reload")
             return
-        
+
         try:
-            # Reload all indexes
-            for store_type in [INGESTED, LONG_TERM, SHORT_TERM]:
-                folder_name = self.index_folder_names[store_type]
-                folder_path = os.path.join(self.plugin_folder, folder_name)
-                
-                # Check if folder exists
-                if os.path.exists(folder_path) and not self.is_folder_empty(folder_name):
-                    self.logger.info(f"Reloading {folder_name} index from {folder_path}")
-                    
-                    # Mark as not loaded so it will be reloaded
+            # Check if indexes were wiped by the importer (embedding model mismatch scenario)
+            indexes_missing = all(
+                not os.path.exists(os.path.join(self.plugin_folder, folder_name))
+                or self.is_folder_empty(folder_name)
+                for folder_name in self.index_folder_names.values()
+            )
+
+            if indexes_missing:
+                self.logger.info(
+                    "FAISS indexes missing after import — rebuilding from DB with current model..."
+                )
+                for store_type in [INGESTED, LONG_TERM, SHORT_TERM]:
                     self.index_loaded[store_type] = False
                     self.vector_stores[store_type] = None
-            
-            # Reload all indexes asynchronously
-            await self.load_all_indexes()
-            
-            self.logger.info("FAISS indexes reloaded successfully")
+                await self.rebuild_all_indexes()
+            else:
+                # Indexes present and compatible — just reload
+                for store_type in [INGESTED, LONG_TERM, SHORT_TERM]:
+                    folder_name = self.index_folder_names[store_type]
+                    if not self.is_folder_empty(folder_name):
+                        self.index_loaded[store_type] = False
+                        self.vector_stores[store_type] = None
+                await self.load_all_indexes()
+
+            self.logger.info("FAISS indexes ready after import.")
         except Exception as e:
-            self.logger.error(f"Failed to reload FAISS indexes: {e}")
+            self.logger.error(f"Failed to reload/rebuild FAISS indexes after import: {e}")
             import traceback
             traceback.print_exc()
     

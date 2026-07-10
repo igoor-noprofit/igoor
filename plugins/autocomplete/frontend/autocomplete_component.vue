@@ -17,29 +17,24 @@
             </div>
 
             <!-- Input and suggestions -->
-            <div v-else class="input-container" ref="autocompleteInput"
-                 @click="$_focusInput"
-                 @blur="$_onBlur"
-                 @keydown="$_handleKeydown"
-                 @paste="$_handlePaste"
-                 tabindex="0">
-                <span class="typed-text">{{ userInput }}</span><span class="cursor" v-if="isFocused">|</span>
+            <div v-else class="input-container" @click="$_focusInput">
+                <input ref="autocompleteInput"
+                       type="text"
+                       class="real-input"
+                       :class="{ 'has-text': userInput }"
+                       :value="userInput"
+                       :placeholder="placeholderText || t('say something...')"
+                       :aria-label="t('say something...')"
+                       @input="$_onInput"
+                       @keydown.enter.prevent="$_speakInput"
+                       @paste.prevent="$_handlePaste">
                 <button v-for="(pred, idx) in shortPredictions"
                         :key="idx"
                         class="inline-prediction btn btn-primary"
                         @click.stop="$_applyPrediction(idx)">
                     {{ pred.trimStart() }}
                 </button>
-                <span v-if="!userInput && shortPredictions.length === 0" class="placeholder">{{ t('say something...') }}</span>
             </div>
-
-            <!-- Hidden input to trigger TabTip on tablets -->
-            <input ref="hiddenInput"
-                   type="text"
-                   class="hidden-input"
-                   @input="$_onHiddenInput"
-                   @focus="$_onHiddenFocus"
-                   @blur="$_onBlur">
 
         </div>
 
@@ -122,7 +117,14 @@ module.exports = {
             allowVirtualKeyboard: false,
             shortPredictions: [],   // DB-based personalized predictions
             shortPredictionTimeout: null,
-            isFocused: false
+            // Placeholder shown in the input. Animated (typewriter) once at boot
+            // to draw attention to the field; otherwise the translated default.
+            placeholderText: "",
+            typewriterTimer: null,
+            typewriterPlayed: false,
+            // Single switch for the boot typewriter placeholder hint.
+            // Set to false to disable the animation outright.
+            enableTypewriter: false
         }
     },
     async mounted() {
@@ -132,10 +134,16 @@ module.exports = {
         else{
             this.isLoading=false;
         }
-        this.$nextTick(() => {
-            this.$refs.autocompleteInput.focus();
-            this.$_focusInput();
-        });
+        // Auto-focus when the autocomplete view appears so the OS-level keyboard
+        // (TabTip / TD Control) opens without an extra click.
+        this.$nextTick(() => this.$_focusInput());
+        // Re-focus once boot finishes: the boot overlay can steal the focus set
+        // above at mount time.
+        window.addEventListener("boot-complete", this.$_onBootComplete);
+    },
+    beforeDestroy() {
+        window.removeEventListener("boot-complete", this.$_onBootComplete);
+        this.$_stopTypewriter();
     },
     methods: {
         $_showKeyboard() {
@@ -144,13 +152,8 @@ module.exports = {
         $_hideKeyboard() {
             this.showKeyboard = false;  // Changed from isInputFocused
         },
-        $_onFocus() {
-            this.isFocused = true;
-            this.sendMsgToBackend({action: "input_focused"});
-        },
-        $_onBlur() {
-            this.isFocused = false;
-            this.sendMsgToBackend({action: "input_blurred"});
+        $_onInput(event) {
+            this.userInput = event.target.value;
         },
         $_deleteText(){
             this.$_reset();
@@ -163,18 +166,45 @@ module.exports = {
             this.$_reset();
         },
         $_focusInput() {
-            // Focus hidden input to trigger TabTip on tablets
-            if (this.$refs.hiddenInput) {
-                this.$refs.hiddenInput.focus();
+            if (this.$refs.autocompleteInput) {
+                this.$refs.autocompleteInput.focus();
             }
         },
-        $_onHiddenFocus() {
-            this.isFocused = true;
-            this.sendMsgToBackend({action: "input_focused"});
+        $_onBootComplete() {
+            // The app dispatches "boot-complete" once the boot overlay is dismissed.
+            this.$nextTick(() => this.$_focusInput());
+            // Type a hint into the placeholder so the user notices the field.
+            // Toggle this.enableTypewriter to turn the animation on/off.
+            if (this.enableTypewriter) {
+                this.$_startTypewriter();
+            }
         },
-        $_onHiddenInput(event) {
-            // Sync text from hidden input (TabTip types here)
-            this.userInput = event.target.value;
+        $_startTypewriter() {
+            // One-shot boot effect: type the hint into the placeholder letter by
+            // letter. Guarded so a repeated "boot-complete" can't restart it.
+            if (this.typewriterPlayed) {
+                return;
+            }
+            this.typewriterPlayed = true;
+            const fullText = this.t("write here to say something and you will see predictions appear");
+            this.placeholderText = "";
+            let i = 0;
+            const tick = () => {
+                if (i < fullText.length) {
+                    this.placeholderText += fullText.charAt(i);
+                    i++;
+                    this.typewriterTimer = setTimeout(tick, 18);
+                } else {
+                    this.typewriterTimer = null;
+                }
+            };
+            tick();
+        },
+        $_stopTypewriter() {
+            if (this.typewriterTimer) {
+                clearTimeout(this.typewriterTimer);
+                this.typewriterTimer = null;
+            }
         },
         $_reset() {
             this.wordSuggestions = [];
@@ -223,20 +253,6 @@ module.exports = {
                 this.shortPredictions = [];
                 // Restore focus
                 this.$_focusInput();
-            }
-        },
-        $_handleKeydown(event) {
-            // Handle keyboard input for the div-based input field
-            if (event.key === 'Backspace') {
-                this.userInput = this.userInput.slice(0, -1);
-                event.preventDefault();
-            } else if (event.key.length === 1 && !event.ctrlKey && !event.metaKey) {
-                // Regular character input
-                this.userInput += event.key;
-                event.preventDefault();
-            } else if (event.key === 'Enter') {
-                this.$_speakInput();
-                event.preventDefault();
             }
         },
         async $_handlePaste(event) {
@@ -374,10 +390,10 @@ module.exports = {
     },
     watch: {
         userInput(newInput, oldInput) {
-            // Sync to hidden input for TabTip
-            if (this.$refs.hiddenInput && this.$refs.hiddenInput.value !== newInput) {
-                this.$refs.hiddenInput.value = newInput;
-            }
+            // Live-sync the current input to the backend so phrase (LLM)
+            // predictions can detect staleness and drop results the user has
+            // already typed past.
+            this.sendMsgToBackend({ action: "typing", input: newInput });
 
             // Word suggestions
             if (newInput && !this.isLoading && !this.error) {
@@ -494,8 +510,9 @@ button {
     height: 100%;
     width: 100%;
     display: flex;
-    justify-content: center;
+    justify-content: flex-start;
     align-items: center;
+    gap: 8px;
     padding: 0 12px;
     min-height: 48px;
     cursor: text;
@@ -503,25 +520,28 @@ button {
     color: #fff;
     background-color: #28373b;
 }
-.input-container input{
-    height: 100% !important;
-}
-.typed-text {
+.real-input {
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 100%;
+    padding: 0;
+    background: transparent;
+    border: none;
+    outline: none;
     color: #fff;
-    white-space: pre;
+    font-family: inherit;
+    font-size: inherit;
+    text-align: left;
+    caret-color: #fff;
+    /* caret-shape: block; */
 }
-.cursor {
-    color: #0095c0;
-    animation: blink 1s infinite;
-    font-weight: bold;
-}
-@keyframes blink {
-    0%, 50% { opacity: 1; }
-    51%, 100% { opacity: 0; }
-}
-.placeholder {
+.real-input::placeholder {
     color: #999;
     font-style: italic;
+}
+.real-input.has-text {
+    flex: 0 0 auto;
+    field-sizing: content;
 }
 .inline-prediction {
     color: white;
@@ -540,12 +560,5 @@ button {
 }
 .inline-prediction:active {
     background: #23515b;
-}
-.hidden-input {
-    position: absolute;
-    opacity: 0;
-    pointer-events: none;
-    width: 1px;
-    height: 1px;
 }
 </style>

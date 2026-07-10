@@ -6,11 +6,11 @@
             <h3 v-show="shrink">{{ t('Minimize') }}</h3>
         </button>
         <button
-            v-for="(button, index) in shortcutButtons"
+            v-for="button in visibleButtons"
             :key="button.key"
             class="btn btn-shortcut"
-            :class="{ 'btn-hilite': button.highlight, 'sos-pulsing': button.key === 'help' && isAlertPlaying }" 
-            @click="$_handleShortcut(button, index)"
+            :class="{ 'btn-hilite': button.highlight, 'sos-pulsing': button.key === 'help' && isAlertPlaying }"
+            @click="$_handleShortcut(button, button._index)"
         >
             <svg class="icon icon-l">
                 <use :xlink:href="'img/svgdefs.svg#' + button.icon"></use>
@@ -35,7 +35,8 @@ export default {
             settings: {
                 help_mode: 'speak',
                 alert_repetitions: 3,
-                alert_interval: 15
+                alert_interval: 15,
+                button_visibility: {}
             }
         };
     },
@@ -115,6 +116,16 @@ export default {
                     highlight: true
                 }
             ];
+        },
+        // Buttons shown in the footer, filtered by the user's visibility settings.
+        // Each entry keeps its ORIGINAL array index as `_index` so the `bid`
+        // sent to the backend (used for usage logging) stays stable regardless
+        // of which buttons are hidden.
+        visibleButtons() {
+            const visibility = this.settings.button_visibility || {};
+            return this.shortcutButtons
+                .map((button, index) => ({ ...button, _index: index }))
+                .filter(button => visibility[button.key] !== false);
         }
     },
     methods: {
@@ -132,7 +143,8 @@ export default {
                     this.settings = {
                         help_mode: data.help_mode || 'speak',
                         alert_repetitions: data.alert_repetitions || 3,
-                        alert_interval: data.alert_interval || 15
+                        alert_interval: data.alert_interval || 15,
+                        button_visibility: data.button_visibility || {}
                     };
                     console.log('Loaded shortcuts settings:', this.settings);
                 }

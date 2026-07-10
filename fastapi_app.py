@@ -22,6 +22,7 @@ from plugin_manager import PluginManager
 from settings_manager import SettingsManager
 from context_manager import context_manager
 from data_manager import DataManager
+from version import __version__ as IGOOR_VERSION
 
 
 class UpdateSettingsPayload(BaseModel):
@@ -47,6 +48,19 @@ def _file_response(path: Path, media_type: Optional[str] = None):
     if not path.exists() or not path.is_file():
         raise HTTPException(status_code=404, detail=f"File not found: {path}")
     return FileResponse(path, media_type=media_type)
+
+
+def _serve_index_html() -> HTMLResponse:
+    """Serve index.html with the current app version injected for cache-busting.
+
+    {{VERSION}} tokens in asset URLs are replaced with the IGOOR version, and
+    the document is sent with Cache-Control: no-store so Edge WebView2 always
+    re-fetches it — guaranteeing the latest ?v= tags reach the client after an
+    upgrade.
+    """
+    path = Path(resource_path("index.html"))
+    content = path.read_text(encoding="utf-8").replace("{{VERSION}}", IGOOR_VERSION)
+    return HTMLResponse(content, headers={"Cache-Control": "no-store"})
 
 
 def create_app() -> FastAPI:
@@ -231,15 +245,13 @@ def create_app() -> FastAPI:
 
     @app.get("/index.html")
     async def get_index_html():
-        path = Path(resource_path("index.html"))
-        logger.debug(f"Serving index.html from {path}")
-        return _file_response(path, media_type="text/html; charset=utf-8")
+        logger.debug("Serving index.html with version cache-busting")
+        return _serve_index_html()
 
     @app.get("/")
     async def root():
-        path = Path(resource_path("index.html"))
-        logger.debug("Serving root index")
-        return HTMLResponse(path.read_text(encoding="utf-8"))
+        logger.debug("Serving root index with version cache-busting")
+        return _serve_index_html()
 
     @app.get("/health")
     async def healthcheck():

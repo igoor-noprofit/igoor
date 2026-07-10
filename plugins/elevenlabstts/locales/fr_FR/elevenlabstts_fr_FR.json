@@ -30,6 +30,7 @@
     "Style": "Style",
     "Speed": "Vitesse",
     "Latency Optimization": "Optimisation de la latence",
+    "Not available for Eleven v3": "Indisponible avec Eleven v3",
     "Best Quality": "Meilleure qualité",
     "Quality": "Qualité",
     "Balanced": "Équilibré",
@@ -38,5 +39,13 @@
     "Enhance speaker presence": "Améliorer la présence du locuteur",
     "Hello, how are you doing? I feel better today!": "Bonjour, comment allez-vous ? Je me sens mieux aujourd'hui !",
     "Enable Logging": "Activer les logs",
-    "Failed to validate API key. Please check your key and try again.": "Échec de la validation de la clé API. Veuillez vérifier votre clé et réessayer."
+    "Failed to validate API key. Please check your key and try again.": "Échec de la validation de la clé API. Veuillez vérifier votre clé et réessayer.",
+    "Use recorded voice": "Utiliser la voix enregistrée",
+    "Upload audio": "Importer un audio",
+    "Voice cloning": "Clonage de voix",
+    "Cloning...": "Clonage...",
+    "Voice cloned successfully": "Voix clonée avec succès",
+    "Failed to clone voice": "Échec du clonage de la voix",
+    "No recorded voice available": "Aucune voix enregistrée disponible",
+    "Use your biorecorder voice samples to clone your voice": "Utiliser vos enregistrements vocaux du biorecorder pour cloner votre voix"
 }

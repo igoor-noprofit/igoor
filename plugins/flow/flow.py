@@ -22,7 +22,26 @@ class Flow(Baseplugin):
         self.global_settings_updated()
         self.is_loaded = True
     
-    @hookimpl 
+    def _build_prompt_templates(self):
+        """Pre-build PromptManagers with static vars filled in (called at init and on settings change)."""
+        reply_language = self.global_settings.get_reply_language()
+        
+        # Pre-fill system prompt for flow (contains {reply_language})
+        sys_template = self.prompts.get("flow", {}).get("system", "")
+        self._flow_system_prompt = sys_template.replace("{reply_language}", reply_language)
+        
+        # Pre-fill user prompt template with static vars
+        self._flow_usr_pm = PromptManager(template=self.prompts.get("flow", {}).get("usr"))
+        self._flow_usr_pm.partial(
+            bio_name=self.bio_name,
+            reply_language=reply_language,
+            bio_style=self.bio_style,
+            bio_style_weight=self.bio_style_weight,
+            health_state=self.health_state,
+            bio_context=self.get_bio_context(),
+        )
+    
+    @hookimpl
     def global_settings_updated(self):
         self.settings = self.get_my_settings()
         bio = self.global_settings.get_bio()
@@ -30,6 +49,30 @@ class Flow(Baseplugin):
         self.bio_style=bio.get("style")
         self.bio_style_weight=bio.get("style_weight")
         self.health_state=bio.get("health_state")
+        self._build_prompt_templates()
+    
+    @hookimpl
+    def bio_context_updated(self):
+        """Reload prompt templates when biorecorder bio.md has been created or updated."""
+        self.logger.info("Flow: bio_context_updated — rebuilding prompt templates")
+        self._build_prompt_templates()
+
+    @hookimpl
+    def warmup(self):
+        """Boot warmup: pre-warm the LLM client/cache with the real flow prompt.
+        Sends the full filled user prompt (static fields filled, dynamic fields blanked)
+        so the largest stable prefix is cached."""
+        if not (getattr(self, "_flow_system_prompt", None) and getattr(self, "_flow_usr_pm", None)):
+            return
+        try:
+            user_prompt = self._flow_usr_pm.create_prompt(
+                static_context="", long_term="", short_term="",
+                dynamic_context={}, conversation="", last_conversations=""
+            )
+            self._warmup_llm(self._flow_system_prompt, user_prompt=user_prompt)
+        except Exception as e:
+            self.logger.warning(f"Flow warmup render failed, falling back to system-only: {e}")
+            self._warmup_llm(self._flow_system_prompt)
     
     @hookimpl
     def startup(self):
@@ -67,7 +110,7 @@ class Flow(Baseplugin):
                 if  action == "speak":
                     msg = message_dict.get("msg", "")
                     # Trigger hook in plugin manager with msg
-                    asyncio.create_task(self.pm.trigger_hook(hook_name="speak", message=msg))
+                    asyncio.create_task(self.pm.trigger_hook(hook_name="speak", message=msg, skip_asr=False))
                     asyncio.create_task(self.pm.trigger_hook(hook_name="add_msg_to_conversation", msg=msg, author="master", msg_input="flow"))
                 elif action == "abandon_conversation":
                     asyncio.create_task(self.pm.trigger_hook(hook_name="abandon_conversation", cause="abandoned"))
@@ -101,6 +144,31 @@ class Flow(Baseplugin):
         dynamic_context = self.get_dynamic_context().copy()
         # Remove the conversation attribute from dynamic context
         conversation = dynamic_context.get("conversation")
+
+        # SEMANTIC VAD GATE: Check if speaker has finished speaking
+        always_generate = False
+        asrjs_continuous = False
+        asrjs_configs = await self.pm.trigger_hook(hook_name="get_asrjs_config")
+        if asrjs_configs and asrjs_configs[0]:
+            always_generate = asrjs_configs[0].get("always_generate", False)
+            asrjs_continuous = asrjs_configs[0].get("continuous", False)
+        # Fall back to global onboarding settings for semantic model
+        ai = self.global_settings.get_nested(["plugins", "onboarding", "ai"], default={})
+        flow_semantic_model = self.settings.get("semantic_model_name")
+        if flow_semantic_model:
+            semantic_model = flow_semantic_model
+        else:
+            semantic_model = ai.get("semantic_model_name") or ai.get("model_name")
+        
+        if semantic_model and not always_generate and asrjs_continuous:
+            vad_result = await self.semantic_vad(conversation)
+            if vad_result == "nok":
+                print("Semantic VAD: Speaker has not finished speaking")
+                self.send_message_to_frontend(json.dumps({
+                    "action": "listening",
+                    "status": "waiting_for_more"
+                }))
+                return
         
         # Check if preflow is enabled
         preflow_enabled = self.settings.get("preflow_enabled", False)
@@ -161,27 +229,34 @@ class Flow(Baseplugin):
         last_conversations_result = await self.pm.trigger_hook(hook_name="get_last_conversations")
         last_conversations = last_conversations_result[0] if last_conversations_result and last_conversations_result[0] else ""
         
-        system_prompt = self.prompts.get("flow", {}).get("system")
-        pm = PromptManager(template=self.prompts.get("flow", {}).get("usr"))
+        system_prompt = self._flow_system_prompt
         
-        # Pass the context to the prompt
-        prompt = pm.create_prompt(
-            bio_name=self.bio_name,
-            bio_style=self.bio_style,
-            bio_style_weight=self.bio_style_weight,
-            health_state=self.health_state,
-            static_context='\n'.join(actual_filtered_results.get(0, [])), # Use actual_filtered_results
-            long_term='\n'.join(actual_filtered_results.get(1, [])),  # Use actual_filtered_results
-            short_term='\n'.join(actual_filtered_results.get(2, [])), # Use actual_filtered_results
+        # Only pass dynamic vars (static ones are pre-filled via partial)
+        prompt = self._flow_usr_pm.create_prompt(
+            static_context='\n'.join(actual_filtered_results.get(0, [])),
+            long_term='\n'.join(actual_filtered_results.get(1, [])),
+            short_term='\n'.join(actual_filtered_results.get(2, [])),
             dynamic_context=dynamic_context, 
             conversation=conversation,
-            log_folder=self.plugin_folder,
             last_conversations=last_conversations
         )
         
         print(f"FINAL PROMPT : {prompt}")
         try:
-            llm = LLMManager(self.settings.get("provider"), self.settings.get("api_key"), self.settings.get("model_name"), temperature=self.settings.get("temperature",1))
+            # Fall back to global onboarding settings
+            ai = self.global_settings.get_nested(["plugins", "onboarding", "ai"], default={})
+            
+            # Use global provider and api_key (flow settings are empty by default)
+            provider = ai.get("provider")
+            api_key = ai.get("api_key")
+            
+            # Use global model_name (flow settings are empty by default)
+            model_name = ai.get("model_name")
+            
+            # Use global temperature (or default if not set)
+            temperature = self.settings.get("temperature") if self.settings.get("temperature") is not None else ai.get("temperature", 1)
+            
+            llm = LLMManager(provider, api_key, model_name, temperature=temperature)
             llm.set_json_schema(Answers)
             answers = llm.invoke(system_prompt,prompt)
             has_error, answers = self.handle_llm_error(answers)
@@ -210,9 +285,25 @@ class Flow(Baseplugin):
         prompt = pm.create_prompt(datetime=formatted_datetime, conversation=conversation)       
         print(f"FINAL PROMPT : {prompt}")
         try:
-            model_name = self.settings.get("preflow_model_name") or self.settings.get("model_name")
-            model_temperature = self.settings.get("preflow_temperature") or self.settings.get("temperature",0.5)
-            llm = LLMManager(self.settings.get("provider"), self.settings.get("api_key"), model_name, temperature=model_temperature)
+            # Fall back to global onboarding settings
+            ai = self.global_settings.get_nested(["plugins", "onboarding", "ai"], default={})
+            
+            # Check model settings (preflow-specific first, then general)
+            flow_preflow_model = self.settings.get("preflow_model_name")
+            if flow_preflow_model:
+                model_name = flow_preflow_model
+            else:
+                model_name = ai.get("model_name")
+            
+            # Check temperature settings (preflow-specific first, then general)
+            flow_preflow_temp = self.settings.get("preflow_temperature")
+            model_temperature = flow_preflow_temp if flow_preflow_temp is not None else ai.get("temperature", 0.5)
+            
+            # Use global provider and api_key
+            provider = ai.get("provider")
+            api_key = ai.get("api_key")
+            
+            llm = LLMManager(provider, api_key, model_name, temperature=model_temperature)
             llm.set_json_schema(ConversationModel)
             preflow = llm.invoke(system_prompt,prompt)
             has_error, preflow = self.handle_llm_error(preflow)
@@ -230,6 +321,60 @@ class Flow(Baseplugin):
             print(f"Unexpected error in preflow: {str(e)}")
             self.send_error_to_frontend("llm_error",e)
         return False
+    
+    async def semantic_vad(self, conversation: str) -> str:
+        """Lightweight LLM call to check if speaker has finished talking. Returns 'ok' or 'nok'."""
+        start_time = time.time()
+        system_prompt = self.prompts.get("semantic_vad", {}).get("system")
+        if not system_prompt:
+            print("Semantic VAD: No prompt found, defaulting to 'ok'")
+            return "ok"
+        try:
+            # Fall back to onboarding settings if flow settings are empty
+            ai = self.global_settings.get_nested(["plugins", "onboarding", "ai"], default={})
+            
+            # Check if flow-specific semantic_model is set (rare override case)
+            flow_semantic_model = self.settings.get("semantic_model_name")
+            if flow_semantic_model:
+                model_name = flow_semantic_model
+            else:
+                # Fallback to global onboarding settings
+                # Check semantic_model_name first (for semantic VAD), then model_name (general)
+                model_name = ai.get("semantic_model_name") or ai.get("model_name")
+            provider = ai.get("provider")
+            api_key = ai.get("api_key")
+            
+            # Validate provider and model_name before proceeding
+            if not provider:
+                print("Semantic VAD: No provider configured, defaulting to 'ok'")
+                return "ok"
+            if not model_name:
+                print("Semantic VAD: No model configured, defaulting to 'ok'")
+                return "ok"
+            
+            # Use LLMManager for all providers (including Groq) for observability
+            print(f"Semantic VAD: Calling LLM with model '{model_name}' for conversation: {conversation[:100]}...")
+            llm = LLMManager(provider, api_key, model_name, temperature=0)
+            llm.set_json_schema(SemanticVADResponse)
+            result = llm.invoke(system_prompt, f"Conversation:\n{conversation}")
+            
+            has_error, result = self.handle_llm_error(result)
+            if has_error:
+                print(f"Semantic VAD: LLM error, defaulting to 'ok'")
+                return "ok"
+            
+            # Extract result from schema
+            if isinstance(result, SemanticVADResponse):
+                text = result.result.strip().lower()
+            else:
+                text = str(result).strip().lower()
+            
+            end_time = time.time()
+            print(f"Semantic VAD result: '{text}' (took {end_time - start_time:.2f}s)")
+            return "nok" if "nok" in text else "ok"
+        except Exception as e:
+            print(f"Semantic VAD error: {str(e)}, defaulting to 'ok'")
+            return "ok"
         
     def get_dynamic_context(self):
         return context_manager.get_context()
@@ -245,6 +390,10 @@ class Flow(Baseplugin):
         ]
         for query in queries:
             asyncio.run(self.asr_msg(query))
+
+class SemanticVADResponse(BaseModel):
+    model_config = {"extra": "forbid"}  # Required for Groq strict mode
+    result: str = Field(description="'ok' if speaker has finished, 'nok' if still speaking")
 
 class Answers(BaseModel):
     model_config = {"extra": "forbid"}  # Required for Groq strict mode

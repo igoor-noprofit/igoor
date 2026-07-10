@@ -1,5 +1,15 @@
 {
     "help_mode": "sound",
     "alert_repetitions": 3,
-    "alert_interval": 15
+    "alert_interval": 15,
+    "button_visibility": {
+        "drink": true,
+        "toilet": true,
+        "parole": true,
+        "yes": true,
+        "no": true,
+        "thanks": true,
+        "repeat": true,
+        "help": true
+    }
 }

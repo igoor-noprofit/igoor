@@ -5,9 +5,17 @@ from datetime import datetime
 import os
 import json
 import platform
+import threading
 from logging.handlers import TimedRotatingFileHandler
 
 from version import __appname__
+
+# Serializes logger setup across threads. Without this, concurrent calls to
+# setup_logger/setup_jsonl_logger (e.g. several LLMManager instances created in
+# parallel during boot warmup) can all pass the `if not logger.handlers` check
+# before any adds a handler, attaching duplicate file handlers to the shared
+# logger — which then writes every record N times.
+_logger_setup_lock = threading.Lock()
 
 def resource_path(relative_path):
     """ Get absolute path to resource, works for dev and for PyInstaller """
@@ -51,54 +59,57 @@ def setup_logger(name, appdata_folder, separate_plugin_log=False):
     """
     # Create logger
     logger = logging.getLogger(name)
-    
-    # Check if handlers already exist for this logger to prevent duplicates
-    if not logger.handlers:
-        logger.setLevel(logging.DEBUG)
-        
-        # Create logs directory if it doesn't exist
-        logs_dir = Path(appdata_folder) / 'logs'
-        logs_dir.mkdir(parents=True, exist_ok=True)
-        
-        # Create handlers
-        console_handler = logging.StreamHandler(sys.stdout)
-        main_file_handler = logging.FileHandler(
-            logs_dir / f'igoor_{datetime.now().strftime("%Y%m%d")}.log',
-            encoding='utf-8'
-        )
-        
-        # Set levels
-        console_handler.setLevel(logging.INFO)
-        main_file_handler.setLevel(logging.DEBUG)
-        
-        # Create formatters and add it to handlers
-        # Enhanced format with filename, line number, and function name
-        detailed_format = logging.Formatter(
-            '%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(funcName)s() - %(message)s'
-        )
-        console_handler.setFormatter(detailed_format)
-        main_file_handler.setFormatter(detailed_format)
-        
-        # Add handlers to logger
-        logger.addHandler(console_handler)
-        logger.addHandler(main_file_handler)
 
-        # If this is a plugin and separate logging is requested, add plugin-specific file handler
-        if separate_plugin_log and 'plugins.' in name:
-            plugin_name = name.split('plugins.')[-1]
-            plugin_logs_dir = Path(appdata_folder) / 'logs' / 'plugins'
-            plugin_logs_dir.mkdir(parents=True, exist_ok=True)
-            
-            plugin_file_handler = logging.FileHandler(
-                plugin_logs_dir / f'{plugin_name}_{datetime.now().strftime("%Y%m%d")}.log',
+    # Check-then-add must be atomic across threads, or concurrent setup calls
+    # attach duplicate handlers (each record then written multiple times).
+    with _logger_setup_lock:
+        # Check if handlers already exist for this logger to prevent duplicates
+        if not logger.handlers:
+            logger.setLevel(logging.DEBUG)
+
+            # Create logs directory if it doesn't exist
+            logs_dir = Path(appdata_folder) / 'logs'
+            logs_dir.mkdir(parents=True, exist_ok=True)
+
+            # Create handlers
+            console_handler = logging.StreamHandler(sys.stdout)
+            main_file_handler = logging.FileHandler(
+                logs_dir / f'igoor_{datetime.now().strftime("%Y%m%d")}.log',
                 encoding='utf-8'
             )
-            plugin_file_handler.setLevel(logging.DEBUG)
-            plugin_file_handler.setFormatter(detailed_format)
-            logger.addHandler(plugin_file_handler)
-        
-        # Prevent propagation to root logger if necessary (optional, depends on desired behavior)
-        # logger.propagate = False
+
+            # Set levels
+            console_handler.setLevel(logging.INFO)
+            main_file_handler.setLevel(logging.DEBUG)
+
+            # Create formatters and add it to handlers
+            # Enhanced format with filename, line number, and function name
+            detailed_format = logging.Formatter(
+                '%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(funcName)s() - %(message)s'
+            )
+            console_handler.setFormatter(detailed_format)
+            main_file_handler.setFormatter(detailed_format)
+
+            # Add handlers to logger
+            logger.addHandler(console_handler)
+            logger.addHandler(main_file_handler)
+
+            # If this is a plugin and separate logging is requested, add plugin-specific file handler
+            if separate_plugin_log and 'plugins.' in name:
+                plugin_name = name.split('plugins.')[-1]
+                plugin_logs_dir = Path(appdata_folder) / 'logs' / 'plugins'
+                plugin_logs_dir.mkdir(parents=True, exist_ok=True)
+
+                plugin_file_handler = logging.FileHandler(
+                    plugin_logs_dir / f'{plugin_name}_{datetime.now().strftime("%Y%m%d")}.log',
+                    encoding='utf-8'
+                )
+                plugin_file_handler.setLevel(logging.DEBUG)
+                plugin_file_handler.setFormatter(detailed_format)
+                logger.addHandler(plugin_file_handler)
+
+            # Prevent propagation to root logger if necessary (optional, depends on desired behavior)
+            # logger.propagate = False
 
     return logger
 
@@ -111,9 +122,16 @@ def setup_jsonl_logger(name, appdata_folder):
         appdata_folder (str): Path to IGOOR_FOLDER
     """
     logger = logging.getLogger(name)
-    
-    # Prevent duplicate handlers
-    if not logger.handlers:
+
+    # Fast path: already configured.
+    if logger.handlers:
+        return logger
+    # Serialize across threads so concurrent setup calls don't attach duplicate
+    # handlers (each record would otherwise be written N times).
+    _logger_setup_lock.acquire()
+    try:
+        if logger.handlers:  # re-check under the lock
+            return logger
         logger.setLevel(logging.INFO) # Log INFO level and above
         
         # Create logs directory if it doesn't exist
@@ -135,6 +153,8 @@ def setup_jsonl_logger(name, appdata_folder):
         
         # Prevent propagation to avoid duplicate logs in the main logger
         logger.propagate = False
+    finally:
+        _logger_setup_lock.release()
 
     return logger
 
@@ -148,6 +168,32 @@ def get_base_language_code(lang_code_with_region, default_lang="en"):
     if "_" in lang_code_with_region:
         return lang_code_with_region.split("_")[0]
     return lang_code_with_region
+
+# Mapping of language names to ISO 639-1 codes
+LANGUAGE_NAME_TO_CODE = {
+    "french": "fr",
+    "english": "en",
+    "italian": "it",
+    "spanish": "es",
+    "german": "de",
+    "portuguese": "pt",
+    "dutch": "nl",
+    "polish": "pl",
+    "russian": "ru",
+    "chinese": "zh",
+    "japanese": "ja",
+    "korean": "ko",
+    "arabic": "ar",
+}
+
+def language_name_to_code(language_name):
+    """
+    Convert a language name (e.g., 'Italian') to ISO 639-1 code (e.g., 'it').
+    Returns None if not found.
+    """
+    if not language_name:
+        return None
+    return LANGUAGE_NAME_TO_CODE.get(language_name.lower())
 
 def normalize_filter_by_timeframe_result(filtered_results):
     """

@@ -7,11 +7,11 @@ body {
   overflow: hidden;
   font-family: "Public Sans";
   border: 0;
-  margin: 0;
-}
+  margin: 0; 
+} 
 #apploading,
 #minimized {
-  background: @darkest;
+  background: @darkest;  
   display: flex;
   justify-content: center;
   align-items: center;
@@ -278,18 +278,28 @@ footer {
   .mic {
     text-align: center;
     &.listening,
-    &.recording {
+    &.recording,
+    &.transcribing {
       background: @green;
     }
     &.ready {
-      background: @bg_page_light;
+      background: @gray_900;
+      img {
+        opacity: 0.4;
+      }
     }
 
     &.listening {
       background: @gray_900;
       img {
-        opacity: 0.4;
+        opacity: 1;
         animation: pulse_rec 2s infinite;
+      }
+    }
+    &.non-continuous.listening {
+      img {
+        animation: none;
+        opacity: 0.4;
       }
     }
     &.recording {
@@ -298,8 +308,16 @@ footer {
         animation: pulse_rec 2s infinite;
       }
     }
+    &.transcribing {
+      img {
+        opacity: 0.4;
+      }
+    }
     &.paused {
-      background: @warning;
+      background: @gray_900;
+      img {
+        opacity: 0.4;
+      }
     }
     &.loading {
       background: #444;
@@ -395,6 +413,8 @@ footer {
   }
   label {
     display: flex;
+    align-items: center;
+    gap: 4px;
     color: @gray_100;
     margin: 20px 0 6px 0;
   }
@@ -1035,4 +1055,53 @@ button {
 .keyboard-row {
   display: flex;
   gap: 0.25rem;
+}
+
+/* Shared sliding switch (used by plugin settings, e.g. shortcuts).
+   Markup: <label class="switch"><input type="checkbox" v-model="..."><span class="slider round"></span></label> */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 60px;
+  height: 34px;
+}
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  transition: .4s;
+}
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 26px;
+  width: 26px;
+  left: 4px;
+  bottom: 4px;
+  background-color: white;
+  transition: .4s;
+}
+input:checked + .slider {
+  background-color: @accent_100;
+}
+input:focus + .slider {
+  box-shadow: 0 0 1px @accent_100;
+}
+input:checked + .slider:before {
+  transform: translateX(26px);
+}
+.slider.round {
+  border-radius: 34px;
+}
+.slider.round:before {
+  border-radius: 50%;
 }

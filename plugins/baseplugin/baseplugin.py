@@ -4,6 +4,8 @@ from status_manager import StatusManager
 from plugin_manager import hookimpl, PluginManager
 from websocket_server import websocket_server
 import os,json,asyncio
+from pathlib import Path
+from datetime import datetime
 from utils import resource_path
 from llm_manager import LLMManager
 from utils import setup_logger
@@ -61,6 +63,36 @@ class Baseplugin:
         print(f"PLUGIN ROOT = {self._app_plugin_folder}")
     def mark_ready(self):
         self.ready = True
+
+    def mark_not_ready(self):
+        """Mark this plugin as not-ready (e.g. while reloading a model) and re-arm
+        the app boot-progress bar so it re-appears with this plugin listed as
+        not-ready. The companion mark_ready() (plus the running monitor) hides the
+        bar again once the plugin is ready."""
+        self.ready = False
+        if self.pm and hasattr(self.pm, "request_boot_progress_update"):
+            try:
+                self.pm.request_boot_progress_update()
+            except Exception as e:
+                self.logger.warning(f"Could not notify boot progress of not-ready: {e}")
+
+    def _warmup_llm(self, system_prompt, user_prompt="ready", retries=1):
+        """Make one throwaway LLM invoke to pre-warm the client connection/model-load
+        and populate the provider's prefix-cache so the first real request is fast.
+        Pass the plugin's real filled user prompt via `user_prompt` to cache the
+        largest stable prompt prefix (system + static user fields). Best-effort:
+        never raises. Called from a plugin's warmup() hookimpl at boot."""
+        try:
+            ai = self.settings_manager.get_nested(["plugins", "onboarding", "ai"], default={})
+            # Nothing to warm if the LLM isn't configured (e.g. offline / unconfigured)
+            if not (ai.get("provider") and ai.get("api_key") and ai.get("model_name")):
+                self.logger.info(f"Warmup skipped for {self.plugin_name}: LLM not configured.")
+                return
+            llm = LLMManager(ai.get("provider"), ai.get("api_key"), ai.get("model_name"))
+            llm.invoke(system_prompt, user_prompt, retries=retries)
+            self.logger.info(f"Warmup OK: {self.plugin_name}")
+        except Exception as e:
+            self.logger.warning(f"Warmup failed for {getattr(self, 'plugin_name', '?')}: {e}")
         
     @hookimpl
     def get_frontend_components(self):
@@ -83,10 +115,14 @@ class Baseplugin:
         translations_path = os.path.join(self._app_plugin_folder, 'locales', self.lang, self.plugin_name + "_" + self.lang + ".json")
         return self.load_translation_file(translations_path)
     
-    # Load prompts from a YAML file
+    # Load prompts from a YAML file (unified at plugin root, with locale fallback)
     def get_my_prompts(self) -> dict:
         import yaml
-        prompts_path = os.path.join(self._app_plugin_folder, 'locales', self.lang, 'prompts.yaml')
+        # Primary: unified prompts at plugin root
+        prompts_path = os.path.join(self._app_plugin_folder, 'prompts.yaml')
+        if not os.path.exists(prompts_path):
+            # Fallback: legacy locale-specific prompts
+            prompts_path = os.path.join(self._app_plugin_folder, 'locales', self.lang, 'prompts.yaml')
         try:
             with open(prompts_path, 'r', encoding='utf-8') as f:
                 return yaml.safe_load(f) or {}
@@ -96,7 +132,25 @@ class Baseplugin:
         except Exception as e:
             self.logger.error(f"Error loading prompts from {prompts_path}: {e}")
             return {}
-    
+
+    def get_bio_context(self) -> str:
+        """Load biorecorder bio.md and return a formatted context string for LLM prompts.
+        Returns an empty string if bio.md does not exist (plugin is optional)."""
+        bio_path = Path(self.appdata_path, self.app_name, 'plugins', 'biorecorder', 'bio.md')
+        if not bio_path.exists():
+            return ""
+        try:
+            content = bio_path.read_text(encoding='utf-8').strip()
+            mtime = datetime.fromtimestamp(bio_path.stat().st_mtime)
+            formatted_date = mtime.strftime("%Y-%m-%d %H:%M")
+            return (
+                f"Biographical information edited by the user or caregiver, "
+                f"last updated {formatted_date}:\n\n{content}"
+            )
+        except Exception as e:
+            self.logger.warning(f"Could not load bio context: {e}")
+            return ""
+
     def load_translation_file(self,translation_file_path):
         if not os.path.exists(translation_file_path):
             self.logger.warning(f"Translation file not found: {translation_file_path}")
@@ -423,3 +477,114 @@ class Baseplugin:
         self.logger.info(f"Plugin requires DB: {self._plugin_metadata.get('requires_db', False)}")
         self.logger.info(f"Tables defined: {list(tables.keys())}")
         return True
+
+    # ── Translation helpers ────────────────────────────────────────────────────
+
+    def _load_translation_prompt(self):
+        """Load translation prompt from translator plugin's prompts.yaml"""
+        import yaml
+        try:
+            prompts_path = resource_path(os.path.join('plugins', 'translator', 'prompts.yaml'))
+            with open(prompts_path, 'r', encoding='utf-8') as f:
+                prompts = yaml.safe_load(f)
+            return prompts.get('translate', {})
+        except Exception as e:
+            self.logger.warning(f"Could not load translation prompts, using defaults: {e}")
+            return {
+                "system": "You are a translator. Translate the following text from {source_language} to {target_language}.\nRULES:\n- Output ONLY the translated text.\n- No quotes, no explanation, no extra text.\n- PRESERVE THE REGISTER: Match the formality level of the source in the target language.\n- Keep it natural and colloquial.\n{conversation_context}"
+            }
+
+    def _translate_text_sync(self, text, target_language, source_language=""):
+        """Translate *text* to *target_language* via LLM.
+        Synchronous — meant to be called via asyncio.to_thread().
+        Always returns a string: the translation on success, the original on failure.
+        """
+        from context_manager import context_manager
+        try:
+            sm = self.settings_manager
+            ai = sm.get_nested(["plugins", "onboarding", "ai"], default={})
+            translator_settings = sm.get_plugin_settings("translator")
+            # Allow a dedicated fast model for translation (no reasoning needed)
+            model_name = translator_settings.get("translation_model_name") or ai.get("model_name")
+
+            llm = LLMManager(
+                ai.get("provider"),
+                ai.get("api_key"),
+                model_name,
+                temperature=0,
+            )
+
+            # Include conversation for context-aware translation
+            conversation = context_manager.get_context().get("conversation", "")
+            conversation_ctx = ""
+            if conversation:
+                conversation_ctx = (
+                    "\n\nConversation context (for reference only — do NOT translate "
+                    "this, use it only to understand context and tone):\n" + conversation
+                )
+
+            # Get user bio for gender-aware translation
+            bio = sm.get_bio()
+            bio_name = bio.get("name", "the user")
+            health_state = bio.get("health_state", "")
+            health_ctx = f"Health context: {health_state}" if health_state else ""
+
+            # Load prompt from translator plugin's prompts.yaml
+            prompt_template = self._load_translation_prompt()
+            system_prompt = prompt_template.get("system", "").format(
+                target_language=target_language,
+                source_language=source_language,
+                conversation_context=conversation_ctx,
+                bio_name=bio_name,
+                health_state=health_ctx
+            )
+
+            result = llm.invoke(system_prompt, text)
+            translated = result.content if hasattr(result, "content") else str(result)
+            return translated.strip() if translated else text
+        except Exception as e:
+            self.logger.error(f"Translation failed, using original text: {e}")
+            return text
+
+    async def translate_for_interlocutor(self, text, direction="outgoing"):
+        """Translate *text* if the translator plugin is active and configured.
+
+        direction:
+            'outgoing' — patient's language → interlocutor's language (pre-TTS)
+            'incoming' — interlocutor's language → patient's language (post-ASR)
+
+        Returns the original text immediately (zero cost) when:
+        - translator plugin is not activated / not configured
+        - the relevant toggle (translate_incoming / translate_outgoing) is off
+        - translation fails (fail-safe)
+        """
+        if not text or not text.strip():
+            return text
+
+        if self.pm and hasattr(self.pm, 'is_active') and not self.pm.is_active("translator"):
+            return text
+
+        sm = self.settings_manager
+        translator_settings = sm.get_plugin_settings("translator")
+        self.logger.info(f"[TRANSLATE] direction={direction}, settings={translator_settings}")
+
+        target_lang = translator_settings.get("interlocutor_language", "")
+        if not target_lang:
+            self.logger.info(f"[TRANSLATE] No interlocutor_language set, returning original text")
+            return text  # Plugin inactive or not configured — immediate return
+
+        toggle_key = "translate_outgoing" if direction == "outgoing" else "translate_incoming"
+        if not translator_settings.get(toggle_key, False):
+            self.logger.info(f"[TRANSLATE] {toggle_key} is False, returning original text")
+            return text
+
+        # Determine which language to translate into
+        if direction == "incoming":
+            target_language = sm.get_reply_language()  # patient's language e.g. "Italian"
+            source_language = target_lang              # interlocutor's language e.g. "French"
+        else:
+            target_language = target_lang              # interlocutor's language e.g. "French"
+            source_language = sm.get_reply_language()  # patient's language e.g. "Italian"
+
+        self.logger.info(f"[TRANSLATE] Translating from {source_language} to {target_language}: {text}")
+        return await asyncio.to_thread(self._translate_text_sync, text, target_language, source_language)

@@ -54,6 +54,11 @@
                                         <span class="shortcut-icon">{{ shortcut.icon }}</span>
                                         <span class="shortcut-label">{{ t(shortcut.label) }}</span>
                                     </button>
+                                    <button v-if="categoryItem.category === 'Speech Recognition'"
+                                            class="shortcut-item btn btn-primary"
+                                            @click="openWindowsMicSettings">
+                                        <span class="shortcut-label">{{ t("Open Windows microphone settings") }}</span>
+                                    </button>
                                 </div>
                             </div>
                             <div class="dashboard-card">
@@ -81,7 +86,6 @@
                                     </button>
                                 </div>
                             </div>
-                            
                         </div>
                     </div>
 
@@ -111,6 +115,7 @@
                                 <select v-model="prefs.lang">
                                     <option value="fr_FR">{{ t("French") }}</option>
                                     <option value="en_EN">{{ t("English") }}</option>
+                                    <option value="it_IT">{{ t("Italian") }}</option>
                                 </select>
                             </div>
                             <!--div>
@@ -125,7 +130,7 @@
                                 <label>{{ t("Locale") }}</label><input type="text" v-model="prefs.locale" disabled>
                             </div>
                             <div>
-                                <label>{{ t("Idle threshold (n. of seconds before the user is considered idle)") }}"</label><input
+                                <label>{{ t("Idle threshold (n. of seconds before the user is considered idle)") }}</label><input
                                     type="number" v-model="prefs.idle_threshold" min="60" max="6000" step="100">
                             </div>
                         </div>
@@ -135,10 +140,20 @@
                             <div class="ai left">
                                 <div>
                                     <label>{{ t("Provider") }}</label>
-                                    <select v-model="ai.provider">
+                                    <select v-model="ai.provider" @change="onProviderChange">
                                         <option value="groq">Groq</option>
-                                        <!--option value="openai">OpenAI</option-->
+                                        <option value="cerebras">Cerebras</option>
+                                        <option value="mistral">Mistral</option>
+                                        <!-- <option value="openai">OpenAI</option>
+                                        <option value="ollama">Ollama (Local)</option>
+                                        <option value="ollama-cloud">Ollama Cloud</option> -->
+                                        <option value="custom">Custom (OpenAI-compatible)</option>
                                     </select>
+                                </div>
+                                <div v-if="showBaseUrl">
+                                    <label>{{ t("Base URL") }}</label>
+                                    <input type="text" v-model="ai.base_url" :placeholder="baseUrlPlaceholder" />
+                                    <p v-if="ai.provider === 'custom'">{{ t("Enter the OpenAI-compatible API endpoint URL") }}</p>
                                 </div>
                                 <div>
                                     <label class="req">{{ t("API Key") }}</label>
@@ -153,21 +168,51 @@
                                         <span v-if="apiKeyValid" class="valid-icon">✓</span>
                                     </div>
                                     <p v-if="apiKeyError" class="error-message">{{ apiKeyErrorMessage }}</p>
-                                    <p>{{ t("Groq is our default provider:") }} <br><a class="extlink"
-                                            href="https://console.groq.com/login" target="_blank">{{ t("To obtain a FREE api key sign up here") }}</a>
-                                        <br><a class="extlink" href="https://groq.com/privacy-policy/" target="_blank">{{ t("Our default provider privacy policy") }}</a>
+                                    <p v-if="ai.provider === 'groq'">
+                                        {{ t("Groq is our default provider:") }}<br>
+                                        <a class="extlink" href="https://console.groq.com/login" target="_blank">{{ t("To obtain a FREE api key sign up here") }}</a><br>
+                                        <a class="extlink" href="https://groq.com/privacy-policy/" target="_blank">{{ t("Provider privacy policy") }}</a>
+                                    </p>
+                                    <p v-else-if="ai.provider === 'cerebras'">
+                                        {{ t("Cerebras offers fast inference:") }}<br>
+                                        <a class="extlink" href="https://cloud.cerebras.ai" target="_blank">{{ t("Get your API key at Cerebras Cloud") }}</a><br>
+                                        <a class="extlink" href="https://www.cerebras.ai/privacy-policy" target="_blank">{{ t("Provider privacy policy") }}</a>
+                                    </p>
+                                    <p v-else-if="ai.provider === 'together'">
+                                        {{ t("Together AI offers many open-source models:") }}<br>
+                                        <a class="extlink" href="https://api.together.xyz" target="_blank">{{ t("Get your API key") }}</a><br>
+                                        <a class="extlink" href="https://www.together.ai/privacy" target="_blank">{{ t("Provider privacy policy") }}</a>
+                                    </p>
+                                    <p v-else-if="ai.provider === 'mistral'">
+                                        {{ t("Mistral AI:") }}<br>
+                                        <a class="extlink" href="https://console.mistral.ai" target="_blank">{{ t("Get your API key at Mistral Console") }}</a><br>
+                                        <a class="extlink" href="https://legal.mistral.ai/terms/privacy-policy" target="_blank">{{ t("Provider privacy policy") }}</a>
+                                    </p>
+                                    <p v-else-if="ai.provider === 'openai'">
+                                        {{ t("OpenAI:") }}<br>
+                                        <a class="extlink" href="https://platform.openai.com/api-keys" target="_blank">{{ t("Get your API key at OpenAI Platform") }}</a><br>
+                                        <a class="extlink" href="https://openai.com/privacy" target="_blank">{{ t("Provider privacy policy") }}</a>
+                                    </p>
+                                    <p v-else-if="ai.provider === 'ollama'">
+                                        {{ t("Ollama runs locally on your machine:") }}<br>
+                                        <a class="extlink" href="https://ollama.ai" target="_blank">{{ t("Download Ollama") }}</a><br>
+                                        {{ t("Make sure Ollama is running before validating") }}
+                                    </p>
+                                    <p v-else-if="ai.provider === 'custom'">
+                                        {{ t("Enter your OpenAI-compatible API endpoint above") }}
                                     </p>
                                 </div>
                             </div>
                             <div class="ai right">
                                 <div>
                                     <label>{{ t("Model Name") }}</label>
-                                    <select v-model="ai.model_name">
-                                        <option value="llama-3.3-70b-versatile">Llama 3.3-70B</option>
-                                        <option value="openai/gpt-oss-120b">OpenAI OSS-GPT-120B</option>
-                                        <option value="openai/gpt-oss-20b">OpenAI OSS-GPT-20B</option>
-                                        <option value="meta-llama/llama-4-maverick-17b-128e-instruct">Llama 4-17b-128e (preview)</option>
-                                        <option value="meta-llama/llama-4-scout-17b-16e-instruct">Llama 4-17b-16e (preview)</option>
+                                    <!-- Text input for custom provider, dropdown for others -->
+                                    <input v-if="ai.provider === 'custom'" type="text" v-model="ai.model_name"
+                                        :placeholder="t('Enter model name')" />
+                                    <select v-else v-model="ai.model_name">
+                                        <option v-for="model in providerModels" :key="model.value" :value="model.value">
+                                            {{ model.label }}
+                                        </option>
                                     </select>
                                 </div>
                                 <div>
@@ -180,13 +225,23 @@
                                     </div>
                                 </div>
                                 <div v-if="supportsReasoning">
-                                    <label>{{ t("Reasoning effort") }}</label>
+                                    <label>{{ t("Reasoning effort") }}
+                                        <HelpPopover :text="t('Higher reasoning means slower, more expensive, but usually more intelligent responses.')" :t="t" :lang="lang"/>
+                                    </label>
                                     <select v-model="ai.reasoning_effort">
                                         <option value="low">{{ t("Low") }}</option>
                                         <option value="medium">{{ t("Medium") }}</option>
                                         <option value="high">{{ t("High") }}</option>
                                     </select>
-                                    <p>{{ t("Higher reasoning means slower, more expensive, but usually more intelligent responses.") }}</p>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 12px;">
+                                    <label class="switch" style="margin: 0;">
+                                        <input type="checkbox" v-model="ai.warmup_enabled" />
+                                        <span class="slider round"></span>
+                                    </label>
+                                    <label style="margin: 0;">{{ t("Warm up AI at startup") }}
+                                        <HelpPopover :text="t('Sends a small request to each AI plugin when IGOOR starts, so the first real response is faster. Uses a few tokens per boot.')" :t="t" :lang="lang"/>
+                                    </label>
                                 </div>
                             </div>
                         </div>
@@ -295,10 +350,14 @@
 <script>
 import BasePluginComponent from '/js/BasePluginComponent.js';
 import { ensureBackendApi } from '/js/ensureBackendApi.js';
+import HelpPopover from '/js/HelpPopover.vue';
 
 export default {
     name: "onboarding",
     mixins: [BasePluginComponent], // Use the mixin
+    components: {
+        HelpPopover
+    },
     data() {
         return {
             activeTab: 'core', // Initialize with a default category to prevent empty state
@@ -320,8 +379,10 @@ export default {
                 provider: "",
                 api_key: "",
                 model_name: "",
+                base_url: "",
                 temperature: "",
-                reasoning_effort: ""
+                reasoning_effort: "",
+                warmup_enabled: true
             },
             isSaving: false,
             saveStatus: null,
@@ -347,18 +408,21 @@ export default {
                     { label: "Manage quick access buttons", plugin: "shortcuts", icon: "" },
                 ],
                 "Context": [
+                    { label: "Record biography", plugin: "biorecorder", icon: "" },
                     { label: "Manage documents", plugin: "rag", icon: "" },
                     { label: "Manage weather", plugin: "meteo", icon: "" }
                 ],
                 "Speech Recognition": [
                     { label: "Configure recognition", plugin: "asrwhisper", icon: "" },
                     { label: "Configure recognition", plugin: "asrvosk", icon: "" },
-                    { label: "Configure recognition", plugin: "asrjs", icon: "" }
+                    { label: "Configure recognition", plugin: "asrjs", icon: "" },
+                    { label: "Configure translation", plugin: "translator", icon: "" }
                 ],
                 "Vocal Synthesis": [
                     { label: "Configure ElevenLabs", plugin: "elevenlabstts", icon: "" },
                     { label: "Configure Speechify", plugin: "speechifytts", icon: "" },
-                    { label: "Configure Windows Voice", plugin: "ttsdefault", icon: "" }
+                    { label: "Configure Windows Voice", plugin: "ttsdefault", icon: "" },
+                    { label: "Configure translation", plugin: "translator", icon: "" }
                 ]
             }
         }
@@ -407,7 +471,72 @@ export default {
             return Object.keys(this.pluginData)
         },
         supportsReasoning() {
-            return ["openai/gpt-oss-120b", "openai/gpt-oss-20b"].includes(this.ai.model_name);
+            // Groq reasoning models (with openai/ prefix)
+            const groqReasoningModels = ["openai/gpt-oss-120b", "openai/gpt-oss-20b"];
+            // Cerebras reasoning models (without prefix)
+            const cerebrasReasoningModels = ["gpt-oss-120b"];
+
+            if (this.ai.provider === 'groq') {
+                return groqReasoningModels.includes(this.ai.model_name);
+            } else if (this.ai.provider === 'cerebras') {
+                return cerebrasReasoningModels.includes(this.ai.model_name);
+            }
+            return false;
+        },
+        showBaseUrl() {
+            // Show base URL only for providers that need custom endpoint configuration
+            return ['custom', 'ollama', 'ollama-cloud', 'lmstudio'].includes(this.ai.provider);
+        },
+        baseUrlPlaceholder() {
+            const placeholders = {
+                'groq': 'https://api.groq.com/openai/v1',
+                'cerebras': 'https://api.cerebras.ai/v1',
+                'together': 'https://api.together.xyz/v1',
+                'mistral': 'https://api.mistral.ai/v1',
+                'openai': '(default: api.openai.com)',
+                'ollama': 'http://localhost:11434/v1',
+                'lmstudio': 'http://localhost:1234/v1',
+                'custom': 'https://your-api-endpoint/v1'
+            };
+            return placeholders[this.ai.provider] || '';
+        },
+        providerModels() {
+            const modelsByProvider = {
+                'groq': [
+                    { value: 'openai/gpt-oss-120b', label: 'OpenAI OSS-GPT-120B' },
+                    { value: 'openai/gpt-oss-20b', label: 'OpenAI OSS-GPT-20B' }
+                ],
+                'cerebras': [
+                    { value: 'gpt-oss-120b', label: 'GPT-OSS 120B (~3000 t/s)' }
+                ],
+                'mistral': [
+                    { value: 'mistral-small-latest', label: 'Mistral Small' },
+                    { value: 'open-mistral-nemo', label: 'Mistral Nemo' },
+                    { value: 'mistral-large-latest', label: 'Mistral Large' }
+                ],
+                'openai': [
+                    { value: 'gpt-4o', label: 'GPT-4o' },
+                    { value: 'gpt-4o-mini', label: 'GPT-4o Mini' },
+                    { value: 'gpt-4-turbo', label: 'GPT-4 Turbo' },
+                    { value: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo' }
+                ],
+                'ollama': [
+                    { value: 'llama3.3:70b', label: 'Llama 3.3 70B' },
+                    { value: 'llama3.1:8b', label: 'Llama 3.1 8B' },
+                    { value: 'mistral:7b', label: 'Mistral 7B' }
+                ],
+                'ollama-cloud': [
+                    { value: 'gpt-oss:120b-cloud', label: 'GPT-OSS 120B Cloud' },
+                    { value: 'gpt-oss:20b-cloud', label: 'GPT-OSS 20B Cloud' }
+                ],
+                'lmstudio': [
+                    { value: 'local-model', label: 'Local Model (configure in LM Studio)' }
+                ],
+                'custom': [
+                    { value: 'custom-model', label: 'Custom Model (enter model name)' }
+                ]
+            };
+            return modelsByProvider[this.ai.provider] || modelsByProvider['groq'];
         },
         pluginsByCategory() {
             // Exclude plugins by name
@@ -449,7 +578,7 @@ export default {
             return Object.entries(this.filteredDashboardShortcuts)
                 .filter(([_, shortcuts]) => shortcuts.length > 0)
                 .map(([category, shortcuts]) => ({ category, shortcuts }));
-        }
+        },
     },
     watch: {
         'prefs.lang'(newLang, oldLang) {
@@ -488,6 +617,55 @@ export default {
         }
     },
     methods: {
+        async openWindowsMicSettings() {
+            // IGOOR captures from the Windows default mic; let the user manage it in the OS.
+            try {
+                await fetch('/api/plugins/onboarding/open_sound_settings', { method: 'POST' });
+            } catch (e) {
+                console.error('Could not open Windows microphone settings:', e);
+            }
+        },
+        onProviderChange() {
+            // Auto-populate base_url for known providers if empty
+            const defaultUrls = {
+                'groq': 'https://api.groq.com/openai/v1',
+                'cerebras': 'https://api.cerebras.ai/v1',
+                'mistral': 'https://api.mistral.ai/v1',
+                'ollama': 'http://localhost:11434/v1',
+                'ollama-cloud': 'https://api.ollama.com/v1',
+                'lmstudio': 'http://localhost:1234/v1'
+            };
+            if (defaultUrls[this.ai.provider]) {
+                this.ai.base_url = defaultUrls[this.ai.provider];
+            }
+
+            // Set default model and reasoning for the provider
+            const providerDefaults = {
+                'groq': { model: 'openai/gpt-oss-20b', reasoning_effort: 'low' },
+                'cerebras': { model: 'gpt-oss-120b', reasoning_effort: 'low' },
+                'mistral': { model: 'mistral-small-latest', reasoning_effort: '' },
+                'openai': { model: 'gpt-4o', reasoning_effort: '' },
+                'ollama': { model: 'llama3.1:8b', reasoning_effort: '' },
+                'ollama-cloud': { model: 'gpt-oss:120b-cloud', reasoning_effort: '' },
+                'lmstudio': { model: 'local-model', reasoning_effort: '' },
+                'custom': { model: 'custom-model', reasoning_effort: '' }
+            };
+
+            if (providerDefaults[this.ai.provider]) {
+                this.ai.model_name = providerDefaults[this.ai.provider].model;
+                this.ai.reasoning_effort = providerDefaults[this.ai.provider].reasoning_effort;
+            }
+
+            // Clear base_url when switching to custom (user must enter their own)
+            if (this.ai.provider === 'custom') {
+                this.ai.base_url = '';
+            }
+
+            // Reset validation state when changing provider
+            this.apiKeyValid = false;
+            this.apiKeyError = false;
+            this.apiKeyErrorMessage = '';
+        },
         async validateApiKey(apiKey) {
             if (!apiKey || !apiKey.trim() || !this.ai.model_name) {
                 this.apiKeyError = false;
@@ -498,8 +676,9 @@ export default {
             this.isValidating = true;
 
             try {
+                const baseUrlParam = this.ai.base_url ? `&base_url=${encodeURIComponent(this.ai.base_url)}` : '';
                 const response = await fetch(
-                    `/api/plugins/onboarding/validate_api_key?provider=${encodeURIComponent(this.ai.provider || 'groq')}&api_key=${encodeURIComponent(apiKey)}&model_name=${encodeURIComponent(this.ai.model_name)}`
+                    `/api/plugins/onboarding/validate_api_key?provider=${encodeURIComponent(this.ai.provider || 'groq')}&api_key=${encodeURIComponent(apiKey)}&model_name=${encodeURIComponent(this.ai.model_name)}${baseUrlParam}`
                 );
                 const data = await response.json();
 

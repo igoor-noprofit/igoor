@@ -2,14 +2,132 @@ from settings_manager import SettingsManager
 from plugins.baseplugin.baseplugin import Baseplugin
 from plugin_manager import hookimpl, PluginManager
 import threading
-import json,os, requests,time
+import json,os, requests,time,urllib.request
 import asyncio
 import pyaudio
 import wave
 import groq
+import numpy as np
 from typing import Optional
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from utils import setup_logger, get_base_language_code
+from pathlib import Path
+
+WAKEWORD_MODELS_DIR = os.path.join(os.path.dirname(__file__), "static", "wakeword")
+CUSTOM_WAKEWORD_DIR = "custom_wakeword"
+
+class WakewordDetector:
+    def __init__(self, model_path: str, sensitivity: float = 0.5, logger=None):
+        self.model_path = model_path
+        self.sensitivity = sensitivity
+        self.logger = logger
+        self.model = None
+        self.is_loaded = False
+        self.audio_buffer = np.array([], dtype=np.int16)  # openWakeWord requires int16
+        self.sample_rate = 16000
+        self.chunk_size = 1280  # 80ms at 16kHz
+        
+    def load_model(self):
+        try:
+            from openwakeword import Model as OpenWakeWordModel
+            if self.logger:
+                self.logger.info(f"Loading wakeword model from: {self.model_path}")
+
+            # Load custom wakeword model
+            self.model = OpenWakeWordModel(wakeword_models=[self.model_path])
+
+            self.is_loaded = True
+            if self.logger:
+                self.logger.info(f"Wakeword model loaded successfully: {self.model_path}")
+            return True
+        except ImportError as e:
+            if self.logger:
+                self.logger.error(f"openwakeword not installed: {e}")
+            return False
+        except Exception as e:
+            if self.logger:
+                self.logger.error(f"Error loading wakeword model: {e}")
+            return False
+    
+    def process_chunk(self, audio_data: bytes) -> bool:
+        if not self.is_loaded or self.model is None:
+            return False
+        try:
+            audio_np = np.frombuffer(audio_data, dtype=np.int16)  # Keep as int16 for openWakeWord
+
+            # Debug: check audio level (convert to float for RMS calculation)
+            audio_float = audio_np.astype(np.float32) / 32768.0
+            audio_rms = np.sqrt(np.mean(audio_float ** 2))
+            audio_max = np.max(np.abs(audio_float))
+
+            self.audio_buffer = np.concatenate([self.audio_buffer, audio_np])
+            if len(self.audio_buffer) >= self.chunk_size:
+                chunk_to_process = self.audio_buffer[:self.chunk_size]
+                self.audio_buffer = self.audio_buffer[self.chunk_size:]
+                prediction = self.model.predict(chunk_to_process)
+
+                # Debug: log prediction scores every 10 chunks OR when audio is detected
+                if not hasattr(self, '_prediction_count'):
+                    self._prediction_count = 0
+                    # Log available models once
+                    if self.logger:
+                        self.logger.info(f"Available models: {list(self.model.models.keys())}")
+                self._prediction_count += 1
+
+                # Log every 5 chunks for debugging
+                if self._prediction_count % 5 == 0 and self.logger:
+                    all_scores = ", ".join([f"{k}: {v:.4f}" for k, v in prediction.items()])
+                    print(f"Wakeword #{self._prediction_count}: {all_scores} | RMS: {audio_rms:.4f}, Max: {audio_max:.4f}")
+
+                # Check all models for detection
+                for model_name, score in prediction.items():
+                    if score > 0.01 and self.logger:
+                        print(f"Score spike: {model_name} = {score:.4f}")
+                    if score >= self.sensitivity:
+                        if self.logger:
+                            print(f"Wakeword DETECTED! {model_name} = {score:.4f}")
+                        return True
+            return False
+        except Exception as e:
+            if self.logger:
+                self.logger.error(f"Error processing wakeword chunk: {e}")
+            return False
+    
+    def set_sensitivity(self, sensitivity: float):
+        self.sensitivity = max(0.1, min(0.9, sensitivity))
+
+    def reset(self):
+        """Reset the audio buffer and model state to prevent false positives"""
+        self.audio_buffer = np.array([], dtype=np.int16)
+        # Reset the openwakeword model's internal state if available
+        if self.model is not None and hasattr(self.model, 'reset'):
+            self.model.reset()
+        if self.logger:
+            self.logger.debug("WakewordDetector buffer and state reset")
+
+    def prime(self, duration_seconds: float = 1.5):
+        """Pre-warm the model after reset() so the first wakeword after re-arm isn't
+        lost to openWakeWord's cold-start: predict() forces scores to 0.0 for the first
+        5 frames (400ms) and needs ~780ms+ of audio to rebuild melspectrogram context.
+        Feeding neutral silence clears that window, mirroring the natural startup warmup."""
+        if not self.is_loaded or self.model is None:
+            return
+        try:
+            chunk_dur = self.chunk_size / self.sample_rate              # 1280/16000 = 80ms
+            n_chunks = max(5, int(round(duration_seconds / chunk_dur)))  # ~19 chunks for 1.5s
+            silence = np.zeros(self.chunk_size, dtype=np.int16)
+            for _ in range(n_chunks):
+                self.model.predict(silence)
+            if self.logger:
+                self.logger.debug(f"WakewordDetector primed with {n_chunks} silence chunks (~{duration_seconds}s)")
+        except Exception as e:
+            if self.logger:
+                self.logger.error(f"Error priming wakeword detector: {e}")
+
+    def destroy(self):
+        self.model = None
+        self.is_loaded = False
+        self.audio_buffer = np.array([], dtype=np.int16)
 
 class Asrjs(Baseplugin):
     def __init__(self, plugin_name, pm):
@@ -18,6 +136,7 @@ class Asrjs(Baseplugin):
         self.recording = False  # Initialize recording state
         self.is_loaded = False  # Make sure this is initialized
         self.wakeword_detected = False  # Initialize wakeword state
+        self.wakeword_model_loaded = False  # Track wakeword model loading
         super().__init__(plugin_name, pm)
         
         # Create recordings directory for persistent audio files
@@ -45,7 +164,25 @@ class Asrjs(Baseplugin):
         # Set up temporary file for audio storage (WebM format)
         self.temp_audio_file = os.path.join(self.plugin_folder, "temp_audio.webm")
         
-    @hookimpl 
+        # Wakeword detector initialization
+        self.wakeword_detector = None
+        self.wakeword_enabled = False
+        self.wakeword_sensitivity = 0.5
+        
+        self._setup_custom_wakeword_dir()
+
+        # Pre-download openwakeword models (melspectrogram, etc.) if openwakeword is installed
+        # download_models() checks if files exist before downloading - safe to call every init
+        try:
+            from openwakeword.utils import download_models
+            self.logger.info("Checking openwakeword models...")
+            download_models()
+        except ImportError:
+            self.logger.debug("openwakeword not installed, skipping model download")
+        except Exception as e:
+            self.logger.warning(f"Could not download openwakeword models: {e}")
+        
+    @hookimpl
     def startup(self):
         self.settings = self.get_my_settings()
         
@@ -55,14 +192,18 @@ class Asrjs(Baseplugin):
         self.wakeword = self.settings.get("wakeword")
         
         self.continuous = self.settings.get("continuous", False) # Ensure default for continuous
+        self.conversation_abandoned = False  # Track if conversation was abandoned
         print (f"ASRJS settings: {self.settings}, Global Lang for ASR: {self.lang_code}")
-
-        self.model_provider = self.settings.get("model_provider", "groq")  # Default to Groq if not set
-        if self.model_provider not in self.settings.get("allowed_model_providers", []):
-            self.logger.error(f"Model provider '{self.model_provider}' is not allowed. Defaulting to groq")
-            self.model_provider = "groq"
-            print("Model provider not found, using default model provider: Groq")
         
+        self.wakeword_enabled = self.settings.get("wakeword_enabled", False)
+        self.wakeword_sensitivity = self.settings.get("wakeword_sensitivity", 0.5)
+        
+        # Load wakeword model if enabled and continuous mode
+        if self.continuous and self.wakeword_enabled:
+            self._load_wakeword_model()
+        
+        self.model_provider = self.settings.get("model_provider", "groq")
+
         self.model_thread = threading.Thread(target=self.load_model, daemon=True)
         self.model_thread.start()
         print("Started loading model in background.")
@@ -81,33 +222,75 @@ class Asrjs(Baseplugin):
             self._router_registered = True
         elif fastapi_app is None:
             self.logger.warning("FastAPI app not available; asrjs endpoints not registered")
-    
+
+    def send_settings_to_frontend(self):
+        """Override to include onboarding AI info so frontend knows if API keys are available from onboarding"""
+        settings = self.get_my_settings()
+        # Add onboarding AI info so frontend knows if API keys are available from onboarding
+        onboarding_ai = self.settings_manager.get_nested(["plugins", "onboarding", "ai"])
+        self.send_message_to_frontend({
+            "type": "settings",
+            "settings": settings,
+            "onboarding_ai": onboarding_ai  # Add this
+        })
+
     @hookimpl
-    def restart_asr(self):
-        if (self.continuous):
+    async def restart_asr(self, force_ready):
+        print(f"ASRJS restart_asr called: continuous={self.continuous}, conversation_abandoned={self.conversation_abandoned}, is_paused={self.is_paused}, force_ready={force_ready}")
+        if force_ready:
+            # Caller (e.g. an emergency shortcut speak) requested NOT to reopen the
+            # ASR channel: return to idle (wakeword-armed) instead of listening.
             self.is_paused = False
-            self.wakeword_detected = True
-            new_status="recording"
+            new_status = "ready"
+            if self.continuous and self.wakeword_enabled and self.wakeword_detector:
+                self.wakeword_detector.prime()
+        elif (self.continuous):
+            # Don't resume listening if conversation was abandoned
+            if self.conversation_abandoned:
+                new_status = "ready"
+            else:
+                self.is_paused = False
+                self.wakeword_detected = True
+                new_status = "listening"  # VAD handles speech detection
+                # Pre-warm the wakeword detector (it was reset at detection time and
+                # starved of audio during the whole conversation). Without this, the
+                # first wakeword after re-arm is lost to openWakeWord's cold-start.
+                if self.wakeword_enabled and self.wakeword_detector:
+                    self.wakeword_detector.prime()
         else:
             new_status="listening"
-            # Check if there's an existing event loop
-        try:
-            loop = asyncio.get_running_loop()
-            # If there's a running loop, create a task
-            loop.create_task(self.send_status(new_status))
-        except RuntimeError:
-            # If no running loop, use asyncio.run
-            asyncio.run(self.send_status(new_status))
+        print(f"ASRJS restart_asr sending status: {new_status} (force_ready={force_ready})")
+        await self.send_status(new_status)
     
     def run_monitor_loading(self):
         asyncio.run(self.monitor_loading())
 
     async def monitor_loading(self):
+        # Wait for ASR model to load
         while not self.is_loaded:
-            # Wait until the model is loaded
             await asyncio.sleep(1)
+
+        # If wakeword is enabled, also wait for wakeword model
+        if self.continuous and self.wakeword_enabled:
+            self.logger.info("Waiting for wakeword model to load...")
+            while not self.wakeword_model_loaded:
+                await asyncio.sleep(0.5)
+                # Timeout after 30 seconds
+                if hasattr(self, '_wakeword_wait_start'):
+                    if asyncio.get_event_loop().time() - self._wakeword_wait_start > 30:
+                        self.logger.error("Timeout waiting for wakeword model")
+                        break
+                else:
+                    self._wakeword_wait_start = asyncio.get_event_loop().time()
+
+        # Check if wakeword was required but failed to load
+        if self.continuous and self.wakeword_enabled and not self.wakeword_model_loaded:
+            self.logger.error("Wakeword model required but failed to load. Plugin will not be ready.")
+            await self.send_status("error")
+            return
+
         print("Model is ready to use.")
-        await self.send_status("ready")
+        await self.send_status("ready" if self.continuous else "listening")
         self.send_settings_to_frontend()
         # await self.test_wake_word()
     
@@ -148,7 +331,7 @@ class Asrjs(Baseplugin):
                 
                 # Mark as loaded
                 self.is_loaded = True
-                self.mark_ready()
+                # Don't call mark_ready() here - let the check at end of function handle it
                 # Removed: asyncio.create_task(self.send_status("ready"))
                 # This was causing the "no running event loop" error and is redundant
                 # as monitor_loading handles sending the "ready" status.
@@ -163,14 +346,29 @@ class Asrjs(Baseplugin):
                 # raise # Optionally re-raise
         elif (self.model_provider == "mistral"):
             self.model=self.settings.get("model_name", "voxtral-mini-latest")
-            
-        self.is_loaded=True
-        self.mark_ready()
+        elif self.model_provider == "sherpa":
+            self._load_sherpa_model()
+            if not hasattr(self, 'sherpa_recognizer') or self.sherpa_recognizer is None:
+                self.is_loaded = False
+                return
+
+        self.is_loaded = True
+        # Only mark ready if wakeword isn't required, or if it loaded successfully
+        if not (self.continuous and self.wakeword_enabled) or self.wakeword_model_loaded:
+            self.mark_ready()
     
     async def handle_wake_word(self,following_text):
+        # Guard against empty transcriptions
+        if not following_text or not following_text.strip():
+            print("Empty transcription, ignoring")
+            return
         print(f"Wake word detected! Text: '{following_text}'")
-        await self.pm.trigger_hook(hook_name="add_msg_to_conversation", msg=following_text, author="def",msg_input="asrwhisper")
-        await self.pm.trigger_hook(hook_name="asr_msg", msg="Q: " + following_text)
+        # Translate incoming speech if translator plugin is configured
+        print(f"ASRJS: Calling translate_for_interlocutor with direction='incoming'")
+        translated_text = await self.translate_for_interlocutor(following_text, direction="incoming")
+        print(f"ASRJS: Translation result: '{translated_text}' (original: '{following_text}')")
+        await self.pm.trigger_hook(hook_name="add_msg_to_conversation", msg=translated_text, author="def",msg_input="asrwhisper")
+        await self.pm.trigger_hook(hook_name="asr_msg", msg="Q: " + translated_text)
 
     async def process_incoming_message(self, message):
         """Extend the base plugin's message handler with ASR-specific actions"""
@@ -195,7 +393,8 @@ class Asrjs(Baseplugin):
                         # Handle hook triggers from frontend
                         hook_name = data.get('hook_name')
                         if hook_name == 'transcribing_started':
-                            asyncio.create_task(self.send_status("transcribing"))
+                            # Send "transcribing_started" status so conversation component can show typing indicator
+                            asyncio.create_task(self.send_status("transcribing_started"))
                             # Trigger to other plugins if needed
                             await self.pm.trigger_hook(hook_name="transcribing_started")
                         else:
@@ -241,8 +440,10 @@ class Asrjs(Baseplugin):
                             
                             if text:
                                 text = self.clean_whisper_silence(text)
-                                # Handle transcription result
-                                await self.handle_wake_word(text)
+                                # Drop the result if the conversation was abandoned while this
+                                # transcription was in flight — don't inject into the emptied convo.
+                                if not self.conversation_abandoned:
+                                    await self.handle_wake_word(text)
                             
                             # Send result back to frontend
                             await self.send_message_to_frontend({
@@ -301,42 +502,77 @@ class Asrjs(Baseplugin):
             return False
             
     async def transcribe_audio(self):
-        """Transcribe audio using Groq Whisper"""
+        """Transcribe audio using Groq Whisper or Mistral Voxtral"""
         try:
             if not os.path.exists(self.temp_audio_file):
                 return ""
-                
+
             # Check file size to avoid sending empty files
             if os.path.getsize(self.temp_audio_file) < 1000:  # Less than 1KB
                 return ""
-                
+
+            # Determine which language to use for transcription
+            # ASR listens to the INTERLOCUTOR, so use their language when configured
+            transcription_lang = self.lang_code  # Default: patient's language (fallback)
+            translator_settings = self.settings_manager.get_plugin_settings("translator")
+            translator_enabled = self.settings_manager.get_nested(["plugins_activation", "translator"], default=False) is not False
+            translate_active = (translator_settings.get("translate_incoming", False) or translator_settings.get("translate_outgoing", False)) and translator_enabled
+            interlocutor_lang = translator_settings.get("interlocutor_language", "")
+            if interlocutor_lang and translate_active:
+                from utils import language_name_to_code
+                interlocutor_code = language_name_to_code(interlocutor_lang)
+                if interlocutor_code:
+                    transcription_lang = interlocutor_code
+                    self.logger.info(f"[ASR] Using interlocutor language for transcription: {transcription_lang}")
+
             # Use asyncio to run the transcription in a separate thread
             loop = asyncio.get_running_loop()
             if (self.model_provider == "groq"):
-                result = await loop.run_in_executor(None, self._transcribe_with_groq)
+                result = await loop.run_in_executor(None, lambda: self._transcribe_with_groq(transcription_lang))
             elif (self.model_provider == "mistral"):
-                result = await loop.run_in_executor(None, self._transcribe_with_voxtral)
+                result = await loop.run_in_executor(None, lambda: self._transcribe_with_voxtral(transcription_lang))
+            elif self.model_provider == "sherpa":
+                result = await loop.run_in_executor(None, lambda: self._transcribe_with_sherpa())
             return result
         except Exception as e:
             self.logger.error(f"Error transcribing audio: {e}")
             return ""
 
-    def _transcribe_with_voxtral(self):
+    def _transcribe_with_voxtral(self, language_code=None):
         """Helper method to run Voxtral transcription in a separate thread"""
         try:
             url = "https://api.mistral.ai/v1/audio/transcriptions"
-            api_key = self.settings.get("voxtral_api_key", "")
+            lang = language_code or self.lang_code
+
+            # Try to get API key from onboarding first if provider is mistral
+            onboarding_ai_settings = self.settings_manager.get_nested(["plugins", "onboarding", "ai"])
+            api_key = None
+
+            if onboarding_ai_settings and \
+                onboarding_ai_settings.get("provider") == "mistral" and \
+                onboarding_ai_settings.get("api_key"):
+                api_key = onboarding_ai_settings.get("api_key")
+                self.logger.info("Using Mistral API key from global AI settings (onboarding).")
+            else:
+                # Fallback to plugin's own settings
+                api_key = self.settings.get("voxtral_api_key", "")
+                if api_key:
+                    self.logger.info("Using Mistral API key from asrjs plugin settings.")
+                else:
+                    self.logger.error("No Mistral API key found in global AI settings or asrjs plugin settings.")
+
             if not api_key:
-                self.logger.error("No Voxtral API key provided.")
+                self.logger.error("No Mistral API key could be determined.")
                 return ""
+
             headers = {
                 "x-api-key": api_key
             }
-            print (f"Transcribing with Voxtral using model: {self.model}, language: {self.lang_code}")
+            self.logger.info(f"[ASR] Calling Voxtral with language={lang}")
             files = {
                 "file": open(self.temp_audio_file, "rb"),
                 "model": (None, self.model),
-                "language": (None, self.lang_code)
+                "language": (None, lang)
             }
             response = requests.post(url, headers=headers, files=files)
             if response.status_code == 200:
@@ -349,31 +585,248 @@ class Asrjs(Baseplugin):
             self.logger.error(f"Voxtral transcription error: {e}")
             return ""
             
-    def _transcribe_with_groq(self):
+    def _transcribe_with_groq(self, language_code=None):
         """Helper method to run Groq transcription in a separate thread"""
         try:
+            lang = language_code or self.lang_code
+            self.logger.info(f"[ASR] Calling Whisper with language={lang}")
             with open(self.temp_audio_file, "rb") as audio_file:
                 transcription = self.client.audio.transcriptions.create(
                     file=audio_file,
                     model=self.model,
-                    language=self.lang_code  # Use the processed global language
+                    language=lang
                 )
+                self.logger.info(f"[ASR] Whisper transcribed: {transcription.text[:100]}...")
                 return transcription.text
         except Exception as e:
             self.logger.error(f"Groq transcription error: {e}")
             return ""
-        
+
+    def _load_sherpa_model(self):
+        try:
+            import sherpa_onnx
+            model_info = self._get_sherpa_model_info()
+            if not model_info:
+                self.logger.error("No sherpa-onnx model found for current language")
+                return
+            model_path = self._ensure_sherpa_model_downloaded(model_info)
+
+            if model_info.get("type") == "whisper":
+                self.sherpa_recognizer = sherpa_onnx.OfflineRecognizer.from_whisper(
+                    encoder=os.path.join(model_path, model_info["encoder"]),
+                    decoder=os.path.join(model_path, model_info["decoder"]),
+                    tokens=os.path.join(model_path, model_info["tokens"]),
+                    language=self.lang_code,
+                    num_threads=min(4, os.cpu_count() or 1),
+                    provider="cpu",
+                )
+            else:
+                self.sherpa_recognizer = sherpa_onnx.OnlineRecognizer.from_transducer(
+                    tokens=os.path.join(model_path, "tokens.txt"),
+                    encoder=os.path.join(model_path, model_info["encoder"]),
+                    decoder=os.path.join(model_path, model_info["decoder"]),
+                    joiner=os.path.join(model_path, model_info["joiner"]),
+                    num_threads=min(4, os.cpu_count() or 1),
+                    sample_rate=16000,
+                    feature_dim=80,
+                    decoding_method="greedy_search",
+                    provider="cpu",
+                )
+            self.logger.info(f"sherpa-onnx model loaded from {model_path}")
+        except ImportError:
+            self.logger.error("sherpa-onnx not installed. Run: pip install sherpa-onnx")
+        except Exception as e:
+            self.logger.error(f"Error loading sherpa-onnx model: {e}")
+
+    def _get_sherpa_model_info(self):
+        catalog_path = os.path.join(os.path.dirname(__file__), "sherpa_models.json")
+        with open(catalog_path, "r") as f:
+            catalog = json.load(f)
+        lang = self.lang_code
+        size = self.settings.get("sherpa_model_size", "small")
+        if lang in catalog:
+            return catalog[lang][size]
+        return catalog.get("_fallback")
+
+    def _ensure_sherpa_model_downloaded(self, model_info):
+        model_dir = os.path.join(self.plugin_folder, "models", "sherpa", model_info["name"])
+        if os.path.exists(model_dir) and os.listdir(model_dir):
+            return model_dir
+
+        self.logger.info(f"Downloading sherpa-onnx model: {model_info['name']} ({model_info.get('size', '?')})...")
+        os.makedirs(model_dir, exist_ok=True)
+
+        temp_file = os.path.join(self.plugin_folder, "models", "sherpa", "temp.tar.bz2")
+        urllib.request.urlretrieve(model_info["url"], temp_file)
+
+        import tarfile
+        with tarfile.open(temp_file, "r:bz2") as tar:
+            tar.extractall(path=os.path.join(self.plugin_folder, "models", "sherpa"))
+
+        os.remove(temp_file)
+        self.logger.info(f"sherpa-onnx model downloaded to {model_dir}")
+        return model_dir
+
+    def _transcribe_with_sherpa(self):
+        try:
+            import wave
+            import numpy as np
+
+            if not hasattr(self, 'sherpa_recognizer') or self.sherpa_recognizer is None:
+                self.logger.error("sherpa-onnx recognizer not loaded")
+                return ""
+
+            with wave.open(self.temp_audio_file, "rb") as wf:
+                sample_rate = wf.getframerate()
+                frames = wf.readframes(wf.getnframes())
+                samples = np.frombuffer(frames, dtype=np.int16).astype(np.float32) / 32768.0
+
+            # Pad ~0.5s of trailing silence. The streaming (OnlineRecognizer) Zipformer emits
+            # each token only once it has seen the audio *following* it, so a push-to-talk
+            # recording that ends abruptly at the stop-click loses its final token(s). This
+            # mirrors the trailing silence the continuous-mode VAD naturally appends
+            # (redemptionFrames), giving the decoder the context it needs to flush the tail.
+            # Harmless for the offline Whisper path, which has no such emission delay.
+            pad_samples = int(sample_rate * 0.5)
+            if pad_samples > 0:
+                samples = np.concatenate([samples, np.zeros(pad_samples, dtype=np.float32)])
+
+            stream = self.sherpa_recognizer.create_stream()
+            stream.accept_waveform(sample_rate, samples)
+
+            # OnlineRecognizer: feed chunks until done, then signal end of input
+            if hasattr(self.sherpa_recognizer, 'is_ready'):
+                while self.sherpa_recognizer.is_ready(stream):
+                    self.sherpa_recognizer.decode_stream(stream)
+                stream.input_finished()
+                while self.sherpa_recognizer.is_ready(stream):
+                    self.sherpa_recognizer.decode_stream(stream)
+                text = self.sherpa_recognizer.get_result(stream)
+            else:
+                self.sherpa_recognizer.decode_stream(stream)
+                text = stream.result.text
+
+            text = text.strip().lower()
+            # Capitalize first letter
+            if text:
+                text = text[0].upper() + text[1:]
+
+            self.logger.info(f"sherpa-onnx transcribed: {text[:100]}...")
+            return text
+        except Exception as e:
+            self.logger.error(f"sherpa-onnx transcription error: {e}")
+            return ""
+    
+    def _setup_custom_wakeword_dir(self):
+        """Set up custom wakeword directory in APPDATA"""
+        try:
+            custom_dir = os.path.join(self.plugin_folder, CUSTOM_WAKEWORD_DIR)
+            if not os.path.exists(custom_dir):
+                os.makedirs(custom_dir, exist_ok=True)
+                self.logger.info(f"Created custom wakeword directory: {custom_dir}")
+            self.custom_wakeword_dir = custom_dir
+        except Exception as e:
+            self.logger.error(f"Error setting up custom wakeword directory: {e}")
+            self.custom_wakeword_dir = None
+    
+    def _get_default_wakeword_model_path(self):
+        """Get the default wakeword model path based on language locale"""
+        # Use full locale for model naming: locales/fr_FR/hey_igoor_fr_FR.onnx
+        locale = self.lang  # e.g., "fr_FR" or "en_EN"
+        model_name = f"hey_igoor_{locale}.onnx"
+
+        # Build path in locales folder
+        locales_dir = os.path.join(os.path.dirname(__file__), "locales", locale)
+        model_path = os.path.join(locales_dir, model_name)
+
+        if os.path.exists(model_path):
+            return model_path
+        else:
+            self.logger.warning(f"Default wakeword model not found: {model_path}")
+            return None
+    
+    def _get_custom_wakeword_model_path(self):
+        """Get the custom wakeword model path from settings.
+
+        wakeword_model can be:
+        - "" or "default" → use default model for language
+        - "filename.onnx" → use custom model from custom_wakeword directory
+        """
+        wakeword_model = self.settings.get("wakeword_model", "")
+
+        # Empty or "default" means use default model
+        if not wakeword_model or wakeword_model == "default":
+            self.logger.info("No custom wakeword model set, using default")
+            return None
+
+        # Construct full path from filename
+        full_path = os.path.join(self.custom_wakeword_dir, wakeword_model)
+        self.logger.info(f"Checking custom wakeword path: {full_path}")
+
+        if os.path.exists(full_path):
+            self.logger.info(f"Custom wakeword model found: {full_path}")
+            return full_path
+
+        self.logger.warning(f"Custom wakeword file not found: {full_path}")
+        return None
+    
+    def _load_wakeword_model(self):
+        """Load the wakeword detection model.
+
+        wakeword_model can be:
+        - "" or "default" → use default model for language
+        - "filename.onnx" → use custom model from custom_wakeword directory
+        """
+        if not self.wakeword_enabled or not self.continuous:
+            self.logger.info("Wakeword not enabled or not in continuous mode, skipping model load")
+            return False
+
+        # Try custom model first, fall back to default
+        model_path = self._get_custom_wakeword_model_path()
+        if not model_path:
+            model_path = self._get_default_wakeword_model_path()
+            self.logger.info(f"Using default wakeword model path: {model_path}")
+
+        if not model_path:
+            self.logger.error("No wakeword model available")
+            self.wakeword_model_loaded = False
+            return False
+
+        # Destroy existing detector if any
+        if self.wakeword_detector:
+            self.wakeword_detector.destroy()
+
+        # Create new detector
+        self.wakeword_detector = WakewordDetector(
+            model_path=model_path,
+            sensitivity=self.wakeword_sensitivity,
+            logger=self.logger
+        )
+
+        # Load the model
+        success = self.wakeword_detector.load_model()
+        if success:
+            self.wakeword_model_loaded = True
+            self.logger.info(f"Wakeword model loaded successfully from: {model_path}")
+        else:
+            self.wakeword_model_loaded = False
+            self.logger.error(f"Failed to load wakeword model from: {model_path}")
+
+        return success
+
     def _ensure_router(self):
-        """Initialize FastAPI router with transcription endpoint"""
-        if self.router is not None:
+        if self.router:
             return
-        
+
         self.router = APIRouter(prefix="/api/plugins/asrjs", tags=["asrjs"])
         
         @self.router.post("/start_recording")
         async def start_recording_endpoint():
             """Start recording via HTTP endpoint"""
             try:
+                # Reset abandonment flag when user clicks to start new conversation
+                self.conversation_abandoned = False
+                
                 await self.send_status("recording")
                 await self.pm.trigger_hook(hook_name="transcribing_started")
                 return {"status": "started"}
@@ -416,6 +869,7 @@ class Asrjs(Baseplugin):
                 self.temp_audio_file = temp_file_path
                 
                 # Transcribe the audio
+                await self.pm.trigger_hook(hook_name="transcribing_started")
                 text = await self.transcribe_audio()
                 
                 # Restore original temp file path
@@ -427,17 +881,162 @@ class Asrjs(Baseplugin):
                 # except:
                 #     pass
                 
+                
                 if text:
                     text = self.clean_whisper_silence(text)
-                    # Handle transcription result
-                    await self.handle_wake_word(text)
+                    # Drop the result if the conversation was abandoned while this
+                    # transcription was in flight — don't inject into the emptied convo.
+                    # Checked before handle_wake_word so add_msg_to_conversation's
+                    # self-flip of conversation_abandoned can't defeat this guard.
+                    if not self.conversation_abandoned:
+                        await self.handle_wake_word(text)
                 await self.pm.trigger_hook(hook_name="transcribing_ended")
+                
+                # Reset status to "listening" for continuous mode after transcription completes
+                # But only if conversation wasn't abandoned
+                if self.continuous and not self.conversation_abandoned:
+                    await self.send_status("listening")
+                
                 return {"status": "success", "text": text}
                 
             except Exception as e:
                 self.logger.error(f"Error transcribing audio: {e}")
                 raise HTTPException(status_code=500, detail=str(e))
-    
+        
+        # Wakeword detection endpoints
+        @self.router.post("/wakeword_chunk")
+        async def wakeword_chunk_endpoint(audio_chunk: UploadFile = File(...)):
+            """Receive audio chunk for wakeword detection"""
+            try:
+                if not self.continuous or not self.wakeword_detector or not self.wakeword_enabled:
+                    return {"error": "Wakeword detection not enabled"}
+
+                # Read audio chunk - frontend sends raw Int16 PCM data (not WAV)
+                chunk_data = audio_chunk.file.read()
+
+                # Check if this looks like a WAV file (starts with "RIFF")
+                if chunk_data[:4] == b'RIFF' and len(chunk_data) > 44:
+                    raw_pcm_data = chunk_data[44:]  # Strip WAV header
+                else:
+                    raw_pcm_data = chunk_data  # Raw Int16 data, no header
+
+                # Debug log every 10 chunks
+                if not hasattr(self, '_wakeword_chunk_count'):
+                    self._wakeword_chunk_count = 0
+                self._wakeword_chunk_count += 1
+                if self._wakeword_chunk_count % 10 == 0:
+                    print(f"Wakeword chunk #{self._wakeword_chunk_count}, size: {len(raw_pcm_data)} bytes")
+
+                detected = self.wakeword_detector.process_chunk(raw_pcm_data)
+                if detected:
+                    print("WAKEWORD DETECTED! Notifying frontend...")
+                    # Reset detector state so the wake-word features lingering in the
+                    # streaming melspectrogram context don't cause an immediate false
+                    # re-detection when the wakeword is re-armed (e.g. after a mic click).
+                    self.wakeword_detector.reset()
+                    # Notify frontend to start VAD and resume listening
+                    self.send_message_to_frontend({
+                        "action": "wakeword_detected"
+                    })
+                    return {"status": "success", "detected": True}
+
+                return {"status": "success", "detected": False}
+
+            except Exception as e:
+                self.logger.error(f"Error processing wakeword chunk: {e}")
+                return {"error": str(e)}
+
+        @self.router.post("/upload_wakeword_model")
+        async def upload_wakeword_model(file: UploadFile = File(...)):
+            """Upload custom wakeword model"""
+            try:
+                # Check custom directory exists
+                if not self.custom_wakeword_dir:
+                    return {"status": "error", "message": "Custom wakeword directory not available"}
+
+                # Save file
+                filename = file.filename or "custom_model.onnx"
+                file_path = os.path.join(self.custom_wakeword_dir, filename)
+
+                contents = await file.read()
+                with open(file_path, "wb") as f:
+                    f.write(contents)
+
+                # Update settings: store only the filename in wakeword_model
+                self.settings["wakeword_model"] = filename
+                self.update_my_settings("wakeword_model", filename)
+
+                # Reload the wakeword model
+                self._load_wakeword_model()
+
+                self.logger.info(f"Custom wakeword model saved to: {file_path} and loaded")
+                return {"status": "success", "path": file_path, "filename": filename}
+
+            except Exception as e:
+                self.logger.error(f"Error uploading wakeword model: {e}")
+                return {"status": "error", "message": str(e)}
+
+        @self.router.get("/list_custom_wakeword_models")
+        async def list_custom_wakeword_models():
+            """List all custom wakeword models in the custom directory"""
+            try:
+                if not self.custom_wakeword_dir or not os.path.exists(self.custom_wakeword_dir):
+                    return {"models": []}
+
+                models = []
+                for f in os.listdir(self.custom_wakeword_dir):
+                    if f.endswith('.onnx'):
+                        models.append(f)
+
+                return {"models": models}
+
+            except Exception as e:
+                self.logger.error(f"Error listing custom wakeword models: {e}")
+                return {"models": [], "error": str(e)}
+
+        @self.router.delete("/delete_custom_wakeword_model/{filename}")
+        async def delete_custom_wakeword_model(filename: str):
+            """Delete a custom wakeword model"""
+            try:
+                if not self.custom_wakeword_dir:
+                    return {"status": "error", "message": "Custom directory not available"}
+
+                file_path = os.path.join(self.custom_wakeword_dir, filename)
+                if not os.path.exists(file_path):
+                    return {"status": "error", "message": "Model not found"}
+
+                os.remove(file_path)
+
+                # If this was the currently selected model, reset to default
+                if self.settings.get("wakeword_model") == filename:
+                    self.settings["wakeword_model"] = ""
+                    self.update_my_settings("wakeword_model", "")
+                    # Reload with default model
+                    self._load_wakeword_model()
+
+                self.logger.info(f"Deleted custom wakeword model: {filename}")
+                return {"status": "success"}
+
+            except Exception as e:
+                self.logger.error(f"Error deleting custom wakeword model: {e}")
+                return {"status": "error", "message": str(e)}
+
+        @self.router.post("/open_sound_settings")
+        async def open_sound_settings_endpoint():
+            """Open Windows Sound settings so the user can choose/verify the default microphone.
+
+            IGOOR captures from the Windows default input device, so device choice is managed
+            in the OS rather than in-app (browser deviceIds are not durable across sessions).
+            """
+            try:
+                if os.name == 'nt':
+                    os.startfile('ms-settings:sound')
+                    return {"status": "success"}
+                return {"status": "error", "message": "Not supported on this platform"}
+            except Exception as e:
+                self.logger.error(f"Error opening sound settings: {e}")
+                return {"status": "error", "message": str(e)}
+
     def clean_whisper_silence(self, text):
         print(f"Transcribed text: {text}")
         SILENCE_STRINGS = [
@@ -463,6 +1062,14 @@ class Asrjs(Baseplugin):
         
         
     @hookimpl
+    async def add_msg_to_conversation(self, msg, author, msg_input):
+        """Ensure flags are set so restart_asr will resume VAD after TTS finishes"""
+        if self.continuous:
+            self.conversation_abandoned = False
+            self.wakeword_detected = True
+            print(f"ASRJS add_msg_to_conversation: set conversation_abandoned=False, wakeword_detected=True")
+
+    @hookimpl
     async def pause_asr(self):
         self.is_paused = True
         await(self.send_status("paused"))
@@ -471,9 +1078,28 @@ class Asrjs(Baseplugin):
     async def abandon_conversation(self, cause="timeout"):
         try:
             print("ASRJS received ABANDON_CONVERSATION trigger")
-            # Your existing logic here
+            # Reset wake word detection
             self.wakeword_detected = False
-            await self.send_status("listening")
+
+            # Reset wakeword detector buffer to prevent false positives from residual audio
+            if self.wakeword_detector:
+                self.wakeword_detector.reset()
+            # Pre-warm so the next wakeword (after frontend re-arms on "ready") isn't
+            # lost to openWakeWord's cold-start blind window following the reset above.
+            if self.continuous and self.wakeword_enabled and self.wakeword_detector:
+                self.wakeword_detector.prime()
+
+            # Mark conversation as abandoned to prevent status reset after transcription
+            self.conversation_abandoned = True
+
+            # If continuous mode is active, pause VAD to stop listening
+            if self.continuous:
+                print("ASRJS: Continuous mode is active, pausing VAD")
+                await self.send_status("ready")  # Send "ready" status instead of "listening"
+            else:
+                print("ASRJS: Non-continuous mode, sending listening status")
+                await self.send_status("listening")
+
             print("ASRJS after_conversation_end completed successfully")
         except Exception as e:
             print(f"Error in ASRJS after_conversation_end: {e}")
@@ -484,6 +1110,11 @@ class Asrjs(Baseplugin):
     @hookimpl
     def wakeword_detected(self):
         self.wakeword_detected = True
+
+    @hookimpl
+    def get_asrjs_config(self):
+        """Provide asrjs configuration to other plugins"""
+        return self.settings
         
         
     @hookimpl
@@ -495,11 +1126,65 @@ class Asrjs(Baseplugin):
 
     @hookimpl
     def global_settings_updated(self):
-        """Called when global settings are updated - reload Groq client if API key changed."""
-        self.logger.info("ASRJS: global_settings_updated - reloading Groq client")
+        """Called when global settings are updated - reload ASR client and wakeword model if changed."""
+        self.logger.info("ASRJS: global_settings_updated - reloading ASR model")
         # Reload settings from disk
         self.settings = self.get_my_settings()
         # Reload model provider from settings
         self.model_provider = self.settings.get("model_provider", "groq")
-        # Reinitialize the model/client with new settings
-        self.load_model()
+        # Refresh wakeword/continuous config so the detector check uses current values
+        self.continuous = self.settings.get("continuous", False)
+        self.wakeword_enabled = self.settings.get("wakeword_enabled", False)
+        self.wakeword_sensitivity = self.settings.get("wakeword_sensitivity", 0.5)
+
+        # Signal that we're reloading: mic icon -> loading (slashed mic) and the app
+        # boot-progress bar -> asrjs listed as not-ready. Done BEFORE the reload so the
+        # UI reflects it immediately.
+        self.is_loaded = False
+        self.mark_not_ready()
+        try:
+            asyncio.get_event_loop().create_task(self.send_status("loading"))
+        except RuntimeError:
+            self.logger.warning("ASRJS: no running event loop to broadcast 'loading' status")
+
+        # Reload OFF the event loop: switching to the local sherpa model downloads a model
+        # and can take minutes, which must not block the event loop / WebSocket. The helper
+        # reloads wakeword + ASR, then re-broadcasts readiness (mic icon back on, bar hidden).
+        threading.Thread(target=self._reload_model_background, daemon=True).start()
+
+        # Send updated settings to frontend
+        self.send_settings_to_frontend()
+
+    def _reload_model_background(self):
+        """Reload wakeword + ASR model off the event loop, then broadcast readiness.
+        Mirrors startup: load_model() sets is_loaded and calls mark_ready(), and
+        run_monitor_loading() sends the 'ready'/'listening' status (flipping the mic
+        icon back and letting the boot-progress monitor hide the bar once all ready)."""
+        try:
+            # Reload wakeword detector if changed. Decide by comparing the model the current
+            # settings resolve to against the model the detector ACTUALLY has loaded — not a
+            # cached snapshot — so the detector always converges to the settings even if an
+            # earlier save desynced the two.
+            if self.continuous and self.wakeword_enabled:
+                desired_path = self._get_custom_wakeword_model_path() or self._get_default_wakeword_model_path()
+                loaded_path = self.wakeword_detector.model_path if self.wakeword_detector else None
+                loaded_sensitivity = self.wakeword_detector.sensitivity if self.wakeword_detector else None
+                self.logger.info(f"ASRJS: wakeword check desired={desired_path} loaded={loaded_path} sens={self.wakeword_sensitivity}/{loaded_sensitivity}")
+                if desired_path != loaded_path or self.wakeword_sensitivity != loaded_sensitivity:
+                    self.logger.info("ASRJS: wakeword model/sensitivity changed - reloading wakeword model")
+                    self._load_wakeword_model()
+            # Reinitialize the ASR model/client with new settings (may download a model)
+            self.load_model()
+        except Exception as e:
+            self.logger.error(f"ASR model reload failed: {e}")
+            self.is_loaded = False
+        if self.is_loaded:
+            # Broadcast ready status + update boot progress (load_model set is_loaded + mark_ready).
+            self.run_monitor_loading()
+        else:
+            # Reload failed (e.g. sherpa download error): show error on the mic and keep
+            # asrjs not-ready on the boot bar so the user knows it needs attention.
+            try:
+                asyncio.run(self.send_status("error"))
+            except Exception as e:
+                self.logger.error(f"ASRJS: could not broadcast error status: {e}")

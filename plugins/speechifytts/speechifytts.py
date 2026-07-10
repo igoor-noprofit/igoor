@@ -1,7 +1,9 @@
 from plugin_manager import hookimpl, PluginManager
 from plugins.baseplugin.baseplugin import Baseplugin
 from settings_manager import SettingsManager
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, UploadFile, File
+from fastapi.responses import JSONResponse
+from fastapi import Form
 import asyncio
 import os
 from speechify import Speechify
@@ -13,6 +15,7 @@ from pydub.playback import play
 import io
 import base64
 import json
+from typing import Dict
 '''
 Language	Code
 English	en
@@ -65,6 +68,15 @@ class Speechifytts(Baseplugin):
                 }
             except Exception as e:
                 raise HTTPException(status_code=400, detail=f"Failed to get voices: {str(e)}")
+
+        @self.router.post("/clone_voice")
+        async def clone_voice(
+            audio_file: UploadFile = File(...),
+            name: str = Form("My Voice Clone"),
+            gender: str = Form("notSpecified"),
+        ):
+            """Clone a voice from an audio file using Speechify voice cloning"""
+            return await self._clone_voice(audio_file, name, gender)
                 
     @hookimpl
     def startup(self):
@@ -138,10 +150,10 @@ class Speechifytts(Baseplugin):
             print(f"SpeechifyTTS NOT ready: api_key={bool(api_key)}, voice_id={bool(voice_id)}")
 
     @hookimpl
-    def speak(self, message):
+    def speak(self, message, skip_asr):
         print("§§§§ SPEECHIFY SPEAKING *********************************************** :", message)
-        # Schedule the speak_func to run in the background
-        asyncio.create_task(self.run_speak_func(message))
+        # Schedule the speak_func to run in the background (with translation)
+        asyncio.create_task(self.run_speak_func_with_translation(message, skip_asr=skip_asr))
         asyncio.create_task(self.pm.trigger_hook(hook_name="reset_conversation_timeout"))
         
     @hookimpl
@@ -155,6 +167,56 @@ class Speechifytts(Baseplugin):
         print ("SSML:", ssml)
         asyncio.create_task(self.call_speechify(input=ssml, voice_id=voice_id, language=self.lang_code, model="simba-multilingual"))
     
+    async def _clone_voice(self, audio_file: UploadFile, name: str, gender: str) -> Dict:
+        """Clone a voice from an audio file using Speechify voice cloning"""
+        from io import BytesIO
+        import json as json_module
+
+        try:
+            api_key = self.settings.get("api_key")
+            if not api_key:
+                raise HTTPException(status_code=400, detail="Speechify API key not configured")
+
+            audio_bytes = await audio_file.read()
+            if not audio_bytes:
+                raise HTTPException(status_code=400, detail="Empty audio file")
+
+            # Get user name from onboarding bio for consent
+            bio = self.settings_manager.get_bio()
+            user_name = bio.get("name", "Biorecorder User")
+
+            client = self.client
+            if not client:
+                client = Speechify(token=api_key)
+
+            consent_json = json_module.dumps({
+                "fullName": user_name,
+                "email": "user@igoor.local"
+            })
+
+            voice = client.tts.voices.create(
+                name=name,
+                gender=gender,
+                sample=BytesIO(audio_bytes),
+                consent=consent_json,
+            )
+
+            voice_id = voice.id
+            self.logger.info(f"Voice cloned successfully: {name} (voice_id={voice_id})")
+
+            # Update settings with the cloned voice
+            self.settings["voice_id"] = voice_id
+            self.voice_id = voice_id
+            self.settings_manager.update_plugin_settings("speechifytts", self.settings, self.pm)
+
+            return {"voice_id": voice_id, "status": "created", "name": name}
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            self.logger.error(f"Error cloning voice: {e}")
+            raise HTTPException(status_code=500, detail=f"Failed to clone voice: {str(e)}")
+
     def get_voices_list(self, api_key_override=None):
         try:
             client = getattr(self, 'client', None)
@@ -279,18 +341,23 @@ class Speechifytts(Baseplugin):
             self.logger.error(f"Error occurred while fetching voices: {e}")
             return []        
 
-    def run_restart_asr(self):
-        asyncio.create_task(self.restart_asr())
+    def run_restart_asr(self, force_ready=False):
+        asyncio.create_task(self.restart_asr(force_ready))
         
-    async def restart_asr(self):
-        await self.pm.trigger_hook(hook_name="restart_asr")
+    async def restart_asr(self, force_ready=False):
+        await self.pm.trigger_hook(hook_name="restart_asr", force_ready=force_ready)
 
-    async def run_speak_func(self, message):
-        success = await self.safe_speak_func(message)
+    async def run_speak_func(self, message, skip_asr=False):
+        success = await self.safe_speak_func(message, skip_asr=skip_asr)
 
-    async def safe_speak_func(self, message):
+    async def run_speak_func_with_translation(self, message, skip_asr=False):
+        """Translate outgoing speech before speaking"""
+        translated_message = await self.translate_for_interlocutor(message, direction="outgoing")
+        await self.run_speak_func(translated_message, skip_asr=skip_asr)
+
+    async def safe_speak_func(self, message, skip_asr=False):
         try:
-            result = await self.speak_func(message)
+            result = await self.speak_func(message, skip_asr=skip_asr)
             if not result:
                 self.logger.warning("Speak function encountered an issue but handled gracefully.")
                 await self.pm.trigger_hook(hook_name="speak_fallback", message=message)
@@ -412,7 +479,7 @@ class Speechifytts(Baseplugin):
         </speak>"""
         return ssml.strip()
 
-    async def call_speechify(self,input,voice_id,language,model="simba-multilingual"):
+    async def call_speechify(self,input,voice_id,language,model="simba-multilingual",skip_asr=False):
         response = self.client.tts.audio.speech(
             input=input,  # Use SSML instead of plain text
             voice_id=voice_id,
@@ -457,18 +524,19 @@ class Speechifytts(Baseplugin):
             # 3. Play the audio using pydub playback
             print("Playing audio...")
             await self.pm.trigger_hook(hook_name="pause_asr")
+            await asyncio.sleep(0.1)  # Ensure pause message reaches frontend
 
             def play_audio():
                 play(audio_segment)
 
             await asyncio.to_thread(play_audio)
-            self.run_restart_asr()
+            self.run_restart_asr(force_ready=skip_asr)
             print("Playback finished.")
             
             return True
 
 
-    async def speak_func(self, message):
+    async def speak_func(self, message, skip_asr=False):
         print("SPEAK FUNC:" + message)
         try:
             try:
@@ -478,7 +546,7 @@ class Speechifytts(Baseplugin):
                 else:
                     ssml_content=message
                 print (ssml_content)                
-                return await self.call_speechify(input=ssml_content, voice_id=self.voice_id, language=self.lang_code, model="simba-multilingual")
+                return await self.call_speechify(input=ssml_content, voice_id=self.voice_id, language=self.lang_code, model="simba-multilingual", skip_asr=skip_asr)
              
             except Exception as inner_e:
                 self.logger.warning(f"Error playing back audio data: {inner_e}")

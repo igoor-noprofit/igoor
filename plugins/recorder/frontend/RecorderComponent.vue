@@ -495,6 +495,10 @@ module.exports = {
             canvas.height = displayHeight;
             
             const draw = () => {
+                if (!this.analyser) {
+                    this.meterRAF = null;
+                    return;
+                }
                 this.analyser.getByteFrequencyData(dataArray);
                 let rms = 0;
                 for (let i = 0; i < dataArray.length; i++) {
