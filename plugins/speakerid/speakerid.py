@@ -1,10 +1,14 @@
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 import os
+import re
 import time
+import asyncio
+import shutil
 import traceback
 import numpy as np
 import threading
+from pathlib import Path
 from collections import deque
 from context_manager import context_manager
 
@@ -17,6 +21,12 @@ from types import SimpleNamespace
 
 
 class Speakerid(Baseplugin):
+    # Deterministic-commit policy (Slice 2f). confidence_threshold_high (loaded from
+    # settings, 0.62) is the COMMIT bar; these tune how a speaker reaches it.
+    COMMIT_MARGIN = 0.08      # fast-path: min lead over the runner-up to commit at once
+    COMMIT_VOTES = 3          # slow path: min agreeing detections (majority of the window)
+    EVIDENCE_WINDOW = 5       # how many recent detections the evidence window keeps
+
     def __init__(self, plugin_name, pm):
         self.pm = pm
         super().__init__(plugin_name, pm)
@@ -62,15 +72,17 @@ class Speakerid(Baseplugin):
         self.last_speakers = []
         self.last_speaker = SimpleNamespace(id=False,confidence=-10)
         self.reset_last_phrase()
-        '''
         with self.buffer_lock:
             if self.audio_buffer is not None:
                 self.audio_buffer.clear()
         self.is_processing = False
         self.last_identification_time = 0
         self.current_utterance_start = 0
-        self.logger.info("SpeakerID plugin state has been reset")       
-        '''
+        # Deterministic-commit state: once a speaker is committed, detection LOCKS
+        # for the rest of the conversation (cleared here on abandon/reset).
+        self.committed_speaker = None
+        self.evidence_window = deque(maxlen=self.EVIDENCE_WINDOW)
+        self.logger.info("SpeakerID plugin state has been reset")
  
     def reset_last_phrase(self):
         self.last_phrase_speaker = SimpleNamespace(id=False,confidence=-10)
@@ -109,7 +121,11 @@ class Speakerid(Baseplugin):
             self.buffer_duration = self.settings.get("buffer_duration", 2.0)
             self.min_audio_duration = self.settings.get("min_audio_duration", 1.0)
             self.identification_cooldown = self.settings.get("identification_cooldown", 3.0)
-            
+
+            # Ensure DB schema matches the current code (rebuilds a stale people_id-only
+            # speakers table, creates records if missing).
+            self._migrate_schema()
+
             # Initialize audio buffer AFTER settings
             self.logger.info("Initializing audio buffer...")
             buffer_size = int(self.buffer_duration * self.sample_rate)
@@ -149,6 +165,8 @@ class Speakerid(Baseplugin):
                         "message": f"Ready - {speaker_count} speakers enrolled",
                         "timestamp": time.time()
                     }
+                    # Reflect readiness in the app boot-progress lifecycle.
+                    self.mark_ready()
                 except Exception as e:
                     self.logger.error(f"Failed to initialize speaker system: {e}")
                     self.initialization_complete = True
@@ -255,28 +273,24 @@ class Speakerid(Baseplugin):
     def _process_buffer_for_identification(self, sample_rate: int):
         """Process the current audio buffer for speaker identification"""
         try:
+            # LOCKED: a speaker is committed for this conversation — skip the
+            # (expensive) identification entirely until abandon/reset clears the lock.
+            if self.committed_speaker is not None:
+                return
+
             # Convert buffer to numpy array
             audio_array = np.array(list(self.audio_buffer))
-            
+
             # Identify speaker
             match, confidence, top_results = self.speaker_system.identify_speaker(
-                audio_array, 
+                audio_array,
                 sample_rate=sample_rate,
-                threshold=self.confidence_threshold_low,  # Use low threshold for initial processing
+                threshold=self.confidence_threshold_low,  # low bar = "worth showing"
                 top_k=3
             )
-            
+
             self.last_identification_time = time.time()
-            
-            if match and confidence >= self.confidence_threshold_low:
-                if (not self.last_phrase_speaker.id):
-                    self.new_speaker_found(match, confidence,top_results)
-                elif (self.last_speaker.id != match) and (self.last_speaker.confidence < confidence):
-                    self.new_speaker_found(match, confidence,top_results)
-                else:
-                    print("No new speaker")
-            else:
-                print("Low confidence or no match")
+            self._handle_detection(match, confidence, top_results)
         except Exception as e:
             self.logger.error(f"Error during speaker identification: {e}")
     
@@ -316,15 +330,55 @@ class Speakerid(Baseplugin):
 
         @self.router.get("/speakers")
         async def list_speakers():
-            rows = self.db_execute_sync("SELECT id, people_id FROM speakers ORDER BY id ASC") or []
+            rows = self.db_execute_sync("SELECT id, name, freq FROM speakers ORDER BY id ASC") or []
+            # Report per-speaker whether a voice profile exists. A name-only speaker
+            # (added without recording) has no voices/<name>/ folder → has_voice=False,
+            # so it is selectable for manual tagging but not auto-recognized.
+            voices_dir = os.path.join(self.plugin_folder, "voices")
+            for row in rows:
+                speaker_dir = os.path.join(voices_dir, row.get("name", ""))
+                has_wav = False
+                if row.get("name") and os.path.isdir(speaker_dir):
+                    has_wav = any(f.lower().endswith(".wav") for f in os.listdir(speaker_dir))
+                row["has_voice"] = has_wav
             return rows
 
         @self.router.post("/speakers")
         async def add_speaker(payload: Dict[str, Any]):
-            people_id = int(payload.get("people_id", 0))
-            self.db_execute_sync("INSERT INTO speakers (people_id) VALUES (?)", (people_id,))
-            row = self.db_execute_sync("SELECT id, people_id FROM speakers ORDER BY id DESC LIMIT 1")
-            return row[0] if row else {"id": None, "people_id": people_id}
+            name = self._sanitize_name(payload.get("name", ""))
+            if not name:
+                raise HTTPException(status_code=400, detail="name is required")
+            # Name-only by design: no voices/ folder, no embedding. The UNIQUE
+            # constraint is a safety net; check first to avoid exception-as-control-flow.
+            existing = self.db_execute_sync(
+                "SELECT id, name, freq FROM speakers WHERE name = ?", (name,)
+            )
+            if existing:
+                return existing[0]
+            self.db_execute_sync("INSERT INTO speakers (name) VALUES (?)", (name,))
+            row = self.db_execute_sync(
+                "SELECT id, name, freq FROM speakers WHERE name = ?", (name,)
+            )
+            return row[0] if row else {"id": None, "name": name, "freq": 0}
+
+        @self.router.delete("/speakers/{speaker_id}")
+        async def delete_speaker(speaker_id: int):
+            rows = self.db_execute_sync("SELECT name FROM speakers WHERE id = ?", (speaker_id,))
+            if not rows:
+                raise HTTPException(status_code=404, detail=f"No speaker with id {speaker_id}")
+            name = rows[0]["name"]
+            # Remove enrollment linkage + the speaker row (no ON DELETE CASCADE in the
+            # schema, and SQLite FK enforcement is off by default — delete records first).
+            self.db_execute_sync("DELETE FROM records WHERE speakers_id = ?", (speaker_id,))
+            self.db_execute_sync("DELETE FROM speakers WHERE id = ?", (speaker_id,))
+            # Remove the voice folder so recognition stops, then rebuild the index.
+            speaker_dir = os.path.join(self.plugin_folder, "voices", name)
+            if os.path.isdir(speaker_dir):
+                shutil.rmtree(speaker_dir, ignore_errors=True)
+            if self.speaker_system is not None and self.speaker_system_ready:
+                await asyncio.to_thread(self.speaker_system.rebuild)
+                self._current_status["speaker_count"] = len(self.speaker_system.speaker_names)
+            return {"id": speaker_id, "name": name, "deleted": True}
 
         @self.router.post("/records")
         async def attach_record(payload: Dict[str, Any]):
@@ -332,6 +386,16 @@ class Speakerid(Baseplugin):
             speakers_id = payload.get("speakers_id")
             if recorder_id is None or speakers_id is None:
                 raise HTTPException(status_code=400, detail="recorder_id and speakers_id are required")
+
+            # Resolve the speaker's canonical name (= folder name = pkl key = display name).
+            speaker_rows = self.db_execute_sync(
+                "SELECT name FROM speakers WHERE id = ?", (speakers_id,)
+            )
+            if not speaker_rows:
+                raise HTTPException(status_code=404, detail=f"No speaker with id {speakers_id}")
+            speaker_name = speaker_rows[0]["name"]
+
+            # Link the recorder audio to this speaker (unchanged record linkage).
             self.db_execute_sync(
                 "INSERT INTO records (recorder_id, speakers_id) VALUES (?, ?)",
                 (recorder_id, speakers_id),
@@ -339,7 +403,43 @@ class Speakerid(Baseplugin):
             row = self.db_execute_sync(
                 "SELECT id, recorder_id, speakers_id FROM records ORDER BY id DESC LIMIT 1"
             )
-            return row[0] if row else {"id": None, "recorder_id": recorder_id, "speakers_id": speakers_id}
+            record = row[0] if row else {
+                "id": None, "recorder_id": recorder_id, "speakers_id": speakers_id
+            }
+
+            # Close the enrollment→embedding loop: copy the recorder WAV into
+            # voices/<name>/ and rebuild embeddings from all of that speaker's samples.
+            enrolled = False
+            warning = None
+            try:
+                wav_src = self._resolve_recorder_wav(recorder_id)
+                speaker_dir = os.path.join(self.plugin_folder, "voices", speaker_name)
+                os.makedirs(speaker_dir, exist_ok=True)
+                dest = os.path.join(speaker_dir, f"{recorder_id}_{int(time.time())}.wav")
+                shutil.copyfile(str(wav_src), dest)
+                self.logger.info(f"Enrolling '{speaker_name}': copied recorder audio to {dest}")
+
+                if self.speaker_system is not None and self.speaker_system_ready:
+                    await asyncio.to_thread(self.speaker_system.rebuild)
+                    enrolled = True
+                    count = len(self.speaker_system.speaker_names)
+                    self._current_status.update({
+                        "status": "ready",
+                        "speaker_count": count,
+                        "message": f"Ready - {count} speakers enrolled",
+                        "timestamp": time.time(),
+                    })
+                    self.logger.info(f"Enrollment complete for '{speaker_name}' ({count} speaker(s) indexed)")
+                else:
+                    warning = "Speaker system not ready; WAV saved, will enroll on next startup"
+                    self.logger.warning(warning)
+            except HTTPException:
+                raise
+            except Exception as exc:
+                warning = f"Enrollment failed: {exc}"
+                self.logger.error(warning)
+
+            return {**record, "speaker": speaker_name, "enrolled": enrolled, "warning": warning}
 
 
         @self.router.get("/records")
@@ -383,26 +483,9 @@ class Speakerid(Baseplugin):
                         match, score, top_results = self._identify_from_pcm_data(pcm_data)
                         # Send identification result directly to SpeakerID frontend
                        
-                        if match and score >= self.confidence_threshold_low:
-                            if (not self.last_speaker.id):
-                                self.new_speaker_found(match, score,top_results)
-                            elif (self.last_speaker.id != match) and (self.last_speaker.confidence < score):
-                                self.new_speaker_found(match, score,top_results)
-                            else:
-                                print("No new speaker")
-                        else:
-                            if (not self.last_speaker.id): 
-                                # Low confidence - still send but with unknown status
-                                self.send_message_to_frontend({
-                                    "type": "speaker_identification", 
-                                    "speaker": {
-                                        "name": "unknown",
-                                        "confidence": score,
-                                        "status": "unknown",
-                                        "timestamp": time.time()
-                                    }
-                                })
-                            self.logger.debug(f"Sent unknown speaker identification to frontend (confidence: {score:.2f})")
+                        # Accumulate → commit → lock policy (handles tentative display,
+                        # commit, and locking). Replaces the old flip-prone inline logic.
+                        self._handle_detection(match, score, top_results)
                         return {
                             "status": "success", 
                             "speaker": {
@@ -491,30 +574,166 @@ class Speakerid(Baseplugin):
                 self.logger.error(f"Error processing audio chunk: {e}")
                 raise HTTPException(status_code=500, detail=str(e))
 
-    def new_speaker_found(self, match, score, top_results):  
-        """Handle new speaker found event"""
-        self.last_phrase_speaker.id = match
+    def _handle_detection(self, match, score, top_results):
+        """Apply the accumulate → commit → lock policy to one identification result.
+
+        - confidence_threshold_low  (0.45): a candidate is worth showing as TENTATIVE
+          in the topbar — but is NEVER injected into the LLM context.
+        - confidence_threshold_high (0.62): the COMMIT bar. Once a speaker is the
+          stable majority of the evidence window AND its mean score clears it, COMMIT:
+          inject the name into the LLM context and LOCK further detection until reset.
+        - Fast path: a single detection ≥ _high with a clear runner-up margin commits
+          at once, without waiting for the window to fill.
+
+        Replaces the old 'latest higher score wins' logic, which flipped between
+        speakers mid-conversation and could persist the wrong one.
+        """
+        # LOCKED: a speaker is already committed for this conversation — ignore
+        # further detections until abandon_conversation() / reset_state().
+        if self.committed_speaker is not None:
+            return
+
+        # Nothing usable above the low bar → tentative "unknown", no name injected.
+        if not match or score < self.confidence_threshold_low:
+            self._send_tentative(None, score)
+            return
+
+        runner_up_score = top_results[1][1] if len(top_results) > 1 else 0.0
+
+        # Fast path: one strong, clearly-best detection commits immediately.
+        if score >= self.confidence_threshold_high and (score - runner_up_score) >= self.COMMIT_MARGIN:
+            self._commit(match, score)
+            return
+
+        # Slow path: accumulate evidence, look for a stable majority above the bar.
+        self.evidence_window.append((match, score))
+        votes = {}
+        scores_by_name = {}
+        for name, sc in self.evidence_window:
+            votes[name] = votes.get(name, 0) + 1
+            scores_by_name.setdefault(name, []).append(sc)
+        for name, count in votes.items():
+            if count >= self.COMMIT_VOTES:
+                mean_score = sum(scores_by_name[name]) / len(scores_by_name[name])
+                if mean_score >= self.confidence_threshold_high:
+                    self._commit(name, mean_score)
+                    return
+
+        # No commit yet — show the most-seen candidate as tentative (no LLM injection).
+        best_name = max(votes, key=lambda k: votes[k])
+        self._send_tentative(best_name, score)
+
+    def _commit(self, name, score):
+        """Lock in the committed speaker for this conversation: inject it into the
+        LLM context (only committed speakers reach the model), notify the frontend
+        as confirmed, and lock further detection."""
+        self.committed_speaker = name
+        self.last_speaker.id = name
+        self.last_speaker.confidence = score
+        self.last_phrase_speaker.id = name
         self.last_phrase_speaker.confidence = score
-        self.last_speaker.id = match
+        self.is_processing = False
+        self.logger.info(
+            f"Speaker COMMITTED: {name} (score {score:.2f}) — detection locked for this conversation"
+        )
+        # _update_speaker_context updates context_manager["speaker_info"] AND pushes
+        # the confirmed speaker to the frontend in one message.
+        self._update_speaker_context(name, score, "confirmed")
+
+    def _send_tentative(self, name, score):
+        """Show a tentative (unconfirmed) candidate in the topbar WITHOUT injecting a
+        name into the LLM context. name=None ⇒ unknown/listening."""
+        self.last_speaker.id = name
         self.last_speaker.confidence = score
         self.send_message_to_frontend({
             "type": "speaker_identification",
             "speaker": {
-                "name": match,
+                "name": name or "unknown",
                 "confidence": score,
-                "status": "confirmed" if score >= self.confidence_threshold_low else "partial",
+                "status": "partial" if name else "unknown",
                 "timestamp": time.time()
             }
         })
-        print(f"New speaker found: {match} (score: {score:.2f})")
-       
-        self._update_speaker_context(match, score, "confirmed")
-        self.last_speaker_id = match
-        self.is_processing = False
-        self.logger.info(f"Speaker confirmed: {match} (score: {score:.2f})")
                 
            
         
+    def _migrate_schema(self):
+        """Ensure speakers/records tables match the current schema.
+
+        Baseplugin's `CREATE TABLE IF NOT EXISTS` (run at init) will NOT add columns
+        to a table an older install already created — so a stale people_id-only
+        `speakers` table silently breaks every name/freq query (and `records` may be
+        missing entirely). Detect and rebuild speakers to (id, name, freq), and create
+        records if absent. Uses fully-qualified names because the auto-prefixer only
+        handles FROM/INTO, not DROP/PRAGMA.
+        """
+        try:
+            spk = f"{self.plugin_name}_speakers"
+            rec = f"{self.plugin_name}_records"
+
+            spk_row = self.db_execute_sync(
+                f"SELECT sql FROM sqlite_master WHERE type='table' AND name='{spk}'"
+            )
+            spk_sql = spk_row[0]["sql"] if spk_row else ""
+            if not spk_sql or "name" not in spk_sql or "freq" not in spk_sql:
+                if spk_sql:
+                    self.logger.warning(f"speakerid: rebuilding '{spk}' — old schema: {spk_sql}")
+                self.db_execute_sync(f"DROP TABLE IF EXISTS {spk}")
+                self.db_execute_sync(
+                    f"CREATE TABLE {spk} (id INTEGER PRIMARY KEY, name TEXT UNIQUE NOT NULL, freq INTEGER DEFAULT 0)"
+                )
+                self.logger.info(f"speakerid: '{spk}' ensured with (id, name, freq)")
+
+            rec_row = self.db_execute_sync(
+                f"SELECT sql FROM sqlite_master WHERE type='table' AND name='{rec}'"
+            )
+            if not rec_row:
+                # No enforced FKs (SQLite FK enforcement is off by default); keeping it
+                # prefix-safe and avoiding the cross-plugin recorder_records reference.
+                self.db_execute_sync(
+                    f"CREATE TABLE {rec} (id INTEGER PRIMARY KEY, recorder_id INTEGER NOT NULL, speakers_id INTEGER NOT NULL)"
+                )
+                self.logger.info(f"speakerid: '{rec}' created")
+        except Exception as e:
+            self.logger.error(f"speakerid: schema migration failed: {e}")
+
+    def _sanitize_name(self, raw) -> str:
+        """Normalize a person name into the single canonical identity key: it becomes
+        the speakers.name, the voices/<name>/ folder, the pkl key, and the displayed
+        name. Collapse whitespace, strip filesystem-illegal chars and leading dots;
+        return '' (→ rejected by callers) for empty/whitespace-only input.
+        """
+        if raw is None:
+            return ""
+        name = str(raw).strip()
+        name = re.sub(r"\s+", " ", name)               # collapse internal whitespace
+        name = re.sub(r'[\\/:\*\?"<>\|]', "", name)    # filesystem-illegal / path separators
+        name = name.lstrip(".")                         # no hidden files / ../ tricks
+        return name.strip()
+
+    def _resolve_recorder_wav(self, recorder_id):
+        """Resolve the on-disk WAV path for a recorder record, in-process (no HTTP).
+        Mirrors plugins/biorecorder/biorecorder.py:_generate_voice_sample: look up the
+        recorder plugin instance via self.pm.plugins, read its records table with the
+        recorder's own db_execute_sync (so table prefixing is correct), then resolve
+        Path(recorder.plugin_folder) / filename. Raises HTTPException on any failure.
+        """
+        recorder = next(
+            (p for p in self.pm.plugins if getattr(p, "plugin_name", None) == "recorder"),
+            None,
+        )
+        if recorder is None:
+            raise HTTPException(status_code=409, detail="Recorder plugin is not loaded; cannot fetch audio")
+        rows = recorder.db_execute_sync(
+            "SELECT filename FROM records WHERE id = ?", (recorder_id,)
+        )
+        if not rows:
+            raise HTTPException(status_code=404, detail=f"Recorder record {recorder_id} not found")
+        wav_path = Path(recorder.plugin_folder) / rows[0]["filename"]
+        if not wav_path.exists():
+            raise HTTPException(status_code=404, detail=f"Recorder audio file missing on disk: {rows[0]['filename']}")
+        return wav_path
+
     def db_execute_sync(self, query: str, params: tuple = ()):
         try:
             return super().db_execute_sync(query, params)

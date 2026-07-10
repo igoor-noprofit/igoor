@@ -3,6 +3,7 @@ import os
 import pickle
 import numpy as np
 from pathlib import Path
+import threading
 import torch
 import faiss
 import warnings
@@ -39,6 +40,10 @@ class SpeakerIdentificationSystem:
         self.embeddings = None
         self.index = None
         self.embedding_dim = None  # Will be set after first embedding
+
+        # Guards speaker_names/embeddings/index so a rebuild() can't race an
+        # in-flight identify_speaker() (which would read a half-rebuilt index).
+        self._index_lock = threading.Lock()
         
         # Load existing embeddings or create new
         self.load_or_create_embeddings()
@@ -129,7 +134,58 @@ class SpeakerIdentificationSystem:
         # Save updated embeddings
         if len(self.speaker_names) > 0:
             self.save_embeddings()
-    
+
+    def rebuild(self):
+        """Re-derive every speaker's embedding from ALL WAVs on disk, then rebuild the
+        FAISS index and persist. Implements 'stack & improve': a folder may hold several
+        samples and each speaker's embedding is the mean over all of them, so adding a
+        WAV to an existing folder improves that speaker's embedding on the next rebuild.
+
+        Unlike scan_and_enroll (which skips already-enrolled names), this starts from a
+        clean slate so re-enrollment of an existing speaker actually takes effect. The
+        whole body holds _index_lock so identify_speaker() never sees a half-built index.
+        """
+        with self._index_lock:
+            self.speaker_names = []
+            self.embeddings = None
+            self.embedding_dim = None
+
+            if self.voices_dir.exists():
+                print(f"\nRebuilding embeddings from {self.voices_dir}...")
+                for speaker_dir in [d for d in self.voices_dir.iterdir() if d.is_dir()]:
+                    speaker_name = speaker_dir.name
+                    wav_files = list(speaker_dir.glob("*.wav")) + list(speaker_dir.glob("*.WAV"))
+                    if not wav_files:
+                        continue
+
+                    embeddings_list = []
+                    for wav_file in wav_files:
+                        try:
+                            emb = self.extract_embedding(str(wav_file))
+                            if emb is not None:
+                                embeddings_list.append(emb)
+                        except Exception as e:
+                            print(f"  Warning: rebuild skipped {wav_file.name}: {e}")
+
+                    if not embeddings_list:
+                        continue
+
+                    avg_embedding = np.mean(embeddings_list, axis=0)
+                    if self.embedding_dim is None:
+                        self.embedding_dim = len(avg_embedding)
+                        self.embeddings = np.empty((0, self.embedding_dim), dtype=np.float32)
+
+                    self.speaker_names.append(speaker_name)
+                    self.embeddings = np.vstack([self.embeddings, avg_embedding.reshape(1, -1)])
+                    print(f"  ✓ {speaker_name} - {len(embeddings_list)} sample(s)")
+
+            if len(self.speaker_names) > 0:
+                self.save_embeddings()
+                self.build_index()
+            else:
+                self.index = None
+                print("Rebuild complete: no enrolled speakers.")
+
     def extract_embedding(self, audio_path):
         """Extract embedding from audio file"""
         import torchaudio
@@ -217,26 +273,29 @@ class SpeakerIdentificationSystem:
         Returns:
             tuple: (best_match_name, similarity_score, top_k_results)
         """
+        # Fast best-effort bail-out before the (expensive) embedding forward pass.
         if self.index is None or len(self.speaker_names) == 0:
             print("No speakers enrolled - returning empty results")
             return None, 0.0, []
-        
+
         print(f"Identifying speaker from audio: {len(audio_data)} samples at {sample_rate} Hz")
-        
-        # Extract embedding
+
+        # Extract embedding (pure: only local state + the read-only self.classifier)
         test_embedding = self.extract_embedding_from_audio(audio_data, sample_rate)
         test_embedding_normalized = test_embedding / np.linalg.norm(test_embedding)
-        
-        # Search in FAISS index
-        similarities, indices = self.index.search(
-            test_embedding_normalized.reshape(1, -1), 
-            min(top_k, len(self.speaker_names))
-        )
-        
-        # Prepare results
-        results = []
-        for sim, idx in zip(similarities[0], indices[0]):
-            results.append((self.speaker_names[idx], float(sim)))
+
+        # Search the index + read speaker_names under the lock, so a concurrent
+        # rebuild() can't swap them mid-read (would IndexError on speaker_names[idx]).
+        with self._index_lock:
+            if self.index is None or len(self.speaker_names) == 0:
+                print("No speakers enrolled - returning empty results")
+                return None, 0.0, []
+            similarities, indices = self.index.search(
+                test_embedding_normalized.reshape(1, -1),
+                min(top_k, len(self.speaker_names))
+            )
+            results = [(self.speaker_names[idx], float(sim))
+                       for sim, idx in zip(similarities[0], indices[0])]
         
         # Best match
         best_match = results[0][0] if results[0][1] >= threshold else None
