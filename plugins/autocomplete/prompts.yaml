@@ -63,6 +63,10 @@ autocomplete:
     {static_context}
 
     ---
+    Recent Conversations: use these only if they provide relevant context for the current prediction.
+
+    {last_conversations}
+    ---
     You can also use information from long-term memory, ordered by ascending date:
 
     {long_term}
@@ -76,11 +80,6 @@ autocomplete:
     If needed, also use the following dynamic context information:
 
     {dynamic_context}
-
-    ---
-    Recent Conversations: use these only if they provide relevant context for the current prediction.
-
-    {last_conversations}
 
     ---
     Previous successful predictions (favor these when relevant):

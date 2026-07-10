@@ -147,6 +147,12 @@ flow:
     {static_context}
 
     ---
+
+    Previous conversations:
+
+    {last_conversations}
+
+    ---
     You can also use information from long-term memory, ordered by ascending date:
 
     {long_term}
@@ -163,14 +169,6 @@ flow:
     your speech to the interlocutor, especially when greeting them.
 
     {dynamic_context}
-
-    ---
-
-    Previous conversations:
-
-    {last_conversations}
-
-    ---
 
     </dynamic_context>
 
