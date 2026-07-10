@@ -264,6 +264,9 @@ async function initializeApp() {
           this.bootNotReadyVisible = false;
           setTimeout(() => {
             this.bootProgressVisible = false;
+            // Boot overlay is now hidden — let components do post-boot work
+            // (autocomplete focuses its input so the OS keyboard opens at boot).
+            window.dispatchEvent(new Event("boot-complete"));
           }, 1200);
         }
       },
