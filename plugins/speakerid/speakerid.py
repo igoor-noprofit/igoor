@@ -658,42 +658,55 @@ class Speakerid(Baseplugin):
            
         
     def _migrate_schema(self):
-        """Ensure speakers/records tables match the current schema.
+        """Ensure speakers/records tables match the current schema (AUTOINCREMENT).
 
-        Baseplugin's `CREATE TABLE IF NOT EXISTS` (run at init) will NOT add columns
-        to a table an older install already created — so a stale people_id-only
-        `speakers` table silently breaks every name/freq query (and `records` may be
-        missing entirely). Detect and rebuild speakers to (id, name, freq), and create
-        records if absent. Uses fully-qualified names because the auto-prefixer only
-        handles FROM/INTO, not DROP/PRAGMA.
+        Two concerns:
+        1. `CREATE TABLE IF NOT EXISTS` (run by the base DB init) won't add columns to a
+           table an older install already created — a stale people_id-only `speakers`
+           table silently breaks every name/freq query.
+        2. `INTEGER PRIMARY KEY` WITHOUT AUTOINCREMENT REUSES ids after a delete. Once
+           `conversation_threads.speakers_id` references a speaker (Phase 4), a reused id
+           would point conversations at the wrong person. AUTOINCREMENT guarantees ids
+           are never reused.
+
+        Detect either and rebuild — preserving existing rows when the columns are
+        compatible (rename → create → copy → drop). Fully-qualified names because the
+        auto-prefixer only handles FROM/INTO, not DROP/ALTER/PRAGMA.
         """
+        def ensure(table, create_sql, required_cols, copy_cols):
+            row = self.db_execute_sync(
+                f"SELECT sql FROM sqlite_master WHERE type='table' AND name='{table}'"
+            )
+            cur = (row[0]["sql"] if row else "").upper()
+            if row and all(c in cur for c in required_cols) and ("AUTOINCREMENT" in cur):
+                return  # already correct
+            if row:
+                self.logger.warning(f"speakerid: upgrading '{table}' schema (was: {row[0]['sql']})")
+            # Preserve rows only if the required columns already exist; else rebuild empty.
+            can_copy = bool(row) and all(c in cur for c in required_cols)
+            if can_copy:
+                self.db_execute_sync(f"ALTER TABLE {table} RENAME TO {table}__old")
+            else:
+                self.db_execute_sync(f"DROP TABLE IF EXISTS {table}")
+            self.db_execute_sync(create_sql)
+            if can_copy:
+                self.db_execute_sync(
+                    f"INSERT INTO {table} ({copy_cols}) SELECT {copy_cols} FROM {table}__old"
+                )
+                self.db_execute_sync(f"DROP TABLE {table}__old")
+            self.logger.info(f"speakerid: '{table}' ensured (AUTOINCREMENT, ids never reused)")
+
         try:
             spk = f"{self.plugin_name}_speakers"
             rec = f"{self.plugin_name}_records"
-
-            spk_row = self.db_execute_sync(
-                f"SELECT sql FROM sqlite_master WHERE type='table' AND name='{spk}'"
-            )
-            spk_sql = spk_row[0]["sql"] if spk_row else ""
-            if not spk_sql or "name" not in spk_sql or "freq" not in spk_sql:
-                if spk_sql:
-                    self.logger.warning(f"speakerid: rebuilding '{spk}' — old schema: {spk_sql}")
-                self.db_execute_sync(f"DROP TABLE IF EXISTS {spk}")
-                self.db_execute_sync(
-                    f"CREATE TABLE {spk} (id INTEGER PRIMARY KEY, name TEXT UNIQUE NOT NULL, freq INTEGER DEFAULT 0)"
-                )
-                self.logger.info(f"speakerid: '{spk}' ensured with (id, name, freq)")
-
-            rec_row = self.db_execute_sync(
-                f"SELECT sql FROM sqlite_master WHERE type='table' AND name='{rec}'"
-            )
-            if not rec_row:
-                # No enforced FKs (SQLite FK enforcement is off by default); keeping it
-                # prefix-safe and avoiding the cross-plugin recorder_records reference.
-                self.db_execute_sync(
-                    f"CREATE TABLE {rec} (id INTEGER PRIMARY KEY, recorder_id INTEGER NOT NULL, speakers_id INTEGER NOT NULL)"
-                )
-                self.logger.info(f"speakerid: '{rec}' created")
+            ensure(spk,
+                   f"CREATE TABLE {spk} (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT UNIQUE NOT NULL, freq INTEGER DEFAULT 0)",
+                   ["NAME", "FREQ"],
+                   "id, name, freq")
+            ensure(rec,
+                   f"CREATE TABLE {rec} (id INTEGER PRIMARY KEY AUTOINCREMENT, recorder_id INTEGER NOT NULL, speakers_id INTEGER NOT NULL)",
+                   ["RECORDER_ID", "SPEAKERS_ID"],
+                   "id, recorder_id, speakers_id")
         except Exception as e:
             self.logger.error(f"speakerid: schema migration failed: {e}")
 

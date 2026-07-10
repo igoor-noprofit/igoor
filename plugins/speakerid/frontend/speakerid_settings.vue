@@ -21,32 +21,34 @@
         </div>
 
         <!-- Speaker list -->
-        <div v-if="isLoadingSpeakers" class="speakerid-settings__status">{{ t('loading_speakers') }}</div>
-        <div v-else-if="speakers.length === 0" class="speakerid-settings__status">{{ t('no_speakers') }}</div>
-        <ul v-else class="speakerid-settings__list">
-            <li v-for="s in speakers" :key="s.id" class="speaker-row">
-                <span class="speaker-row__name">{{ s.name }}</span>
-                <span class="speaker-row__badge" :class="s.has_voice ? 'has-voice' : 'name-only'">
-                    {{ s.has_voice ? '🎤' : '⚪' }} {{ t(s.has_voice ? 'voice_recorded' : 'name_only') }}
-                </span>
-                <span class="speaker-row__actions">
-                    <button
-                        type="button"
-                        class="speakerid-settings__btn speakerid-settings__btn--sm"
-                        :disabled="isSaving"
-                        @click="startRecordingFor(s)"
-                    >
-                        {{ s.has_voice ? '↻ ' + t('rerecord') : '🎤 ' + t('record_voice') }}
-                    </button>
-                    <button
-                        type="button"
-                        class="speakerid-settings__btn speakerid-settings__btn--sm speakerid-settings__btn--danger"
-                        :disabled="isSaving"
-                        @click="deleteSpeaker(s)"
-                    >🗑</button>
-                </span>
-            </li>
-        </ul>
+        <section class="speakerid-settings__section">
+            <h3 class="speakerid-settings__title">{{ t('people') }}</h3>
+            <div v-if="isLoadingSpeakers" class="speakerid-settings__status">{{ t('loading_speakers') }}</div>
+            <div v-else-if="speakers.length === 0" class="speakerid-settings__status">{{ t('no_speakers') }}</div>
+            <ul v-else class="speakerid-settings__list">
+                <li v-for="s in speakers" :key="s.id" class="speaker-row">
+                    <span class="speaker-row__name">{{ s.name }}</span>
+                    <span class="speaker-row__actions">
+                        <button
+                            type="button"
+                            class="speakerid-settings__btn speakerid-settings__btn--sm"
+                            :disabled="isSaving"
+                            @click="startRecordingFor(s)"
+                        >
+                            {{ s.has_voice ? '↻ ' + t('rerecord') : '🎤 ' + t('record_voice') }}
+                        </button>
+                        <button
+                            type="button"
+                            class="speakerid-settings__btn speakerid-settings__btn--sm speakerid-settings__btn--danger"
+                            :disabled="isSaving"
+                            :title="t('delete')"
+                            :aria-label="t('delete')"
+                            @click="deleteSpeaker(s)"
+                        >🗑</button>
+                    </span>
+                </li>
+            </ul>
+        </section>
 
         <!-- Contextual recorder: enrolls a voice for the selected speaker -->
         <div v-if="recordingForSpeaker" class="speakerid-settings__recorder">
@@ -56,6 +58,23 @@
                     ✕
                 </button>
             </div>
+
+            <!-- Phrase-guided enrollment: 3 suggested phrases, encourage ≥3 recordings (~10s each) -->
+            <div class="speakerid-settings__guide">
+                <p class="speakerid-settings__guide-instr">{{ t('enrollment_instruction') }}</p>
+                <p class="speakerid-settings__guide-progress">
+                    {{ t('recording_progress', { done: recordingsThisSession, total: minRecordings }) }}
+                    <span v-if="recordingsThisSession >= minRecordings" class="speakerid-settings__guide-done">{{ t('enrollment_enough') }}</span>
+                </p>
+                <div class="speakerid-settings__phrase-card">
+                    <div class="speakerid-settings__phrase-label">
+                        <span>{{ t('phrase_to_read') }}</span>
+                        <span class="speakerid-settings__phrase-count">{{ Math.min(phraseIndex + 1, currentPhraseSet.length) }} / {{ currentPhraseSet.length }}</span>
+                    </div>
+                    <p class="speakerid-settings__phrase-current">{{ currentPhrase }}</p>
+                </div>
+            </div>
+
             <RecorderComponent
                 ref="recorder"
                 :enable-upload="true"
@@ -100,7 +119,23 @@ module.exports = {
             recordingForSpeaker: null,
             pendingBlob: null,
             isSaving: false,
-            statusMessage: ''
+            statusMessage: '',
+            // Phrase-guided enrollment: 3 suggested phrases, encourage ≥3 recordings (~10s each).
+            // First phrase is personalized per speaker (see $_buildPhraseSet); the rest are generic
+            // French sentences chosen for phonetic variety. Localize later via the locale file.
+            enrollmentPhrases: [
+                "L'intelligence artificielle transforme le monde très rapidement et elle aura un impact majeur sur de nombreuses industries dans les années à venir.",
+                "Chaque matin, je commence ma journée par une tasse de café, puis je regarde mes messages avant de commencer à travailler sur mes projets.",
+                "Ma façon préférée de me détendre après une longue journée est d'écouter de la musique ou de regarder un bon film avec ma famille.",
+                "La technologie a rendu notre vie beaucoup plus facile, mais il est aussi important de protéger nos informations personnelles et notre vie privée en ligne.",
+                "J'aime voyager dans de nouveaux endroits, découvrir différentes cultures et goûter à la cuisine locale quand c'est possible.",
+                "L'exercice physique est très important pour la santé du corps et de l'esprit, et j'essaie de marcher un peu chaque jour.",
+                "Portez ce vieux whisky au juge blond qui fume sur son île intérieure, à côté de l'alcôve ovale."
+            ],
+            currentPhraseSet: [],
+            phraseIndex: 0,
+            recordingsThisSession: 0,
+            minRecordings: 3
         };
     },
     computed: {
@@ -111,6 +146,13 @@ module.exports = {
                 play: this.t('play_back'),
                 recording: this.t('recording')
             };
+        },
+        // Show one phrase at a time (the one to read now). After all are done we hold
+        // on the last phrase; the counter + "enough" message signal completion.
+        currentPhrase() {
+            const set = this.currentPhraseSet;
+            if (!set.length) return '';
+            return set[Math.min(this.phraseIndex, set.length - 1)];
         }
     },
     mounted() {
@@ -154,6 +196,21 @@ module.exports = {
             this.recordingForSpeaker = speaker;
             this.pendingBlob = null;
             this.statusMessage = '';
+            this.recordingsThisSession = 0;
+            this.phraseIndex = 0;
+            this.currentPhraseSet = this.$_buildPhraseSet(speaker.name);
+        },
+
+        $_buildPhraseSet(name) {
+            // First phrase is personalized (the speaker says their own name — good for ID);
+            // plus 2 random generic phrases so the ≥3 recordings span varied phonetics.
+            const personalized = `Bonjour, je m'appelle ${name}. J'enregistre ma voix pour que l'application puisse me reconnaître.`;
+            const pool = this.enrollmentPhrases.slice();
+            const picked = [];
+            while (picked.length < 2 && pool.length) {
+                picked.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
+            }
+            return [personalized, ...picked];
         },
 
         cancelRecording() {
@@ -206,12 +263,20 @@ module.exports = {
                     }
                 });
 
-                this.statusMessage = result?.warning
-                    ? result.warning
-                    : this.t('recording_saved');
+                // Keep the enrollment panel open and advance to the next phrase so the
+                // user can do several recordings in a row (target ≥3). Closing happens
+                // via the ✕ button (cancelRecording).
                 this.pendingBlob = null;
-                this.recordingForSpeaker = null;
+                this.recordingsThisSession += 1;
+                this.phraseIndex = Math.min(this.recordingsThisSession, this.currentPhraseSet.length);
                 await this.loadSpeakers();
+                if (result?.warning) {
+                    this.statusMessage = result.warning;
+                } else if (this.recordingsThisSession >= this.minRecordings) {
+                    this.statusMessage = this.t('enrollment_enough');
+                } else {
+                    this.statusMessage = this.t('recording_saved_next');
+                }
             } catch (error) {
                 console.error('Failed to save recording', error);
                 this.statusMessage = error.message || this.t('error_saving_recording');
@@ -242,12 +307,29 @@ module.exports = {
 </script>
 
 <style scoped>
+/* Dark-theme palette from the app's design tokens (css/app.css).
+   This component renders inside .plugin-settings-component (bg #0d1117). */
 .speakerid-settings {
     display: flex;
     flex-direction: column;
     gap: 16px;
+    color: var(--color-text, #ffffff);
 }
 
+.speakerid-settings__section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.speakerid-settings__title {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: var(--color-text, #ffffff);
+}
+
+/* Add-person row */
 .speakerid-settings__add {
     display: flex;
     gap: 8px;
@@ -255,96 +337,119 @@ module.exports = {
 
 .speakerid-settings__input {
     flex: 1;
-    padding: 8px 10px;
-    border: 1px solid #ccc;
-    border-radius: 6px;
+    padding: 10px 14px;
+    border: 1px solid var(--basecolor-gray-700, #556265);
+    border-radius: 8px;
+    background: var(--basecolor-gray-900, #2d3233);
+    color: var(--color-text, #ffffff);
     font-size: 0.95rem;
+    transition: border-color 0.15s ease;
 }
 
+.speakerid-settings__input::placeholder {
+    color: var(--basecolor-gray-100, #afbfbf);
+    opacity: 0.7;
+}
+
+.speakerid-settings__input:focus {
+    outline: none;
+    border-color: var(--basecolor-accent-500, #3d6c76);
+}
+
+/* Buttons */
 .speakerid-settings__btn {
-    padding: 8px 14px;
-    border: 1px solid var(--basecolor-gray-300, #ccc);
-    border-radius: 6px;
-    background: var(--basecolor-accent-100, #eef);
-    color: var(--basecolor-accent-700, #335);
+    padding: 10px 16px;
+    border: none;
+    border-radius: 8px;
+    background: var(--basecolor-accent-500, #3d6c76);
+    color: #ffffff;
     cursor: pointer;
     font-size: 0.9rem;
+    font-weight: 600;
     white-space: nowrap;
+    transition: background 0.15s ease, transform 0.1s ease;
 }
 
 .speakerid-settings__btn:hover:not(:disabled) {
-    background: var(--basecolor-accent-200, #ddf);
+    background: var(--basecolor-accent-700, #2f535b);
+}
+
+.speakerid-settings__btn:active:not(:disabled) {
+    transform: translateY(1px);
+}
+
+.speakerid-settings__btn:focus-visible {
+    outline: 2px solid var(--basecolor-accent-500, #3d6c76);
+    outline-offset: 2px;
 }
 
 .speakerid-settings__btn:disabled {
-    opacity: 0.5;
+    opacity: 0.45;
     cursor: not-allowed;
 }
 
 .speakerid-settings__btn--sm {
-    padding: 5px 10px;
-    font-size: 0.85rem;
+    padding: 7px 12px;
+    font-size: 0.82rem;
 }
 
 .speakerid-settings__btn--danger {
-    background: var(--basecolor-warning-100, #fde);
-    color: var(--basecolor-warning-500, #a33);
-    border-color: var(--basecolor-warning-500, #c66);
+    background: var(--basecolor-warning-500, #a8351b);
 }
 
+.speakerid-settings__btn--danger:hover:not(:disabled) {
+    background: var(--basecolor-warning-500, #a8351b);
+    filter: brightness(1.15);
+}
+
+/* Speaker list */
 .speakerid-settings__list {
     list-style: none;
     margin: 0;
     padding: 0;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 8px;
 }
 
 .speaker-row {
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 8px 10px;
-    border: 1px solid var(--basecolor-gray-200, #eee);
+    padding: 12px 14px;
+    border: 1px solid var(--basecolor-gray-700, #556265);
     border-radius: 8px;
+    background: var(--basecolor-gray-900, #2d3233);
+    transition: border-color 0.15s ease;
+}
+
+.speaker-row:hover {
+    border-color: var(--basecolor-accent-500, #3d6c76);
 }
 
 .speaker-row__name {
     flex: 1;
     font-weight: 600;
-    color: var(--color-text, #222);
-}
-
-.speaker-row__badge {
-    font-size: 0.8rem;
-    padding: 3px 8px;
-    border-radius: 12px;
-    white-space: nowrap;
-}
-
-.speaker-row__badge.has-voice {
-    background: var(--basecolor-accent-100, #eef);
-    color: var(--basecolor-accent-700, #335);
-}
-
-.speaker-row__badge.name-only {
-    background: var(--basecolor-gray-100, #f3f3f3);
-    color: var(--basecolor-gray-500, #888);
-    font-style: italic;
+    font-size: 1rem;
+    color: var(--color-text, #ffffff);
+    word-break: break-word;
 }
 
 .speaker-row__actions {
     display: flex;
-    gap: 6px;
+    gap: 8px;
+    flex-shrink: 0;
 }
 
+/* Contextual recorder panel */
 .speakerid-settings__recorder {
     display: flex;
     flex-direction: column;
     gap: 12px;
-    padding-top: 8px;
-    border-top: 1px solid var(--basecolor-gray-200, #eee);
+    padding: 14px;
+    border: 1px solid var(--basecolor-gray-700, #556265);
+    border-radius: 10px;
+    background: var(--basecolor-gray-900, #2d3233);
 }
 
 .speakerid-settings__recorder-label {
@@ -352,9 +457,90 @@ module.exports = {
     align-items: center;
     gap: 10px;
     font-size: 0.95rem;
+    color: var(--color-text, #ffffff);
 }
 
-/* Override RecorderComponent layout */
+.speakerid-settings__recorder-label strong {
+    font-weight: 700;
+}
+
+/* Phrase-guided enrollment */
+.speakerid-settings__guide {
+    background: var(--basecolor-darkest, #121617);
+    border: 1px solid var(--basecolor-gray-700, #556265);
+    border-radius: 8px;
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.speakerid-settings__guide-instr {
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--basecolor-gray-100, #afbfbf);
+    line-height: 1.4;
+}
+
+.speakerid-settings__guide-progress {
+    margin: 0;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--color-text, #ffffff);
+}
+
+.speakerid-settings__guide-done {
+    color: var(--basecolor-accent-500, #3d6c76);
+    margin-left: 8px;
+}
+
+.speakerid-settings__phrase-card {
+    background: var(--basecolor-darkest, #121617);
+    border: 1px solid var(--basecolor-accent-500, #3d6c76);
+    border-radius: 8px;
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.speakerid-settings__phrase-label {
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--basecolor-gray-100, #afbfbf);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.speakerid-settings__phrase-count {
+    color: var(--basecolor-accent-500, #3d6c76);
+    font-weight: 700;
+}
+
+.speakerid-settings__phrase-current {
+    margin: 0;
+    font-size: 1rem;
+    line-height: 1.5;
+    color: var(--color-text, #ffffff);
+}
+
+/* Save row + status */
+.speakerid-settings__actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.speakerid-settings__status {
+    font-size: 0.88rem;
+    color: var(--basecolor-gray-100, #afbfbf);
+}
+
+/* Override RecorderComponent layout (the reused recorder component) */
 .speakerid-settings__recorder :deep(.recorder__row) {
     flex-direction: row;
     align-items: center;
@@ -364,7 +550,6 @@ module.exports = {
     justify-content: center;
 }
 
-/* Make volume meter vertical on the right */
 .speakerid-settings__recorder :deep(.recorder__meter) {
     order: 2;
     min-width: 40px;
@@ -375,18 +560,16 @@ module.exports = {
 .speakerid-settings__recorder :deep(.recorder__meter canvas) {
     width: 40px !important;
     height: 80px !important;
-    border: 1px solid #ccc;
+    border: 1px solid var(--basecolor-gray-700, #556265);
     border-radius: 4px;
 }
 
-/* Controls on the left */
 .speakerid-settings__recorder :deep(.recorder__controls) {
     order: 1;
     gap: 16px;
     align-items: center;
 }
 
-/* Make buttons much bigger */
 .speakerid-settings__recorder :deep(.recorder__main-btn) {
     width: 80px !important;
     height: 80px !important;
@@ -400,17 +583,5 @@ module.exports = {
 .speakerid-settings__recorder :deep(.recorder__icon) {
     width: 40px !important;
     height: 40px !important;
-}
-
-.speakerid-settings__actions {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    justify-content: center;
-}
-
-.speakerid-settings__status {
-    font-size: 0.9rem;
-    color: #4b5563;
 }
 </style>

@@ -12,12 +12,12 @@
     "requires_db": true,
     "db_tables": {
         "speakers": {
-            "schema": "CREATE TABLE IF NOT EXISTS speakers (id INTEGER PRIMARY KEY, name TEXT UNIQUE NOT NULL, freq INTEGER DEFAULT 0)",
-            "version": "1.1"
+            "schema": "CREATE TABLE IF NOT EXISTS speakers (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT UNIQUE NOT NULL, freq INTEGER DEFAULT 0)",
+            "version": "1.2"
         },
         "records": {
-            "schema": "CREATE TABLE IF NOT EXISTS records (id INTEGER PRIMARY KEY, recorder_id INTEGER NOT NULL, speakers_id INTEGER NOT NULL, FOREIGN KEY (recorder_id) REFERENCES recorder_records(id), FOREIGN KEY (speakers_id) REFERENCES speakers(id))",
-            "version": "1.0"
+            "schema": "CREATE TABLE IF NOT EXISTS records (id INTEGER PRIMARY KEY AUTOINCREMENT, recorder_id INTEGER NOT NULL, speakers_id INTEGER NOT NULL, FOREIGN KEY (recorder_id) REFERENCES recorder_records(id), FOREIGN KEY (speakers_id) REFERENCES speakers(id))",
+            "version": "1.1"
         }
     },
     "has_settings": true
