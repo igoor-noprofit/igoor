@@ -43,6 +43,7 @@
     "memory": true,
     "extkeyb": false,
     "weather": false,
-    "recorder": true
+    "recorder": true,
+    "biorecorder": true
   }
 }
