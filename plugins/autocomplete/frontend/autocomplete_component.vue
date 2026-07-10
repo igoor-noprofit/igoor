@@ -121,7 +121,10 @@ module.exports = {
             // to draw attention to the field; otherwise the translated default.
             placeholderText: "",
             typewriterTimer: null,
-            typewriterPlayed: false
+            typewriterPlayed: false,
+            // Single switch for the boot typewriter placeholder hint.
+            // Set to false to disable the animation outright.
+            enableTypewriter: false
         }
     },
     async mounted() {
@@ -171,7 +174,10 @@ module.exports = {
             // The app dispatches "boot-complete" once the boot overlay is dismissed.
             this.$nextTick(() => this.$_focusInput());
             // Type a hint into the placeholder so the user notices the field.
-            this.$_startTypewriter();
+            // Toggle this.enableTypewriter to turn the animation on/off.
+            if (this.enableTypewriter) {
+                this.$_startTypewriter();
+            }
         },
         $_startTypewriter() {
             // One-shot boot effect: type the hint into the placeholder letter by
@@ -187,7 +193,7 @@ module.exports = {
                 if (i < fullText.length) {
                     this.placeholderText += fullText.charAt(i);
                     i++;
-                    this.typewriterTimer = setTimeout(tick, 55);
+                    this.typewriterTimer = setTimeout(tick, 18);
                 } else {
                     this.typewriterTimer = null;
                 }
@@ -384,6 +390,11 @@ module.exports = {
     },
     watch: {
         userInput(newInput, oldInput) {
+            // Live-sync the current input to the backend so phrase (LLM)
+            // predictions can detect staleness and drop results the user has
+            // already typed past.
+            this.sendMsgToBackend({ action: "typing", input: newInput });
+
             // Word suggestions
             if (newInput && !this.isLoading && !this.error) {
                 this.wordSuggestions = this.predictWords(newInput);

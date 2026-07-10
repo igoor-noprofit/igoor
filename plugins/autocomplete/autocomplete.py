@@ -46,6 +46,9 @@ class Autocomplete(Baseplugin):
         self.only_exact_matches = self.settings.get("only_exact_matches", False)
         self.allow_virtual_keyboard = self.settings.get("allow_virtual_keyboard", False)
         self.short_prediction_words = self.settings.get("short_prediction_words", 1)
+        # Live input synced from the frontend (see the "typing" action) so that
+        # phrase (LLM) predictions can be dropped when the user types past them.
+        self._current_input = ""
         self.router = None
         self._build_prompt_templates()
         print(f"ONLY EXACT MATCHES: {self.only_exact_matches}")
@@ -165,6 +168,11 @@ class Autocomplete(Baseplugin):
                     completion = message_dict.get("completion")
                     if input_text and completion:
                         asyncio.create_task(self.store_successful_prediction(input_text, completion))
+                elif action == "typing":
+                    # Live input sync from the frontend. Lets predict() detect
+                    # staleness: a phrase (LLM) result is dropped if the user has
+                    # typed past the input it was generated for.
+                    self._current_input = message_dict.get("input", "")
                 elif message_dict.get("msg"):
                     asyncio.create_task(self.pm.trigger_hook(hook_name="reset_conversation_timeout"))
                     input_value = message_dict.get("msg")
@@ -204,7 +212,7 @@ class Autocomplete(Baseplugin):
                 self.logger.info(f"Updating existing prediction (ID: {prediction_id}) with hits: {hits}")
                 
                 # The issue might be here - let's fix the UPDATE statement
-                update_result = await self.db_execute(
+                await self.db_execute(
                     "UPDATE predictions SET hits = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
                     (hits, prediction_id)
                 )
@@ -410,7 +418,6 @@ class Autocomplete(Baseplugin):
         print(f"DYNAMIC CONTEXT IS {dynamic_context}")
         conversation = dynamic_context.get("conversation")
         # print(f"CONVERSATION IS : {conversation}")
-        assistant_type = "autocomplete"
         # Make a single call to query_rag_async with all needed store types
         
         chunk_ids = await self.pm.trigger_hook(
@@ -457,6 +464,16 @@ class Autocomplete(Baseplugin):
         answers = llm.invoke(system_prompt,prompt, reasoning_effort=self.settings.get("reasoning_effort"))
         print(f"TYPE = {type(answers)}, ANSWERS: {answers}")
         answers_dict = answers.dict()
+        # Staleness guard: drop this phrase prediction if the user has typed
+        # past the input it was generated for. Without this, a slow LLM result
+        # for an earlier input can render after (and visually leapfrog) the more
+        # recent inline word predictions.
+        if (self._current_input or "").strip() != msg.strip():
+            self.logger.info(
+                f"Dropping stale phrase prediction for '{msg}' "
+                f"(current input: '{self._current_input}')"
+            )
+            return
         if answers_dict.get("answers"):
             # Include the original input with the answers
             response = {
