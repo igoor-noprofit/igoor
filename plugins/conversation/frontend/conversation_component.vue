@@ -27,6 +27,14 @@
                 <use xlink:href="/img/svgdefs.svg#icon-chevron_down" />
             </svg>
         </button>
+        <button v-if="thread.length === 0 && status !== 'transcribing_started'"
+                class="btn btn-side btn-side-right btn-inform"
+                @click="$_inform">
+            <svg class="icon icon-l">
+                <use xlink:href="img/svgdefs.svg#icon-info"></use>
+            </svg>
+            <h3>{{ t("I speak via a tool") }}</h3>
+        </button>
     </div>
 </template>
 
@@ -97,6 +105,7 @@ module.exports = {
             console.table(data);
             if (data.action == "abandon_conversation") {
                 this.thread = [];
+                this.status = '';            // hide the transcribing dots immediately
                 this.resetProgressBar();
             } else if (data.action == "startCountdown") {
                 // Handle start countdown logic
@@ -167,6 +176,12 @@ module.exports = {
                     message: message.msg
                 });
             }
+        },
+        $_inform() {
+            this.sendMsgToBackend({
+                action: 'speak',
+                message: this.t("Hello, I use a communication tool to speak, so please give me a moment.")
+            });
         }
     },
     watch: {
@@ -296,6 +311,19 @@ module.exports = {
 .btn-side-right {
     position: absolute;
     z-index: 2;
+}
+
+/* "I speak via a tool" button: same width (120px) as the autocomplete
+   "say the phrase" button. Scoped to .btn-inform so it does NOT resize
+   the expand button, which also uses .btn-side-right. */
+.btn-side.btn-inform {
+    width: 120px;
+    min-width: 120px;
+    max-width: 120px;
+}
+
+.btn-side.btn-inform h3 {
+    font-size: 0.65rem;
 }
 
 .icon.rotated {

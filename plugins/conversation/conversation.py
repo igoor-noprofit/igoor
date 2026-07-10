@@ -511,7 +511,7 @@ class Conversation(Baseplugin):
             
             # Add handling for speak action
             if message_dict.get('action') == 'speak':
-                asyncio.create_task(self.pm.trigger_hook("speak", message=message_dict.get('message')))
+                asyncio.create_task(self.pm.trigger_hook("speak", message=message_dict.get('message'), skip_asr=False))
                 return
                 
             print(f"Default processing message for {self.plugin_name}: {message}")

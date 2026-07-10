@@ -144,7 +144,7 @@ class Shortcuts(Baseplugin):
                     bid = message_dict.get("bid")
                     print (f"Speaking {msg}")
                     if msg:
-                        asyncio.create_task(self.pm.trigger_hook(hook_name="speak", message=msg))
+                        asyncio.create_task(self.pm.trigger_hook(hook_name="speak", message=msg, skip_asr=True))
                         onboarding_flag = 1 if self.is_onboarding_on else 0
                         if bid is None:
                             self.logger.warning("Shortcut speak action missing bid; defaulting to -1")
@@ -166,7 +166,7 @@ class Shortcuts(Baseplugin):
                                 )
                         except Exception as exc:
                             self.logger.error(f"Failed to store shortcut usage: {exc}")
-                        # asyncio.create_task(self.pm.trigger_hook(hook_name="add_msg_to_conversation", msg=msg, author="master",msg_input="shortcuts"))
+                            # asyncio.create_task(self.pm.trigger_hook(hook_name="add_msg_to_conversation", msg=msg, author="master",msg_input="shortcuts"))
                     else:
                         print("Speak action is present but msg is empty.")
                         

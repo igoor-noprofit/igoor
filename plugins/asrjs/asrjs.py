@@ -235,9 +235,16 @@ class Asrjs(Baseplugin):
         })
 
     @hookimpl
-    async def restart_asr(self):
-        print(f"ASRJS restart_asr called: continuous={self.continuous}, conversation_abandoned={self.conversation_abandoned}, is_paused={self.is_paused}")
-        if (self.continuous):
+    async def restart_asr(self, force_ready):
+        print(f"ASRJS restart_asr called: continuous={self.continuous}, conversation_abandoned={self.conversation_abandoned}, is_paused={self.is_paused}, force_ready={force_ready}")
+        if force_ready:
+            # Caller (e.g. an emergency shortcut speak) requested NOT to reopen the
+            # ASR channel: return to idle (wakeword-armed) instead of listening.
+            self.is_paused = False
+            new_status = "ready"
+            if self.continuous and self.wakeword_enabled and self.wakeword_detector:
+                self.wakeword_detector.prime()
+        elif (self.continuous):
             # Don't resume listening if conversation was abandoned
             if self.conversation_abandoned:
                 new_status = "ready"
@@ -252,7 +259,7 @@ class Asrjs(Baseplugin):
                     self.wakeword_detector.prime()
         else:
             new_status="listening"
-        print(f"ASRJS restart_asr sending status: {new_status}")
+        print(f"ASRJS restart_asr sending status: {new_status} (force_ready={force_ready})")
         await self.send_status(new_status)
     
     def run_monitor_loading(self):
@@ -433,8 +440,10 @@ class Asrjs(Baseplugin):
                             
                             if text:
                                 text = self.clean_whisper_silence(text)
-                                # Handle transcription result
-                                await self.handle_wake_word(text)
+                                # Drop the result if the conversation was abandoned while this
+                                # transcription was in flight — don't inject into the emptied convo.
+                                if not self.conversation_abandoned:
+                                    await self.handle_wake_word(text)
                             
                             # Send result back to frontend
                             await self.send_message_to_frontend({
@@ -875,8 +884,12 @@ class Asrjs(Baseplugin):
                 
                 if text:
                     text = self.clean_whisper_silence(text)
-                    # Handle transcription result
-                    await self.handle_wake_word(text)
+                    # Drop the result if the conversation was abandoned while this
+                    # transcription was in flight — don't inject into the emptied convo.
+                    # Checked before handle_wake_word so add_msg_to_conversation's
+                    # self-flip of conversation_abandoned can't defeat this guard.
+                    if not self.conversation_abandoned:
+                        await self.handle_wake_word(text)
                 await self.pm.trigger_hook(hook_name="transcribing_ended")
                 
                 # Reset status to "listening" for continuous mode after transcription completes

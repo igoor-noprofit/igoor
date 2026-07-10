@@ -23,7 +23,7 @@
                        class="real-input"
                        :class="{ 'has-text': userInput }"
                        :value="userInput"
-                       :placeholder="t('say something...')"
+                       :placeholder="placeholderText || t('say something...')"
                        :aria-label="t('say something...')"
                        @input="$_onInput"
                        @keydown.enter.prevent="$_speakInput"
@@ -116,7 +116,15 @@ module.exports = {
             showKeyboard: false,
             allowVirtualKeyboard: false,
             shortPredictions: [],   // DB-based personalized predictions
-            shortPredictionTimeout: null
+            shortPredictionTimeout: null,
+            // Placeholder shown in the input. Animated (typewriter) once at boot
+            // to draw attention to the field; otherwise the translated default.
+            placeholderText: "",
+            typewriterTimer: null,
+            typewriterPlayed: false,
+            // Single switch for the boot typewriter placeholder hint.
+            // Set to false to disable the animation outright.
+            enableTypewriter: false
         }
     },
     async mounted() {
@@ -129,6 +137,13 @@ module.exports = {
         // Auto-focus when the autocomplete view appears so the OS-level keyboard
         // (TabTip / TD Control) opens without an extra click.
         this.$nextTick(() => this.$_focusInput());
+        // Re-focus once boot finishes: the boot overlay can steal the focus set
+        // above at mount time.
+        window.addEventListener("boot-complete", this.$_onBootComplete);
+    },
+    beforeDestroy() {
+        window.removeEventListener("boot-complete", this.$_onBootComplete);
+        this.$_stopTypewriter();
     },
     methods: {
         $_showKeyboard() {
@@ -153,6 +168,42 @@ module.exports = {
         $_focusInput() {
             if (this.$refs.autocompleteInput) {
                 this.$refs.autocompleteInput.focus();
+            }
+        },
+        $_onBootComplete() {
+            // The app dispatches "boot-complete" once the boot overlay is dismissed.
+            this.$nextTick(() => this.$_focusInput());
+            // Type a hint into the placeholder so the user notices the field.
+            // Toggle this.enableTypewriter to turn the animation on/off.
+            if (this.enableTypewriter) {
+                this.$_startTypewriter();
+            }
+        },
+        $_startTypewriter() {
+            // One-shot boot effect: type the hint into the placeholder letter by
+            // letter. Guarded so a repeated "boot-complete" can't restart it.
+            if (this.typewriterPlayed) {
+                return;
+            }
+            this.typewriterPlayed = true;
+            const fullText = this.t("write here to say something and you will see predictions appear");
+            this.placeholderText = "";
+            let i = 0;
+            const tick = () => {
+                if (i < fullText.length) {
+                    this.placeholderText += fullText.charAt(i);
+                    i++;
+                    this.typewriterTimer = setTimeout(tick, 18);
+                } else {
+                    this.typewriterTimer = null;
+                }
+            };
+            tick();
+        },
+        $_stopTypewriter() {
+            if (this.typewriterTimer) {
+                clearTimeout(this.typewriterTimer);
+                this.typewriterTimer = null;
             }
         },
         $_reset() {
@@ -339,6 +390,11 @@ module.exports = {
     },
     watch: {
         userInput(newInput, oldInput) {
+            // Live-sync the current input to the backend so phrase (LLM)
+            // predictions can detect staleness and drop results the user has
+            // already typed past.
+            this.sendMsgToBackend({ action: "typing", input: newInput });
+
             // Word suggestions
             if (newInput && !this.isLoading && !this.error) {
                 this.wordSuggestions = this.predictWords(newInput);
@@ -454,7 +510,7 @@ button {
     height: 100%;
     width: 100%;
     display: flex;
-    justify-content: center;
+    justify-content: flex-start;
     align-items: center;
     gap: 8px;
     padding: 0 12px;
@@ -475,8 +531,9 @@ button {
     color: #fff;
     font-family: inherit;
     font-size: inherit;
-    text-align: center;
-    caret-color: #0095c0;
+    text-align: left;
+    caret-color: #fff;
+    /* caret-shape: block; */
 }
 .real-input::placeholder {
     color: #999;

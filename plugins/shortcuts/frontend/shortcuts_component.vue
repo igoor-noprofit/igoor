@@ -100,14 +100,6 @@ export default {
                     highlight: false
                 },
                 {
-                    key: 'inform',
-                    icon: 'icon-info',
-                    label: this.t('I speak via a tool'),
-                    msg: this.t("Hello, I use a communication tool to speak, so please give me a moment."),
-                    random: false,
-                    highlight: false
-                },
-                {
                     key: 'repeat',
                     icon: 'icon-repeat',
                     label: this.t('Repeat'),

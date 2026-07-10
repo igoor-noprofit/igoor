@@ -9,7 +9,6 @@
         "yes": true,
         "no": true,
         "thanks": true,
-        "inform": true,
         "repeat": true,
         "help": true
     }

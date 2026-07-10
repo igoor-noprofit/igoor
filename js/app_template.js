@@ -3,6 +3,11 @@ var data = {
 };
 let app;
 
+// Expose the build version so assets whose URL is built client-side (e.g. the
+// locale JSON fetched in BasePluginComponent.js) can cache-bust with ?v=<version>,
+// matching the ?v={{VERSION}} convention used on app.js / app.vue / component URLs.
+window.IGOOR_VERSION = "{{VERSION}}";
+
 function registerReadypy(fn) {
   if (typeof window === "undefined") {
     return;
@@ -259,6 +264,9 @@ async function initializeApp() {
           this.bootNotReadyVisible = false;
           setTimeout(() => {
             this.bootProgressVisible = false;
+            // Boot overlay is now hidden — let components do post-boot work
+            // (autocomplete focuses its input so the OS keyboard opens at boot).
+            window.dispatchEvent(new Event("boot-complete"));
           }, 1200);
         }
       },

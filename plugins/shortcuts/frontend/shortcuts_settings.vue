@@ -140,7 +140,6 @@ export default {
                     yes: true,
                     no: true,
                     thanks: true,
-                    inform: true,
                     repeat: true,
                     help: true
                 }
@@ -153,7 +152,6 @@ export default {
                 { key: 'yes', label: 'Yes' },
                 { key: 'no', label: 'No' },
                 { key: 'thanks', label: 'Thanks' },
-                { key: 'inform', label: 'I speak via a tool' },
                 { key: 'repeat', label: 'Repeat' },
                 { key: 'help', label: 'Help!' }
             ],
