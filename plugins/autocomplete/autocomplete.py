@@ -9,9 +9,20 @@ from llm_manager import LLMManager
 from fastapi import APIRouter
 from pydantic import BaseModel
 from typing import List, Dict, Optional
-import asyncio,json,time,re
+import asyncio,json,time,re,unicodedata
 import numpy as np
 from utils import normalize_filter_by_timeframe_result
+
+
+def _fold(s):
+    """Case- and accent-insensitive form of s (e.g. 'Être' -> 'etre', 'école' -> 'ecole').
+    Used so word predictions match regardless of case or accents — something SQLite
+    LIKE / COLLATE NOCASE cannot do for non-ASCII (French) characters."""
+    if not s:
+        return ""
+    decomposed = unicodedata.normalize("NFKD", s)
+    no_accents = "".join(c for c in decomposed if not unicodedata.combining(c))
+    return no_accents.lower()
 
 
 class ShortPredictionsRequest(BaseModel):
@@ -180,7 +191,7 @@ class Autocomplete(Baseplugin):
             # Check if this prediction already exists
             self.logger.info("Checking if prediction exists...")
             result = await self.db_execute(
-                "SELECT id, hits FROM predictions WHERE input = ? AND completion = ?",
+                "SELECT id, hits FROM predictions WHERE input = ? COLLATE NOCASE AND completion = ? COLLATE NOCASE",
                 (input_text, completion)
             )
             
@@ -227,9 +238,10 @@ class Autocomplete(Baseplugin):
     async def get_top_predictions(self, input_text: str, limit: int = 3):
         """Get top predictions for an input text based on hit frequency"""
         try:
-            # Get exact matches first
+            # Get exact matches first (case-insensitive; COLLATE NOCASE is ASCII-only,
+            # so accented capitals are matched via _fold in the short-prediction path)
             result = await self.db_execute(
-                "SELECT input, completion, hits FROM predictions WHERE input = ? ORDER BY hits DESC LIMIT ?",
+                "SELECT input, completion, hits FROM predictions WHERE input = ? COLLATE NOCASE ORDER BY hits DESC LIMIT ?",
                 (input_text, limit)
             )
             
@@ -264,25 +276,31 @@ class Autocomplete(Baseplugin):
             return ShortPredictionsResponse(predictions=[])
         
         input_lower = input_text.lower().strip()
-        
+        folded_input = _fold(input_text)
+
         try:
-            # 1. Search predictions table - search in both input AND completion fields with %query%
+            # 1. Search predictions table. Rows are fetched and matched in Python with
+            # _fold() so matching is case- AND accent-insensitive — SQLite LIKE only
+            # handles ASCII case, which is inadequate for French (e.g. 'etre' should
+            # match 'être'). The predictions table is user-bounded, so a scan per
+            # keystroke is cheap.
             if self.db:
                 pred_results = await self.db_execute(
-                    "SELECT input, completion, hits FROM predictions WHERE input LIKE ? OR completion LIKE ? ORDER BY hits DESC LIMIT 20",
-                    (f"%{input_lower}%", f"%{input_lower}%")
+                    "SELECT input, completion, hits FROM predictions ORDER BY hits DESC LIMIT 2000"
                 )
-                
+
                 if pred_results:
                     for row in pred_results:
                         completion = row.get('completion', '')
                         hits = row.get('hits', 0)
-                        # Extract short prediction from completion
-                        short_pred = self._extract_short_prediction(input_text, completion, self.short_prediction_words)
-                        if short_pred:
-                            # Keep the one with highest hits
-                            if short_pred not in predictions or predictions[short_pred] < hits:
-                                predictions[short_pred] = hits
+                        # case/accent-insensitive containment on input or completion
+                        if folded_input in _fold(row.get('input', '')) or folded_input in _fold(completion):
+                            # Extract short prediction from completion
+                            short_pred = self._extract_short_prediction(input_text, completion, self.short_prediction_words)
+                            if short_pred:
+                                # Keep the one with highest hits
+                                if short_pred not in predictions or predictions[short_pred] < hits:
+                                    predictions[short_pred] = hits
             
             # 2. Search conversation messages via hook
             conversation_msgs_result = await self.pm.trigger_hook(
@@ -331,15 +349,17 @@ class Autocomplete(Baseplugin):
         if not full_text or not input_text:
             return None
         
-        input_lower = input_text.lower().strip()
-        full_lower = full_text.lower().strip()
-        
-        # Find where the input matches in the full text
-        idx = full_lower.find(input_lower)
+        input_folded = _fold(input_text).strip()
+        full_folded = _fold(full_text).strip()
+
+        # Find where the input matches in the full text (case/accent-insensitive)
+        idx = full_folded.find(input_folded)
         if idx == -1:
             return None
-        
-        # Get the portion after the input (preserve leading space if present)
+
+        # Get the portion after the input (preserve leading space if present).
+        # _fold preserves length for French text, so the index aligns with the
+        # original string and we can slice it directly (keeping real casing).
         continuation = full_text[idx + len(input_text):]
         
         if not continuation or not continuation.strip():
