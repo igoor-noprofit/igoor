@@ -565,6 +565,7 @@ export default {
             // Create a mini WAV file from a chunk of audio data
             const numChannels = 1;
             const bitsPerSample = 16;
+            const rate = sampleRate || this.nativeSampleRate || 48000;
 
             // Convert float32 to int16
             const int16Array = new Int16Array(float32Array.length);
