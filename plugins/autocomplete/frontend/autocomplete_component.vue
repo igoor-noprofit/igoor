@@ -23,7 +23,7 @@
                        class="real-input"
                        :class="{ 'has-text': userInput }"
                        :value="userInput"
-                       :placeholder="t('say something...')"
+                       :placeholder="placeholderText || t('say something...')"
                        :aria-label="t('say something...')"
                        @input="$_onInput"
                        @keydown.enter.prevent="$_speakInput"
@@ -116,7 +116,12 @@ module.exports = {
             showKeyboard: false,
             allowVirtualKeyboard: false,
             shortPredictions: [],   // DB-based personalized predictions
-            shortPredictionTimeout: null
+            shortPredictionTimeout: null,
+            // Placeholder shown in the input. Animated (typewriter) once at boot
+            // to draw attention to the field; otherwise the translated default.
+            placeholderText: "",
+            typewriterTimer: null,
+            typewriterPlayed: false
         }
     },
     async mounted() {
@@ -135,6 +140,7 @@ module.exports = {
     },
     beforeDestroy() {
         window.removeEventListener("boot-complete", this.$_onBootComplete);
+        this.$_stopTypewriter();
     },
     methods: {
         $_showKeyboard() {
@@ -164,6 +170,35 @@ module.exports = {
         $_onBootComplete() {
             // The app dispatches "boot-complete" once the boot overlay is dismissed.
             this.$nextTick(() => this.$_focusInput());
+            // Type a hint into the placeholder so the user notices the field.
+            this.$_startTypewriter();
+        },
+        $_startTypewriter() {
+            // One-shot boot effect: type the hint into the placeholder letter by
+            // letter. Guarded so a repeated "boot-complete" can't restart it.
+            if (this.typewriterPlayed) {
+                return;
+            }
+            this.typewriterPlayed = true;
+            const fullText = this.t("write here to say something and you will see predictions appear");
+            this.placeholderText = "";
+            let i = 0;
+            const tick = () => {
+                if (i < fullText.length) {
+                    this.placeholderText += fullText.charAt(i);
+                    i++;
+                    this.typewriterTimer = setTimeout(tick, 55);
+                } else {
+                    this.typewriterTimer = null;
+                }
+            };
+            tick();
+        },
+        $_stopTypewriter() {
+            if (this.typewriterTimer) {
+                clearTimeout(this.typewriterTimer);
+                this.typewriterTimer = null;
+            }
         },
         $_reset() {
             this.wordSuggestions = [];
@@ -464,7 +499,7 @@ button {
     height: 100%;
     width: 100%;
     display: flex;
-    justify-content: flex-end;
+    justify-content: flex-start;
     align-items: center;
     gap: 8px;
     padding: 0 12px;
@@ -485,7 +520,7 @@ button {
     color: #fff;
     font-family: inherit;
     font-size: inherit;
-    text-align: right;
+    text-align: left;
     caret-color: #fff;
     /* caret-shape: block; */
 }
