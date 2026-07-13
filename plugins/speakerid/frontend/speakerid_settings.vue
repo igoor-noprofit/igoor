@@ -71,7 +71,7 @@
                         <span>{{ t('phrase_to_read') }}</span>
                         <span class="speakerid-settings__phrase-count">{{ Math.min(phraseIndex + 1, currentPhraseSet.length) }} / {{ currentPhraseSet.length }}</span>
                     </div>
-                    <p class="speakerid-settings__phrase-current">{{ currentPhrase }}</p>
+                    <p :key="phraseIndex" class="speakerid-settings__phrase-current speakerid-settings__phrase-current--appear">{{ currentPhrase }}</p>
                 </div>
             </div>
 
@@ -279,6 +279,12 @@ module.exports = {
                 // user can do several recordings in a row (target ≥3). Closing happens
                 // via the ✕ button (cancelRecording).
                 this.pendingBlob = null;
+                // Clear the recorder's held recording so its play button hides until
+                // the next take (playback is only for an unsaved recording).
+                if (recorder) {
+                    recorder.hasRecording = false;
+                    recorder.recordedBlob = null;
+                }
                 this.recordingsThisSession += 1;
                 this.phraseIndex = Math.min(this.recordingsThisSession, this.currentPhraseSet.length);
                 await this.loadSpeakers();
@@ -287,7 +293,8 @@ module.exports = {
                 } else if (this.recordingsThisSession >= this.minRecordings) {
                     this.statusMessage = this.t('enrollment_enough');
                 } else {
-                    this.statusMessage = this.t('recording_saved_next');
+                    // No status text — the new phrase animates in to signal advancement.
+                    this.statusMessage = '';
                 }
             } catch (error) {
                 console.error('Failed to save recording', error);
@@ -549,6 +556,18 @@ module.exports = {
     color: var(--color-text, #ffffff);
 }
 
+/* When the phrase advances (phraseIndex changes), the <p> is re-keyed so this
+   enter animation re-runs — a fade/slide cue that it's a new phrase to read. */
+.speakerid-settings__phrase-current--appear {
+    animation: speakerid-phrase-appear 0.5s ease;
+}
+
+@keyframes speakerid-phrase-appear {
+    0% { opacity: 0; transform: translateY(8px) scale(0.98); }
+    60% { opacity: 1; transform: translateY(0) scale(1.015); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
 /* Save row + status */
 .speakerid-settings__actions {
     display: flex;
@@ -593,31 +612,8 @@ module.exports = {
     align-items: center;
 }
 
-/* Mic button: bigger, biorecorder-style (140×140, teal, green while recording). */
-.speakerid-settings__recorder :deep(.recorder__main-btn) {
-    width: 140px !important;
-    height: 140px !important;
-    background-color: var(--color-btn-primary, #2f535b) !important;
-    transition: background-color 0.15s ease, transform 0.1s ease;
-}
-
-.speakerid-settings__recorder :deep(.recorder__main-btn:hover:not(:disabled)) {
-    background-color: #0095c0 !important;
-}
-
-.speakerid-settings__recorder :deep(.recorder__main-btn:active:not(:disabled)) {
-    transform: translateY(2px);
-}
-
-.speakerid-settings__recorder :deep(.recorder__main-btn.recording) {
-    background-color: #396350 !important;
-    animation: none !important; /* drop the default red pulse glow */
-}
-
-.speakerid-settings__recorder :deep(.recorder__icon) {
-    width: 70px !important;
-    height: 70px !important;
-}
+/* The mic / play buttons (size, teal→green, float, icons) are now styled by
+   RecorderComponent itself — only the panel layout above is overridden here. */
 
 /* Delete confirmation modal — onboarding-style overlay */
 .confirm-overlay {

@@ -16,7 +16,6 @@
     "phrase_to_read": "Phrase à lire",
     "recording_progress": "Enregistrements : {done}/{total}",
     "enrollment_enough": "✓ C'est suffisant ! Vous pouvez fermer, ou continuer pour améliorer la reconnaissance.",
-    "recording_saved_next": "Enregistré ! Lisez la phrase suivante.",
     "cancel": "Annuler",
     "confirm_delete": "Supprimer {name} et son empreinte vocale ?",
     "person_deleted": "Personne supprimée",

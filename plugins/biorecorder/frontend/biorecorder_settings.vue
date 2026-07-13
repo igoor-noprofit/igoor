@@ -22,7 +22,7 @@
                 <!-- Voice recording: mic button matching asrjs style -->
                 <div class="voice-section" v-if="!isTranscribing">
                     <div class="mic clickable" :class="{ recording: isRecording }" @click="toggleRecording">
-                        <img src="/img/mic.png" alt="Record">
+                        <img src="/img/icons/src/microphone.svg" alt="Record">
                     </div>
                 </div>
 

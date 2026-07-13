@@ -5,22 +5,21 @@
                 <canvas ref="meterCanvas" width="200" height="20"></canvas>
             </div>
             <div class="recorder__controls">
-                <!-- Record/Stop button -->
-                <button type="button" @click="isRecording ? $_stopRecording() : $_startRecording()" 
-                        :disabled="loading" 
+                <!-- Record/Stop button: always the mic icon; state is conveyed by the
+                     button background + a float animation (see CSS). No stop icon swap. -->
+                <button type="button" @click="isRecording ? $_stopRecording() : $_startRecording()"
+                        :disabled="loading"
                         :class="['recorder__main-btn', { recording: isRecording }]">
-                    <img v-if="!isRecording" src="/img/mic.svg" alt="Record" class="recorder__icon">
-                    <img v-else src="/img/stop.svg" alt="Stop" class="recorder__icon">
+                    <img src="/img/icons/src/microphone.svg" alt="Record" class="recorder__icon">
                 </button>
-                
-                <!-- Play/Pause button (only shown when not recording and has recording) -->
-                <button v-if="!isRecording && hasRecording" 
-                        type="button" 
-                        @click="console.log('Button clicked'); isPlaying ? $_pausePlayback() : $_playRecording()" 
+
+                <!-- Play/Pause button: shown only when there's a recording to play back. -->
+                <button v-if="!isRecording && hasRecording"
+                        type="button"
+                        @click="isPlaying ? $_pausePlayback() : $_playRecording()"
                         :disabled="loading"
                         class="recorder__play-btn">
-                    <img v-if="!isPlaying" src="/img/play.svg" alt="Play" class="recorder__icon">
-                    <img v-else src="/img/pause.svg" alt="Pause" class="recorder__icon">
+                    <i :class="['recorder__icon', 'ph-light', isPlaying ? 'ph-pause' : 'ph-play']"></i>
                 </button>
                 
                 <!-- Upload button (if enabled) -->
@@ -33,7 +32,6 @@
                 </button>
             </div>
         </div>
-        <p class="recorder__status">{{ statusMessage }}</p>
     </div>
 </template>
 
@@ -119,6 +117,7 @@ module.exports = {
             try {
                 const Recorder = await ensureWavRecorder();
                 await this.$_initAudio(Recorder);
+                this._audioChunks = [];
                 this.mediaRecorder.start();
                 this.isRecording = true;
                 this.statusMessage = 'Recording in progress…';
@@ -133,9 +132,19 @@ module.exports = {
         $_stopRecording() {
             // Stop recording
             if (this.isRecording && this.mediaRecorder) {
-                this.mediaRecorder.stop();
+                const mr = this.mediaRecorder;
+                // Reflect the stop in the UI immediately so the button returns to its
+                // idle (teal) state right away — don't wait on onstop, which fires only
+                // after the tail-flush below completes.
                 this.isRecording = false;
-                this.statusMessage = 'Recording stopped';
+                // Force-flush buffered audio and wait briefly before stopping so the
+                // phrase ending isn't clipped (MediaRecorder can drop the trailing chunk).
+                try { mr.requestData(); } catch (e) { /* noop */ }
+                setTimeout(() => {
+                    if (mr.state !== 'inactive') {
+                        mr.stop();
+                    }
+                }, 250);
                 this.$emit('record-stopped');
                 return;
             }
@@ -367,17 +376,25 @@ module.exports = {
             }
             
             this.mediaRecorder.ondataavailable = (event) => {
-                if (event.data?.size > 0) {
-                    this.recordedBlob = event.data;
+                // Accumulate chunks. requestData() + stop() can each emit a chunk, and
+                // only the COMBINED blob is a complete, decodable recording — a lone
+                // trailing chunk has no webm/opus init segment and won't play.
+                if (event.data && event.data.size > 0) {
+                    this._audioChunks.push(event.data);
+                }
+            };
+            this.mediaRecorder.onstop = () => {
+                this.isRecording = false;
+                if (this._audioChunks && this._audioChunks.length) {
+                    const type = this._audioChunks[0].type || 'audio/webm';
+                    this.recordedBlob = new Blob(this._audioChunks, { type });
+                    this._audioChunks = [];
                     this.hasRecording = true;
-                    this.statusMessage = 'Recording ready - upload to enable playback';
-                    this.$emit('recorded', event.data);
+                    this.$emit('recorded', this.recordedBlob);
                     if (this.autoUpload) {
                         this.$_uploadRecording();
                     }
                 }
-            };
-            this.mediaRecorder.onstop = () => {
                 this.$_cleanupStream();
             };
             this.mediaRecorder.onerror = (event) => {
@@ -617,58 +634,75 @@ module.exports = {
 }
 
 .recorder__main-btn {
-    width: 48px;
-    height: 48px;
-    border-radius: 50%;
-    background-color: #ef4444;
-    color: white;
+    width: 140px !important;
+    height: 140px !important;
+    border-radius: 50% !important;
+    background-color: #2f535b !important;
     border: none;
     cursor: pointer;
+    padding: 0 !important;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.2s ease;
+    transition: background-color 0.15s ease, transform 0.1s ease;
 }
 
-.recorder__main-btn:hover {
-    background-color: #dc2626;
-    transform: scale(1.05);
+.recorder__main-btn:hover:not(:disabled) {
+    background-color: #0095c0 !important;
+}
+
+.recorder__main-btn:active:not(:disabled) {
+    transform: translateY(2px);
 }
 
 .recorder__main-btn:disabled {
-    background-color: #9ca3af;
+    background-color: #9ca3af !important;
     cursor: not-allowed;
-    transform: none;
 }
 
+/* Recording state: green background + a gentle float (no stop-icon swap). */
 .recorder__main-btn.recording {
-    background-color: #f87171;
-    animation: pulse 1.5s infinite;
+    background-color: #396350 !important;
+    animation: recorder-float 1.8s ease-in-out infinite;
+}
+
+.recorder__main-btn .recorder__icon {
+    width: 70px;
+    height: 70px;
 }
 
 .recorder__play-btn {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background-color: #10b981;
-    color: white;
+    width: 140px !important;
+    height: 140px !important;
+    border-radius: 50% !important;
+    background-color: #2f535b !important;
     border: none;
     cursor: pointer;
+    padding: 0 !important;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.2s ease;
+    transition: background-color 0.15s ease, transform 0.1s ease;
 }
 
-.recorder__play-btn:hover {
-    background-color: #059669;
-    transform: scale(1.05);
+.recorder__play-btn:hover:not(:disabled) {
+    background-color: #0095c0 !important;
+}
+
+.recorder__play-btn:active:not(:disabled) {
+    transform: translateY(2px);
 }
 
 .recorder__play-btn:disabled {
-    background-color: #9ca3af;
+    background-color: #9ca3af !important;
     cursor: not-allowed;
-    transform: none;
+}
+
+/* Phosphor outline play/pause font icon, sized to match the mic button. */
+.recorder__play-btn .recorder__icon {
+    color: #ffffff;
+    font-size: 70px;
+    line-height: 1;
 }
 
 .recorder__upload-btn {
@@ -691,28 +725,8 @@ module.exports = {
     cursor: not-allowed;
 }
 
-.recorder__icon {
-    width: 24px;
-    height: 24px;
-    filter: brightness(0) invert(1);
-}
-
-.recorder__status {
-    font-size: 0.9rem;
-    color: #6b7280;
-    margin: 0;
-    text-align: center;
-}
-
-@keyframes pulse {
-    0% {
-        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
-    }
-    70% {
-        box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
-    }
-    100% {
-        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
-    }
+@keyframes recorder-float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
 }
 </style>
