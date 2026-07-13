@@ -4,5 +4,6 @@
     "confidence_threshold_low": 0.45,
     "buffer_duration": 2.0,
     "min_audio_duration": 1.0,
-    "identification_cooldown": 3.0
+    "identification_cooldown": 3.0,
+    "voice_profiles_enabled": false
 }

@@ -4,6 +4,7 @@ class AudioProcessor extends AudioWorkletProcessor {
         this.bufferSize = 4096;
         this.recordingBuffer = [];
         this.speakerIdBuffer = [];
+        this.speakerIdEnabled = false;  // Voice-profiles gate: don't capture/downsample unless enabled
         this.wakewordBuffer = [];  // Buffer for wakeword detection
         this.nativeSampleRate = sampleRate;
         this.targetSampleRate = 16000;
@@ -39,6 +40,11 @@ class AudioProcessor extends AudioWorkletProcessor {
             } else if (event.data.type === 'disable-wakeword') {
                 this.wakewordEnabled = false;
                 this.wakewordBuffer = [];
+            } else if (event.data.type === 'enable-speakerid') {
+                this.speakerIdEnabled = true;
+            } else if (event.data.type === 'disable-speakerid') {
+                this.speakerIdEnabled = false;
+                this.speakerIdBuffer = [];
             }
         };
     }
@@ -83,21 +89,24 @@ class AudioProcessor extends AudioWorkletProcessor {
             this.recordingBuffer.push(inputChannel[i]);
         }
 
-        // Downsample for speakerid
-        const downsampledData = this.downsampleAudio(inputChannel, this.nativeSampleRate, this.targetSampleRate);
-        this.speakerIdBuffer.push(...downsampledData);
+        // Downsample for speakerid — only when voice profiles are enabled (privacy/CPU
+        // gate). The main thread also guards the POST; this skips the downsample work.
+        if (this.speakerIdEnabled) {
+            const downsampledData = this.downsampleAudio(inputChannel, this.nativeSampleRate, this.targetSampleRate);
+            this.speakerIdBuffer.push(...downsampledData);
 
-        // Check if we have enough data for a chunk
-        const chunkSize = Math.floor(this.targetSampleRate * this.chunkDuration); // 3 seconds at 16kHz
-        if (this.speakerIdBuffer.length >= chunkSize) {
-            const chunk = this.speakerIdBuffer.slice(0, chunkSize);
-            this.speakerIdBuffer = this.speakerIdBuffer.slice(chunkSize); // Remove used portion
+            // Check if we have enough data for a chunk
+            const chunkSize = Math.floor(this.targetSampleRate * this.chunkDuration); // 3 seconds at 16kHz
+            if (this.speakerIdBuffer.length >= chunkSize) {
+                const chunk = this.speakerIdBuffer.slice(0, chunkSize);
+                this.speakerIdBuffer = this.speakerIdBuffer.slice(chunkSize); // Remove used portion
 
-            // Send chunk to main thread
-            this.port.postMessage({
-                type: 'speakerid-chunk',
-                data: chunk
-            });
+                // Send chunk to main thread
+                this.port.postMessage({
+                    type: 'speakerid-chunk',
+                    data: chunk
+                });
+            }
         }
 
         // Also send raw audio data periodically for visualization/monitoring

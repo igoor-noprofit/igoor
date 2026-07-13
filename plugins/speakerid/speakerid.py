@@ -106,6 +106,14 @@ class Speakerid(Baseplugin):
         })
 
     @hookimpl
+    def settings_updated(self, plugin_name, new_settings):
+        # Refresh the privacy gate if our own settings changed (e.g. via the standard
+        # settings UI rather than the /voice_profiles endpoint).
+        if plugin_name == self.plugin_name and isinstance(new_settings, dict):
+            self.voice_profiles_enabled = bool(new_settings.get("voice_profiles_enabled", False))
+            self._current_status["voice_profiles_enabled"] = self.voice_profiles_enabled
+
+    @hookimpl
     def startup(self):
         """Synchronous startup hook (definitely called)"""
         try:
@@ -121,6 +129,10 @@ class Speakerid(Baseplugin):
             self.buffer_duration = self.settings.get("buffer_duration", 2.0)
             self.min_audio_duration = self.settings.get("min_audio_duration", 1.0)
             self.identification_cooldown = self.settings.get("identification_cooldown", 3.0)
+            # Privacy gate: when off, NO mic audio is accepted for identification (asrjs
+            # won't post, and the endpoints early-return). Default off — opt-in.
+            self.voice_profiles_enabled = bool(self.settings.get("voice_profiles_enabled", False))
+            self._current_status["voice_profiles_enabled"] = self.voice_profiles_enabled
 
             # Ensure DB schema matches the current code (rebuilds a stale people_id-only
             # speakers table, creates records if missing).
@@ -218,6 +230,9 @@ class Speakerid(Baseplugin):
     @hookimpl
     def process_audio_chunk(self, audio_data: bytes, sample_rate: int = 48000):
         """Process incoming audio chunks for real-time speaker identification"""
+        # Privacy gate: when voice profiles are disabled, accept no mic audio.
+        if not self.voice_profiles_enabled:
+            return {"status": "disabled", "message": "Voice profiles are disabled"}
         # Update sample rate if different from current
         if sample_rate != self.sample_rate:
             self.sample_rate = sample_rate
@@ -323,10 +338,24 @@ class Speakerid(Baseplugin):
         async def get_status():
             """Get the current status of the speaker identification system"""
             status = self.get_current_status()
+            # Always expose the live gate value (init_speaker_system reassigns
+            # _current_status without it), so asrjs can rely on this field.
+            status["voice_profiles_enabled"] = self.voice_profiles_enabled
             return {
                 "type": "speakerid_status",
                 **status
             }
+
+        @self.router.post("/voice_profiles")
+        async def set_voice_profiles(payload: Dict[str, Any]):
+            """Toggle the voice-profiles privacy gate (master switch for mic→server
+            identification). Persisted to settings and surfaced via /status."""
+            enabled = bool(payload.get("enabled", False))
+            self.update_my_settings("voice_profiles_enabled", enabled)
+            self.voice_profiles_enabled = enabled
+            self._current_status["voice_profiles_enabled"] = enabled
+            self.logger.info(f"voice_profiles_enabled set to {enabled}")
+            return {"voice_profiles_enabled": enabled}
 
         @self.router.get("/speakers")
         async def list_speakers():
@@ -463,6 +492,9 @@ class Speakerid(Baseplugin):
         @self.router.post("/identify_speaker")
         async def identify_speaker_endpoint(audio_file: UploadFile = File(...), sample_rate: Optional[int] = None):
             """Receive complete audio file for speaker identification"""
+            # Privacy gate: accept no mic audio when voice profiles are disabled.
+            if not self.voice_profiles_enabled:
+                raise HTTPException(status_code=403, detail="Voice profiles are disabled")
             try:
                 # Read audio data from uploaded file
                 audio_bytes = await audio_file.read()
@@ -534,6 +566,9 @@ class Speakerid(Baseplugin):
         @self.router.post("/process_audio_chunk")
         async def process_audio_chunk_endpoint(audio_file: UploadFile = File(...), sample_rate: Optional[int] = None):
             """Receive audio chunk for real-time speaker identification"""
+            # Privacy gate: accept no mic audio (and write no debug chunk) when disabled.
+            if not self.voice_profiles_enabled:
+                raise HTTPException(status_code=403, detail="Voice profiles are disabled")
             try:
                 # Read audio data from uploaded file
                 audio_bytes = await audio_file.read()

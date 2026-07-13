@@ -1,54 +1,75 @@
 <template>
     <div class="speakerid-settings">
-        <!-- Add person (name only — no voice recording required) -->
-        <div class="speakerid-settings__add" v-if="!recordingForSpeaker">
-            <input
-                type="text"
-                class="speakerid-settings__input"
-                v-model="newPersonName"
-                :placeholder="t('new_person_name_placeholder')"
-                :disabled="isAdding"
-                @keyup.enter="addPerson"
-            />
-            <button
-                type="button"
-                class="speakerid-settings__btn"
-                @click="addPerson"
-                :disabled="isAdding || !newPersonName.trim()"
-            >
-                {{ isAdding ? t('adding') : t('add_person') }}
-            </button>
-        </div>
+        <!-- Two columns: LEFT = privacy switch + add person; RIGHT = people list.
+             Hidden while recording a voice (focus mode shows only the recorder). -->
+        <div class="speakerid-settings__columns" v-if="!recordingForSpeaker">
+            <!-- LEFT column -->
+            <div class="speakerid-settings__col speakerid-settings__col-left">
+                <!-- Privacy gate: master switch for live speaker recognition. -->
+                <div class="speakerid-settings__gate">
+                    <div class="speakerid-settings__gate-row">
+                        <label class="switch">
+                            <input type="checkbox" v-model="voiceProfilesEnabled" @change="saveVoiceProfiles" />
+                            <span class="slider round"></span>
+                        </label>
+                        <span class="speakerid-settings__gate-label">{{ t('voice_profiles_enabled') }}</span>
+                        <HelpPopover :text="t('voice_profiles_hint')" :t="t" :lang="lang" />
+                    </div>
+                </div>
+                <!-- Add person (name only — no voice recording required) -->
+                <div class="speakerid-settings__add">
+                    <input
+                        type="text"
+                        class="speakerid-settings__input"
+                        v-model="newPersonName"
+                        :placeholder="t('new_person_name_placeholder')"
+                        :disabled="isAdding"
+                        @keyup.enter="addPerson"
+                    />
+                    <button
+                        type="button"
+                        class="speakerid-settings__btn"
+                        @click="addPerson"
+                        :disabled="isAdding || !newPersonName.trim()"
+                    >
+                        {{ isAdding ? t('adding') : t('add_person') }}
+                    </button>
+                </div>
+            </div>
 
-        <!-- Speaker list -->
-        <section class="speakerid-settings__section" v-if="!recordingForSpeaker">
-            <h3 class="speakerid-settings__title">{{ t('people') }}</h3>
-            <div v-if="isLoadingSpeakers" class="speakerid-settings__status">{{ t('loading_speakers') }}</div>
-            <div v-else-if="speakers.length === 0" class="speakerid-settings__status">{{ t('no_speakers') }}</div>
-            <ul v-else class="speakerid-settings__list">
-                <li v-for="s in speakers" :key="s.id" class="speaker-row">
-                    <span class="speaker-row__name">{{ s.name }}</span>
-                    <span class="speaker-row__actions">
-                        <button
-                            type="button"
-                            class="speakerid-settings__btn speakerid-settings__btn--sm"
-                            :disabled="isSaving"
-                            @click="startRecordingFor(s)"
-                        >
-                            {{ s.has_voice ? '↻ ' + t('rerecord') : '🎤 ' + t('record_voice') }}
-                        </button>
-                        <button
-                            type="button"
-                            class="speakerid-settings__btn speakerid-settings__btn--sm speakerid-settings__btn--danger"
-                            :disabled="isSaving"
-                            :title="t('delete')"
-                            :aria-label="t('delete')"
-                            @click="askDeleteSpeaker(s)"
-                        >🗑</button>
-                    </span>
-                </li>
-            </ul>
-        </section>
+            <!-- RIGHT column: people list -->
+            <div class="speakerid-settings__col speakerid-settings__col-right">
+                <section class="speakerid-settings__section">
+                    <h3 class="speakerid-settings__title">{{ t('people') }}</h3>
+                    <div v-if="isLoadingSpeakers" class="speakerid-settings__status">{{ t('loading_speakers') }}</div>
+                    <div v-else-if="speakers.length === 0" class="speakerid-settings__status">{{ t('no_speakers') }}</div>
+                    <ul v-else class="speakerid-settings__list">
+                        <li v-for="s in speakers" :key="s.id" class="speaker-row">
+                            <span class="speaker-row__name">{{ s.name }}</span>
+                            <span class="speaker-row__actions">
+                                <button
+                                    v-if="voiceProfilesEnabled"
+                                    type="button"
+                                    class="speakerid-settings__btn"
+                                    :disabled="isSaving"
+                                    @click="startRecordingFor(s)"
+                                >
+                                    {{ s.has_voice ? t('rerecord') : t('record_voice') }}
+                                </button>
+                                <button
+                                    type="button"
+                                    class="speakerid-settings__btn speakerid-settings__btn--danger"
+                                    :disabled="isSaving"
+                                    :title="t('delete')"
+                                    :aria-label="t('delete')"
+                                    @click="askDeleteSpeaker(s)"
+                                ><i class="ph-light ph-trash"></i></button>
+                            </span>
+                        </li>
+                    </ul>
+                </section>
+            </div>
+        </div>
 
         <!-- Contextual recorder: enrolls a voice for the selected speaker -->
         <div v-if="recordingForSpeaker" class="speakerid-settings__recorder">
@@ -112,11 +133,12 @@
 
 <script>
 const RecorderComponent = require('/plugins/recorder/frontend/RecorderComponent.vue');
+const HelpPopover = require('/js/HelpPopover.vue');
 const BasePluginComponent = require('/js/BasePluginComponent.js');
 
 module.exports = {
     name: 'speakeridSettings',
-    components: { RecorderComponent },
+    components: { RecorderComponent, HelpPopover },
     mixins: [BasePluginComponent],
     props: {
         initialSettings: Object
@@ -124,6 +146,7 @@ module.exports = {
     data() {
         return {
             speakers: [],
+            voiceProfilesEnabled: false, // master privacy gate (live mic recognition)
             newPersonName: '',
             isLoadingSpeakers: false,
             isAdding: false,
@@ -173,6 +196,7 @@ module.exports = {
     },
     mounted() {
         this.loadSpeakers();
+        this.loadVoiceProfiles();
     },
     methods: {
         async loadSpeakers() {
@@ -184,6 +208,27 @@ module.exports = {
                 this.statusMessage = this.t('error_loading_speakers');
             } finally {
                 this.isLoadingSpeakers = false;
+            }
+        },
+
+        async loadVoiceProfiles() {
+            try {
+                const s = await this.callPluginRestEndpoint('speakerid', 'status');
+                this.voiceProfilesEnabled = !!(s && s.voice_profiles_enabled);
+            } catch (e) {
+                console.error('Failed to load voice-profiles setting', e);
+            }
+        },
+
+        async saveVoiceProfiles() {
+            try {
+                await this.callPluginRestEndpoint('speakerid', 'voice_profiles', {
+                    method: 'POST',
+                    data: { enabled: this.voiceProfilesEnabled }
+                });
+            } catch (e) {
+                console.error('Failed to save voice-profiles setting', e);
+                this.voiceProfilesEnabled = !this.voiceProfilesEnabled; // revert on failure
             }
         },
 
@@ -353,6 +398,50 @@ module.exports = {
     color: var(--color-text, #ffffff);
 }
 
+/* Two-column layout: LEFT = privacy switch + add person; RIGHT = people list.
+   Wraps to a single column on narrow widths. */
+.speakerid-settings__columns {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    align-items: flex-start;
+}
+
+.speakerid-settings__col {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 0;
+}
+
+.speakerid-settings__col-left {
+    flex: 1 1 240px;
+}
+
+.speakerid-settings__col-right {
+    flex: 1 1 300px;
+}
+
+/* Privacy gate: master switch for live mic recognition */
+.speakerid-settings__gate {
+    background: var(--basecolor-gray-900, #2d3233);
+    border: 1px solid var(--basecolor-gray-700, #556265);
+    border-radius: 8px;
+    padding: 12px 14px;
+}
+
+.speakerid-settings__gate-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.speakerid-settings__gate-label {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--color-text, #ffffff);
+}
+
 .speakerid-settings__section {
     display: flex;
     flex-direction: column;
@@ -476,6 +565,33 @@ module.exports = {
     display: flex;
     gap: 8px;
     flex-shrink: 0;
+}
+
+/* Person-row action buttons: ~2× bigger; record/re-record a uniform width;
+   delete is a compact square icon button. (These win over the generic
+   .onboarding.plugin button rule by specificity.) */
+.speaker-row__actions .speakerid-settings__btn {
+    font-size: 1rem;
+    min-height: 44px;
+    padding: 12px 20px;
+    white-space: nowrap;
+}
+
+.speaker-row__actions .speakerid-settings__btn:not(.speakerid-settings__btn--danger) {
+    min-width: 175px;
+}
+
+.speaker-row__actions .speakerid-settings__btn--danger {
+    width: 44px;
+    min-width: 44px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.speaker-row__actions .speakerid-settings__btn--danger i {
+    font-size: 24px;
 }
 
 /* Contextual recorder panel */

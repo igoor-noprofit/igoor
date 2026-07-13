@@ -44,6 +44,7 @@
     "extkeyb": false,
     "weather": false,
     "recorder": true,
-    "biorecorder": true
+    "biorecorder": true,
+    "speakerid":true
   }
 }
