@@ -8,7 +8,7 @@
                 <!-- Record/Stop button: always the mic icon; state is conveyed by the
                      button background + a float animation (see CSS). No stop icon swap. -->
                 <button type="button" @click="isRecording ? $_stopRecording() : $_startRecording()"
-                        :disabled="loading"
+                        :disabled="loading || disabled"
                         :class="['recorder__main-btn', { recording: isRecording }]">
                     <img src="/img/icons/src/microphone.svg" alt="Record" class="recorder__icon">
                 </button>
@@ -17,8 +17,8 @@
                 <button v-if="!isRecording && hasRecording"
                         type="button"
                         @click="isPlaying ? $_pausePlayback() : $_playRecording()"
-                        :disabled="loading"
-                        class="recorder__play-btn">
+                        :disabled="loading || disabled"
+                        :class="['recorder__play-btn', { 'is-playing': isPlaying }]">
                     <i :class="['recorder__icon', 'ph-light', isPlaying ? 'ph-pause' : 'ph-play']"></i>
                 </button>
                 
@@ -74,7 +74,10 @@ module.exports = {
         showUploadButton: { type: Boolean, default: true },
         showMeter: { type: Boolean, default: true },
         autoUpload: { type: Boolean, default: false },
-        labels: { type: Object, default: () => ({}) }
+        labels: { type: Object, default: () => ({}) },
+        // Parent-driven lock (e.g. while it's saving/enrolling) — disables both
+        // buttons in addition to the recorder's own `loading` state.
+        disabled: { type: Boolean, default: false }
     },
     data() {
         return {
@@ -198,6 +201,7 @@ module.exports = {
                 }
                 
                 const audio = new Audio(audioUrl);
+                audio._objUrl = this.latestRecorderId ? null : audioUrl;
                 this.currentAudio = audio;
                 
                 // Resume audio context if suspended (browser autoplay policy)
@@ -385,6 +389,20 @@ module.exports = {
             };
             this.mediaRecorder.onstop = () => {
                 this.isRecording = false;
+                // A new take isn't uploaded yet — clear the previous upload id so
+                // playback uses the fresh local blob, NOT the previous take's server URL
+                // (which is what made play-N replay take N-1).
+                this.latestRecorderId = null;
+                // A new recording invalidates playback of the previous one — otherwise
+                // $_playRecording's resume branch replays the stale <audio> (i.e. plays
+                // the previous take instead of the one just recorded).
+                if (this.currentAudio) {
+                    if (this.currentAudio._objUrl) URL.revokeObjectURL(this.currentAudio._objUrl);
+                    this.currentAudio.pause();
+                    this.currentAudio = null;
+                    this.isPlaying = false;
+                    if (this.meterSource) { this.meterSource.disconnect(); this.meterSource = null; }
+                }
                 if (this._audioChunks && this._audioChunks.length) {
                     const type = this._audioChunks[0].type || 'audio/webm';
                     this.recordedBlob = new Blob(this._audioChunks, { type });
@@ -658,17 +676,24 @@ module.exports = {
 .recorder__main-btn:disabled {
     background-color: #9ca3af !important;
     cursor: not-allowed;
+    opacity: 0.5;
 }
 
-/* Recording state: green background + a gentle float (no stop-icon swap). */
+/* Recording state: green background. The float animation is on the icon, not the
+   circle, so the button stays put while the mic bobs gently inside it. */
 .recorder__main-btn.recording {
     background-color: #396350 !important;
-    animation: recorder-float 1.8s ease-in-out infinite;
 }
 
 .recorder__main-btn .recorder__icon {
     width: 70px;
     height: 70px;
+    opacity: 0.5; /* dimmed at rest */
+}
+
+.recorder__main-btn.recording .recorder__icon {
+    opacity: 1;   /* full opacity while recording */
+    animation: recorder-float 1.8s ease-in-out infinite;
 }
 
 .recorder__play-btn {
@@ -696,6 +721,7 @@ module.exports = {
 .recorder__play-btn:disabled {
     background-color: #9ca3af !important;
     cursor: not-allowed;
+    opacity: 0.5;
 }
 
 /* Phosphor outline play/pause font icon, sized to match the mic button. */
@@ -703,6 +729,11 @@ module.exports = {
     color: #ffffff;
     font-size: 70px;
     line-height: 1;
+    opacity: 0.5; /* dimmed at rest */
+}
+
+.recorder__play-btn.is-playing .recorder__icon {
+    opacity: 1; /* full opacity while playing */
 }
 
 .recorder__upload-btn {

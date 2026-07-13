@@ -80,6 +80,7 @@
                 :enable-upload="true"
                 :show-upload-button="false"
                 :label-overrides="recorderLabels"
+                :disabled="isSaving"
                 @recorded="onRecorded"
                 @error="onRecorderError"
             />
@@ -233,7 +234,8 @@ module.exports = {
 
         onRecorded(blob) {
             this.pendingBlob = blob;
-            this.statusMessage = this.t('recording_ready_to_save');
+            // No success/progress text — only surface messages on error (per UX).
+            this.statusMessage = '';
         },
 
         onRecorderError(error) {
@@ -251,7 +253,7 @@ module.exports = {
                 return;
             }
             this.isSaving = true;
-            this.statusMessage = this.t('uploading_recording');
+            this.statusMessage = '';
             try {
                 const recorder = this.$refs.recorder;
                 if (!recorder) {
@@ -290,10 +292,8 @@ module.exports = {
                 await this.loadSpeakers();
                 if (result?.warning) {
                     this.statusMessage = result.warning;
-                } else if (this.recordingsThisSession >= this.minRecordings) {
-                    this.statusMessage = this.t('enrollment_enough');
                 } else {
-                    // No status text — the new phrase animates in to signal advancement.
+                    // No success text — the phrase advance + counter signal it.
                     this.statusMessage = '';
                 }
             } catch (error) {

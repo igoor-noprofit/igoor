@@ -27,10 +27,7 @@
     "play_back": "Lire",
     "pause": "Pause",
     "recording": "Enregistrement…",
-    "recording_ready_to_save": "Enregistrement prêt à sauvegarder",
     "recorder_error": "Erreur de l'enregistreur",
     "record_audio_first": "Enregistrez d'abord l'audio",
-    "uploading_recording": "Téléchargement de l'enregistrement…",
-    "recording_saved": "Enregistrement sauvegardé",
     "error_saving_recording": "Erreur lors de la sauvegarde de l'enregistrement"
 }
