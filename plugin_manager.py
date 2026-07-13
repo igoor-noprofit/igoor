@@ -196,6 +196,12 @@ class MyAppSpec:
         Used to persist the speaker on the conversation thread at conversation end."""
         pass
 
+    @pluggy.HookspecMarker(app_name)
+    async def get_speaker_conversations(self, speakers_id, limit):
+        """Hook to get a speaker's past conversations as an XML string (per-speaker
+        history injection). None/'' if no speaker or no history."""
+        pass
+
     
     @pluggy.HookspecMarker(app_name)
     def reset_conversation_timeout(self):

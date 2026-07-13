@@ -362,23 +362,23 @@ class Conversation(Baseplugin):
             self.logger.error(f"Error loading last conversations cache: {e}")
         self.mark_ready()
 
-    def _format_conversations_xml(self, conversations: list) -> str:
-        """Format list of conversations as XML string for LLM prompts"""
+    def _format_conversations_xml(self, conversations: list, tag: str = "last_conversations") -> str:
+        """Format list of conversations as XML string for LLM prompts."""
         if not conversations:
             return ""
-        
-        lines = ["<last_conversations>"]
+
+        lines = [f"<{tag}>"]
         for conv in conversations:
             # Truncate ISO timestamp to remove milliseconds (e.g., 2025-05-07T12:17:48.692972 -> 2025-05-07T12:17:48)
             start_time = conv.get('start_time', '')
             if '.' in start_time:
                 start_time = start_time.split('.')[0]
-            
+
             lines.append(start_time)
             lines.append(conv.get('content', ''))
             lines.append("---")
-        
-        lines.append("</last_conversations>")
+
+        lines.append(f"</{tag}>")
         return "\n".join(lines)
 
     def _format_single_conversation_xml(self, start_time: str, content: str) -> str:
@@ -418,6 +418,25 @@ class Conversation(Baseplugin):
     def get_last_conversations(self) -> str:
         """Return cached last conversations as XML string"""
         return self.last_conversations_cache
+
+    @hookimpl
+    async def get_speaker_conversations(self, speakers_id, limit=5):
+        """Return the last N past conversations for a specific speaker, formatted as XML
+        (mirrors get_last_conversations but filtered by speakers_id). Powers per-speaker
+        history injection (Phase 5a)."""
+        try:
+            results = await self.db_execute(
+                "SELECT start_time, content FROM threads "
+                "WHERE speakers_id = ? AND content IS NOT NULL AND content != '' "
+                "ORDER BY start_time DESC LIMIT ?",
+                (speakers_id, limit)
+            )
+            if results:
+                # Chronological (oldest first), like the last-conversations cache.
+                return self._format_conversations_xml(list(reversed(results)), tag="speaker_conversations")
+        except Exception as e:
+            self.logger.error(f"get_speaker_conversations failed: {e}")
+        return ""
 
     @hookimpl
     async def transcribing_started(self):
