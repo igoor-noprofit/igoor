@@ -190,6 +190,12 @@ class MyAppSpec:
         """Hook to analyze or do other stuff with last conversation"""
         pass
 
+    @pluggy.HookspecMarker(app_name)
+    def get_current_speaker(self):
+        """Hook to get the current conversation's speaker as {speakers_id, name}, or None.
+        Used to persist the speaker on the conversation thread at conversation end."""
+        pass
+
     
     @pluggy.HookspecMarker(app_name)
     def reset_conversation_timeout(self):

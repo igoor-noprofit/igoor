@@ -114,6 +114,36 @@ class Speakerid(Baseplugin):
             self._current_status["voice_profiles_enabled"] = self.voice_profiles_enabled
 
     @hookimpl
+    def get_current_speaker(self):
+        """The current conversation's speaker as {speakers_id, name}, or None if no one
+        was committed this conversation. Reads context_manager (set by commit/set_speaker)
+        rather than committed_speaker, so it's robust to abandon/reset hook ordering."""
+        info = (context_manager.get_context() or {}).get("speaker_info") or {}
+        name = info.get("name")
+        if not name or name == "unknown":
+            return None
+        rows = self.db_execute_sync("SELECT id FROM speakers WHERE name = ?", (name,))
+        if not rows:
+            return None
+        return {"speakers_id": rows[0]["id"], "name": name}
+
+    @hookimpl
+    def after_conversation_end(self, last_conversation=None, **kwargs):
+        """Bump freq for the conversation's speaker (feeds the topbar's most-frequent
+        ordering), then clear speaker_info so the next conversation starts fresh — a
+        conversation with no identified speaker is classified Unknown (NULL speakers_id)."""
+        spk = self.get_current_speaker()
+        if spk and spk.get("speakers_id") is not None:
+            try:
+                self.db_execute_sync("UPDATE speakers SET freq = freq + 1 WHERE id = ?", (spk["speakers_id"],))
+            except Exception as e:
+                self.logger.warning(f"freq bump failed: {e}")
+        # Clear so a stale speaker doesn't bleed into the next conversation.
+        context_manager.update_context("speaker_info", {
+            "name": "unknown", "confidence": 0.0, "status": "unknown", "timestamp": time.time()
+        })
+
+    @hookimpl
     def startup(self):
         """Synchronous startup hook (definitely called)"""
         try:

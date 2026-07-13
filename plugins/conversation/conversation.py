@@ -259,21 +259,33 @@ class Conversation(Baseplugin):
         if (cause is None):
             cause = "timeout"
 
+        # Resolve the conversation's speaker (speakerid) to persist on the thread.
+        speakers_id = None
+        try:
+            results = await self.pm.trigger_hook("get_current_speaker")
+            speakers_id = next(
+                (r.get("speakers_id") for r in (results or []) if r and r.get("speakers_id")),
+                None
+            )
+        except Exception as e:
+            self.logger.warning(f"get_current_speaker failed: {e}")
+
         last_conversation = {
             "thread": self.thread,
             "txt": txt,
             "cause": cause,
             "topic": self.topic,
-            "thread_id": self.current_thread_id
+            "thread_id": self.current_thread_id,
+            "speakers_id": speakers_id
         }
 
         if self.current_thread_id is not None:
             current_time = self._get_current_timestamp()
             await self.db_execute(
-                "UPDATE threads SET end_time = ?, cause = ?, content = ? WHERE id = ?",
-                (current_time, cause, txt, self.current_thread_id)
+                "UPDATE threads SET end_time = ?, cause = ?, content = ?, speakers_id = ? WHERE id = ?",
+                (current_time, cause, txt, speakers_id, self.current_thread_id)
             )
-            self.logger.info(f"Abandoned conversation {self.current_thread_id} with end time")
+            self.logger.info(f"Abandoned conversation {self.current_thread_id} with end time (speakers_id={speakers_id})")
 
             # Update last conversations cache
             if txt and self.current_start_time:
@@ -310,9 +322,22 @@ class Conversation(Baseplugin):
     @hookimpl
     def startup(self):
         self._ensure_router()
+        self._migrate_threads_schema()
         # Register router with the main FastAPI app if available
         if hasattr(self, 'pm') and hasattr(self.pm, 'fastapi_app'):
             self.pm.fastapi_app.include_router(self.router)
+
+    def _migrate_threads_schema(self):
+        """Add speakers_id to conversation_threads if missing. CREATE TABLE IF NOT EXISTS
+        (run by the base DB init) won't add columns to the existing populated table."""
+        table = f"{self.plugin_name}_threads"  # conversation_threads
+        try:
+            cols = self.db_execute_sync(f"PRAGMA table_info({table})") or []
+            if not any(c.get("name") == "speakers_id" for c in cols):
+                self.db_execute_sync(f"ALTER TABLE {table} ADD COLUMN speakers_id INTEGER")
+                self.logger.info(f"Added speakers_id column to {table}")
+        except Exception as e:
+            self.logger.error(f"conversation: threads schema migration failed: {e}")
 
     @hookimpl
     async def gui_ready(self):
