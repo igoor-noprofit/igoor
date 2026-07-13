@@ -48,6 +48,8 @@ http://localhost:9714/api/plugins/asrjs/settings
 **Interface guidelines**: Since the interface is for users who have physical conditions,buttons should generally be big.
 Also, MINIMIZE the number of clicks needed for each action.
 
+**Icons**: Use outline / line icons only — never filled (solid) icons. The app ships only `css/phosphor-2.1.1-light.css`, so use the `ph-light` weight (e.g. `<i class="ph-light ph-play"></i>`); for SVGs, use the line-style set under `/img/icons/src/` (e.g. `microphone.svg`). Filled icons (`ph-fill`, or solid glyphs) clash with the UI and must not be used.
+
 ## Plugin Development
 
 **File Structure**:
