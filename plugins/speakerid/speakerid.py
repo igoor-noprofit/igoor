@@ -357,6 +357,46 @@ class Speakerid(Baseplugin):
             self.logger.info(f"voice_profiles_enabled set to {enabled}")
             return {"voice_profiles_enabled": enabled}
 
+        @self.router.post("/set_speaker")
+        async def set_speaker(payload: Dict[str, Any]):
+            """Manually select/correct the speaker for the current conversation.
+
+            speaker_id int  → lock to that speaker (reuses the 2f lock; auto-detection
+                               won't override). Works whether or not voice profiles are on.
+            speaker_id null → Unknown: CLEAR the lock so auto-detection keeps trying.
+                               (A conversation with no identified speaker ends as Unknown.)
+            """
+            speaker_id = payload.get("speaker_id")
+            if speaker_id is None:
+                self.committed_speaker = None
+                self.last_speaker = SimpleNamespace(id=False, confidence=-10)
+                self.last_phrase_speaker = SimpleNamespace(id=False, confidence=-10)
+                self.send_message_to_frontend({
+                    "type": "speaker_identification",
+                    "speaker": {"name": "unknown", "confidence": 0.0, "status": "unknown",
+                                "manual": True, "timestamp": time.time()}
+                })
+                self.logger.info("Speaker set to Unknown — detection unlocked, will keep trying")
+                return {"name": "unknown", "manual": True}
+
+            rows = self.db_execute_sync("SELECT name FROM speakers WHERE id = ?", (speaker_id,))
+            if not rows:
+                raise HTTPException(status_code=404, detail=f"No speaker with id {speaker_id}")
+            name = rows[0]["name"]
+            # Lock to the chosen speaker (same lock auto-commit uses); never inject 'unknown'.
+            self.committed_speaker = name
+            self.last_speaker = SimpleNamespace(id=name, confidence=1.0)
+            self.last_phrase_speaker = SimpleNamespace(id=name, confidence=1.0)
+            self.is_processing = False
+            self.send_message_to_frontend({
+                "type": "speaker_identification",
+                "speaker": {"name": name, "confidence": 1.0, "status": "confirmed",
+                            "manual": True, "timestamp": time.time()}
+            })
+            self._update_speaker_context(name, 1.0, "confirmed")
+            self.logger.info(f"Speaker set manually: {name} — detection locked")
+            return {"name": name, "manual": True}
+
         @self.router.get("/speakers")
         async def list_speakers():
             rows = self.db_execute_sync("SELECT id, name, freq FROM speakers ORDER BY id ASC") or []

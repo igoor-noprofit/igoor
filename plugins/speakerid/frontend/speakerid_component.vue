@@ -1,8 +1,23 @@
 <template>
-    <div v-if="hasReceivedSpeakerData" class="speakerid-topbar">
-        <span class="speaker-icon">🎤</span>
-        <span class="speaker-name" :class="[getSpeakerStatus(), {'confidence-low': currentSpeaker.confidence < 0.4}]">{{ getDisplayName() }}</span>
-        <span class="confidence" :class="getConfidenceClass()">{{ Math.round(currentSpeaker.confidence * 100) }}%</span>
+    <!-- Quick-pick speaker row: top-frequency people as buttons, then [+] for the
+         less-frequent, then Unknown (default). Active speaker is highlighted and
+         shows its confidence. Works whether or not voice recognition is on. -->
+    <div v-if="speakers.length > 0" class="speakerid-topbar">
+        <button v-for="s in displayedSpeakers" :key="s.id"
+                type="button"
+                class="btn btn-secondary speakerid-topbar__btn"
+                :class="{ 'is-active': isActive(s.name) }"
+                @click="selectSpeaker(s)">
+            <span>{{ s.name }}</span>
+            <span v-if="isActive(s.name) && currentSpeaker.confidence > 0" class="speakerid-topbar__conf"> ({{ Math.round(currentSpeaker.confidence * 100) }}%)</span>
+        </button>
+        <button v-if="otherSpeakers.length > 0" type="button"
+                class="btn btn-secondary speakerid-topbar__btn speakerid-topbar__more"
+                @click="toggleShowAll">{{ showAll ? '‹' : '+' }}</button>
+        <button type="button"
+                class="btn btn-secondary speakerid-topbar__btn"
+                :class="{ 'is-active': isUnknownActive }"
+                @click="selectUnknown">{{ t('unknown') }}</button>
     </div>
 </template>
 
@@ -26,14 +41,44 @@ export default {
             pluginStatus: 'loading',
             speakerCount: 0,
             statusMessage: 'Initializing...',
-            hasReceivedSpeakerData: false
+            hasReceivedSpeakerData: false,
+            speakers: [],      // known speakers (id, name, freq) for the quick-pick row
+            showAll: false     // [+] toggle: less-frequent speakers instead of the top ones
         };
+    },
+    computed: {
+        sortedSpeakers() {
+            return [...this.speakers].sort((a, b) => (b.freq || 0) - (a.freq || 0));
+        },
+        topSpeakers() {
+            return this.sortedSpeakers.slice(0, 3);
+        },
+        otherSpeakers() {
+            return this.sortedSpeakers.slice(3);
+        },
+        displayedSpeakers() {
+            return this.showAll ? this.otherSpeakers : this.topSpeakers;
+        },
+        isUnknownActive() {
+            return !this.currentSpeaker.name || this.currentSpeaker.name === 'unknown';
+        }
+    },
+    watch: {
+        // Auto-reveal the recognized speaker: if they sit in the hidden batch, flip to it
+        // so their button (and the confidence) is shown instead of staying invisible.
+        'currentSpeaker.name'(name) {
+            if (!name || name === 'unknown') return;
+            if (!this.displayedSpeakers.some(s => s.name === name)) {
+                this.showAll = !this.showAll;
+            }
+        }
     },
     async mounted() {
         // Initialize voice level visualization
         this.startVoiceAnimation();
-        
-        // Fetch initial status from backend
+
+        // Load the known speakers (for the quick-pick row) + plugin status
+        this.fetchSpeakers();
         await this.fetchStatus();
         
         // If not ready, poll every 2 seconds until ready
@@ -72,6 +117,59 @@ export default {
             } catch (error) {
                 console.warn('Error fetching speakerid status:', error);
             }
+        },
+
+        async fetchSpeakers() {
+            try {
+                const r = await fetch('/api/plugins/speakerid/speakers', { credentials: 'same-origin' });
+                if (r.ok) {
+                    this.speakers = await r.json() || [];
+                }
+            } catch (e) {
+                console.warn('Failed to load speakers for topbar', e);
+            }
+        },
+
+        isActive(name) {
+            return !!this.currentSpeaker.name
+                && this.currentSpeaker.name !== 'unknown'
+                && this.currentSpeaker.name === name;
+        },
+
+        async selectSpeaker(s) {
+            // Optimistic update; the backend push (speaker_identification) confirms.
+            this.currentSpeaker = { name: s.name, confidence: 1.0, status: 'confirmed', manual: true };
+            this.hasReceivedSpeakerData = true;
+            try {
+                await fetch('/api/plugins/speakerid/set_speaker', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ speaker_id: s.id })
+                });
+            } catch (e) {
+                console.error('set_speaker failed', e);
+            }
+        },
+
+        async selectUnknown() {
+            // Clear the selection — auto-detection keeps trying.
+            this.currentSpeaker = { name: 'unknown', confidence: 0.0, status: 'unknown', manual: true };
+            this.hasReceivedSpeakerData = true;
+            try {
+                await fetch('/api/plugins/speakerid/set_speaker', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ speaker_id: null })
+                });
+            } catch (e) {
+                console.error('set_speaker (unknown) failed', e);
+            }
+        },
+
+        toggleShowAll() {
+            this.showAll = !this.showAll;
         },
 
         getDisplayName() {
@@ -195,15 +293,15 @@ export default {
             try {
                 const data = JSON.parse(event.data);
                 if (data.action === 'speakerid_reset'){
-                    // Reset current speaker info and hide display
+                    // New conversation: reset the selected speaker and refresh the list.
                     this.currentSpeaker = {
                         name: null,
                         confidence: 0.0,
                         status: 'unknown',
                         timestamp: Date.now()
                     };
-                    this.hasReceivedSpeakerData = false;
-                    
+                    this.showAll = false;
+                    this.fetchSpeakers();
                 }
                 if (data.type === 'speaker_identification') {
                     // Debug incoming message
@@ -263,13 +361,35 @@ export default {
 .speakerid-topbar {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 8px 16px;
+    gap: 6px;
+    padding: 6px 8px;
     font-family: "FontLight", sans-serif;
     font-size: 14px;
     color: var(--color-text);
     border-radius: 8px;
     white-space: nowrap;
+}
+
+/* Quick-pick buttons — coherent with the daily .btn .btn-secondary. */
+.speakerid-topbar__btn {
+    padding: 6px 12px !important;
+    font-size: 0.9rem;
+    background-color: var(--color-btn-base);
+}
+
+.speakerid-topbar__btn.is-active {
+    background-color: #0095c0 !important;
+    font-weight: 600;
+}
+
+.speakerid-topbar__conf {
+    font-weight: 400;
+    opacity: 0.85;
+}
+
+.speakerid-topbar__more {
+    min-width: 36px;
+    text-align: center;
 }
 
 .ready-indicator {

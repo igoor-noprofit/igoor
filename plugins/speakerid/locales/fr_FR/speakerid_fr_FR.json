@@ -2,6 +2,7 @@
     "voice_profiles_enabled": "Reconnaissance automatique des locuteurs",
     "voice_profiles_hint": "Processus 100 % local : ni l'inscription des voix ni la reconnaissance n'envoient de données sur Internet. Si activé, le microphone est analysé en continu pour identifier la personne qui parle.",
     "people": "Personnes",
+    "unknown": "Inconnu",
     "add_person": "Ajouter une personne",
     "new_person_name_placeholder": "Nom de la personne…",
     "adding": "Ajout…",
