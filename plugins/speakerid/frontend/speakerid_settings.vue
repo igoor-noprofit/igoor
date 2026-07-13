@@ -148,7 +148,10 @@ module.exports = {
             currentPhraseSet: [],
             phraseIndex: 0,
             recordingsThisSession: 0,
-            minRecordings: 3
+            minRecordings: 3,
+            // True when this session re-records an existing voice profile → the first
+            // save sends reset=true so the backend clears the old samples first.
+            sessionIsRerecord: false
         };
     },
     computed: {
@@ -211,6 +214,7 @@ module.exports = {
             this.statusMessage = '';
             this.recordingsThisSession = 0;
             this.phraseIndex = 0;
+            this.sessionIsRerecord = !!speaker.has_voice;
             this.currentPhraseSet = this.$_buildPhraseSet(speaker.name);
         },
 
@@ -273,7 +277,10 @@ module.exports = {
                     method: 'POST',
                     data: {
                         recorder_id: recorderId,
-                        speakers_id: this.recordingForSpeaker.id
+                        speakers_id: this.recordingForSpeaker.id,
+                        // On the first save of a re-record, clear the speaker's previous
+                        // samples so we replace (not stack onto) the old profile.
+                        reset: this.sessionIsRerecord && this.recordingsThisSession === 0
                     }
                 });
 

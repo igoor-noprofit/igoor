@@ -186,6 +186,57 @@ class SpeakerIdentificationSystem:
                 self.index = None
                 print("Rebuild complete: no enrolled speakers.")
 
+    def rebuild_speaker(self, name):
+        """Incremental enroll/delete: re-derive ONLY this speaker's embedding from their
+        WAVs on disk, update their row in-place (append if new, drop if their folder is
+        gone), and refresh the index.
+
+        Used on save/delete so a Save doesn't re-process every other speaker — cost is
+        O(this speaker's samples) instead of rebuild()'s O(all samples, all people).
+        Holds _index_lock for the same reason rebuild() does.
+        """
+        with self._index_lock:
+            new_emb = None
+            speaker_dir = self.voices_dir / name
+            wav_files = []
+            if speaker_dir.exists():
+                wav_files = list(speaker_dir.glob("*.wav")) + list(speaker_dir.glob("*.WAV"))
+
+            if wav_files:
+                embeddings_list = []
+                for wav_file in wav_files:
+                    try:
+                        emb = self.extract_embedding(str(wav_file))
+                        if emb is not None:
+                            embeddings_list.append(emb)
+                    except Exception as e:
+                        print(f"  Warning: rebuild_speaker skipped {wav_file.name}: {e}")
+                if embeddings_list:
+                    new_emb = np.mean(embeddings_list, axis=0)
+                    if self.embedding_dim is None:
+                        self.embedding_dim = len(new_emb)
+                        self.embeddings = np.empty((0, self.embedding_dim), dtype=np.float32)
+
+            # Update the speaker's existing row, or append / drop it.
+            if name in self.speaker_names:
+                idx = self.speaker_names.index(name)
+                if new_emb is not None:
+                    self.embeddings[idx] = new_emb
+                else:
+                    # No valid samples left (e.g. folder removed on delete) → drop them.
+                    self.speaker_names.pop(idx)
+                    self.embeddings = np.delete(self.embeddings, idx, axis=0)
+            elif new_emb is not None:
+                self.speaker_names.append(name)
+                self.embeddings = np.vstack([self.embeddings, new_emb.reshape(1, -1)])
+
+            if len(self.speaker_names) > 0:
+                self.save_embeddings()
+                self.build_index()
+            else:
+                self.index = None
+                print(f"rebuild_speaker('{name}'): no enrolled speakers left.")
+
     def extract_embedding(self, audio_path):
         """Extract embedding from audio file"""
         import torchaudio

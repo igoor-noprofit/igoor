@@ -376,7 +376,7 @@ class Speakerid(Baseplugin):
             if os.path.isdir(speaker_dir):
                 shutil.rmtree(speaker_dir, ignore_errors=True)
             if self.speaker_system is not None and self.speaker_system_ready:
-                await asyncio.to_thread(self.speaker_system.rebuild)
+                await asyncio.to_thread(self.speaker_system.rebuild_speaker, name)
                 self._current_status["speaker_count"] = len(self.speaker_system.speaker_names)
             return {"id": speaker_id, "name": name, "deleted": True}
 
@@ -384,6 +384,7 @@ class Speakerid(Baseplugin):
         async def attach_record(payload: Dict[str, Any]):
             recorder_id = payload.get("recorder_id")
             speakers_id = payload.get("speakers_id")
+            reset = bool(payload.get("reset", False))
             if recorder_id is None or speakers_id is None:
                 raise HTTPException(status_code=400, detail="recorder_id and speakers_id are required")
 
@@ -415,12 +416,22 @@ class Speakerid(Baseplugin):
                 wav_src = self._resolve_recorder_wav(recorder_id)
                 speaker_dir = os.path.join(self.plugin_folder, "voices", speaker_name)
                 os.makedirs(speaker_dir, exist_ok=True)
+                if reset:
+                    # Re-record: replace the previous voice profile with a fresh one.
+                    # Clear old samples so enroll only re-processes the new set — keeps
+                    # saves fast (otherwise the folder grows and each save re-processes all).
+                    for old in Path(speaker_dir).glob("*.wav"):
+                        try:
+                            old.unlink()
+                        except OSError:
+                            pass
+                    self.logger.info(f"Re-record for '{speaker_name}': cleared previous samples")
                 dest = os.path.join(speaker_dir, f"{recorder_id}_{int(time.time())}.wav")
                 shutil.copyfile(str(wav_src), dest)
                 self.logger.info(f"Enrolling '{speaker_name}': copied recorder audio to {dest}")
 
                 if self.speaker_system is not None and self.speaker_system_ready:
-                    await asyncio.to_thread(self.speaker_system.rebuild)
+                    await asyncio.to_thread(self.speaker_system.rebuild_speaker, speaker_name)
                     enrolled = True
                     count = len(self.speaker_system.speaker_names)
                     self._current_status.update({
