@@ -140,7 +140,7 @@ class Speakerid(Baseplugin):
                 self.logger.warning(f"freq bump failed: {e}")
         # Clear so a stale speaker doesn't bleed into the next conversation.
         context_manager.update_context("speaker_info", {
-            "name": "unknown", "confidence": 0.0, "status": "unknown", "timestamp": time.time()
+            "name": "unknown", "status": "unknown"
         })
 
     @hookimpl
@@ -342,21 +342,23 @@ class Speakerid(Baseplugin):
 
     
     def _update_speaker_context(self, speaker_name: str, confidence: float, status: str):
-        print("UPDATING SPEAKER CONTEXT with:", speaker_name, confidence, status)
-        """Update the context manager with current speaker information"""
-        speaker_info = {
-            "name": speaker_name if speaker_name else "unknown",
-            "confidence": confidence,
-            "status": status,
-            "timestamp": time.time()
-        }
-        
-        context_manager.update_context("speaker_info", speaker_info)
-        
-        # Send update to frontend
+        """Update the context manager + frontend with current speaker information.
+        The LLM-facing context excludes confidence (not needed in the prompt); the
+        frontend message keeps it for the topbar display."""
+        ts = time.time()
+        name = speaker_name if speaker_name else "unknown"
+        context_manager.update_context("speaker_info", {
+            "name": name,
+            "status": status
+        })
         self.send_message_to_frontend({
             "type": "speaker_identification",
-            "speaker": speaker_info
+            "speaker": {
+                "name": name,
+                "confidence": confidence,
+                "status": status,
+                "timestamp": ts
+            }
         })
 
     def _ensure_router(self):
@@ -479,11 +481,32 @@ class Speakerid(Baseplugin):
                 self._current_status["speaker_count"] = len(self.speaker_system.speaker_names)
             return {"id": speaker_id, "name": name, "deleted": True}
 
+        @self.router.post("/reset_voice")
+        async def reset_voice(payload: Dict[str, Any]):
+            """Clear all voice samples for a speaker (keeps the person + their conversations).
+            The speaker disappears from recognition until re-enrolled."""
+            speaker_id = payload.get("speaker_id")
+            rows = self.db_execute_sync("SELECT name FROM speakers WHERE id = ?", (speaker_id,))
+            if not rows:
+                raise HTTPException(status_code=404, detail=f"No speaker with id {speaker_id}")
+            name = rows[0]["name"]
+            speaker_dir = os.path.join(self.plugin_folder, "voices", name)
+            if os.path.isdir(speaker_dir):
+                for old in Path(speaker_dir).glob("*.wav"):
+                    try:
+                        old.unlink()
+                    except OSError:
+                        pass
+            if self.speaker_system is not None and self.speaker_system_ready:
+                await asyncio.to_thread(self.speaker_system.rebuild_speaker, name)
+                self._current_status["speaker_count"] = len(self.speaker_system.speaker_names)
+            self.logger.info(f"Voice reset for '{name}' — all samples deleted")
+            return {"name": name, "reset": True}
+
         @self.router.post("/records")
         async def attach_record(payload: Dict[str, Any]):
             recorder_id = payload.get("recorder_id")
             speakers_id = payload.get("speakers_id")
-            reset = bool(payload.get("reset", False))
             if recorder_id is None or speakers_id is None:
                 raise HTTPException(status_code=400, detail="recorder_id and speakers_id are required")
 
@@ -515,16 +538,6 @@ class Speakerid(Baseplugin):
                 wav_src = self._resolve_recorder_wav(recorder_id)
                 speaker_dir = os.path.join(self.plugin_folder, "voices", speaker_name)
                 os.makedirs(speaker_dir, exist_ok=True)
-                if reset:
-                    # Re-record: replace the previous voice profile with a fresh one.
-                    # Clear old samples so enroll only re-processes the new set — keeps
-                    # saves fast (otherwise the folder grows and each save re-processes all).
-                    for old in Path(speaker_dir).glob("*.wav"):
-                        try:
-                            old.unlink()
-                        except OSError:
-                            pass
-                    self.logger.info(f"Re-record for '{speaker_name}': cleared previous samples")
                 dest = os.path.join(speaker_dir, f"{recorder_id}_{int(time.time())}.wav")
                 shutil.copyfile(str(wav_src), dest)
                 self.logger.info(f"Enrolling '{speaker_name}': copied recorder audio to {dest}")

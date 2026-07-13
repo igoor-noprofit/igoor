@@ -35,6 +35,7 @@
                         {{ isAdding ? t('adding') : t('add_person') }}
                     </button>
                 </div>
+                <p class="speakerid-settings__tip">{{ t('recording_tip') }}</p>
             </div>
 
             <!-- RIGHT column: people list -->
@@ -54,8 +55,17 @@
                                     :disabled="isSaving"
                                     @click="startRecordingFor(s)"
                                 >
-                                    {{ s.has_voice ? t('rerecord') : t('record_voice') }}
+                                    {{ t('add_recording') }}
                                 </button>
+                                <button
+                                    v-if="s.has_voice && voiceProfilesEnabled"
+                                    type="button"
+                                    class="speakerid-settings__btn speakerid-settings__btn--danger"
+                                    :disabled="isSaving"
+                                    :title="t('reset_voice')"
+                                    :aria-label="t('reset_voice')"
+                                    @click="askResetVoice(s)"
+                                ><i class="ph-light ph-arrows-counter-clockwise"></i></button>
                                 <button
                                     type="button"
                                     class="speakerid-settings__btn speakerid-settings__btn--danger"
@@ -119,12 +129,12 @@
         </div>
 
         <!-- Delete confirmation modal (onboarding-style overlay, not a native confirm) -->
-        <div v-if="pendingDelete" class="confirm-overlay" @click.self="cancelDelete">
+        <div v-if="pendingAction" class="confirm-overlay" @click.self="cancelAction">
             <div class="confirm-modal" role="dialog" aria-modal="true">
-                <p class="confirm-modal__text">{{ t('confirm_delete', { name: pendingDelete.name }) }}</p>
+                <p class="confirm-modal__text">{{ confirmText }}</p>
                 <div class="confirm-modal__actions">
-                    <button type="button" class="speakerid-settings__btn" @click="cancelDelete">{{ t('cancel') }}</button>
-                    <button type="button" class="speakerid-settings__btn speakerid-settings__btn--danger" @click="confirmDelete">{{ t('delete') }}</button>
+                    <button type="button" class="speakerid-settings__btn" @click="cancelAction">{{ t('cancel') }}</button>
+                    <button type="button" class="speakerid-settings__btn speakerid-settings__btn--danger" @click="confirmAction">{{ confirmLabel }}</button>
                 </div>
             </div>
         </div>
@@ -155,7 +165,7 @@ module.exports = {
             pendingBlob: null,
             isSaving: false,
             statusMessage: '',
-            pendingDelete: null, // speaker awaiting delete confirmation (custom modal)
+            pendingAction: null, // {type:'delete'|'reset', speaker} awaiting confirmation
             // Phrase-guided enrollment: 3 suggested phrases, encourage ≥3 recordings (~10s each).
             // First phrase is personalized per speaker (see $_buildPhraseSet); the rest are generic
             // French sentences chosen for phonetic variety. Localize later via the locale file.
@@ -171,10 +181,7 @@ module.exports = {
             currentPhraseSet: [],
             phraseIndex: 0,
             recordingsThisSession: 0,
-            minRecordings: 3,
-            // True when this session re-records an existing voice profile → the first
-            // save sends reset=true so the backend clears the old samples first.
-            sessionIsRerecord: false
+            minRecordings: 3
         };
     },
     computed: {
@@ -192,6 +199,16 @@ module.exports = {
             const set = this.currentPhraseSet;
             if (!set.length) return '';
             return set[Math.min(this.phraseIndex, set.length - 1)];
+        },
+        confirmText() {
+            if (!this.pendingAction) return '';
+            const a = this.pendingAction;
+            if (a.type === 'reset') return this.t('confirm_reset', { name: a.speaker.name });
+            return this.t('confirm_delete', { name: a.speaker.name });
+        },
+        confirmLabel() {
+            if (!this.pendingAction) return '';
+            return this.pendingAction.type === 'reset' ? this.t('reset_voice') : this.t('delete');
         }
     },
     mounted() {
@@ -259,7 +276,6 @@ module.exports = {
             this.statusMessage = '';
             this.recordingsThisSession = 0;
             this.phraseIndex = 0;
-            this.sessionIsRerecord = !!speaker.has_voice;
             this.currentPhraseSet = this.$_buildPhraseSet(speaker.name);
         },
 
@@ -322,10 +338,7 @@ module.exports = {
                     method: 'POST',
                     data: {
                         recorder_id: recorderId,
-                        speakers_id: this.recordingForSpeaker.id,
-                        // On the first save of a re-record, clear the speaker's previous
-                        // samples so we replace (not stack onto) the old profile.
-                        reset: this.sessionIsRerecord && this.recordingsThisSession === 0
+                        speakers_id: this.recordingForSpeaker.id
                     }
                 });
 
@@ -357,28 +370,38 @@ module.exports = {
         },
 
         askDeleteSpeaker(speaker) {
-            // Opens the custom confirmation modal instead of a native window.confirm().
-            this.pendingDelete = speaker;
+            this.pendingAction = { type: 'delete', speaker };
         },
 
-        cancelDelete() {
-            this.pendingDelete = null;
+        askResetVoice(speaker) {
+            this.pendingAction = { type: 'reset', speaker };
         },
 
-        async confirmDelete() {
-            const speaker = this.pendingDelete;
-            if (!speaker) return;
-            this.pendingDelete = null;
+        cancelAction() {
+            this.pendingAction = null;
+        },
+
+        async confirmAction() {
+            const action = this.pendingAction;
+            if (!action) return;
+            this.pendingAction = null;
             this.isSaving = true;
             this.statusMessage = '';
             try {
-                await this.callPluginRestEndpoint('speakerid', `speakers/${speaker.id}`, {
-                    method: 'DELETE'
-                });
+                if (action.type === 'reset') {
+                    await this.callPluginRestEndpoint('speakerid', 'reset_voice', {
+                        method: 'POST',
+                        data: { speaker_id: action.speaker.id }
+                    });
+                } else {
+                    await this.callPluginRestEndpoint('speakerid', `speakers/${action.speaker.id}`, {
+                        method: 'DELETE'
+                    });
+                    this.statusMessage = this.t('person_deleted');
+                }
                 await this.loadSpeakers();
-                this.statusMessage = this.t('person_deleted');
             } catch (e) {
-                console.error('Failed to delete speaker', e);
+                console.error('Action failed', e);
                 this.statusMessage = this.t('error_deleting_person');
             } finally {
                 this.isSaving = false;
@@ -440,6 +463,14 @@ module.exports = {
     font-size: 1rem;
     font-weight: 600;
     color: var(--color-text, #ffffff);
+}
+
+.speakerid-settings__tip {
+    margin: 0;
+    font-size: 0.82rem;
+    color: var(--basecolor-gray-100, #afbfbf);
+    line-height: 1.4;
+    opacity: 0.8;
 }
 
 .speakerid-settings__section {
