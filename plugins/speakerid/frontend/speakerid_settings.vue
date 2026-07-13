@@ -1,7 +1,7 @@
 <template>
     <div class="speakerid-settings">
         <!-- Add person (name only — no voice recording required) -->
-        <div class="speakerid-settings__add">
+        <div class="speakerid-settings__add" v-if="!recordingForSpeaker">
             <input
                 type="text"
                 class="speakerid-settings__input"
@@ -21,7 +21,7 @@
         </div>
 
         <!-- Speaker list -->
-        <section class="speakerid-settings__section">
+        <section class="speakerid-settings__section" v-if="!recordingForSpeaker">
             <h3 class="speakerid-settings__title">{{ t('people') }}</h3>
             <div v-if="isLoadingSpeakers" class="speakerid-settings__status">{{ t('loading_speakers') }}</div>
             <div v-else-if="speakers.length === 0" class="speakerid-settings__status">{{ t('no_speakers') }}</div>
@@ -43,7 +43,7 @@
                             :disabled="isSaving"
                             :title="t('delete')"
                             :aria-label="t('delete')"
-                            @click="deleteSpeaker(s)"
+                            @click="askDeleteSpeaker(s)"
                         >🗑</button>
                     </span>
                 </li>
@@ -95,6 +95,17 @@
                 <span v-if="statusMessage" class="speakerid-settings__status">{{ statusMessage }}</span>
             </div>
         </div>
+
+        <!-- Delete confirmation modal (onboarding-style overlay, not a native confirm) -->
+        <div v-if="pendingDelete" class="confirm-overlay" @click.self="cancelDelete">
+            <div class="confirm-modal" role="dialog" aria-modal="true">
+                <p class="confirm-modal__text">{{ t('confirm_delete', { name: pendingDelete.name }) }}</p>
+                <div class="confirm-modal__actions">
+                    <button type="button" class="speakerid-settings__btn" @click="cancelDelete">{{ t('cancel') }}</button>
+                    <button type="button" class="speakerid-settings__btn speakerid-settings__btn--danger" @click="confirmDelete">{{ t('delete') }}</button>
+                </div>
+            </div>
+        </div>
     </div>
 </template>
 
@@ -120,6 +131,7 @@ module.exports = {
             pendingBlob: null,
             isSaving: false,
             statusMessage: '',
+            pendingDelete: null, // speaker awaiting delete confirmation (custom modal)
             // Phrase-guided enrollment: 3 suggested phrases, encourage ≥3 recordings (~10s each).
             // First phrase is personalized per speaker (see $_buildPhraseSet); the rest are generic
             // French sentences chosen for phonetic variety. Localize later via the locale file.
@@ -285,8 +297,19 @@ module.exports = {
             }
         },
 
-        async deleteSpeaker(speaker) {
-            if (!window.confirm(this.t('confirm_delete', { name: speaker.name }))) return;
+        askDeleteSpeaker(speaker) {
+            // Opens the custom confirmation modal instead of a native window.confirm().
+            this.pendingDelete = speaker;
+        },
+
+        cancelDelete() {
+            this.pendingDelete = null;
+        },
+
+        async confirmDelete() {
+            const speaker = this.pendingDelete;
+            if (!speaker) return;
+            this.pendingDelete = null;
             this.isSaving = true;
             this.statusMessage = '';
             try {
@@ -570,18 +593,66 @@ module.exports = {
     align-items: center;
 }
 
+/* Mic button: bigger, biorecorder-style (140×140, teal, green while recording). */
 .speakerid-settings__recorder :deep(.recorder__main-btn) {
-    width: 80px !important;
-    height: 80px !important;
+    width: 140px !important;
+    height: 140px !important;
+    background-color: var(--color-btn-primary, #2f535b) !important;
+    transition: background-color 0.15s ease, transform 0.1s ease;
 }
 
-.speakerid-settings__recorder :deep(.recorder__play-btn) {
-    width: 80px !important;
-    height: 80px !important;
+.speakerid-settings__recorder :deep(.recorder__main-btn:hover:not(:disabled)) {
+    background-color: #0095c0 !important;
+}
+
+.speakerid-settings__recorder :deep(.recorder__main-btn:active:not(:disabled)) {
+    transform: translateY(2px);
+}
+
+.speakerid-settings__recorder :deep(.recorder__main-btn.recording) {
+    background-color: #396350 !important;
+    animation: none !important; /* drop the default red pulse glow */
 }
 
 .speakerid-settings__recorder :deep(.recorder__icon) {
-    width: 40px !important;
-    height: 40px !important;
+    width: 70px !important;
+    height: 70px !important;
+}
+
+/* Delete confirmation modal — onboarding-style overlay */
+.confirm-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+}
+
+.confirm-modal {
+    background: #ffffff;
+    color: #1a1a1a;
+    padding: 28px 30px;
+    border-radius: 10px;
+    max-width: 420px;
+    width: calc(100% - 40px);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    text-align: center;
+}
+
+.confirm-modal__text {
+    margin: 0;
+    font-size: 1.05rem;
+    line-height: 1.45;
+}
+
+.confirm-modal__actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
 }
 </style>
