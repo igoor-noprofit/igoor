@@ -35,7 +35,6 @@
                         {{ isAdding ? t('adding') : t('add_person') }}
                     </button>
                 </div>
-                <p class="speakerid-settings__tip">{{ t('recording_tip') }}</p>
             </div>
 
             <!-- RIGHT column: people list -->
@@ -93,9 +92,10 @@
             <!-- Phrase-guided enrollment: 3 suggested phrases, encourage ≥3 recordings (~10s each) -->
             <div class="speakerid-settings__guide">
                 <p class="speakerid-settings__guide-instr">{{ t('enrollment_instruction') }}</p>
+                <p class="speakerid-settings__guide-instr">{{ t('recording_tip') }}</p>
                 <p class="speakerid-settings__guide-progress">
-                    {{ t('recording_progress', { done: recordingsThisSession, total: minRecordings }) }}
-                    <span v-if="recordingsThisSession >= minRecordings" class="speakerid-settings__guide-done">{{ t('enrollment_enough') }}</span>
+                    {{ t('recording_progress', { count: (recordingForSpeaker.sample_count || 0) }) }}
+                    <span v-if="(recordingForSpeaker.sample_count || 0) >= minRecordings" class="speakerid-settings__guide-done">{{ t('enrollment_enough') }}</span>
                 </p>
                 <div class="speakerid-settings__phrase-card">
                     <div class="speakerid-settings__phrase-label">
@@ -355,6 +355,8 @@ module.exports = {
                 this.recordingsThisSession += 1;
                 this.phraseIndex = Math.min(this.recordingsThisSession, this.currentPhraseSet.length);
                 await this.loadSpeakers();
+                // Refresh the recording target so sample_count is up to date in the counter.
+                this.recordingForSpeaker = this.speakers.find(s => s.id === this.recordingForSpeaker.id) || this.recordingForSpeaker;
                 if (result?.warning) {
                     this.statusMessage = result.warning;
                 } else {
@@ -463,14 +465,6 @@ module.exports = {
     font-size: 1rem;
     font-weight: 600;
     color: var(--color-text, #ffffff);
-}
-
-.speakerid-settings__tip {
-    margin: 0;
-    font-size: 0.82rem;
-    color: var(--basecolor-gray-100, #afbfbf);
-    line-height: 1.4;
-    opacity: 0.8;
 }
 
 .speakerid-settings__section {

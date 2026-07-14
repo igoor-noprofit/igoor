@@ -438,10 +438,11 @@ class Speakerid(Baseplugin):
             voices_dir = os.path.join(self.plugin_folder, "voices")
             for row in rows:
                 speaker_dir = os.path.join(voices_dir, row.get("name", ""))
-                has_wav = False
+                wav_count = 0
                 if row.get("name") and os.path.isdir(speaker_dir):
-                    has_wav = any(f.lower().endswith(".wav") for f in os.listdir(speaker_dir))
-                row["has_voice"] = has_wav
+                    wav_count = sum(1 for f in os.listdir(speaker_dir) if f.lower().endswith(".wav"))
+                row["has_voice"] = wav_count > 0
+                row["sample_count"] = wav_count
             return rows
 
         @self.router.post("/speakers")

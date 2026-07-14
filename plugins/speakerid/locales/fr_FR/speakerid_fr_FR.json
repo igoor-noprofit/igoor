@@ -17,7 +17,7 @@
     "recording_for": "Enregistrement pour",
     "enrollment_instruction": "Lisez cette phrase naturellement, à vitesse normale (environ 10 secondes). Faites au moins 3 enregistrements pour une meilleure reconnaissance.",
     "phrase_to_read": "Phrase à lire",
-    "recording_progress": "Enregistrements : {done}/{total}",
+    "recording_progress": "Enregistrements : {count}",
     "enrollment_enough": "✓ C'est suffisant ! Vous pouvez fermer, ou continuer pour améliorer la reconnaissance.",
     "cancel": "Annuler",
     "confirm_delete": "Supprimer {name} ? Les conversations associées NE SERONT PAS supprimées.",
