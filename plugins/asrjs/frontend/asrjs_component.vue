@@ -280,6 +280,12 @@ export default {
                     console.log('Wakeword detection enabled in AudioWorklet');
                 }
 
+                // Re-apply the voice-profiles gate now that the worklet exists. The initial
+                // $_checkSpeakerIdAvailability() runs before this.processor is created, so its
+                // enable-speakerid message was dropped — without this the worklet wouldn't
+                // capture for speaker ID until the 20s status refresh re-applied the gate.
+                this.$_applyVoiceProfilesEnabled(this.voiceProfilesEnabled);
+
                 // Set up audio level monitoring
                 const analyser = this.audioContext.createAnalyser();
                 analyser.fftSize = 256;
@@ -369,6 +375,12 @@ export default {
                     this.processor.port.postMessage({ type: 'enable-wakeword' });
                     console.log('Wakeword detection enabled in AudioWorklet');
                 }
+
+                // Re-apply the voice-profiles gate now that the worklet exists. The initial
+                // $_checkSpeakerIdAvailability() runs before this.processor is created, so its
+                // enable-speakerid message was dropped — without this the worklet wouldn't
+                // capture for speaker ID until the 20s status refresh re-applied the gate.
+                this.$_applyVoiceProfilesEnabled(this.voiceProfilesEnabled);
 
                 // Set up audio level monitoring
                 const analyser = this.audioContext.createAnalyser();

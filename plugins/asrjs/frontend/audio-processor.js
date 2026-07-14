@@ -81,22 +81,18 @@ class AudioProcessor extends AudioWorkletProcessor {
             }
         }
 
-        // Only process recording buffer when actually recording
-        if (!this.isRecording) return true;
-
-        // Add current frame to recording buffer (for native rate recording)
-        for (let i = 0; i < inputChannel.length; i++) {
-            this.recordingBuffer.push(inputChannel[i]);
-        }
-
-        // Downsample for speakerid — only when voice profiles are enabled (privacy/CPU
-        // gate). The main thread also guards the POST; this skips the downsample work.
+        // Downsample for speaker ID — runs whenever the voice-profiles gate is on,
+        // NOT gated on recording. This MUST precede the isRecording early-return below:
+        // in continuous mode the VAD drives capture and start/stop-recording is never
+        // posted, so guarding this on isRecording means zero speakerid chunks ever
+        // reach the backend in continuous mode. Mirrors the wakeword block above.
+        // The main thread also guards the POST; this just skips the downsample when off.
         if (this.speakerIdEnabled) {
             const downsampledData = this.downsampleAudio(inputChannel, this.nativeSampleRate, this.targetSampleRate);
             this.speakerIdBuffer.push(...downsampledData);
 
-            // Check if we have enough data for a chunk
-            const chunkSize = Math.floor(this.targetSampleRate * this.chunkDuration); // 3 seconds at 16kHz
+            // Check if we have enough data for a chunk (3 seconds at 16kHz)
+            const chunkSize = Math.floor(this.targetSampleRate * this.chunkDuration);
             if (this.speakerIdBuffer.length >= chunkSize) {
                 const chunk = this.speakerIdBuffer.slice(0, chunkSize);
                 this.speakerIdBuffer = this.speakerIdBuffer.slice(chunkSize); // Remove used portion
@@ -107,6 +103,14 @@ class AudioProcessor extends AudioWorkletProcessor {
                     data: chunk
                 });
             }
+        }
+
+        // Everything below is recording-only (push-to-talk native-rate capture).
+        if (!this.isRecording) return true;
+
+        // Add current frame to recording buffer (for native rate recording)
+        for (let i = 0; i < inputChannel.length; i++) {
+            this.recordingBuffer.push(inputChannel[i]);
         }
 
         // Also send raw audio data periodically for visualization/monitoring
