@@ -151,7 +151,6 @@ class DataManager:
                     self.logger.info("Exported plugins/asrjs/custom_wakeword folder")
                 else:
                     self.logger.warning("plugins/asrjs/custom_wakeword folder not found")
-                
 
                 # Export speaker ID voice profiles + embeddings so recognition survives
                 # import. The DB carries the speaker rows; voices/ is the source of truth
