@@ -173,6 +173,23 @@ class Speakerid(Baseplugin):
         })
 
     @hookimpl
+    async def data_imported(self, backup_path=None, **kwargs):
+        """After a data import, voices/ + speaker_embeddings.pkl on disk may have been
+        replaced. Rebuild the in-memory index from the restored voices/ so recognition
+        works without an app restart (the startup load also covers this once restarted;
+        this makes it live). Guarded on the system being ready; if not, startup will
+        load the restored voices/."""
+        if not self.speaker_system or not self.speaker_system_ready:
+            self.logger.info("data_imported: speaker system not ready — startup will load the restored voices/")
+            return
+        try:
+            await asyncio.to_thread(self.speaker_system.rebuild)
+            self._current_status["speaker_count"] = len(self.speaker_system.speaker_names)
+            self.logger.info("data_imported: rebuilt speaker embeddings from restored voices/")
+        except Exception as e:
+            self.logger.warning(f"data_imported: rebuild failed: {e}")
+
+    @hookimpl
     def startup(self):
         """Synchronous startup hook (definitely called)"""
         try:
