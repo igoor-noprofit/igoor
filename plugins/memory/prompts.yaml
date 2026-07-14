@@ -12,6 +12,8 @@ memory:
     "facts": an array with every relevant piece of information about {bio_name}, their family, friends, preferences (food, politics, arts, etc.), or memories. For each fact, specify if it is "short" or "long". It's possible there are no facts to store.
     "tags": labels to classify the conversation and help find it later.
 
+    **Language**: Write "theme", every "fact", and all "tags" in {reply_language}.
+
     Important criteria:
     <criteria>
     - A "fact" is objective, verifiable information about {bio_name} or their close circle.
@@ -119,6 +121,7 @@ memory_review:
     </example>
 
     The "reason" field MUST explain why the memory is accepted.
+    Write the "reason" in {reply_language}.
     The memory can be validated even if the RAG contains other compatible information (e.g., "likes rice" and "likes spaghetti").
 
     ---
