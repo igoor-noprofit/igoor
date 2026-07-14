@@ -82,6 +82,10 @@ class Speakerid(Baseplugin):
         # for the rest of the conversation (cleared here on abandon/reset).
         self.committed_speaker = None
         self.evidence_window = deque(maxlen=self.EVIDENCE_WINDOW)
+        # Continuous pre-warm gate: commits only LOCK when a conversation is active.
+        # Init and abandon both route through reset_state, so this covers both — the
+        # flag flips True on the first add_msg_to_conversation of a new conversation.
+        self.conversation_active = False
         self.logger.info("SpeakerID plugin state has been reset")
  
     def reset_last_phrase(self):
@@ -96,7 +100,26 @@ class Speakerid(Baseplugin):
     def stop_recording(self):
         self.reset_last_phrase()
     '''
- 
+
+    @hookimpl
+    def add_msg_to_conversation(self, msg, author, msg_input):
+        """Conversation-START signal (fires on the first message of each conversation).
+        Switches from continuous pre-warm mode (unlocked) to conversation mode so
+        commit-quality detections can lock. Gives the detection state machine a fresh
+        acoustic slate while RETAINING the pre-warmed speaker_info in context — so the
+        first LLM call is zero-latency if the same speaker continues; a different speaker
+        overwrites it on the next commit. Idempotent: only acts on the first message."""
+        if self.conversation_active:
+            return
+        self.conversation_active = True
+        self.evidence_window = deque(maxlen=self.EVIDENCE_WINDOW)   # fresh voting
+        with self.buffer_lock:
+            if self.audio_buffer is not None:
+                self.audio_buffer.clear()                            # drop gap audio
+        self.is_processing = False
+        # DELIBERATELY RETAINED: context_manager["speaker_info"] (the pre-warm) and
+        # committed_speaker — the pre-warm carries across the boundary.
+
     @hookimpl
     def abandon_conversation(self,cause):
         self.reset_state()
@@ -121,6 +144,12 @@ class Speakerid(Baseplugin):
         info = (context_manager.get_context() or {}).get("speaker_info") or {}
         name = info.get("name")
         if not name or name == "unknown":
+            return None
+        # Attribution is COMMITTED-only: a pre-warmed (unlocked) ambient speaker must NOT
+        # be attributed to a conversation — e.g. a conversation that never re-commits ends
+        # Unknown rather than inheriting whoever was talking in the room. The name still
+        # reaches the LLM via {dynamic_context} regardless of this filter.
+        if info.get("status") != "confirmed":
             return None
         rows = self.db_execute_sync("SELECT id FROM speakers WHERE name = ?", (name,))
         if not rows:
@@ -406,11 +435,10 @@ class Speakerid(Baseplugin):
                 self.committed_speaker = None
                 self.last_speaker = SimpleNamespace(id=False, confidence=-10)
                 self.last_phrase_speaker = SimpleNamespace(id=False, confidence=-10)
-                self.send_message_to_frontend({
-                    "type": "speaker_identification",
-                    "speaker": {"name": "unknown", "confidence": 0.0, "status": "unknown",
-                                "manual": True, "timestamp": time.time()}
-                })
+                # Clear the LLM-facing context too (previously missing): so a stale
+                # confirmed/pre-warmed speaker can't be attributed after the user
+                # explicitly chose Unknown. This also pushes the topbar "unknown" msg.
+                self._update_speaker_context("unknown", 0.0, "unknown")
                 self.logger.info("Speaker set to Unknown — detection unlocked, will keep trying")
                 return {"name": "unknown", "manual": True}
 
@@ -757,21 +785,28 @@ class Speakerid(Baseplugin):
         self._send_tentative(best_name, score)
 
     def _commit(self, name, score):
-        """Lock in the committed speaker for this conversation: inject it into the
-        LLM context (only committed speakers reach the model), notify the frontend
-        as confirmed, and lock further detection."""
-        self.committed_speaker = name
+        """Inject the speaker into the LLM context + topbar. The LOCK (which freezes
+        detection for the rest of the conversation) only applies when a conversation is
+        active — during the inter-conversation gap the same injection is a continuous
+        PRE-WARM: it keeps the prompt ready but stays unlocked so the ambient speaker
+        can be revised. A conversation-scoped commit (or a manual set_speaker) is what
+        actually locks."""
+        status = "confirmed" if self.conversation_active else "prewarmed"
+        if self.conversation_active:
+            self.committed_speaker = name          # LOCK — conversations only
         self.last_speaker.id = name
         self.last_speaker.confidence = score
         self.last_phrase_speaker.id = name
         self.last_phrase_speaker.confidence = score
         self.is_processing = False
         self.logger.info(
-            f"Speaker COMMITTED: {name} (score {score:.2f}) — detection locked for this conversation"
+            f"Speaker {status.upper()}: {name} (score {score:.2f})"
+            + (" — detection locked for this conversation" if self.conversation_active
+               else " — pre-warm (unlocked)")
         )
         # _update_speaker_context updates context_manager["speaker_info"] AND pushes
-        # the confirmed speaker to the frontend in one message.
-        self._update_speaker_context(name, score, "confirmed")
+        # the speaker to the frontend in one message (status = confirmed|prewarmed).
+        self._update_speaker_context(name, score, status)
 
     def _send_tentative(self, name, score):
         """Show a tentative (unconfirmed) candidate in the topbar WITHOUT injecting a
