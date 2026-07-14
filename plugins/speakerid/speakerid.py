@@ -373,6 +373,9 @@ class Speakerid(Baseplugin):
             # Always expose the live gate value (init_speaker_system reassigns
             # _current_status without it), so asrjs can rely on this field.
             status["voice_profiles_enabled"] = self.voice_profiles_enabled
+            # User's name (IGOOR user / bio_name) so the frontend can build
+            # caregiver→user enrollment phrases that address them by name.
+            status["bio_name"] = self.settings_manager.get_bio().get("name") or ""
             return {
                 "type": "speakerid_status",
                 **status

@@ -166,17 +166,22 @@ module.exports = {
             isSaving: false,
             statusMessage: '',
             pendingAction: null, // {type:'delete'|'reset', speaker} awaiting confirmation
-            // Phrase-guided enrollment: 3 suggested phrases, encourage ≥3 recordings (~10s each).
-            // First phrase is personalized per speaker (see $_buildPhraseSet); the rest are generic
-            // French sentences chosen for phonetic variety. Localize later via the locale file.
-            enrollmentPhrases: [
-                "L'intelligence artificielle transforme le monde très rapidement et elle aura un impact majeur sur de nombreuses industries dans les années à venir.",
-                "Chaque matin, je commence ma journée par une tasse de café, puis je regarde mes messages avant de commencer à travailler sur mes projets.",
-                "Ma façon préférée de me détendre après une longue journée est d'écouter de la musique ou de regarder un bon film avec ma famille.",
-                "La technologie a rendu notre vie beaucoup plus facile, mais il est aussi important de protéger nos informations personnelles et notre vie privée en ligne.",
-                "J'aime voyager dans de nouveaux endroits, découvrir différentes cultures et goûter à la cuisine locale quand c'est possible.",
-                "L'exercice physique est très important pour la santé du corps et de l'esprit, et j'essaie de marcher un peu chaque jour.",
-                "Portez ce vieux whisky au juge blond qui fume sur son île intérieure, à côté de l'alcôve ovale."
+            // User's name (IGOOR user / bio_name) — fetched from /status, used to
+            // build caregiver→user phrases that address the user by name.
+            bioName: '',
+            // Phrase-guided enrollment: encourage ≥3 recordings (~10s each). The intro
+            // phrase uses the speaker's own name; the pool holds caregiver→user phrases
+            // (addressing the user by {user}). Text + {speaker}/{user} placeholders live
+            // in the locale file; $_buildPhraseSet interpolates them via t().
+            enrollmentIntroKey: 'enrollment_phrase_intro',
+            enrollmentPhraseKeys: [
+                'enrollment_phrase_1',
+                'enrollment_phrase_2',
+                'enrollment_phrase_3',
+                'enrollment_phrase_4',
+                'enrollment_phrase_5',
+                'enrollment_phrase_6',
+                'enrollment_phrase_7'
             ],
             currentPhraseSet: [],
             phraseIndex: 0,
@@ -232,6 +237,7 @@ module.exports = {
             try {
                 const s = await this.callPluginRestEndpoint('speakerid', 'status');
                 this.voiceProfilesEnabled = !!(s && s.voice_profiles_enabled);
+                this.bioName = (s && s.bio_name) || '';
             } catch (e) {
                 console.error('Failed to load voice-profiles setting', e);
             }
@@ -280,15 +286,18 @@ module.exports = {
         },
 
         $_buildPhraseSet(name) {
-            // First phrase is personalized (the speaker says their own name — good for ID);
-            // plus 2 random generic phrases so the ≥3 recordings span varied phonetics.
-            const personalized = `Bonjour, je m'appelle ${name}. J'enregistre ma voix pour que l'application puisse me reconnaître.`;
-            const pool = this.enrollmentPhrases.slice();
+            // First phrase: the speaker introduces themselves by name (good for ID).
+            // Then 2 caregiver→user phrases that address the user by name, picked at
+            // random from the locale pool so the ≥3 recordings span varied phonetics.
+            // Both names are interpolated by t() via {speaker} / {user} placeholders.
+            const params = { speaker: name, user: this.bioName || '' };
+            const intro = this.t(this.enrollmentIntroKey, params);
+            const pool = this.enrollmentPhraseKeys.slice();
             const picked = [];
             while (picked.length < 2 && pool.length) {
-                picked.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
+                picked.push(this.t(pool.splice(Math.floor(Math.random() * pool.length), 1)[0], params));
             }
-            return [personalized, ...picked];
+            return [intro, ...picked];
         },
 
         cancelRecording() {
