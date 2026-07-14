@@ -1,6 +1,0 @@
-{
-    "wakeword": "Igor",
-    "model_size": "big",
-    "continuous": false,
-    "min_confidence": 0.7
-}
