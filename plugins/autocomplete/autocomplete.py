@@ -448,7 +448,7 @@ class Autocomplete(Baseplugin):
         # Per-speaker history injection: past conversations with the current speaker.
         speaker_conversations = ""
         try:
-            spk = next((r for r in (await self.pm.trigger_hook(hook_name="get_current_speaker") or []) if r and r.get("speakers_id")), None)
+            spk = next((r for r in (await self.pm.trigger_hook(hook_name="get_context_speaker") or []) if r and r.get("speakers_id")), None)
             if spk:
                 speaker_conversations = next((r for r in (await self.pm.trigger_hook(hook_name="get_speaker_conversations", speakers_id=spk["speakers_id"], limit=5) or []) if r), "")
         except Exception as e:

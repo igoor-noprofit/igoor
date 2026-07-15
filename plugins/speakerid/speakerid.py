@@ -159,6 +159,21 @@ class Speakerid(Baseplugin):
         return {"speakers_id": rows[0]["id"], "name": name}
 
     @hookimpl
+    def get_context_speaker(self):
+        """The speaker currently in context (pre-warmed OR confirmed), for LLM history
+        injection. Unlike get_current_speaker this includes pre-warmed speakers, so their
+        past conversations are injected from the first LLM call even before a commit.
+        Attribution still uses the confirmed-only get_current_speaker."""
+        info = (context_manager.get_context() or {}).get("speaker_info") or {}
+        name = info.get("name")
+        if not name or name == "unknown":
+            return None
+        rows = self.db_execute_sync("SELECT id FROM speakers WHERE name = ?", (name,))
+        if not rows:
+            return None
+        return {"speakers_id": rows[0]["id"], "name": name}
+
+    @hookimpl
     def get_speaker_name(self, speakers_id):
         """Resolve a speakers_id to the speaker's name, or None."""
         if not speakers_id:

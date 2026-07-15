@@ -197,6 +197,14 @@ class MyAppSpec:
         pass
 
     @pluggy.HookspecMarker(app_name)
+    def get_context_speaker(self):
+        """The speaker currently in context_manager['speaker_info'] as {speakers_id, name},
+        or None if unknown. Includes pre-warmed (uncommitted) speakers — use this to inject
+        per-speaker history into the LLM even before a conversation-scoped commit. Use
+        get_current_speaker (confirmed-only) for conversation attribution/freq."""
+        pass
+
+    @pluggy.HookspecMarker(app_name)
     def get_speaker_name(self, speakers_id):
         """Hook to resolve a speakers_id to the speaker's name (str), or None.
         Used to label past conversations with their interlocutor."""
