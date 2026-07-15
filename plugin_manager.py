@@ -197,6 +197,12 @@ class MyAppSpec:
         pass
 
     @pluggy.HookspecMarker(app_name)
+    def get_speaker_name(self, speakers_id):
+        """Hook to resolve a speakers_id to the speaker's name (str), or None.
+        Used to label past conversations with their interlocutor."""
+        pass
+
+    @pluggy.HookspecMarker(app_name)
     async def get_speaker_conversations(self, speakers_id, limit):
         """Hook to get a speaker's past conversations as an XML string (per-speaker
         history injection). None/'' if no speaker or no history."""

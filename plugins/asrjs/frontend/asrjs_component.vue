@@ -913,36 +913,6 @@ export default {
             }
         },
 
-        async $_sendAudioToSpeakerID(audioBlob) {
-            return true;
-            // Use cached speakerid availability (no API calls)
-            if (!this.speakerIdAvailable || !this.voiceProfilesEnabled) {
-                console.log('SpeakerID not available or voice profiles disabled, skipping identification');
-                return;
-            }
-
-            // Send complete audio file to speakerid for identification
-            try {
-                const formData = new FormData();
-                formData.append('audio_file', audioBlob, 'recording.wav');
-                formData.append('sample_rate', this.nativeSampleRate.toString());  // Use native sample rate
-
-                const response = await fetch('http://127.0.0.1:9714/api/plugins/speakerid/identify_speaker', {
-                    method: 'POST',
-                    body: formData
-                });
-
-                if (!response.ok) {
-                    console.error('Error sending audio to speakerid:', response.status);
-                } else {
-                    const result = await response.json();
-                    console.log('Speaker identification result:', result);
-                }
-            } catch (error) {
-                console.error('Error sending audio to speakerid:', error);
-            }
-        },
-
         async $_startRecording() {
             // Start Web Audio API recording
             this.isRecording = true;
@@ -1261,13 +1231,11 @@ export default {
                     // Stop recording first
                     const finalWavBlob = await this.$_stopRecording();
 
-                    // Send complete audio to BOTH APIs after recording stops
+                    // Send the recording to ASR for transcription. (Speaker ID runs
+                    // continuously via the AudioWorklet → /process_audio_chunk during
+                    // the recording, so it needs no separate full-file send here.)
                     if (finalWavBlob && finalWavBlob.size > 0) {
-                        // Send to ASR for transcription
                         await this.$_sendAudioToTranscribe(finalWavBlob);
-
-                        // Send to SpeakerID for identification
-                        await this.$_sendAudioToSpeakerID(finalWavBlob);
                     }
                     else {
                         console.warn("No audio data to send for processing");

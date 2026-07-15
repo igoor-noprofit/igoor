@@ -261,12 +261,13 @@ class Conversation(Baseplugin):
 
         # Resolve the conversation's speaker (speakerid) to persist on the thread.
         speakers_id = None
+        speaker_name = None
         try:
             results = await self.pm.trigger_hook("get_current_speaker")
-            speakers_id = next(
-                (r.get("speakers_id") for r in (results or []) if r and r.get("speakers_id")),
-                None
-            )
+            spk = next((r for r in (results or []) if r and r.get("speakers_id")), None)
+            if spk:
+                speakers_id = spk.get("speakers_id")
+                speaker_name = spk.get("name")
         except Exception as e:
             self.logger.warning(f"get_current_speaker failed: {e}")
 
@@ -289,7 +290,7 @@ class Conversation(Baseplugin):
 
             # Update last conversations cache
             if txt and self.current_start_time:
-                new_conv = self._format_single_conversation_xml(self.current_start_time, txt)
+                new_conv = self._format_single_conversation_xml(self.current_start_time, txt, speaker_name=speaker_name)
                 self._prepend_to_cache(new_conv)
 
         # Reset conversation state after triggering the hook
@@ -348,19 +349,45 @@ class Conversation(Baseplugin):
         """Load last N conversations from database into cache at startup"""
         try:
             sql = """
-                SELECT start_time, content FROM threads 
-                WHERE content IS NOT NULL AND content != '' 
+                SELECT start_time, content, speakers_id FROM threads
+                WHERE content IS NOT NULL AND content != ''
                 ORDER BY start_time DESC LIMIT ?
             """
             results = await self.db_execute(sql, (self.last_conversations_count,))
             if results:
                 # Reverse to get chronological order (oldest first)
                 conversations = list(reversed(results))
+                # Resolve interlocutor names so each block can be labeled with who was present
+                name_map = await self._resolve_speaker_names(conversations)
+                for conv in conversations:
+                    conv["speaker_name"] = name_map.get(conv.get("speakers_id"), "")
                 self.last_conversations_cache = self._format_conversations_xml(conversations)
                 self.logger.info(f"Loaded {len(conversations)} conversations into cache")
         except Exception as e:
             self.logger.error(f"Error loading last conversations cache: {e}")
         self.mark_ready()
+
+    def _speaker_header(self, speaker_name):
+        """One-line header naming a conversation's interlocutor, or '' if unknown.
+        The flow prompt is English-only, so a single English label is used."""
+        if not speaker_name:
+            return ""
+        return f"With {speaker_name} :"
+
+    async def _resolve_speaker_names(self, conversations):
+        """Return {speakers_id: name} for the distinct known speakers in the list,
+        via the speakerid plugin's get_speaker_name hook."""
+        name_map = {}
+        distinct_ids = {c.get("speakers_id") for c in conversations if c.get("speakers_id")}
+        for sid in distinct_ids:
+            try:
+                res = await self.pm.trigger_hook("get_speaker_name", speakers_id=sid)
+                name = next((r for r in (res or []) if r), None)
+                if name:
+                    name_map[sid] = name
+            except Exception as e:
+                self.logger.warning(f"get_speaker_name({sid}) failed: {e}")
+        return name_map
 
     def _format_conversations_xml(self, conversations: list, tag: str = "last_conversations") -> str:
         """Format list of conversations as XML string for LLM prompts."""
@@ -374,18 +401,24 @@ class Conversation(Baseplugin):
             if '.' in start_time:
                 start_time = start_time.split('.')[0]
 
+            header = self._speaker_header(conv.get('speaker_name'))
             lines.append(start_time)
+            if header:
+                lines.append(header)
             lines.append(conv.get('content', ''))
             lines.append("---")
 
         lines.append(f"</{tag}>")
         return "\n".join(lines)
 
-    def _format_single_conversation_xml(self, start_time: str, content: str) -> str:
+    def _format_single_conversation_xml(self, start_time: str, content: str, speaker_name=None) -> str:
         """Format a single conversation for prepending to cache"""
         # Truncate ISO timestamp to remove milliseconds
         if '.' in start_time:
             start_time = start_time.split('.')[0]
+        header = self._speaker_header(speaker_name)
+        if header:
+            return f"{start_time}\n{header}\n{content}\n---"
         return f"{start_time}\n{content}\n---"
 
     def _prepend_to_cache(self, new_conv: str):

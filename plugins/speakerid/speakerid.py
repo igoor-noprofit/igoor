@@ -157,6 +157,18 @@ class Speakerid(Baseplugin):
         return {"speakers_id": rows[0]["id"], "name": name}
 
     @hookimpl
+    def get_speaker_name(self, speakers_id):
+        """Resolve a speakers_id to the speaker's name, or None."""
+        if not speakers_id:
+            return None
+        try:
+            rows = self.db_execute_sync("SELECT name FROM speakers WHERE id = ?", (speakers_id,))
+            return rows[0]["name"] if rows else None
+        except Exception as e:
+            self.logger.error(f"get_speaker_name failed: {e}")
+            return None
+
+    @hookimpl
     def after_conversation_end(self, last_conversation=None, **kwargs):
         """Bump freq for the conversation's speaker (feeds the topbar's most-frequent
         ordering), then clear speaker_info so the next conversation starts fresh — a
@@ -621,80 +633,6 @@ class Speakerid(Baseplugin):
             ) or []
             return rows
 
-        @self.router.post("/identify_speaker")
-        async def identify_speaker_endpoint(audio_file: UploadFile = File(...), sample_rate: Optional[int] = None):
-            """Receive complete audio file for speaker identification"""
-            # Privacy gate: accept no mic audio when voice profiles are disabled.
-            if not self.voice_profiles_enabled:
-                raise HTTPException(status_code=403, detail="Voice profiles are disabled")
-            try:
-                # Read audio data from uploaded file
-                audio_bytes = await audio_file.read()
-                
-                # Use provided sample rate or default to 48kHz (frontend sends actual browser rate)
-                effective_sample_rate = sample_rate if sample_rate is not None else 48000
-                
-                self.logger.info(f"Processing audio file for speaker identification: {len(audio_bytes)} bytes at {effective_sample_rate} Hz")
-                
-                # Convert WebM to PCM if needed
-                if audio_file.content_type and 'webm' in audio_file.content_type:
-                    # Save the uploaded WebM file to plugin's recordings folder
-                    timestamp = int(time.time())
-                    recordings_dir = os.path.join(self.plugin_folder, "recordings")
-                    if not os.path.exists(recordings_dir):
-                        os.makedirs(recordings_dir, exist_ok=True)
-                    
-                    webm_file_path = os.path.join(recordings_dir, f"identification_{timestamp}.webm")
-                    with open(webm_file_path, 'wb') as f:
-                        f.write(audio_bytes)
-                    
-                    self.logger.info(f"Saved WebM file for speaker identification: {webm_file_path}")
-                    
-                    # Convert WebM/Opus to raw PCM for speaker identification using FFmpeg
-                    # Note: ASR frontend now sends 16kHz directly, so this conversion path may not be used
-                    pcm_data = await self._convert_webm_to_pcm_ffmpeg(None, effective_sample_rate, webm_file_path)
-                    if pcm_data is not None:
-                        # Identify speaker from converted PCM data
-                        match, score, top_results = self._identify_from_pcm_data(pcm_data)
-                        # Send identification result directly to SpeakerID frontend
-                       
-                        # Accumulate → commit → lock policy (handles tentative display,
-                        # commit, and locking). Replaces the old flip-prone inline logic.
-                        self._handle_detection(match, score, top_results)
-                        return {
-                            "status": "success", 
-                            "speaker": {
-                                "name": match,
-                                "confidence": score,
-                                "status": "confirmed" if score >= self.confidence_threshold_low else "partial"
-                            }, 
-                            "top_results": top_results,
-                            "sample_rate": 16000,
-                            "webm_file": webm_file_path  # Return file path for reference
-                        }
-                        
-                    else:
-                        # WebM conversion failed
-                        self.logger.error("Failed to convert WebM to PCM")
-                        return {"status": "error", "message": "Audio conversion failed"}
-                else:
-                    # Handle non-WebM files (WAV, etc.)
-                    match, score, top_results = self._identify_from_pcm_data(audio_bytes, effective_sample_rate)
-                    return {
-                        "status": "success", 
-                        "speaker": {
-                            "name": match,
-                            "confidence": score,
-                            "status": "confirmed" if score >= self.confidence_threshold_low else "partial"
-                        }, 
-                        "top_results": top_results,
-                        "sample_rate": effective_sample_rate
-                    }
-                
-            except Exception as e:
-                self.logger.error(f"Error processing audio file: {e}")
-                raise HTTPException(status_code=500, detail=str(e))
-
         @self.router.post("/process_audio_chunk")
         async def process_audio_chunk_endpoint(audio_file: UploadFile = File(...), sample_rate: Optional[int] = None):
             """Receive audio chunk for real-time speaker identification"""
@@ -1029,43 +967,6 @@ class Speakerid(Baseplugin):
                 self.logger.warning(f"Failed to clean up temporary files: {e}")
         
         return None
-    
-    def _identify_from_pcm_data(self, pcm_data: bytes, sample_rate: int = 16000) -> tuple:
-        """
-        Identify speaker from raw PCM data
-        
-        Args:
-            pcm_data: Raw PCM audio data (16-bit signed, little-endian)
-            sample_rate: Sample rate of PCM data
-            
-        Returns:
-            tuple: (best_match_name, similarity_score, top_results)
-        """
-        if self.speaker_system is None or not self.speaker_system_ready:
-            return None, 0.0, []
-        
-        # Convert bytes to numpy array (16-bit PCM)
-        audio_array = np.frombuffer(pcm_data, dtype=np.int16).astype(np.float32) / 32768.0
-        
-        try:
-            # Identify speaker using SpeechBrain system
-            match, confidence, top_results = self.speaker_system.identify_speaker(
-                audio_array, 
-                sample_rate=sample_rate,
-                threshold=self.confidence_threshold_low,  # Use low threshold for identification
-                top_k=3
-            )
-            
-            # Prepare results in format expected by frontend
-            formatted_results = []
-            for name, score in top_results:
-                formatted_results.append({"name": name, "score": float(score)})
-            
-            return match, confidence, formatted_results
-            
-        except Exception as e:
-            self.logger.error(f"Error during speaker identification: {e}")
-            return None, 0.0, []
     
     def get_status_summary(self):
         """Get a human-readable status summary"""
