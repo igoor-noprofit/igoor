@@ -704,6 +704,11 @@ export default {
                 console.log('SpeakerID not available or voice profiles disabled, skipping chunk');
                 return;
             }
+            // TTS is speaking (status "paused"): the mic captures the app's synthesized
+            // voice, which can't be recognized — don't POST the chunk.
+            if (this.status === 'paused') {
+                return;
+            }
 
             try {
                 // Convert float32 to int16

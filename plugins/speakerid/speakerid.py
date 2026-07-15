@@ -86,6 +86,10 @@ class Speakerid(Baseplugin):
         # Init and abandon both route through reset_state, so this covers both — the
         # flag flips True on the first add_msg_to_conversation of a new conversation.
         self.conversation_active = False
+        # TTS pause: while the app speaks (pause_asr), identification is suspended so the
+        # mic's capture of the synthesized voice isn't identified. Cleared here (init/abandon)
+        # so a pause with no matching restart can't stick.
+        self.identification_paused = False
         self.logger.info("SpeakerID plugin state has been reset")
  
     def reset_last_phrase(self):
@@ -142,6 +146,19 @@ class Speakerid(Baseplugin):
         self.send_message_to_frontend({
             "action": "speakerid_reset"
         })
+
+    @hookimpl
+    def pause_asr(self):
+        # TTS is speaking: pause identification. The mic captures the app's synthesized
+        # voice, which can't match an enrolled speaker — process_audio_chunk discards
+        # chunks while paused (no buffer work, no model inference).
+        self.identification_paused = True
+
+    @hookimpl
+    def restart_asr(self, force_ready):
+        # TTS finished: resume identification. No buffer clear — the pause gate skipped
+        # appends, so the buffer holds clean pre-TTS audio and rolls over on resume.
+        self.identification_paused = False
 
     @hookimpl
     def settings_updated(self, plugin_name, new_settings):
@@ -375,6 +392,10 @@ class Speakerid(Baseplugin):
         # Privacy gate: when voice profiles are disabled, accept no mic audio.
         if not self.voice_profiles_enabled:
             return {"status": "disabled", "message": "Voice profiles are disabled"}
+        # TTS is speaking: the mic captures the app's own synthesized voice, which can't
+        # match an enrolled speaker — skip identification (and don't touch the buffer).
+        if self.identification_paused:
+            return {"status": "paused", "message": "Identification paused during TTS"}
         # Update sample rate if different from current
         if sample_rate != self.sample_rate:
             self.sample_rate = sample_rate
