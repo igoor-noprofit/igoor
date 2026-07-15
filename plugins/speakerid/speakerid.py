@@ -337,12 +337,9 @@ class Speakerid(Baseplugin):
                 # Initialization completed but failed
                 return {"status": "error", "message": "SpeakerID system failed to initialize"}
         
-        # Debug audio chunk reception
+        # Skip chunks too small to identify.
         if len(audio_data) < 100:
-            self.logger.debug(f"Received small audio chunk: {len(audio_data)} bytes")
             return {"status": "small_chunk", "message": "Audio chunk too small to process"}
-            
-        self.logger.debug(f"Processing audio chunk: {len(audio_data)} bytes at {sample_rate} Hz")
         
         # Convert bytes to numpy array (16-bit PCM)
         audio_array = np.frombuffer(audio_data, dtype=np.int16).astype(np.float32) / 32768.0
@@ -361,8 +358,7 @@ class Speakerid(Baseplugin):
             if not self.is_processing and buffer_duration >= self.min_audio_duration:
                 self.current_utterance_start = current_time
                 self.is_processing = True
-                self.logger.debug("Started new utterance processing")
-            
+
             # Process if we're in an utterance and enough time has passed
             if (self.is_processing and 
                 buffer_duration >= self.min_audio_duration and
@@ -645,8 +641,6 @@ class Speakerid(Baseplugin):
                 
                 # Use provided sample rate or default to 48kHz (actual browser rate)
                 effective_sample_rate = sample_rate if sample_rate is not None else 48000
-                
-                self.logger.debug(f"Processing audio chunk for speaker identification: {len(audio_bytes)} bytes at {effective_sample_rate} Hz")
                 
                 # Convert WebM to PCM if needed
                 if audio_file.content_type and 'webm' in audio_file.content_type:
