@@ -1,8 +1,8 @@
 <template>
     <div>
         <!-- Quick-pick speaker row: top-frequency people as buttons, then [+] for the
-             less-frequent, then Unknown (default). Active speaker is highlighted and
-             shows its confidence. Works whether or not voice recognition is on. -->
+             less-frequent, then Unknown (default). Active speaker is highlighted.
+             Works whether or not voice recognition is on. -->
         <div v-if="speakers.length > 0" class="speakerid-topbar">
             <button v-for="s in displayedSpeakers" :key="s.id"
                     type="button"
@@ -10,7 +10,6 @@
                     :class="{ 'is-active': isActive(s.name) }"
                     @click="selectSpeaker(s)">
                 <span>{{ s.name }}</span>
-                <span v-if="isActive(s.name) && currentSpeaker.confidence > 0" class="speakerid-topbar__conf"> ({{ Math.round(currentSpeaker.confidence * 100) }}%)</span>
             </button>
             <button v-if="otherSpeakers.length > 0" type="button"
                     class="btn btn-secondary speakerid-topbar__btn speakerid-topbar__more"
@@ -507,11 +506,6 @@ export default {
 .speakerid-topbar__btn.is-active {
     background-color: #0095c0 !important;
     font-weight: 600;
-}
-
-.speakerid-topbar__conf {
-    font-weight: 400;
-    opacity: 0.85;
 }
 
 .speakerid-topbar__more {
