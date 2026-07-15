@@ -21,6 +21,7 @@ test_elevenlabstts.py
 # Factory AI Droid
 AI/
 .factory/docs
+.zcode/plans
 
 # Distribution / packaging
 .Python
