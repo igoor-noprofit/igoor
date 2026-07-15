@@ -5,25 +5,6 @@
         <div class="speakerid-settings__columns" v-if="!recordingForSpeaker">
             <!-- LEFT column -->
             <div class="speakerid-settings__col speakerid-settings__col-left">
-                <!-- Privacy gate: master switch for live speaker recognition. -->
-                <div class="speakerid-settings__gate">
-                    <div class="speakerid-settings__gate-row">
-                        <label class="switch">
-                            <input type="checkbox" v-model="voiceProfilesEnabled" @change="saveVoiceProfiles" />
-                            <span class="slider round"></span>
-                        </label>
-                        <span class="speakerid-settings__gate-label">{{ t('voice_profiles_enabled') }}</span>
-                        <HelpPopover :text="t('voice_profiles_hint')" :t="t" :lang="lang" />
-                    </div>
-                    <div class="speakerid-settings__gate-row">
-                        <label class="switch">
-                            <input type="checkbox" v-model="assignmentPopupEnabled" @change="saveAssignmentPopup" />
-                            <span class="slider round"></span>
-                        </label>
-                        <span class="speakerid-settings__gate-label">{{ t('assignment_popup_enabled') }}</span>
-                        <HelpPopover :text="t('assignment_popup_hint')" :t="t" :lang="lang" />
-                    </div>
-                </div>
                 <!-- Add person (name only — no voice recording required) -->
                 <div class="speakerid-settings__add">
                     <input
@@ -42,6 +23,25 @@
                     >
                         {{ isAdding ? t('adding') : t('add_person') }}
                     </button>
+                </div>
+                <!-- Privacy gate: master switch for live speaker recognition. -->
+                <div class="speakerid-settings__gate">
+                    <div class="speakerid-settings__gate-row">
+                        <label class="switch">
+                            <input type="checkbox" v-model="voiceProfilesEnabled" @change="saveVoiceProfiles" />
+                            <span class="slider round"></span>
+                        </label>
+                        <span class="speakerid-settings__gate-label">{{ t('voice_profiles_enabled') }}</span>
+                        <HelpPopover :text="t('voice_profiles_hint')" :t="t" :lang="lang" />
+                    </div>
+                    <div class="speakerid-settings__gate-row">
+                        <label class="switch">
+                            <input type="checkbox" v-model="assignmentPopupEnabled" @change="saveAssignmentPopup" />
+                            <span class="slider round"></span>
+                        </label>
+                        <span class="speakerid-settings__gate-label">{{ t('assignment_popup_enabled') }}</span>
+                        <HelpPopover :text="t('assignment_popup_hint')" :t="t" :lang="lang" />
+                    </div>
                 </div>
             </div>
 
@@ -451,6 +451,7 @@ module.exports = {
     display: flex;
     flex-direction: column;
     gap: 16px;
+    padding: 16px;
     color: var(--color-text, #ffffff);
 }
 
@@ -615,6 +616,7 @@ module.exports = {
     font-size: 1rem;
     color: var(--color-text, #ffffff);
     word-break: break-word;
+    text-align: left;
 }
 
 .speaker-row__actions {
