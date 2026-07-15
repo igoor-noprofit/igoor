@@ -135,6 +135,8 @@ class Speakerid(Baseplugin):
         if plugin_name == self.plugin_name and isinstance(new_settings, dict):
             self.voice_profiles_enabled = bool(new_settings.get("voice_profiles_enabled", False))
             self._current_status["voice_profiles_enabled"] = self.voice_profiles_enabled
+            self.assignment_popup_enabled = bool(new_settings.get("assignment_popup_enabled", False))
+            self._current_status["assignment_popup_enabled"] = self.assignment_popup_enabled
 
     @hookimpl
     def get_current_speaker(self):
@@ -169,16 +171,34 @@ class Speakerid(Baseplugin):
             return None
 
     @hookimpl
-    def after_conversation_end(self, last_conversation=None, **kwargs):
+    async def after_conversation_end(self, last_conversation):
         """Bump freq for the conversation's speaker (feeds the topbar's most-frequent
         ordering), then clear speaker_info so the next conversation starts fresh — a
-        conversation with no identified speaker is classified Unknown (NULL speakers_id)."""
+        conversation with no identified speaker is classified Unknown (NULL speakers_id).
+        Also fires the opt-in assignment popup when the conversation ended Unknown."""
         spk = self.get_current_speaker()
+        lc = last_conversation if isinstance(last_conversation, dict) else {}
+        thread_id = lc.get("thread_id")
+        self.logger.info(
+            f"after_conversation_end: lc_keys={list(lc.keys())}, thread_id={thread_id!r}, "
+            f"spk={spk}, popup_enabled={getattr(self, 'assignment_popup_enabled', False)}"
+        )
         if spk and spk.get("speakers_id") is not None:
             try:
                 self.db_execute_sync("UPDATE speakers SET freq = freq + 1 WHERE id = ?", (spk["speakers_id"],))
             except Exception as e:
                 self.logger.warning(f"freq bump failed: {e}")
+        # Fallback assignment popup: only when nothing was committed AND the user opted in.
+        # Fires only for conversations that end Unknown — well-detected ones never bug the user.
+        if getattr(self, 'assignment_popup_enabled', False) and not spk:
+            if thread_id:
+                sent = self.send_message_to_frontend({
+                    "action": "speakerid_assignment_popup",
+                    "thread_id": thread_id
+                })
+                self.logger.info(f"after_conversation_end: assignment popup sent for thread {thread_id} (ok={sent})")
+            else:
+                self.logger.warning("after_conversation_end: popup enabled but no thread_id in last_conversation")
         # Clear so a stale speaker doesn't bleed into the next conversation.
         context_manager.update_context("speaker_info", {
             "name": "unknown", "status": "unknown"
@@ -221,6 +241,10 @@ class Speakerid(Baseplugin):
             # won't post, and the endpoints early-return). Default off — opt-in.
             self.voice_profiles_enabled = bool(self.settings.get("voice_profiles_enabled", False))
             self._current_status["voice_profiles_enabled"] = self.voice_profiles_enabled
+            # Opt-in: show a speaker-assignment popup at the end of a conversation that ended
+            # Unknown (no committed speaker) — a manual fallback. Default off.
+            self.assignment_popup_enabled = bool(self.settings.get("assignment_popup_enabled", False))
+            self._current_status["assignment_popup_enabled"] = self.assignment_popup_enabled
 
             # Ensure DB schema matches the current code (rebuilds a stale people_id-only
             # speakers table, creates records if missing).
@@ -427,6 +451,7 @@ class Speakerid(Baseplugin):
             # Always expose the live gate value (init_speaker_system reassigns
             # _current_status without it), so asrjs can rely on this field.
             status["voice_profiles_enabled"] = self.voice_profiles_enabled
+            status["assignment_popup_enabled"] = self.assignment_popup_enabled
             # User's name (IGOOR user / bio_name) so the frontend can build
             # caregiver→user enrollment phrases that address them by name.
             status["bio_name"] = self.settings_manager.get_bio().get("name") or ""
@@ -445,6 +470,17 @@ class Speakerid(Baseplugin):
             self._current_status["voice_profiles_enabled"] = enabled
             self.logger.info(f"voice_profiles_enabled set to {enabled}")
             return {"voice_profiles_enabled": enabled}
+
+        @self.router.post("/assignment_popup")
+        async def set_assignment_popup(payload: Dict[str, Any]):
+            """Toggle the end-of-conversation assignment popup (manual fallback for
+            conversations that ended Unknown). Persisted + surfaced via /status."""
+            enabled = bool(payload.get("enabled", False))
+            self.update_my_settings("assignment_popup_enabled", enabled)
+            self.assignment_popup_enabled = enabled
+            self._current_status["assignment_popup_enabled"] = enabled
+            self.logger.info(f"assignment_popup_enabled set to {enabled}")
+            return {"assignment_popup_enabled": enabled}
 
         @self.router.post("/set_speaker")
         async def set_speaker(payload: Dict[str, Any]):

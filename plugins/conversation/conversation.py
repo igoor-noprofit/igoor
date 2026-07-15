@@ -3,7 +3,8 @@ from plugins.baseplugin.baseplugin import Baseplugin
 from plugin_manager import hookimpl
 from prompt_manager import PromptManager
 from context_manager import context_manager
-from fastapi import APIRouter, Query, Response
+from fastapi import APIRouter, HTTPException, Query, Response
+from typing import Any, Dict
 import asyncio,json
 from concurrent.futures import ThreadPoolExecutor
 
@@ -134,7 +135,24 @@ class Conversation(Baseplugin):
             self.logger.info("Transcribing ended (via REST)")
             await self.send_status("transcribing_ended")
             return {"status": "success"}
-        
+
+        @self.router.post("/thread_speaker")
+        async def set_thread_speaker(payload: Dict[str, Any]):
+            """Post-hoc speaker assignment for a conversation that ended Unknown.
+            The assignment popup (speakerid) calls this when the caregiver picks a
+            speaker (or Unknown) for the just-ended thread. Auto-prefixes `threads`
+            → `conversation_threads` from within this plugin."""
+            thread_id = payload.get("thread_id")
+            speakers_id = payload.get("speakers_id")  # None ⇒ Unknown
+            if thread_id is None:
+                raise HTTPException(status_code=400, detail="thread_id required")
+            await self.db_execute(
+                "UPDATE threads SET speakers_id = ? WHERE id = ?",
+                (speakers_id, thread_id)
+            )
+            self.logger.info(f"Thread {thread_id} speaker set to speakers_id={speakers_id}")
+            return {"thread_id": thread_id, "speakers_id": speakers_id}
+
     def init_timeout(self):
         print("INIT TIMEOUT")
         self.timeout = int(self.settings.get("timeout", 120000)) / 1000  # Convert milliseconds to seconds

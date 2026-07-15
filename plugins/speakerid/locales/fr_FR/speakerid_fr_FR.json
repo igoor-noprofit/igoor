@@ -1,6 +1,10 @@
 {
     "voice_profiles_enabled": "Reconnaissance automatique des locuteurs",
     "voice_profiles_hint": "Processus 100 % local : ni l'inscription des voix ni la reconnaissance n'envoient de données sur Internet. Si activé, le microphone est analysé en continu pour identifier la personne qui parle.",
+    "assignment_popup_enabled": "Popup d'attribution en fin de conversation",
+    "assignment_popup_hint": "À la fin d'une conversation dont le locuteur n'a pas été reconnu, propose une attribution manuelle. Processus 100 % local.",
+    "assignment_popup_title": "Qui parlait pendant cette conversation ?",
+    "assignment_popup_subtitle": "Sélectionnez la personne, ou fermez pour laisser Inconnu.",
     "people": "Personnes",
     "unknown": "Inconnu",
     "add_person": "Ajouter une personne",

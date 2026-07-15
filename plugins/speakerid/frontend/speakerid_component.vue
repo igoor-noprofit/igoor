@@ -1,23 +1,51 @@
 <template>
-    <!-- Quick-pick speaker row: top-frequency people as buttons, then [+] for the
-         less-frequent, then Unknown (default). Active speaker is highlighted and
-         shows its confidence. Works whether or not voice recognition is on. -->
-    <div v-if="speakers.length > 0" class="speakerid-topbar">
-        <button v-for="s in displayedSpeakers" :key="s.id"
-                type="button"
-                class="btn btn-secondary speakerid-topbar__btn"
-                :class="{ 'is-active': isActive(s.name) }"
-                @click="selectSpeaker(s)">
-            <span>{{ s.name }}</span>
-            <span v-if="isActive(s.name) && currentSpeaker.confidence > 0" class="speakerid-topbar__conf"> ({{ Math.round(currentSpeaker.confidence * 100) }}%)</span>
-        </button>
-        <button v-if="otherSpeakers.length > 0" type="button"
-                class="btn btn-secondary speakerid-topbar__btn speakerid-topbar__more"
-                @click="toggleShowAll">{{ showAll ? '‹' : '+' }}</button>
-        <button type="button"
-                class="btn btn-secondary speakerid-topbar__btn"
-                :class="{ 'is-active': isUnknownActive }"
-                @click="selectUnknown">{{ t('unknown') }}</button>
+    <div>
+        <!-- Quick-pick speaker row: top-frequency people as buttons, then [+] for the
+             less-frequent, then Unknown (default). Active speaker is highlighted and
+             shows its confidence. Works whether or not voice recognition is on. -->
+        <div v-if="speakers.length > 0" class="speakerid-topbar">
+            <button v-for="s in displayedSpeakers" :key="s.id"
+                    type="button"
+                    class="btn btn-secondary speakerid-topbar__btn"
+                    :class="{ 'is-active': isActive(s.name) }"
+                    @click="selectSpeaker(s)">
+                <span>{{ s.name }}</span>
+                <span v-if="isActive(s.name) && currentSpeaker.confidence > 0" class="speakerid-topbar__conf"> ({{ Math.round(currentSpeaker.confidence * 100) }}%)</span>
+            </button>
+            <button v-if="otherSpeakers.length > 0" type="button"
+                    class="btn btn-secondary speakerid-topbar__btn speakerid-topbar__more"
+                    @click="toggleShowAll">{{ showAll ? '‹' : '+' }}</button>
+            <button type="button"
+                    class="btn btn-secondary speakerid-topbar__btn"
+                    :class="{ 'is-active': isUnknownActive }"
+                    @click="selectUnknown">{{ t('unknown') }}</button>
+        </div>
+
+        <!-- End-of-conversation assignment popup: a manual fallback shown only when a
+             conversation ends Unknown (no committed speaker). Fixed overlay, independent
+             of the topbar. Preselects Unknown; auto-dismisses after 15s (stays Unknown). -->
+        <div v-if="showAssignmentPopup" class="confirm-overlay" @click.self="closeAssignmentPopup">
+            <div class="confirm-modal" role="dialog" aria-modal="true">
+                <p class="confirm-modal__title">{{ t('assignment_popup_title') }}</p>
+                <p class="confirm-modal__hint">{{ t('assignment_popup_subtitle') }}</p>
+                <div class="confirm-modal__speakers">
+                    <button v-for="s in assignmentDisplayedSpeakers" :key="s.id"
+                            type="button"
+                            class="btn btn-secondary speakerid-topbar__btn"
+                            :class="{ 'is-active': assignmentSelection === s.name }"
+                            @click="assignConversationSpeaker(s)">
+                        <span>{{ s.name }}</span>
+                    </button>
+                    <button v-if="otherSpeakers.length > 0" type="button"
+                            class="btn btn-secondary speakerid-topbar__btn speakerid-topbar__more"
+                            @click="assignmentShowAll = !assignmentShowAll">{{ assignmentShowAll ? '‹' : '+' }}</button>
+                    <button type="button"
+                            class="btn btn-secondary speakerid-topbar__btn"
+                            :class="{ 'is-active': assignmentSelection === null }"
+                            @click="assignConversationSpeaker(null)">{{ t('unknown') }}</button>
+                </div>
+            </div>
+        </div>
     </div>
 </template>
 
@@ -43,7 +71,13 @@ export default {
             statusMessage: 'Initializing...',
             hasReceivedSpeakerData: false,
             speakers: [],      // known speakers (id, name, freq) for the quick-pick row
-            showAll: false     // [+] toggle: less-frequent speakers instead of the top ones
+            showAll: false,     // [+] toggle: less-frequent speakers instead of the top ones
+            // End-of-conversation assignment popup (Unknown fallback).
+            showAssignmentPopup: false,
+            assignmentThreadId: null,
+            assignmentSelection: null,   // null = Unknown (preselected)
+            assignmentShowAll: false,    // [+] toggle inside the popup
+            assignmentTimer: null        // 15s auto-dismiss timeout id
         };
     },
     computed: {
@@ -58,6 +92,10 @@ export default {
         },
         displayedSpeakers() {
             return this.showAll ? this.otherSpeakers : this.topSpeakers;
+        },
+        // Popup speaker list (separate showAll toggle so it doesn't disturb the topbar).
+        assignmentDisplayedSpeakers() {
+            return this.assignmentShowAll ? this.otherSpeakers : this.topSpeakers;
         },
         isUnknownActive() {
             return !this.currentSpeaker.name || this.currentSpeaker.name === 'unknown';
@@ -170,6 +208,45 @@ export default {
 
         toggleShowAll() {
             this.showAll = !this.showAll;
+        },
+
+        // --- End-of-conversation assignment popup (Unknown fallback) ---
+        openAssignmentPopup(threadId) {
+            this.assignmentThreadId = threadId;
+            this.assignmentSelection = null;      // Unknown preselected
+            this.assignmentShowAll = false;
+            this.fetchSpeakers();                  // fresh roster for the buttons
+            this.showAssignmentPopup = true;
+            if (this.assignmentTimer) clearTimeout(this.assignmentTimer);
+            // 15s auto-dismiss → no write (thread stays Unknown, as already filed at abandon).
+            this.assignmentTimer = setTimeout(() => this.closeAssignmentPopup(), 15000);
+        },
+
+        closeAssignmentPopup() {
+            if (this.assignmentTimer) {
+                clearTimeout(this.assignmentTimer);
+                this.assignmentTimer = null;
+            }
+            this.showAssignmentPopup = false;
+            this.assignmentThreadId = null;
+            this.assignmentSelection = null;
+        },
+
+        async assignConversationSpeaker(speaker) {
+            const threadId = this.assignmentThreadId;
+            const speakersId = speaker ? speaker.id : null;   // null ⇒ Unknown
+            this.assignmentSelection = speaker ? speaker.name : null;
+            try {
+                await fetch('/api/plugins/conversation/thread_speaker', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ thread_id: threadId, speakers_id: speakersId })
+                });
+            } catch (e) {
+                console.error('Failed to assign conversation speaker', e);
+            }
+            this.closeAssignmentPopup();
         },
 
         getDisplayName() {
@@ -303,6 +380,10 @@ export default {
                     this.showAll = false;
                     this.fetchSpeakers();
                 }
+                if (data.action === 'speakerid_assignment_popup') {
+                    // A conversation ended Unknown (opt-in fallback): offer a manual pick.
+                    this.openAssignmentPopup(data.thread_id);
+                }
                 if (data.type === 'speaker_identification') {
                     // Debug incoming message
                     console.log('Speaker identification message received:', data);
@@ -358,6 +439,52 @@ export default {
 </script>
 // CSS styling
 <style scoped>
+/* End-of-conversation assignment popup (Unknown fallback). */
+.confirm-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+}
+.confirm-modal {
+    background: #ffffff;
+    color: #1a1a1a;
+    padding: 24px 28px;
+    border-radius: 10px;
+    max-width: 460px;
+    width: calc(100% - 40px);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    text-align: center;
+}
+.confirm-modal__title {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 700;
+}
+.confirm-modal__hint {
+    margin: 0;
+    font-size: 0.85rem;
+    color: #555;
+}
+.confirm-modal__speakers {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+}
+/* Popup buttons reuse .btn .btn-secondary + .speakerid-topbar__btn; make them tappable. */
+.confirm-modal__speakers .speakerid-topbar__btn {
+    min-height: 44px;
+    padding: 10px 16px;
+    font-size: 1rem;
+}
+
 .speakerid-topbar {
     display: flex;
     align-items: center;

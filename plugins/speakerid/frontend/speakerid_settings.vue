@@ -15,6 +15,14 @@
                         <span class="speakerid-settings__gate-label">{{ t('voice_profiles_enabled') }}</span>
                         <HelpPopover :text="t('voice_profiles_hint')" :t="t" :lang="lang" />
                     </div>
+                    <div class="speakerid-settings__gate-row">
+                        <label class="switch">
+                            <input type="checkbox" v-model="assignmentPopupEnabled" @change="saveAssignmentPopup" />
+                            <span class="slider round"></span>
+                        </label>
+                        <span class="speakerid-settings__gate-label">{{ t('assignment_popup_enabled') }}</span>
+                        <HelpPopover :text="t('assignment_popup_hint')" :t="t" :lang="lang" />
+                    </div>
                 </div>
                 <!-- Add person (name only — no voice recording required) -->
                 <div class="speakerid-settings__add">
@@ -157,6 +165,7 @@ module.exports = {
         return {
             speakers: [],
             voiceProfilesEnabled: false, // master privacy gate (live mic recognition)
+            assignmentPopupEnabled: false, // opt-in: end-of-conversation assignment popup (Unknown fallback)
             newPersonName: '',
             isLoadingSpeakers: false,
             isAdding: false,
@@ -237,6 +246,7 @@ module.exports = {
             try {
                 const s = await this.callPluginRestEndpoint('speakerid', 'status');
                 this.voiceProfilesEnabled = !!(s && s.voice_profiles_enabled);
+                this.assignmentPopupEnabled = !!(s && s.assignment_popup_enabled);
                 this.bioName = (s && s.bio_name) || '';
             } catch (e) {
                 console.error('Failed to load voice-profiles setting', e);
@@ -252,6 +262,18 @@ module.exports = {
             } catch (e) {
                 console.error('Failed to save voice-profiles setting', e);
                 this.voiceProfilesEnabled = !this.voiceProfilesEnabled; // revert on failure
+            }
+        },
+
+        async saveAssignmentPopup() {
+            try {
+                await this.callPluginRestEndpoint('speakerid', 'assignment_popup', {
+                    method: 'POST',
+                    data: { enabled: this.assignmentPopupEnabled }
+                });
+            } catch (e) {
+                console.error('Failed to save assignment-popup setting', e);
+                this.assignmentPopupEnabled = !this.assignmentPopupEnabled; // revert on failure
             }
         },
 
