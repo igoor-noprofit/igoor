@@ -104,11 +104,13 @@ class Speakerid(Baseplugin):
     @hookimpl
     def add_msg_to_conversation(self, msg, author, msg_input):
         """Conversation-START signal (fires on the first message of each conversation).
-        Switches from continuous pre-warm mode (unlocked) to conversation mode so
-        commit-quality detections can lock. Gives the detection state machine a fresh
-        acoustic slate while RETAINING the pre-warmed speaker_info in context — so the
-        first LLM call is zero-latency if the same speaker continues; a different speaker
-        overwrites it on the next commit. Idempotent: only acts on the first message."""
+        Switches from continuous pre-warm mode (unlocked) to conversation mode. Gives the
+        detection state machine a fresh acoustic slate, then PROMOTES any pre-warmed
+        speaker to CONFIRMED: the caregiver's opening utterance was detected before the
+        conversation opened (as a pre-warm), so carry that recognition in as the
+        conversation's speaker rather than requiring a fresh in-conversation commit.
+        Manual correction via the topbar (/set_speaker) still overrides this at any time,
+        even while locked. Idempotent: only acts on the first message."""
         if self.conversation_active:
             return
         self.conversation_active = True
@@ -117,8 +119,21 @@ class Speakerid(Baseplugin):
             if self.audio_buffer is not None:
                 self.audio_buffer.clear()                            # drop gap audio
         self.is_processing = False
-        # DELIBERATELY RETAINED: context_manager["speaker_info"] (the pre-warm) and
-        # committed_speaker — the pre-warm carries across the boundary.
+        # Promote a pre-warmed (unlocked) speaker to CONFIRMED now that the conversation
+        # is open. The opening utterance was detected pre-conversation (pre-warm), so
+        # treat that as the conversation's speaker instead of waiting for a fresh commit.
+        # If it's wrong, the caregiver corrects it in the topbar — /set_speaker overrides
+        # the lock at any time.
+        info = (context_manager.get_context() or {}).get("speaker_info") or {}
+        pw_name = info.get("name")
+        if pw_name and pw_name != "unknown" and info.get("status") == "prewarmed":
+            score = self.last_speaker.confidence if getattr(self.last_speaker, "id", None) == pw_name else 1.0
+            self.committed_speaker = pw_name                         # LOCK for this conversation
+            self._update_speaker_context(pw_name, score, "confirmed")
+            self.logger.info(
+                f"Pre-warmed speaker '{pw_name}' PROMOTED to CONFIRMED at conversation open "
+                f"(score {score:.2f}) — detection locked"
+            )
 
     @hookimpl
     def abandon_conversation(self,cause):
