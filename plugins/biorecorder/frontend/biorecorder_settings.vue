@@ -75,10 +75,13 @@
                 <span v-else><i class="ph-light ph-magic-wand"></i> {{ t('Generate Biography') }}</span>
             </button>
 
-            <label class="voice-toggle">
-                <input type="checkbox" v-model="generateVoice">
-                {{ t('Generate voice sample') }}
-            </label>
+            <div class="voice-toggle">
+                <label class="switch">
+                    <input type="checkbox" v-model="generateVoice">
+                    <span class="slider round"></span>
+                </label>
+                <span>{{ t('Generate voice sample') }}</span>
+            </div>
 
             <button class="btn btn-back" @click="showCompletion = false">
                 {{ t('Back to questions') }}
@@ -835,17 +838,9 @@ textarea.answer-textarea {
 .voice-toggle {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.75rem;
     font-size: 0.95rem;
     opacity: 0.75;
-    cursor: pointer;
     user-select: none;
-}
-
-.voice-toggle input[type="checkbox"] {
-    width: 1.1rem;
-    height: 1.1rem;
-    cursor: pointer;
-    accent-color: var(--color-btn-primary, #216776);
 }
 </style>
