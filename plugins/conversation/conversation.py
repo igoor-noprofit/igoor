@@ -141,16 +141,20 @@ class Conversation(Baseplugin):
             """Post-hoc speaker assignment for a conversation that ended Unknown.
             The assignment popup (speakerid) calls this when the caregiver picks a
             speaker (or Unknown) for the just-ended thread. Auto-prefixes `threads`
-            → `conversation_threads` from within this plugin."""
+            → `conversation_threads` from within this plugin.
+
+            Records speaker_id_method = 0 (manual post-hoc popup) regardless of whether
+            a named speaker or Unknown was picked — the method encodes the path, not the
+            outcome, so an Unknown pick here is still method=0."""
             thread_id = payload.get("thread_id")
             speakers_id = payload.get("speakers_id")  # None ⇒ Unknown
             if thread_id is None:
                 raise HTTPException(status_code=400, detail="thread_id required")
             await self.db_execute(
-                "UPDATE threads SET speakers_id = ? WHERE id = ?",
-                (speakers_id, thread_id)
+                "UPDATE threads SET speakers_id = ?, speaker_id_method = ? WHERE id = ?",
+                (speakers_id, 0, thread_id)
             )
-            self.logger.info(f"Thread {thread_id} speaker set to speakers_id={speakers_id}")
+            self.logger.info(f"Thread {thread_id} speaker set to speakers_id={speakers_id} (method=0)")
             return {"thread_id": thread_id, "speakers_id": speakers_id}
 
     def init_timeout(self):
@@ -278,14 +282,22 @@ class Conversation(Baseplugin):
             cause = "timeout"
 
         # Resolve the conversation's speaker (speakerid) to persist on the thread.
+        # speakerid.get_current_speaker always returns a dict {speakers_id, name, method};
+        # speakers_id may be None (Unknown/deactivated/no-match) but method still carries
+        # the identification path (1=auto, 0=manual post-hoc, -1=manual topbar,
+        # -2=active-no-match, -3=deactivated).
         speakers_id = None
         speaker_name = None
+        speaker_id_method = None
         try:
             results = await self.pm.trigger_hook("get_current_speaker")
-            spk = next((r for r in (results or []) if r and r.get("speakers_id")), None)
+            # Don't filter on speakers_id — we want the result even when it's NULL
+            # (so the -2/-3/manual-Unknown methods still get persisted).
+            spk = next((r for r in (results or []) if r), None)
             if spk:
                 speakers_id = spk.get("speakers_id")
                 speaker_name = spk.get("name")
+                speaker_id_method = spk.get("method")
         except Exception as e:
             self.logger.warning(f"get_current_speaker failed: {e}")
 
@@ -301,10 +313,10 @@ class Conversation(Baseplugin):
         if self.current_thread_id is not None:
             current_time = self._get_current_timestamp()
             await self.db_execute(
-                "UPDATE threads SET end_time = ?, cause = ?, content = ?, speakers_id = ? WHERE id = ?",
-                (current_time, cause, txt, speakers_id, self.current_thread_id)
+                "UPDATE threads SET end_time = ?, cause = ?, content = ?, speakers_id = ?, speaker_id_method = ? WHERE id = ?",
+                (current_time, cause, txt, speakers_id, speaker_id_method, self.current_thread_id)
             )
-            self.logger.info(f"Abandoned conversation {self.current_thread_id} with end time (speakers_id={speakers_id})")
+            self.logger.info(f"Abandoned conversation {self.current_thread_id} with end time (speakers_id={speakers_id}, method={speaker_id_method})")
 
             # Update last conversations cache
             if txt and self.current_start_time:
@@ -347,14 +359,21 @@ class Conversation(Baseplugin):
             self.pm.fastapi_app.include_router(self.router)
 
     def _migrate_threads_schema(self):
-        """Add speakers_id to conversation_threads if missing. CREATE TABLE IF NOT EXISTS
-        (run by the base DB init) won't add columns to the existing populated table."""
+        """Add speakers_id / speaker_id_method to conversation_threads if missing.
+        CREATE TABLE IF NOT EXISTS (run by the base DB init) won't add columns to
+        the existing populated table."""
         table = f"{self.plugin_name}_threads"  # conversation_threads
         try:
             cols = self.db_execute_sync(f"PRAGMA table_info({table})") or []
             if not any(c.get("name") == "speakers_id" for c in cols):
                 self.db_execute_sync(f"ALTER TABLE {table} ADD COLUMN speakers_id INTEGER")
                 self.logger.info(f"Added speakers_id column to {table}")
+            # speaker_id_method: how the thread's speaker was identified
+            # (1=auto, 0=manual post-hoc popup, -1=manual topbar click, -2=active-no-match,
+            #  -3=deactivated). NULL by default — historical rows stay NULL, no backfill.
+            if not any(c.get("name") == "speaker_id_method" for c in cols):
+                self.db_execute_sync(f"ALTER TABLE {table} ADD COLUMN speaker_id_method INTEGER")
+                self.logger.info(f"Added speaker_id_method column to {table}")
         except Exception as e:
             self.logger.error(f"conversation: threads schema migration failed: {e}")
 

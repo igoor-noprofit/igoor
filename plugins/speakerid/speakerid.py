@@ -172,23 +172,52 @@ class Speakerid(Baseplugin):
 
     @hookimpl
     def get_current_speaker(self):
-        """The current conversation's speaker as {speakers_id, name}, or None if no one
-        was committed this conversation. Reads context_manager (set by commit/set_speaker)
-        rather than committed_speaker, so it's robust to abandon/reset hook ordering."""
+        """The current conversation's speaker + how it was identified.
+
+        Always returns a dict {speakers_id, name, method} (never None) so conversation.py
+        can persist the identification PATH on conversation_threads.speaker_id_method
+        even when no speaker was identified:
+
+            method=1   automatic (speakerid _commit) — speakers_id set
+            method=-1  manual topbar click (/set_speaker) — speakers_id set, or NULL
+                       if the user explicitly clicked "Unknown"
+            method=0   manual post-hoc popup (/thread_speaker) — written directly by
+                       conversation.py, never produced here
+            method=-2  speakerid active (voice profiles ON) but no match — speakers_id NULL
+            method=-3  speakerid deactivated (voice profiles OFF) — speakers_id NULL
+
+        Reads context_manager (set by commit/set_speaker) rather than committed_speaker,
+        so it's robust to abandon/reset hook ordering.
+
+        Attribution remains COMMITTED-only: a pre-warmed (unlocked) ambient speaker must
+        NOT be attributed to a conversation — e.g. a conversation that never re-commits
+        ends Unknown (-2/-3) rather than inheriting whoever was talking in the room. The
+        name still reaches the LLM via {dynamic_context} regardless of this filter.
+        """
         info = (context_manager.get_context() or {}).get("speaker_info") or {}
         name = info.get("name")
-        if not name or name == "unknown":
-            return None
-        # Attribution is COMMITTED-only: a pre-warmed (unlocked) ambient speaker must NOT
-        # be attributed to a conversation — e.g. a conversation that never re-commits ends
-        # Unknown rather than inheriting whoever was talking in the room. The name still
-        # reaches the LLM via {dynamic_context} regardless of this filter.
-        if info.get("status") != "confirmed":
-            return None
+        status = info.get("status")
+        manual = info.get("method") == "manual"
+        voice_on = bool(getattr(self, "voice_profiles_enabled", False))
+
+        # Manual "Unknown" click (set_speaker with speaker_id=null): a manual action even
+        # though no speaker is set. Encoded as -1 with NULL speakers_id.
+        if manual and (not name or name == "unknown"):
+            return {"speakers_id": None, "name": None, "method": -1}
+
+        # No identified speaker: distinguish "tried and failed" (-2) from "off" (-3).
+        if status != "confirmed" or not name or name == "unknown":
+            return {"speakers_id": None, "name": None, "method": -2 if voice_on else -3}
+
+        # Confirmed speaker: resolve speakers_id. Manual topbar pick → -1, auto commit → 1.
         rows = self.db_execute_sync("SELECT id FROM speakers WHERE name = ?", (name,))
         if not rows:
-            return None
-        return {"speakers_id": rows[0]["id"], "name": name}
+            return {"speakers_id": None, "name": name, "method": -1 if manual else 1}
+        return {
+            "speakers_id": rows[0]["id"],
+            "name": name,
+            "method": -1 if manual else 1,
+        }
 
     @hookimpl
     def get_context_speaker(self):
@@ -237,7 +266,8 @@ class Speakerid(Baseplugin):
                 self.logger.warning(f"freq bump failed: {e}")
         # Fallback assignment popup: only when nothing was committed AND the user opted in.
         # Fires only for conversations that end Unknown — well-detected ones never bug the user.
-        if getattr(self, 'assignment_popup_enabled', False) and not spk:
+        # (get_current_speaker now always returns a dict; check speakers_id for "no speaker".)
+        if getattr(self, 'assignment_popup_enabled', False) and not (spk or {}).get("speakers_id"):
             if thread_id:
                 sent = self.send_message_to_frontend({
                     "action": "speakerid_assignment_popup",
@@ -470,15 +500,22 @@ class Speakerid(Baseplugin):
     
 
     
-    def _update_speaker_context(self, speaker_name: str, confidence: float, status: str):
+    def _update_speaker_context(self, speaker_name: str, confidence: float, status: str, method: str = "auto"):
         """Update the context manager + frontend with current speaker information.
         The LLM-facing context excludes confidence (not needed in the prompt); the
-        frontend message keeps it for the topbar display."""
+        frontend message keeps it for the topbar display.
+
+        method is the identification PATH: "auto" (speakerid _commit) or "manual"
+        (user clicked the topbar /set_speaker). It is threaded through context_manager
+        so get_current_speaker can resolve the per-conversation speaker_id_method code
+        persisted on conversation_threads. The frontend ignores unknown keys, so adding
+        it to the push is safe without a .vue change."""
         ts = time.time()
         name = speaker_name if speaker_name else "unknown"
         context_manager.update_context("speaker_info", {
             "name": name,
-            "status": status
+            "status": status,
+            "method": method
         })
         self.send_message_to_frontend({
             "type": "speaker_identification",
@@ -486,6 +523,7 @@ class Speakerid(Baseplugin):
                 "name": name,
                 "confidence": confidence,
                 "status": status,
+                "method": method,
                 "timestamp": ts
             }
         })
@@ -550,7 +588,7 @@ class Speakerid(Baseplugin):
                 # Clear the LLM-facing context too (previously missing): so a stale
                 # confirmed/pre-warmed speaker can't be attributed after the user
                 # explicitly chose Unknown. This also pushes the topbar "unknown" msg.
-                self._update_speaker_context("unknown", 0.0, "unknown")
+                self._update_speaker_context("unknown", 0.0, "unknown", method="manual")
                 self.logger.info("Speaker set to Unknown — detection unlocked, will keep trying")
                 return {"name": "unknown", "manual": True}
 
@@ -566,9 +604,9 @@ class Speakerid(Baseplugin):
             self.send_message_to_frontend({
                 "type": "speaker_identification",
                 "speaker": {"name": name, "confidence": 1.0, "status": "confirmed",
-                            "manual": True, "timestamp": time.time()}
+                            "manual": True, "method": "manual", "timestamp": time.time()}
             })
-            self._update_speaker_context(name, 1.0, "confirmed")
+            self._update_speaker_context(name, 1.0, "confirmed", method="manual")
             self.logger.info(f"Speaker set manually: {name} — detection locked")
             return {"name": name, "manual": True}
 
@@ -842,7 +880,7 @@ class Speakerid(Baseplugin):
         )
         # _update_speaker_context updates context_manager["speaker_info"] AND pushes
         # the speaker to the frontend in one message (status = confirmed|prewarmed).
-        self._update_speaker_context(name, score, status)
+        self._update_speaker_context(name, score, status, method="auto")
 
     def _send_tentative(self, name, score):
         """Show a tentative (unconfirmed) candidate in the topbar WITHOUT injecting a

@@ -192,8 +192,11 @@ class MyAppSpec:
 
     @pluggy.HookspecMarker(app_name)
     def get_current_speaker(self):
-        """Hook to get the current conversation's speaker as {speakers_id, name}, or None.
-        Used to persist the speaker on the conversation thread at conversation end."""
+        """Hook to get the current conversation's speaker as {speakers_id, name, method},
+        where `method` records how it was identified (1=auto, -1=manual topbar, -2=active
+        no-match, -3=deactivated; 0=manual post-hoc popup is written directly by
+        conversation.py and never returned here). speakers_id may be NULL. Used to persist
+        the speaker + identification path on the conversation thread at conversation end."""
         pass
 
     @pluggy.HookspecMarker(app_name)
