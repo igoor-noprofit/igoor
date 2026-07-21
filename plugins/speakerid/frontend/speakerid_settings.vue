@@ -67,7 +67,7 @@
                                 <button
                                     v-if="s.has_voice && voiceProfilesEnabled"
                                     type="button"
-                                    class="speakerid-settings__btn speakerid-settings__btn--danger"
+                                    class="speakerid-settings__btn speakerid-settings__btn--neutral"
                                     :disabled="isSaving"
                                     :title="t('reset_voice')"
                                     :aria-label="t('reset_voice')"
@@ -142,7 +142,12 @@
                 <p class="confirm-modal__text">{{ confirmText }}</p>
                 <div class="confirm-modal__actions">
                     <button type="button" class="speakerid-settings__btn" @click="cancelAction">{{ t('cancel') }}</button>
-                    <button type="button" class="speakerid-settings__btn speakerid-settings__btn--danger" @click="confirmAction">{{ confirmLabel }}</button>
+                    <button
+                        type="button"
+                        class="speakerid-settings__btn"
+                        :class="pendingAction && pendingAction.type === 'reset' ? 'speakerid-settings__btn--neutral' : 'speakerid-settings__btn--danger'"
+                        @click="confirmAction"
+                    >{{ confirmLabel }}</button>
                 </div>
             </div>
         </div>
@@ -585,6 +590,38 @@ module.exports = {
     filter: brightness(1.15);
 }
 
+/* Neutral tier (gray, --basecolor-gray-700): used for Reset/Regenerate, which
+   wipes a speaker's voice waves but is re-recordable — a real action, but less
+   dramatic than the red Delete, and clearly distinct from the teal primary. */
+.speakerid-settings__btn--neutral {
+    background: var(--basecolor-gray-700, #556265);
+}
+
+.speakerid-settings__btn--neutral:hover:not(:disabled) {
+    background: var(--basecolor-gray-700, #556265);
+    filter: brightness(1.15);
+}
+
+/* Specificity override: the settings modal wraps this component in
+   .onboarding.plugin, whose global `.onboarding.plugin button` rule sets a green
+   background at specificity 0,2,1 — beating these scoped button backgrounds
+   (0,2,0) at rest, so every button rendered green and only turned red/orange on
+   hover (the :hover rules reach 0,4,0). Qualifying with the component root bumps
+   these to 0,3,0 so the intended backgrounds win at rest, while the higher-
+   specificity :hover rules above still apply. Only `background` is re-asserted
+   so the --sm sizing rule is unaffected. */
+.speakerid-settings .speakerid-settings__btn {
+    background: var(--basecolor-accent-500, #3d6c76);
+}
+
+.speakerid-settings .speakerid-settings__btn--danger {
+    background: var(--basecolor-warning-500, #a8351b);
+}
+
+.speakerid-settings .speakerid-settings__btn--neutral {
+    background: var(--basecolor-gray-700, #556265);
+}
+
 /* Speaker list */
 .speakerid-settings__list {
     list-style: none;
@@ -626,7 +663,7 @@ module.exports = {
 }
 
 /* Person-row action buttons: ~2× bigger; record/re-record a uniform width;
-   delete is a compact square icon button. (These win over the generic
+   reset & delete are compact square icon buttons. (These win over the generic
    .onboarding.plugin button rule by specificity.) */
 .speaker-row__actions .speakerid-settings__btn {
     font-size: 1rem;
@@ -635,11 +672,12 @@ module.exports = {
     white-space: nowrap;
 }
 
-.speaker-row__actions .speakerid-settings__btn:not(.speakerid-settings__btn--danger) {
+.speaker-row__actions .speakerid-settings__btn:not(.speakerid-settings__btn--danger):not(.speakerid-settings__btn--neutral) {
     min-width: 175px;
 }
 
-.speaker-row__actions .speakerid-settings__btn--danger {
+.speaker-row__actions .speakerid-settings__btn--danger,
+.speaker-row__actions .speakerid-settings__btn--neutral {
     width: 44px;
     min-width: 44px;
     padding: 0;
@@ -648,7 +686,8 @@ module.exports = {
     justify-content: center;
 }
 
-.speaker-row__actions .speakerid-settings__btn--danger i {
+.speaker-row__actions .speakerid-settings__btn--danger i,
+.speaker-row__actions .speakerid-settings__btn--neutral i {
     font-size: 24px;
 }
 
