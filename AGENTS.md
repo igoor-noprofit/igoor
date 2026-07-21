@@ -61,7 +61,7 @@ plugin_name/
 │   └── plugin_name_settings.vue     # Settings UI
 ├── locales/
 │   └── fr_FR/
-│       ├── plugin_name_fr_FR.json  # Translations - use t('string') method to provide translatable strings - IMPORTANT: ENGLISH has no translation file, it's default
+│       ├── plugin_name_fr_FR.json  # Translations - use t('string') method to provide translatable strings - IMPORTANT: ENGLISH has no translation file, it's default - IMPORTANT: when you change/add/remove a t() string, update the matching key in EVERY locale file (e.g. fr_FR, it_IT); leaving one out of sync silently falls back to English
 │       └── prompts.py              # AI prompts
 ├── plugin.json             # Plugin config & DB schema
 └── settings.json          # Default settings
