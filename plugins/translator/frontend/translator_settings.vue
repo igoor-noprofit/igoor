@@ -18,6 +18,7 @@
                 <option value="Spanish">{{ t('Spanish') }}</option>
                 <option value="German">{{ t('German') }}</option>
                 <option value="Portuguese">{{ t('Portuguese') }}</option>
+                <!-- Commented out: languages not yet directly testable
                 <option value="Dutch">{{ t('Dutch') }}</option>
                 <option value="Polish">{{ t('Polish') }}</option>
                 <option value="Russian">{{ t('Russian') }}</option>
@@ -25,6 +26,7 @@
                 <option value="Japanese">{{ t('Japanese') }}</option>
                 <option value="Korean">{{ t('Korean') }}</option>
                 <option value="Arabic">{{ t('Arabic') }}</option>
+                -->
             </select>
         </div>
         <div class="form-note">{{ t('The language spoken by the person you are conversing with') }}</div>
