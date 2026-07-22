@@ -1,12 +1,9 @@
 # -*- mode: python ; coding: utf-8 -*-
 
-from PyInstaller.utils.hooks import collect_data_files
+from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
 # Collect pywebview JS files
 webview_datas = collect_data_files('webview', includes=['js/*'])
-
-# Collect vosk DLL files
-vosk_datas = collect_data_files('vosk')
 
 # Collect openwakeword model data (melspectrogram/embedding/wakeword .onnx/.tflite).
 # These live inside the package (resources/models); without them the wakeword model
@@ -25,7 +22,7 @@ datas = [
     ('.env', '.'),
     ('README.md', '.'),
     ('index.html', '.')
-] + webview_datas + vosk_datas + openwakeword_datas
+] + webview_datas + openwakeword_datas
 
 a = Analysis(
     ['main.py'],
@@ -39,7 +36,6 @@ a = Analysis(
         'pymupdf4llm',
         'PIL.ImageGrab',
         'pyaudio',
-        'vosk',
         'huggingface_hub',
         'prompt_manager',
         'context_manager',
@@ -57,7 +53,7 @@ a = Analysis(
         'pymupdf4llm',
         'PIL.ImageGrab',
         'pyaudio',
-        'vosk',
+        *collect_submodules('speechbrain'),  # bundle every submodule in the PYZ (lazy-loaded ones like inference.speaker aren't seen by PyInstaller's bytecode scan). The find_imports() os.listdir issue is handled by the on-disk Tree added to a.datas below — no patch needed.
         'numpy',
         'groq',
         'sherpa_onnx',
@@ -88,6 +84,19 @@ a = Analysis(
     noarchive=False,
     optimize=0,
 )
+
+# SpeechBrain walks its own package dirs at import time (find_imports in
+# speechbrain/utils/importutils.py) to register lazy submodule attributes —
+# core.py needs e.g. `speechbrain.utils.quirks`. Under PyInstaller the package
+# is in the PYZ archive, so those dirs aren't on disk and os.listdir crashes
+# (FileNotFoundError, then broken lazy exports). collect_submodules (in
+# hiddenimports) keeps speechbrain importable from the PYZ (and pulls its deps);
+# this Tree ALSO lays the .py files on disk purely so os.listdir can enumerate
+# filenames. Imports still resolve from the PYZ (frozen importer takes
+# precedence) — no venv patch. Added to a.datas (a TOC of 3-tuples), NOT to the
+# pre-Analysis datas list (which expects 2-tuples and rejects Tree's entries).
+import os as _os, speechbrain as _sb
+a.datas += Tree(_os.path.dirname(_sb.__file__), prefix='speechbrain')
 
 pyz = PYZ(a.pure)
 
