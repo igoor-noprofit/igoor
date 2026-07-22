@@ -5,6 +5,7 @@ translate:
     ---[CONTEXT - DO NOT TRANSLATE THIS SECTION]---
     Speaker: {bio_name}
     {health_state}
+    {bio_context}
     ---[END CONTEXT]---
 
     CRITICAL RULES:
