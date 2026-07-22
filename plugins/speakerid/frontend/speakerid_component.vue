@@ -451,37 +451,40 @@ export default {
 .confirm-modal {
     background: #ffffff;
     color: #1a1a1a;
-    padding: 24px 28px;
-    border-radius: 10px;
-    max-width: 460px;
+    padding: 36px 44px;
+    border-radius: 14px;
+    max-width: 680px;
     width: calc(100% - 40px);
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 20px;
     text-align: center;
 }
 .confirm-modal__title {
     margin: 0;
-    font-size: 1.1rem;
+    font-size: 1.5rem;
     font-weight: 700;
 }
 .confirm-modal__hint {
     margin: 0;
-    font-size: 0.85rem;
+    font-size: 1.05rem;
     color: #555;
 }
 .confirm-modal__speakers {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 14px;
     justify-content: center;
 }
-/* Popup buttons reuse .btn .btn-secondary + .speakerid-topbar__btn; make them tappable. */
+/* Big, very tappable buttons — this is the last chance to assign the speaker.
+   !important overrides the base .speakerid-topbar__btn padding rule. */
 .confirm-modal__speakers .speakerid-topbar__btn {
-    min-height: 44px;
-    padding: 10px 16px;
-    font-size: 1rem;
+    min-height: 72px !important;
+    min-width: 140px;
+    padding: 20px 32px !important;
+    font-size: 1.3rem !important;
+    border-radius: 10px;
 }
 
 .speakerid-topbar {
