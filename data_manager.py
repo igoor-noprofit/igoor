@@ -187,6 +187,18 @@ class DataManager:
                 else:
                     self.logger.warning("plugins/biorecorder folder not found")
 
+                # Export recorder audio files (plugins/recorder/audio/<plugin>/*.wav).
+                # The records table itself lives in the shared database/igoor.db
+                # (already exported above); these are the referenced WAV files.
+                # Needed so biorecorder can regenerate its voice sample and so
+                # speakerid recorder_id linkages stay resolvable after import.
+                recorder_audio_folder = os.path.join(self.appdata_dir, "plugins", "recorder", "audio")
+                if os.path.exists(recorder_audio_folder):
+                    shutil.copytree(recorder_audio_folder, temp_path / "plugins" / "recorder" / "audio")
+                    self.logger.info("Exported plugins/recorder/audio folder")
+                else:
+                    self.logger.warning("plugins/recorder/audio folder not found")
+
                 # Create ZIP file
                 with zipfile.ZipFile(output_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
                     for file_path in temp_path.rglob('*'):
@@ -321,6 +333,16 @@ class DataManager:
                     shutil.copytree(current_biorecorder_folder, backup_biorecorder_path)
                     backup_items.append("plugins/biorecorder")
                     self.logger.info("Backed up plugins/biorecorder folder")
+
+                # Backup recorder audio folder (only if the import carries recorder audio)
+                current_recorder_audio_folder = os.path.join(self.appdata_dir, "plugins", "recorder", "audio")
+                imported_recorder_audio_path = temp_path / "plugins" / "recorder" / "audio"
+
+                if imported_recorder_audio_path.exists() and os.path.exists(current_recorder_audio_folder):
+                    backup_recorder_audio_path = os.path.join(backup_path, "plugins", "recorder", "audio")
+                    shutil.copytree(current_recorder_audio_folder, backup_recorder_audio_path)
+                    backup_items.append("plugins/recorder/audio")
+                    self.logger.info("Backed up plugins/recorder/audio folder")
 
                 warnings = []
                 
@@ -481,6 +503,18 @@ class DataManager:
                         if imported_file.exists():
                             shutil.copy2(str(imported_file), os.path.join(target_biorecorder_folder, bio_file))
                             self.logger.info(f"Restored plugins/biorecorder/{bio_file}")
+
+                # Restore recorder audio. REPLACE the folder wholesale (not merge)
+                # so it stays in sync with the records table, which is restored as
+                # a unit from database/igoor.db above. recorder_id references in
+                # speakerid and filename references in biorecorder answers.json
+                # remain valid because both DB ids and relative paths are preserved.
+                if imported_recorder_audio_path.exists():
+                    os.makedirs(os.path.dirname(current_recorder_audio_folder), exist_ok=True)
+                    if os.path.exists(current_recorder_audio_folder):
+                        shutil.rmtree(current_recorder_audio_folder)
+                    shutil.copytree(str(imported_recorder_audio_path), current_recorder_audio_folder)
+                    self.logger.info("plugins/recorder/audio folder restored")
 
                 self.logger.info("Import completed successfully")
                 
