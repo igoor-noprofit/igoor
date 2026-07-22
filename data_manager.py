@@ -171,6 +171,22 @@ class DataManager:
                 else:
                     self.logger.warning("plugins/speakerid folder not found")
 
+                # Export biorecorder biography: bio.md (the LLM-generated life
+                # story that prediction prompts read) and answers.json (the source
+                # Q&A). voice_sample.wav is a large derived artifact and is
+                # excluded to keep the archive small.
+                biorecorder_folder = os.path.join(self.appdata_dir, "plugins", "biorecorder")
+                if os.path.exists(biorecorder_folder):
+                    biorecorder_dest = temp_path / "plugins" / "biorecorder"
+                    os.makedirs(biorecorder_dest, exist_ok=True)
+                    for bio_file in ("bio.md", "answers.json"):
+                        src_file = os.path.join(biorecorder_folder, bio_file)
+                        if os.path.exists(src_file):
+                            shutil.copy2(src_file, biorecorder_dest / bio_file)
+                            self.logger.info(f"Exported plugins/biorecorder/{bio_file}")
+                else:
+                    self.logger.warning("plugins/biorecorder folder not found")
+
                 # Create ZIP file
                 with zipfile.ZipFile(output_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
                     for file_path in temp_path.rglob('*'):
@@ -295,6 +311,16 @@ class DataManager:
                     shutil.copytree(current_speakerid_folder, backup_speakerid_path)
                     backup_items.append("plugins/speakerid")
                     self.logger.info("Backed up plugins/speakerid folder")
+
+                # Backup biorecorder folder (only if the import carries biorecorder data)
+                current_biorecorder_folder = os.path.join(self.appdata_dir, "plugins", "biorecorder")
+                imported_biorecorder_path = temp_path / "plugins" / "biorecorder"
+
+                if imported_biorecorder_path.exists() and os.path.exists(current_biorecorder_folder):
+                    backup_biorecorder_path = os.path.join(backup_path, "plugins", "biorecorder")
+                    shutil.copytree(current_biorecorder_folder, backup_biorecorder_path)
+                    backup_items.append("plugins/biorecorder")
+                    self.logger.info("Backed up plugins/biorecorder folder")
 
                 warnings = []
                 
@@ -442,6 +468,19 @@ class DataManager:
                     if imported_pkl.exists():
                         shutil.copy2(str(imported_pkl), os.path.join(target_speakerid_folder, "speaker_embeddings.pkl"))
                         self.logger.info("Restored plugins/speakerid/speaker_embeddings.pkl")
+
+                # Restore biorecorder biography. MERGE into the existing folder
+                # rather than wiping it — preserves settings.json and the locally
+                # generated voice_sample.wav. Only bio.md and answers.json were
+                # carried in the export.
+                if imported_biorecorder_path.exists():
+                    target_biorecorder_folder = os.path.join(self.appdata_dir, "plugins", "biorecorder")
+                    os.makedirs(target_biorecorder_folder, exist_ok=True)
+                    for bio_file in ("bio.md", "answers.json"):
+                        imported_file = imported_biorecorder_path / bio_file
+                        if imported_file.exists():
+                            shutil.copy2(str(imported_file), os.path.join(target_biorecorder_folder, bio_file))
+                            self.logger.info(f"Restored plugins/biorecorder/{bio_file}")
 
                 self.logger.info("Import completed successfully")
                 
