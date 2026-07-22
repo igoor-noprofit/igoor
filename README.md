@@ -60,7 +60,7 @@ We plan on supporting other providers soon, as well as local models.
 
 ### DISK SPACE
 
-In the user's data folder, big ASR models (like Vosk) take around 2.3Gb, plus 1.4 for the zip file.
+In the user's data folder, big ASR models take a lot of space.
 
 The embedding model from HuggingFace currently requires 1.15Gb on disk.
 
@@ -136,37 +136,6 @@ Other models can be saved in this folder.
 Default mode is inside pywebview webedge window (IGOOR_CLI=False).
 PLEASE NOTE: Opening inside both pywebview AND external browser will yield unwanted sync between the two clients.
 
-#### AUTOMATIC SPEECH RECOGNITION WITH VOSK
-
-Vosk is a local ASR (Automatic Speech Recognition) plugin.
-It automatically downloads a model from this page in the user's language (default "fr"): 
-
-https://alphacephei.com/vosk/models
-
-And places it in 
-
-IGOOR_FOLDER/plugins/asrvosk/models/language/model_size
-
-Language and model size are set in the global settings file, example:
-
-```
-other plugins...
-"asrvosk": {
-    "lang": "fr_FR",
-    "wakeword": "Igor",
-    "model_size": "small",
-    "continuous": false,
-    "min_confidence": 0.7
-}
-...other plugins
-```
-
-In this case the final path is :
-
-IGOOR_FOLDER/plugins/asrvosk/models/language/model_size
-
-NOTE: Because of its high WER compared to Whisper and Voxtral, we recommend using Vosk only if audio privacy is paramount.
-VOSK will be probably deprecated in favor of another ASR model.
 
 # PYWEBVIEW: cache invalidation after updating version
 IGOOR auto-invalidates the JS/Vue/HTML cache on upgrade: every frontend asset is requested with a `?v=<IGOOR_VERSION>` query string (the version comes from `version.py`) and `index.html` is served with `Cache-Control: no-store`. When you bump the version, Edge WebView2 fetches the new files automatically — no manual steps required.
@@ -236,7 +205,7 @@ You should have received a copy of the GNU Affero General Public License along w
 ## ADDING A LANGUAGE
 
 ### REQUIREMENTS
-For each plugin, check if the language is supported. Start by Vosk and Whisper models.
+For each plugin, check if the language is supported. Start by Sherpa-ONNX local model and Whisper models.
 For each LLM, check if the language is supported too.
 For TTS, check if the external model supports the language (Eleven Labs, Speechify etc.)
 
