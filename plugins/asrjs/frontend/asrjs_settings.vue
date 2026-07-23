@@ -6,7 +6,7 @@
             <div class="form-input">
                 <select name="model_provider" v-model="formData.model_provider" @change="onProviderChange">
                     <option value="groq">Groq</option>
-                    <option value="mistral">Mistral (BETA)</option>
+                    <option value="mistral">Mistral</option>
                     <option value="sherpa">Sherpa-ONNX (Local)</option>
                 </select>
             </div>
@@ -63,7 +63,7 @@
 
             <!-- MISTRAL API KEY -->
             <div class="form-label" v-show="formData.model_provider === 'mistral' && !usingOnboardingMistralKey">
-                {{t('Voxtral API Key (BETA)')}}
+                {{t('Voxtral API Key')}}
                 <HelpPopover :text="t('Mistral API Key is required for Voxtral models')" :t="t" :lang="lang"/>
             </div>
             <div class="form-input" v-show="formData.model_provider === 'mistral' && !usingOnboardingMistralKey">
@@ -128,7 +128,7 @@
                     <input type="checkbox" v-model="formData.continuous" />
                     <span class="toggle-slider"></span>
                 </label>
-                {{t('Continuous Listening Mode')}}
+                {{t('Continuous Listening Mode (BETA)')}}
                 <HelpPopover :text="t('When enabled, the microphone listens continuously and automatically detects speech.')" :t="t" :lang="lang"/>
             </div>
         </div>

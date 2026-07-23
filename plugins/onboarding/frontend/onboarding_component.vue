@@ -410,7 +410,8 @@ export default {
                 "Context": [
                     { label: "Record biography", plugin: "biorecorder", icon: "" },
                     { label: "Manage documents", plugin: "rag", icon: "" },
-                    { label: "Manage weather", plugin: "meteo", icon: "" }
+                    { label: "Manage weather", plugin: "meteo", icon: "" },
+                    { label: "Add people", plugin: "speakerid", icon: "" }
                 ],
                 "Speech Recognition": [
                     { label: "Configure recognition", plugin: "asrwhisper", icon: "" },

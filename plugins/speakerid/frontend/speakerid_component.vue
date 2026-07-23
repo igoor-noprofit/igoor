@@ -1,0 +1,793 @@
+<template>
+    <div>
+        <!-- Quick-pick speaker row: top-frequency people as buttons, then [+] for the
+             less-frequent, then Unknown (default). Active speaker is highlighted.
+             Works whether or not voice recognition is on. -->
+        <div v-if="speakers.length > 0" class="speakerid-topbar">
+            <button v-for="s in displayedSpeakers" :key="s.id"
+                    type="button"
+                    class="btn btn-secondary speakerid-topbar__btn"
+                    :class="{ 'is-active': isActive(s.name) }"
+                    @click="selectSpeaker(s)">
+                <span>{{ s.name }}</span>
+            </button>
+            <button v-if="otherSpeakers.length > 0" type="button"
+                    class="btn btn-secondary speakerid-topbar__btn speakerid-topbar__more"
+                    @click="toggleShowAll">{{ showAll ? '‹' : '+' }}</button>
+            <button type="button"
+                    class="btn btn-secondary speakerid-topbar__btn"
+                    :class="{ 'is-active': isUnknownActive }"
+                    @click="selectUnknown">{{ t('unknown') }}</button>
+        </div>
+
+        <!-- End-of-conversation assignment popup: a manual fallback shown only when a
+             conversation ends Unknown (no committed speaker). Fixed overlay, independent
+             of the topbar. Preselects Unknown; auto-dismisses after 15s (stays Unknown). -->
+        <div v-if="showAssignmentPopup" class="confirm-overlay" @click.self="closeAssignmentPopup">
+            <div class="confirm-modal" role="dialog" aria-modal="true">
+                <p class="confirm-modal__title">{{ t('assignment_popup_title') }}</p>
+                <p class="confirm-modal__hint">{{ t('assignment_popup_subtitle') }}</p>
+                <div class="confirm-modal__speakers">
+                    <button v-for="s in assignmentDisplayedSpeakers" :key="s.id"
+                            type="button"
+                            class="btn btn-secondary speakerid-topbar__btn"
+                            :class="{ 'is-active': assignmentSelection === s.name }"
+                            @click="assignConversationSpeaker(s)">
+                        <span>{{ s.name }}</span>
+                    </button>
+                    <button v-if="otherSpeakers.length > 0" type="button"
+                            class="btn btn-secondary speakerid-topbar__btn speakerid-topbar__more"
+                            @click="assignmentShowAll = !assignmentShowAll">{{ assignmentShowAll ? '‹' : '+' }}</button>
+                    <button type="button"
+                            class="btn btn-secondary speakerid-topbar__btn"
+                            :class="{ 'is-active': assignmentSelection === null }"
+                            @click="assignConversationSpeaker(null)">{{ t('unknown') }}</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</template>
+
+<script>
+import BasePluginComponent from '/js/BasePluginComponent.js';
+export default {
+    name: 'speakerid',
+    mixins: [BasePluginComponent],
+    props: {
+        msg: Object
+    },
+    data() {
+        return {
+            currentSpeaker: {
+                name: null,
+                confidence: 0.0,
+                status: 'unknown'
+            },
+            isListening: true,
+            voiceLevels: new Array(20).fill(0),
+            pluginStatus: 'loading',
+            speakerCount: 0,
+            statusMessage: 'Initializing...',
+            hasReceivedSpeakerData: false,
+            speakers: [],      // known speakers (id, name, freq) for the quick-pick row
+            showAll: false,     // [+] toggle: less-frequent speakers instead of the top ones
+            // End-of-conversation assignment popup (Unknown fallback).
+            showAssignmentPopup: false,
+            assignmentThreadId: null,
+            assignmentSelection: null,   // null = Unknown (preselected)
+            assignmentShowAll: false,    // [+] toggle inside the popup
+            assignmentTimer: null        // 15s auto-dismiss timeout id
+        };
+    },
+    computed: {
+        sortedSpeakers() {
+            return [...this.speakers].sort((a, b) => (b.freq || 0) - (a.freq || 0));
+        },
+        topSpeakers() {
+            return this.sortedSpeakers.slice(0, 3);
+        },
+        otherSpeakers() {
+            return this.sortedSpeakers.slice(3);
+        },
+        displayedSpeakers() {
+            return this.showAll ? this.otherSpeakers : this.topSpeakers;
+        },
+        // Popup speaker list (separate showAll toggle so it doesn't disturb the topbar).
+        assignmentDisplayedSpeakers() {
+            return this.assignmentShowAll ? this.otherSpeakers : this.topSpeakers;
+        },
+        isUnknownActive() {
+            return !this.currentSpeaker.name || this.currentSpeaker.name === 'unknown';
+        }
+    },
+    watch: {
+        // Auto-reveal the recognized speaker: if they sit in the hidden batch, flip to it
+        // so their button (and the confidence) is shown instead of staying invisible.
+        'currentSpeaker.name'(name) {
+            if (!name || name === 'unknown') return;
+            if (!this.displayedSpeakers.some(s => s.name === name)) {
+                this.showAll = !this.showAll;
+            }
+        }
+    },
+    async mounted() {
+        // Initialize voice level visualization
+        this.startVoiceAnimation();
+
+        // Load the known speakers (for the quick-pick row) + plugin status
+        this.fetchSpeakers();
+        await this.fetchStatus();
+        
+        // If not ready, poll every 2 seconds until ready
+        if (this.pluginStatus !== 'ready') {
+            const pollInterval = setInterval(async () => {
+                await this.fetchStatus();
+                
+                // Stop polling once ready
+                if (this.pluginStatus === 'ready' || this.pluginStatus === 'error') {
+                    clearInterval(pollInterval);
+                }
+            }, 2000);
+        }
+    },
+    
+    methods: {
+        async fetchStatus() {
+            try {
+                const response = await fetch('/api/plugins/speakerid/status', {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin'
+                });
+                
+                if (response.ok) {
+                    const statusData = await response.json();
+                    this.pluginStatus = statusData.status;
+                    this.statusMessage = statusData.message || '';
+                    
+                    if (statusData.speaker_count !== undefined) {
+                        this.speakerCount = statusData.speaker_count;
+                    }
+                } else {
+                    console.warn('Failed to fetch speakerid status:', response.status);
+                }
+            } catch (error) {
+                console.warn('Error fetching speakerid status:', error);
+            }
+        },
+
+        async fetchSpeakers() {
+            try {
+                const r = await fetch('/api/plugins/speakerid/speakers', { credentials: 'same-origin' });
+                if (r.ok) {
+                    this.speakers = await r.json() || [];
+                }
+            } catch (e) {
+                console.warn('Failed to load speakers for topbar', e);
+            }
+        },
+
+        isActive(name) {
+            return !!this.currentSpeaker.name
+                && this.currentSpeaker.name !== 'unknown'
+                && this.currentSpeaker.name === name;
+        },
+
+        async selectSpeaker(s) {
+            // Optimistic update; the backend push (speaker_identification) confirms.
+            this.currentSpeaker = { name: s.name, confidence: 1.0, status: 'confirmed', manual: true };
+            this.hasReceivedSpeakerData = true;
+            try {
+                await fetch('/api/plugins/speakerid/set_speaker', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ speaker_id: s.id })
+                });
+            } catch (e) {
+                console.error('set_speaker failed', e);
+            }
+        },
+
+        async selectUnknown() {
+            // Clear the selection — auto-detection keeps trying.
+            this.currentSpeaker = { name: 'unknown', confidence: 0.0, status: 'unknown', manual: true };
+            this.hasReceivedSpeakerData = true;
+            try {
+                await fetch('/api/plugins/speakerid/set_speaker', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ speaker_id: null })
+                });
+            } catch (e) {
+                console.error('set_speaker (unknown) failed', e);
+            }
+        },
+
+        toggleShowAll() {
+            this.showAll = !this.showAll;
+        },
+
+        // --- End-of-conversation assignment popup (Unknown fallback) ---
+        openAssignmentPopup(threadId) {
+            this.assignmentThreadId = threadId;
+            this.assignmentSelection = null;      // Unknown preselected
+            this.assignmentShowAll = false;
+            this.fetchSpeakers();                  // fresh roster for the buttons
+            this.showAssignmentPopup = true;
+            if (this.assignmentTimer) clearTimeout(this.assignmentTimer);
+            // 15s auto-dismiss → no write (thread stays Unknown, as already filed at abandon).
+            this.assignmentTimer = setTimeout(() => this.closeAssignmentPopup(), 15000);
+        },
+
+        closeAssignmentPopup() {
+            if (this.assignmentTimer) {
+                clearTimeout(this.assignmentTimer);
+                this.assignmentTimer = null;
+            }
+            this.showAssignmentPopup = false;
+            this.assignmentThreadId = null;
+            this.assignmentSelection = null;
+        },
+
+        async assignConversationSpeaker(speaker) {
+            const threadId = this.assignmentThreadId;
+            const speakersId = speaker ? speaker.id : null;   // null ⇒ Unknown
+            this.assignmentSelection = speaker ? speaker.name : null;
+            try {
+                await fetch('/api/plugins/conversation/thread_speaker', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ thread_id: threadId, speakers_id: speakersId })
+                });
+            } catch (e) {
+                console.error('Failed to assign conversation speaker', e);
+            }
+            this.closeAssignmentPopup();
+        },
+
+        getDisplayName() {
+            if (!this.currentSpeaker.name || this.currentSpeaker.name === 'unknown') {
+                return this.t('unknown');
+            }
+            return this.currentSpeaker.name;
+        },
+    
+    getStatusClass() {
+            if (this.currentSpeaker.status === 'confirmed') {
+                return 'status-confirmed';
+            } else if (this.currentSpeaker.status === 'partial') {
+                return 'status-partial';
+            } else {
+                return 'status-unknown';
+            }
+        },
+        
+        getStatusIcon() {
+            if (this.currentSpeaker.status === 'confirmed') {
+                return '✓';
+            } else if (this.currentSpeaker.status === 'partial') {
+                return '≈';
+            } else {
+                return '❌';
+            }
+        },
+        
+        getStatusText() {
+            if (this.currentSpeaker.status === 'confirmed') {
+                return 'Speaker Confirmed';
+            } else if (this.currentSpeaker.status === 'partial') {
+                return 'Speaker Partially Identified';
+            } else {
+                return 'Listening...';
+            }
+        },
+        
+        getConfidenceClass() {
+            if (this.currentSpeaker.confidence >= 0.7) {
+                return 'confidence-score high';
+            } else if (this.currentSpeaker.confidence >= 0.4) {  // Lower threshold to match backend
+                return 'confidence-score medium';
+            } else {
+                return 'confidence-score low';
+            }
+        },
+        
+        getSpeakerStatus() {
+            if (this.currentSpeaker.confidence >= 0.4) {
+                return 'known';
+            } else {
+                return 'unknown';
+            }
+        },
+        
+        getReadyStatusClass() {
+            if (this.pluginStatus === 'ready') {
+                return 'ready-yes';
+            } else if (this.pluginStatus === 'loading') {
+                return 'ready-loading';
+            } else if (this.pluginStatus === 'error') {
+                return 'ready-error';
+            } else {
+                return 'ready-no';
+            }
+        },
+        
+        getReadyStatusIcon() {
+            if (this.pluginStatus === 'ready') {
+                return '✓';
+            } else if (this.pluginStatus === 'loading') {
+                return '⏳';
+            } else if (this.pluginStatus === 'error') {
+                return '⚠';
+            } else {
+                return '✗';
+            }
+        },
+        
+        getReadyStatusText() {
+            if (this.pluginStatus === 'ready') {
+                return `SpeakerID Ready (${this.speakerCount} speakers enrolled)`;
+            } else if (this.pluginStatus === 'loading') {
+                return 'SpeakerID: Loading...';
+            } else if (this.pluginStatus === 'error') {
+                return 'SpeakerID: Error initializing';
+            } else {
+                return 'SpeakerID: Not ready';
+            }
+        },
+        
+        getVoiceBarHeight(level) {
+            return `${Math.max(2, level * 25)}%`;
+        },
+        
+        startVoiceAnimation() {
+            setInterval(() => {
+                // Animate voice levels
+                for (let i = 0; i < this.voiceLevels.length; i++) {
+                    // Random walk for natural effect
+                    const walk = Math.random() * 3;
+                    const currentLevel = this.voiceLevels[i];
+                    const newLevel = Math.max(0, currentLevel - walk + (Math.random() - 0.5));
+                    
+                    if (newLevel !== currentLevel) {
+                        this.voiceLevels[i] = newLevel;
+                    } else {
+                        // Decay when not processing
+                        this.voiceLevels[i] = currentLevel * 0.95;
+                    }
+                }
+            }, 100);
+        },
+
+        handleIncomingMessage(event) {
+            // Use proper handleIncomingMessage method from BasePluginComponent
+            console.log('SpeakerID handleIncomingMessage called:', event.data);
+            
+            try {
+                const data = JSON.parse(event.data);
+                if (data.action === 'speakerid_reset'){
+                    // New conversation: reset the selected speaker and refresh the list.
+                    this.currentSpeaker = {
+                        name: null,
+                        confidence: 0.0,
+                        status: 'unknown',
+                        timestamp: Date.now()
+                    };
+                    this.showAll = false;
+                    this.fetchSpeakers();
+                }
+                if (data.action === 'speakerid_assignment_popup') {
+                    // A conversation ended Unknown (opt-in fallback): offer a manual pick.
+                    this.openAssignmentPopup(data.thread_id);
+                }
+                if (data.type === 'speaker_identification') {
+                    // Debug incoming message
+                    console.log('Speaker identification message received:', data);
+                    console.log('Speaker data:', data.speaker);
+                    console.log('Confidence:', data.speaker?.confidence);
+                    
+                    // Update current speaker information
+                    this.currentSpeaker = {
+                        name: data.speaker?.name || 'unknown',
+                        confidence: data.speaker?.confidence || 0.0,
+                        status: data.speaker?.status || 'unknown',
+                        timestamp: data.speaker?.timestamp || Date.now()
+                    };
+                    
+                    // Mark that we've received speaker data to show the UI
+                    this.hasReceivedSpeakerData = true;
+                    
+                    // Debug updated currentSpeaker
+                    console.log('Updated currentSpeaker:', this.currentSpeaker);
+                    console.log('getSpeakerStatus() returns:', this.getSpeakerStatus());
+                    console.log('Confidence classes:', this.getConfidenceClass());
+                    
+                    // Update voice levels when speech detected
+                    if (data.speaker && data.speaker.confidence > 0) {
+                        // Simulate voice activity during identification
+                        for (let i = 0; i < 10; i++) {
+                            const level = Math.random() * 0.8 + Math.random() * 0.2;
+                            this.voiceLevels[i] = level;
+                        }
+                    }
+                    
+                    // Reset voice levels after a moment
+                    setTimeout(() => {
+                        for (let i = 0; i < this.voiceLevels.length; i++) {
+                            this.voiceLevels[i] = this.voiceLevels[i] * 0.8;
+                        }
+                    }, 500);
+                } else if (data.type === 'speakerid_status') {
+                    // Handle plugin status updates
+                    this.pluginStatus = data.status;
+                    this.statusMessage = data.message || '';
+                    
+                    if (data.speaker_count !== undefined) {
+                        this.speakerCount = data.speaker_count;
+                    }
+                }
+            } catch (e) {
+                console.error("Error parsing message:", e);
+            }
+        }
+    }
+};
+</script>
+// CSS styling
+<style scoped>
+/* End-of-conversation assignment popup (Unknown fallback). */
+.confirm-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+}
+.confirm-modal {
+    background: #ffffff;
+    color: #1a1a1a;
+    padding: 36px 44px;
+    border-radius: 14px;
+    max-width: 680px;
+    width: calc(100% - 40px);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    text-align: center;
+}
+.confirm-modal__title {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 700;
+}
+.confirm-modal__hint {
+    margin: 0;
+    font-size: 1.05rem;
+    color: #555;
+}
+.confirm-modal__speakers {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    justify-content: center;
+}
+/* Big, very tappable buttons — this is the last chance to assign the speaker.
+   !important overrides the base .speakerid-topbar__btn padding rule. */
+.confirm-modal__speakers .speakerid-topbar__btn {
+    min-height: 72px !important;
+    min-width: 140px;
+    padding: 20px 32px !important;
+    font-size: 1.3rem !important;
+    border-radius: 10px;
+}
+
+.speakerid-topbar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 8px;
+    font-family: "FontLight", sans-serif;
+    font-size: 14px;
+    color: var(--color-text);
+    border-radius: 8px;
+    white-space: nowrap;
+}
+
+/* Quick-pick buttons — coherent with the daily .btn .btn-secondary. */
+.speakerid-topbar__btn {
+    padding: 6px 12px !important;
+    font-size: 0.9rem;
+    background-color: var(--color-btn-base);
+}
+
+.speakerid-topbar__btn.is-active {
+    background-color: #0095c0 !important;
+    font-weight: 600;
+}
+
+.speakerid-topbar__more {
+    min-width: 36px;
+    text-align: center;
+}
+
+.ready-indicator {
+    font-weight: bold;
+    font-size: 16px;
+    margin-right: 4px;
+    padding: 2px 6px;
+    border-radius: 12px;
+    transition: all 0.3s ease;
+}
+
+.ready-yes {
+    color: var(--basecolor-accent-700);
+    background: var(--basecolor-accent-100);
+}
+
+.ready-loading {
+    color: var(--basecolor-secondary-500);
+    background: var(--basecolor-secondary-100);
+}
+
+.ready-error {
+    color: var(--basecolor-warning-500);
+    background: var(--basecolor-warning-100);
+}
+
+.ready-no {
+    color: var(--basecolor-gray-400);
+    background: var(--basecolor-gray-100);
+}
+
+.speaker-icon {
+    font-size: 16px;
+    margin-right: 4px;
+}
+
+.speaker-name {
+    flex: 1;
+    font-weight: 600;
+    color: #fff !important;
+}
+
+.speaker-known {
+    font-weight: 700;
+}
+
+.speaker-unknown {
+    color: var(--basecolor-gray-100);
+    font-style: italic;
+}
+
+/* New status-based speaker name styling */
+.speaker-known.confidence-low {
+    color: var(--basecolor-secondary-300);
+}
+
+.speaker-known.confidence-medium {
+    color: var(--basecolor-accent-200);
+}
+
+.speaker-unknown.confidence-low {
+    color: var(--basecolor-gray-100);
+}
+
+.confidence {
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+    min-width: 45px;
+    text-align: center;
+}
+
+.confidence.high {
+    background: var(--basecolor-accent-100);
+    color: var(--basecolor-accent-700);
+}
+
+.confidence.medium {
+    background: var(--basecolor-secondary-100);
+    color: var(--basecolor-secondary-500);
+}
+
+.confidence.low {
+    background: var(--basecolor-warning-100);
+    color: var(--basecolor-warning-500);
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--basecolor-gray-100);
+}
+
+.status-confirmed {
+    background: var(--basecolor-accent-100);
+}
+
+.status-partial {
+    background: var(--basecolor-secondary-100);
+}
+
+.status-unknown {
+    background: var(--basecolor-warning-100);
+}
+
+/* Remove all old styles that are no longer needed */
+
+.speakerid-header h3 {
+    margin: 0 0 20px 0;
+    color: #333;
+    font-size: 24px;
+    display: flex;
+    align-items: center;
+}
+
+.speakerid-status {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+
+.status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 20px;
+    border-radius: 25px;
+    background: #f8f9fa;
+    border: 2px solid #dee2e6;
+    transition: all 0.3s ease;
+}
+
+.status-confirmed {
+    background: #d4edda;
+    border-color: #c3e6cb;
+}
+
+.status-partial {
+    background: #fff3cd;
+    border-color: #ffc107;
+}
+
+.status-unknown {
+    background: #f8d7da;
+    border-color: #f5c6cb;
+}
+
+.status-icon {
+    font-size: 24px;
+    font-weight: bold;
+}
+
+.status-text {
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.speakerid-main {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 20px;
+}
+
+.speaker-info {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 20px;
+    border-radius: 15px;
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    transition: all 0.3s ease;
+}
+
+.speaker-info:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.speaker-avatar {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: #6c757d;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 24px;
+    font-weight: bold;
+}
+
+.speaker-avatar {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: #6c757d;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 24px;
+    font-weight: bold;
+}
+
+.speaker-details {
+    flex: 1;
+}
+
+.speaker-name {
+    font-size: 18px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 5px;
+}
+
+.confidence-score {
+    padding: 8px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    text-align: center;
+}
+
+.confidence-score.high {
+    background: #d4edda;
+    color: #155724;
+}
+
+.confidence-score.medium {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.confidence-score.low {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.confidence-score.unknown {
+    background: #e9ecef;
+    color: #6c757d;
+}
+
+.speaker-info.unknown {
+    opacity: 0.6;
+}
+
+.voice-meter {
+    background: #343a40;
+    border-radius: 15px;
+    padding: 20px;
+}
+
+.voice-level-bars {
+    display: flex;
+    gap: 3px;
+    align-items: end;
+    height: 100px;
+}
+
+.voice-bar {
+    width: 8px;
+    background: #4caf50;
+    border-radius: 4px;
+    transition: height 0.2s ease;
+}
+
+.voice-level-text {
+    color: white;
+    text-align: center;
+    margin-top: 10px;
+    font-size: 12px;
+}
+</style>

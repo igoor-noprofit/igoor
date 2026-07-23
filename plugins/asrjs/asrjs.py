@@ -867,7 +867,18 @@ class Asrjs(Baseplugin):
                 # Update temp_audio_file path for existing transcription logic
                 original_temp_file = self.temp_audio_file
                 self.temp_audio_file = temp_file_path
-                
+
+                # A new speech segment arriving means the user is (re)entering a
+                # conversation — clear the abandoned flag so this transcription isn't
+                # dropped at the gate below. Without this, the flag is stuck: it's set
+                # True by abandon_conversation and only ever cleared by
+                # add_msg_to_conversation, which itself runs only AFTER a transcription
+                # passes this gate — so after any abandon, every transcription is dropped
+                # and the flag can never recover (continuous mode goes silent). An abandon
+                # firing DURING this transcription re-sets the flag, so a result that was
+                # in-flight when the conversation ended is still dropped correctly.
+                self.conversation_abandoned = False
+
                 # Transcribe the audio
                 await self.pm.trigger_hook(hook_name="transcribing_started")
                 text = await self.transcribe_audio()

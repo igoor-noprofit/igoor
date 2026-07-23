@@ -28,7 +28,6 @@
   },
   "plugins_activation": {
     "asrjs": true,
-    "asrvosk": false,
     "autocomplete": true,
     "bugreport": false,
     "clock": true,
@@ -44,6 +43,7 @@
     "extkeyb": false,
     "weather": false,
     "recorder": true,
-    "biorecorder": true
+    "biorecorder": true,
+    "speakerid":true
   }
 }

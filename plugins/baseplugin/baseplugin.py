@@ -536,7 +536,8 @@ class Baseplugin:
                 source_language=source_language,
                 conversation_context=conversation_ctx,
                 bio_name=bio_name,
-                health_state=health_ctx
+                health_state=health_ctx,
+                bio_context=self.get_bio_context()
             )
 
             result = llm.invoke(system_prompt, text)

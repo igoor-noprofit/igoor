@@ -4,6 +4,7 @@ class AudioProcessor extends AudioWorkletProcessor {
         this.bufferSize = 4096;
         this.recordingBuffer = [];
         this.speakerIdBuffer = [];
+        this.speakerIdEnabled = false;  // Voice-profiles gate: don't capture/downsample unless enabled
         this.wakewordBuffer = [];  // Buffer for wakeword detection
         this.nativeSampleRate = sampleRate;
         this.targetSampleRate = 16000;
@@ -39,6 +40,11 @@ class AudioProcessor extends AudioWorkletProcessor {
             } else if (event.data.type === 'disable-wakeword') {
                 this.wakewordEnabled = false;
                 this.wakewordBuffer = [];
+            } else if (event.data.type === 'enable-speakerid') {
+                this.speakerIdEnabled = true;
+            } else if (event.data.type === 'disable-speakerid') {
+                this.speakerIdEnabled = false;
+                this.speakerIdBuffer = [];
             }
         };
     }
@@ -75,29 +81,36 @@ class AudioProcessor extends AudioWorkletProcessor {
             }
         }
 
-        // Only process recording buffer when actually recording
+        // Downsample for speaker ID — runs whenever the voice-profiles gate is on,
+        // NOT gated on recording. This MUST precede the isRecording early-return below:
+        // in continuous mode the VAD drives capture and start/stop-recording is never
+        // posted, so guarding this on isRecording means zero speakerid chunks ever
+        // reach the backend in continuous mode. Mirrors the wakeword block above.
+        // The main thread also guards the POST; this just skips the downsample when off.
+        if (this.speakerIdEnabled) {
+            const downsampledData = this.downsampleAudio(inputChannel, this.nativeSampleRate, this.targetSampleRate);
+            this.speakerIdBuffer.push(...downsampledData);
+
+            // Check if we have enough data for a chunk (3 seconds at 16kHz)
+            const chunkSize = Math.floor(this.targetSampleRate * this.chunkDuration);
+            if (this.speakerIdBuffer.length >= chunkSize) {
+                const chunk = this.speakerIdBuffer.slice(0, chunkSize);
+                this.speakerIdBuffer = this.speakerIdBuffer.slice(chunkSize); // Remove used portion
+
+                // Send chunk to main thread
+                this.port.postMessage({
+                    type: 'speakerid-chunk',
+                    data: chunk
+                });
+            }
+        }
+
+        // Everything below is recording-only (push-to-talk native-rate capture).
         if (!this.isRecording) return true;
 
         // Add current frame to recording buffer (for native rate recording)
         for (let i = 0; i < inputChannel.length; i++) {
             this.recordingBuffer.push(inputChannel[i]);
-        }
-
-        // Downsample for speakerid
-        const downsampledData = this.downsampleAudio(inputChannel, this.nativeSampleRate, this.targetSampleRate);
-        this.speakerIdBuffer.push(...downsampledData);
-
-        // Check if we have enough data for a chunk
-        const chunkSize = Math.floor(this.targetSampleRate * this.chunkDuration); // 3 seconds at 16kHz
-        if (this.speakerIdBuffer.length >= chunkSize) {
-            const chunk = this.speakerIdBuffer.slice(0, chunkSize);
-            this.speakerIdBuffer = this.speakerIdBuffer.slice(chunkSize); // Remove used portion
-
-            // Send chunk to main thread
-            this.port.postMessage({
-                type: 'speakerid-chunk',
-                data: chunk
-            });
         }
 
         // Also send raw audio data periodically for visualization/monitoring

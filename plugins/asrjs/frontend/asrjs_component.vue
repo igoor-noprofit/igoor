@@ -27,6 +27,7 @@ export default {
             pendingTranscription: false, // Flag to prevent duplicate transcriptions
             audioChunks: [], // Store audio chunks for transcription
             speakerIdAvailable: false, // Cache speakerid availability
+            voiceProfilesEnabled: false, // Privacy gate: only send mic audio when the user opted in
             audioContext: null,
             processor: null,
             source: null,
@@ -101,11 +102,20 @@ export default {
         // Check speakerid availability during initialization
         await this.$_checkSpeakerIdAvailability();
 
+        // Periodically refresh the voice-profiles gate so a toggle in settings takes
+        // effect without an app reload (the backend enforces it regardless).
+        this.voiceProfilesRefreshInterval = setInterval(() => this.$_refreshVoiceProfilesEnabled(), 20000);
+
         // Initialize microphone access
         await this.$_initializeMicrophone();
     },
     beforeDestroy() {
         window.removeEventListener('keydown', this.$_handleKeyPress);
+
+        if (this.voiceProfilesRefreshInterval) {
+            clearInterval(this.voiceProfilesRefreshInterval);
+            this.voiceProfilesRefreshInterval = null;
+        }
 
         // Cleanup VAD
         if (this.vad) {
@@ -270,6 +280,12 @@ export default {
                     console.log('Wakeword detection enabled in AudioWorklet');
                 }
 
+                // Re-apply the voice-profiles gate now that the worklet exists. The initial
+                // $_checkSpeakerIdAvailability() runs before this.processor is created, so its
+                // enable-speakerid message was dropped — without this the worklet wouldn't
+                // capture for speaker ID until the 20s status refresh re-applied the gate.
+                this.$_applyVoiceProfilesEnabled(this.voiceProfilesEnabled);
+
                 // Set up audio level monitoring
                 const analyser = this.audioContext.createAnalyser();
                 analyser.fftSize = 256;
@@ -359,6 +375,12 @@ export default {
                     this.processor.port.postMessage({ type: 'enable-wakeword' });
                     console.log('Wakeword detection enabled in AudioWorklet');
                 }
+
+                // Re-apply the voice-profiles gate now that the worklet exists. The initial
+                // $_checkSpeakerIdAvailability() runs before this.processor is created, so its
+                // enable-speakerid message was dropped — without this the worklet wouldn't
+                // capture for speaker ID until the 20s status refresh re-applied the gate.
+                this.$_applyVoiceProfilesEnabled(this.voiceProfilesEnabled);
 
                 // Set up audio level monitoring
                 const analyser = this.audioContext.createAnalyser();
@@ -565,6 +587,7 @@ export default {
             // Create a mini WAV file from a chunk of audio data
             const numChannels = 1;
             const bitsPerSample = 16;
+            const rate = sampleRate || this.nativeSampleRate || 48000;
 
             // Convert float32 to int16
             const int16Array = new Int16Array(float32Array.length);
@@ -677,8 +700,13 @@ export default {
 
         async $_sendFixedChunkToSpeakerID(float32Chunk) {
             // Send fixed chunk to speakerid for identification
-            if (!this.speakerIdAvailable) {
-                console.log('SpeakerID not available, skipping chunk');
+            if (!this.speakerIdAvailable || !this.voiceProfilesEnabled) {
+                console.log('SpeakerID not available or voice profiles disabled, skipping chunk');
+                return;
+            }
+            // TTS is speaking (status "paused"): the mic captures the app's synthesized
+            // voice, which can't be recognized — don't POST the chunk.
+            if (this.status === 'paused') {
                 return;
             }
 
@@ -806,6 +834,7 @@ export default {
                     const response = await this.callPluginRestEndpoint('speakerid', 'status');
 
                     this.speakerIdAvailable = true;
+                    this.$_applyVoiceProfilesEnabled(!!response && response.voice_profiles_enabled);
                     console.log('SpeakerID plugin is available');
                     return;
                 } catch (error) {
@@ -821,7 +850,29 @@ export default {
 
             // If we get here, speakerid is not available after 3 attempts
             this.speakerIdAvailable = false;
+            this.$_applyVoiceProfilesEnabled(false);
             console.log('SpeakerID plugin is not available after 3 attempts');
+        },
+
+        // Apply the voice-profiles privacy gate: cache the flag AND tell the AudioWorklet
+        // to start/stop filling the speakerid buffer (no audio captured when off).
+        $_applyVoiceProfilesEnabled(enabled) {
+            this.voiceProfilesEnabled = !!enabled;
+            if (this.processor) {
+                this.processor.port.postMessage({ type: enabled ? 'enable-speakerid' : 'disable-speakerid' });
+            }
+        },
+
+        // Periodically refresh the gate so the user toggling it in settings takes effect
+        // without an app reload (the backend endpoint enforces it regardless).
+        async $_refreshVoiceProfilesEnabled() {
+            if (!this.speakerIdAvailable) return;
+            try {
+                const response = await this.callPluginRestEndpoint('speakerid', 'status');
+                if (response) {
+                    this.$_applyVoiceProfilesEnabled(!!response.voice_profiles_enabled);
+                }
+            } catch (e) { /* keep last known value */ }
         },
 
         async $_checkSpeakerIDStatus() {
@@ -840,8 +891,8 @@ export default {
 
         async $_sendAudioChunkToSpeakerID(audioBlob) {
             // Use cached speakerid availability (no API calls)
-            if (!this.speakerIdAvailable) {
-                console.log('SpeakerID not available (cached), skipping identification');
+            if (!this.speakerIdAvailable || !this.voiceProfilesEnabled) {
+                console.log('SpeakerID not available or voice profiles disabled, skipping identification');
                 return;
             }
 
@@ -864,36 +915,6 @@ export default {
                 }
             } catch (error) {
                 console.error('Error sending audio chunk to speakerid:', error);
-            }
-        },
-
-        async $_sendAudioToSpeakerID(audioBlob) {
-            return true;
-            // Use cached speakerid availability (no API calls)
-            if (!this.speakerIdAvailable) {
-                console.log('SpeakerID not available (cached), skipping identification');
-                return;
-            }
-
-            // Send complete audio file to speakerid for identification
-            try {
-                const formData = new FormData();
-                formData.append('audio_file', audioBlob, 'recording.wav');
-                formData.append('sample_rate', this.nativeSampleRate.toString());  // Use native sample rate
-
-                const response = await fetch('http://127.0.0.1:9714/api/plugins/speakerid/identify_speaker', {
-                    method: 'POST',
-                    body: formData
-                });
-
-                if (!response.ok) {
-                    console.error('Error sending audio to speakerid:', response.status);
-                } else {
-                    const result = await response.json();
-                    console.log('Speaker identification result:', result);
-                }
-            } catch (error) {
-                console.error('Error sending audio to speakerid:', error);
             }
         },
 
@@ -1215,13 +1236,11 @@ export default {
                     // Stop recording first
                     const finalWavBlob = await this.$_stopRecording();
 
-                    // Send complete audio to BOTH APIs after recording stops
+                    // Send the recording to ASR for transcription. (Speaker ID runs
+                    // continuously via the AudioWorklet → /process_audio_chunk during
+                    // the recording, so it needs no separate full-file send here.)
                     if (finalWavBlob && finalWavBlob.size > 0) {
-                        // Send to ASR for transcription
                         await this.$_sendAudioToTranscribe(finalWavBlob);
-
-                        // Send to SpeakerID for identification
-                        await this.$_sendAudioToSpeakerID(finalWavBlob);
                     }
                     else {
                         console.warn("No audio data to send for processing");

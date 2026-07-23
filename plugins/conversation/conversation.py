@@ -3,7 +3,8 @@ from plugins.baseplugin.baseplugin import Baseplugin
 from plugin_manager import hookimpl
 from prompt_manager import PromptManager
 from context_manager import context_manager
-from fastapi import APIRouter, Query, Response
+from fastapi import APIRouter, HTTPException, Query, Response
+from typing import Any, Dict
 import asyncio,json
 from concurrent.futures import ThreadPoolExecutor
 
@@ -134,7 +135,28 @@ class Conversation(Baseplugin):
             self.logger.info("Transcribing ended (via REST)")
             await self.send_status("transcribing_ended")
             return {"status": "success"}
-        
+
+        @self.router.post("/thread_speaker")
+        async def set_thread_speaker(payload: Dict[str, Any]):
+            """Post-hoc speaker assignment for a conversation that ended Unknown.
+            The assignment popup (speakerid) calls this when the caregiver picks a
+            speaker (or Unknown) for the just-ended thread. Auto-prefixes `threads`
+            → `conversation_threads` from within this plugin.
+
+            Records speaker_id_method = 0 (manual post-hoc popup) regardless of whether
+            a named speaker or Unknown was picked — the method encodes the path, not the
+            outcome, so an Unknown pick here is still method=0."""
+            thread_id = payload.get("thread_id")
+            speakers_id = payload.get("speakers_id")  # None ⇒ Unknown
+            if thread_id is None:
+                raise HTTPException(status_code=400, detail="thread_id required")
+            await self.db_execute(
+                "UPDATE threads SET speakers_id = ?, speaker_id_method = ? WHERE id = ?",
+                (speakers_id, 0, thread_id)
+            )
+            self.logger.info(f"Thread {thread_id} speaker set to speakers_id={speakers_id} (method=0)")
+            return {"thread_id": thread_id, "speakers_id": speakers_id}
+
     def init_timeout(self):
         print("INIT TIMEOUT")
         self.timeout = int(self.settings.get("timeout", 120000)) / 1000  # Convert milliseconds to seconds
@@ -259,25 +281,46 @@ class Conversation(Baseplugin):
         if (cause is None):
             cause = "timeout"
 
+        # Resolve the conversation's speaker (speakerid) to persist on the thread.
+        # speakerid.get_current_speaker always returns a dict {speakers_id, name, method};
+        # speakers_id may be None (Unknown/deactivated/no-match) but method still carries
+        # the identification path (1=auto, 0=manual post-hoc, -1=manual topbar,
+        # -2=active-no-match, -3=deactivated).
+        speakers_id = None
+        speaker_name = None
+        speaker_id_method = None
+        try:
+            results = await self.pm.trigger_hook("get_current_speaker")
+            # Don't filter on speakers_id — we want the result even when it's NULL
+            # (so the -2/-3/manual-Unknown methods still get persisted).
+            spk = next((r for r in (results or []) if r), None)
+            if spk:
+                speakers_id = spk.get("speakers_id")
+                speaker_name = spk.get("name")
+                speaker_id_method = spk.get("method")
+        except Exception as e:
+            self.logger.warning(f"get_current_speaker failed: {e}")
+
         last_conversation = {
             "thread": self.thread,
             "txt": txt,
             "cause": cause,
             "topic": self.topic,
-            "thread_id": self.current_thread_id
+            "thread_id": self.current_thread_id,
+            "speakers_id": speakers_id
         }
 
         if self.current_thread_id is not None:
             current_time = self._get_current_timestamp()
             await self.db_execute(
-                "UPDATE threads SET end_time = ?, cause = ?, content = ? WHERE id = ?",
-                (current_time, cause, txt, self.current_thread_id)
+                "UPDATE threads SET end_time = ?, cause = ?, content = ?, speakers_id = ?, speaker_id_method = ? WHERE id = ?",
+                (current_time, cause, txt, speakers_id, speaker_id_method, self.current_thread_id)
             )
-            self.logger.info(f"Abandoned conversation {self.current_thread_id} with end time")
+            self.logger.info(f"Abandoned conversation {self.current_thread_id} with end time (speakers_id={speakers_id}, method={speaker_id_method})")
 
             # Update last conversations cache
             if txt and self.current_start_time:
-                new_conv = self._format_single_conversation_xml(self.current_start_time, txt)
+                new_conv = self._format_single_conversation_xml(self.current_start_time, txt, speaker_name=speaker_name)
                 self._prepend_to_cache(new_conv)
 
         # Reset conversation state after triggering the hook
@@ -310,9 +353,29 @@ class Conversation(Baseplugin):
     @hookimpl
     def startup(self):
         self._ensure_router()
+        self._migrate_threads_schema()
         # Register router with the main FastAPI app if available
         if hasattr(self, 'pm') and hasattr(self.pm, 'fastapi_app'):
             self.pm.fastapi_app.include_router(self.router)
+
+    def _migrate_threads_schema(self):
+        """Add speakers_id / speaker_id_method to conversation_threads if missing.
+        CREATE TABLE IF NOT EXISTS (run by the base DB init) won't add columns to
+        the existing populated table."""
+        table = f"{self.plugin_name}_threads"  # conversation_threads
+        try:
+            cols = self.db_execute_sync(f"PRAGMA table_info({table})") or []
+            if not any(c.get("name") == "speakers_id" for c in cols):
+                self.db_execute_sync(f"ALTER TABLE {table} ADD COLUMN speakers_id INTEGER")
+                self.logger.info(f"Added speakers_id column to {table}")
+            # speaker_id_method: how the thread's speaker was identified
+            # (1=auto, 0=manual post-hoc popup, -1=manual topbar click, -2=active-no-match,
+            #  -3=deactivated). NULL by default — historical rows stay NULL, no backfill.
+            if not any(c.get("name") == "speaker_id_method" for c in cols):
+                self.db_execute_sync(f"ALTER TABLE {table} ADD COLUMN speaker_id_method INTEGER")
+                self.logger.info(f"Added speaker_id_method column to {table}")
+        except Exception as e:
+            self.logger.error(f"conversation: threads schema migration failed: {e}")
 
     @hookimpl
     async def gui_ready(self):
@@ -323,44 +386,76 @@ class Conversation(Baseplugin):
         """Load last N conversations from database into cache at startup"""
         try:
             sql = """
-                SELECT start_time, content FROM threads 
-                WHERE content IS NOT NULL AND content != '' 
+                SELECT start_time, content, speakers_id FROM threads
+                WHERE content IS NOT NULL AND content != ''
                 ORDER BY start_time DESC LIMIT ?
             """
             results = await self.db_execute(sql, (self.last_conversations_count,))
             if results:
                 # Reverse to get chronological order (oldest first)
                 conversations = list(reversed(results))
+                # Resolve interlocutor names so each block can be labeled with who was present
+                name_map = await self._resolve_speaker_names(conversations)
+                for conv in conversations:
+                    conv["speaker_name"] = name_map.get(conv.get("speakers_id"), "")
                 self.last_conversations_cache = self._format_conversations_xml(conversations)
                 self.logger.info(f"Loaded {len(conversations)} conversations into cache")
         except Exception as e:
             self.logger.error(f"Error loading last conversations cache: {e}")
         self.mark_ready()
 
-    def _format_conversations_xml(self, conversations: list) -> str:
-        """Format list of conversations as XML string for LLM prompts"""
+    def _speaker_header(self, speaker_name):
+        """One-line header naming a conversation's interlocutor, or '' if unknown.
+        The flow prompt is English-only, so a single English label is used."""
+        if not speaker_name:
+            return ""
+        return f"With {speaker_name} :"
+
+    async def _resolve_speaker_names(self, conversations):
+        """Return {speakers_id: name} for the distinct known speakers in the list,
+        via the speakerid plugin's get_speaker_name hook."""
+        name_map = {}
+        distinct_ids = {c.get("speakers_id") for c in conversations if c.get("speakers_id")}
+        for sid in distinct_ids:
+            try:
+                res = await self.pm.trigger_hook("get_speaker_name", speakers_id=sid)
+                name = next((r for r in (res or []) if r), None)
+                if name:
+                    name_map[sid] = name
+            except Exception as e:
+                self.logger.warning(f"get_speaker_name({sid}) failed: {e}")
+        return name_map
+
+    def _format_conversations_xml(self, conversations: list, tag: str = "last_conversations") -> str:
+        """Format list of conversations as XML string for LLM prompts."""
         if not conversations:
             return ""
-        
-        lines = ["<last_conversations>"]
+
+        lines = [f"<{tag}>"]
         for conv in conversations:
             # Truncate ISO timestamp to remove milliseconds (e.g., 2025-05-07T12:17:48.692972 -> 2025-05-07T12:17:48)
             start_time = conv.get('start_time', '')
             if '.' in start_time:
                 start_time = start_time.split('.')[0]
-            
+
+            header = self._speaker_header(conv.get('speaker_name'))
             lines.append(start_time)
+            if header:
+                lines.append(header)
             lines.append(conv.get('content', ''))
             lines.append("---")
-        
-        lines.append("</last_conversations>")
+
+        lines.append(f"</{tag}>")
         return "\n".join(lines)
 
-    def _format_single_conversation_xml(self, start_time: str, content: str) -> str:
+    def _format_single_conversation_xml(self, start_time: str, content: str, speaker_name=None) -> str:
         """Format a single conversation for prepending to cache"""
         # Truncate ISO timestamp to remove milliseconds
         if '.' in start_time:
             start_time = start_time.split('.')[0]
+        header = self._speaker_header(speaker_name)
+        if header:
+            return f"{start_time}\n{header}\n{content}\n---"
         return f"{start_time}\n{content}\n---"
 
     def _prepend_to_cache(self, new_conv: str):
@@ -393,6 +488,25 @@ class Conversation(Baseplugin):
     def get_last_conversations(self) -> str:
         """Return cached last conversations as XML string"""
         return self.last_conversations_cache
+
+    @hookimpl
+    async def get_speaker_conversations(self, speakers_id, limit=5):
+        """Return the last N past conversations for a specific speaker, formatted as XML
+        (mirrors get_last_conversations but filtered by speakers_id). Powers per-speaker
+        history injection (Phase 5a)."""
+        try:
+            results = await self.db_execute(
+                "SELECT start_time, content FROM threads "
+                "WHERE speakers_id = ? AND content IS NOT NULL AND content != '' "
+                "ORDER BY start_time DESC LIMIT ?",
+                (speakers_id, limit)
+            )
+            if results:
+                # Chronological (oldest first), like the last-conversations cache.
+                return self._format_conversations_xml(list(reversed(results)), tag="speaker_conversations")
+        except Exception as e:
+            self.logger.error(f"get_speaker_conversations failed: {e}")
+        return ""
 
     @hookimpl
     async def transcribing_started(self):

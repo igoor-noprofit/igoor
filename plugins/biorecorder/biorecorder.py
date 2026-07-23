@@ -60,6 +60,22 @@ class Biorecorder(Baseplugin):
         self.mark_ready()
         self.logger.info(f"Biorecorder started with {len(self.questions)} questions, {len(self.answers)} answers")
 
+    @hookimpl
+    async def data_imported(self, backup_path=None, **kwargs):
+        """After a data import, answers.json on disk may have been replaced and
+        bio.md with it. Reload the in-memory answers and notify prediction
+        plugins to rebuild their (bio-aware) prompt templates, so the imported
+        biography takes effect without an app restart."""
+        if not getattr(self, "is_loaded", False):
+            self.logger.info("data_imported: biorecorder not ready — startup will load the restored files")
+            return
+        try:
+            self._load_answers()
+            asyncio.create_task(self.pm.trigger_hook(hook_name="bio_context_updated"))
+            self.logger.info("data_imported: reloaded answers and notified consumers of updated bio")
+        except Exception as e:
+            self.logger.warning(f"data_imported: reload failed: {e}")
+
     def _load_questions(self):
         """Load questions from locales folder based on user language"""
         lang_code = get_base_language_code(self.lang, default_lang="en")

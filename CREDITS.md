@@ -14,8 +14,6 @@ Copyright (C) 2025-2026 Carlo Giordano, Igor Novitzki and IGOOR not-for-profit o
 
 ## License
 
-IGOOR is free software: you can redistribute it and/or modify it under
-terms of the GNU General Public License as published by the Free Software
-Foundation, either version 3 of the License, or (at your option) any later version.
+IGOOR is free software: see COPYING for license info.
 
 For more information, visit: https://igoor.org

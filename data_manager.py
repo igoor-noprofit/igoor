@@ -5,6 +5,7 @@ import zipfile
 import tempfile
 import shutil
 import time
+import asyncio
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, List, Optional, Union
@@ -150,7 +151,54 @@ class DataManager:
                     self.logger.info("Exported plugins/asrjs/custom_wakeword folder")
                 else:
                     self.logger.warning("plugins/asrjs/custom_wakeword folder not found")
-                
+
+                # Export speaker ID voice profiles + embeddings so recognition survives
+                # import. The DB carries the speaker rows; voices/ is the source of truth
+                # the pkl rebuilds from, and the pkl is portable (names + numpy, no abs
+                # paths). recordings/ chunk dumps are deliberately excluded.
+                speakerid_folder = os.path.join(self.appdata_dir, "plugins", "speakerid")
+                if os.path.exists(speakerid_folder):
+                    speakerid_dest = temp_path / "plugins" / "speakerid"
+                    os.makedirs(speakerid_dest, exist_ok=True)
+                    voices_folder = os.path.join(speakerid_folder, "voices")
+                    if os.path.exists(voices_folder):
+                        shutil.copytree(voices_folder, speakerid_dest / "voices")
+                        self.logger.info("Exported plugins/speakerid/voices folder")
+                    pkl_file = os.path.join(speakerid_folder, "speaker_embeddings.pkl")
+                    if os.path.exists(pkl_file):
+                        shutil.copy2(pkl_file, speakerid_dest / "speaker_embeddings.pkl")
+                        self.logger.info("Exported plugins/speakerid/speaker_embeddings.pkl")
+                else:
+                    self.logger.warning("plugins/speakerid folder not found")
+
+                # Export biorecorder biography: bio.md (the LLM-generated life
+                # story that prediction prompts read) and answers.json (the source
+                # Q&A). voice_sample.wav is a large derived artifact and is
+                # excluded to keep the archive small.
+                biorecorder_folder = os.path.join(self.appdata_dir, "plugins", "biorecorder")
+                if os.path.exists(biorecorder_folder):
+                    biorecorder_dest = temp_path / "plugins" / "biorecorder"
+                    os.makedirs(biorecorder_dest, exist_ok=True)
+                    for bio_file in ("bio.md", "answers.json"):
+                        src_file = os.path.join(biorecorder_folder, bio_file)
+                        if os.path.exists(src_file):
+                            shutil.copy2(src_file, biorecorder_dest / bio_file)
+                            self.logger.info(f"Exported plugins/biorecorder/{bio_file}")
+                else:
+                    self.logger.warning("plugins/biorecorder folder not found")
+
+                # Export recorder audio files (plugins/recorder/audio/<plugin>/*.wav).
+                # The records table itself lives in the shared database/igoor.db
+                # (already exported above); these are the referenced WAV files.
+                # Needed so biorecorder can regenerate its voice sample and so
+                # speakerid recorder_id linkages stay resolvable after import.
+                recorder_audio_folder = os.path.join(self.appdata_dir, "plugins", "recorder", "audio")
+                if os.path.exists(recorder_audio_folder):
+                    shutil.copytree(recorder_audio_folder, temp_path / "plugins" / "recorder" / "audio")
+                    self.logger.info("Exported plugins/recorder/audio folder")
+                else:
+                    self.logger.warning("plugins/recorder/audio folder not found")
+
                 # Create ZIP file
                 with zipfile.ZipFile(output_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
                     for file_path in temp_path.rglob('*'):
@@ -265,6 +313,36 @@ class DataManager:
                     shutil.copytree(current_wakeword_folder, backup_wakeword_path)
                     backup_items.append("plugins/asrjs/custom_wakeword")
                     self.logger.info("Backed up plugins/asrjs/custom_wakeword folder")
+
+                # Backup speaker ID folder (only if the import carries speakerid data)
+                current_speakerid_folder = os.path.join(self.appdata_dir, "plugins", "speakerid")
+                imported_speakerid_path = temp_path / "plugins" / "speakerid"
+
+                if imported_speakerid_path.exists() and os.path.exists(current_speakerid_folder):
+                    backup_speakerid_path = os.path.join(backup_path, "plugins", "speakerid")
+                    shutil.copytree(current_speakerid_folder, backup_speakerid_path)
+                    backup_items.append("plugins/speakerid")
+                    self.logger.info("Backed up plugins/speakerid folder")
+
+                # Backup biorecorder folder (only if the import carries biorecorder data)
+                current_biorecorder_folder = os.path.join(self.appdata_dir, "plugins", "biorecorder")
+                imported_biorecorder_path = temp_path / "plugins" / "biorecorder"
+
+                if imported_biorecorder_path.exists() and os.path.exists(current_biorecorder_folder):
+                    backup_biorecorder_path = os.path.join(backup_path, "plugins", "biorecorder")
+                    shutil.copytree(current_biorecorder_folder, backup_biorecorder_path)
+                    backup_items.append("plugins/biorecorder")
+                    self.logger.info("Backed up plugins/biorecorder folder")
+
+                # Backup recorder audio folder (only if the import carries recorder audio)
+                current_recorder_audio_folder = os.path.join(self.appdata_dir, "plugins", "recorder", "audio")
+                imported_recorder_audio_path = temp_path / "plugins" / "recorder" / "audio"
+
+                if imported_recorder_audio_path.exists() and os.path.exists(current_recorder_audio_folder):
+                    backup_recorder_audio_path = os.path.join(backup_path, "plugins", "recorder", "audio")
+                    shutil.copytree(current_recorder_audio_folder, backup_recorder_audio_path)
+                    backup_items.append("plugins/recorder/audio")
+                    self.logger.info("Backed up plugins/recorder/audio folder")
 
                 warnings = []
                 
@@ -394,14 +472,67 @@ class DataManager:
                     shutil.copytree(imported_wakeword_path, current_wakeword_folder)
                     self.logger.info("plugins/asrjs/custom_wakeword folder restored")
 
+                # Restore speaker ID voice profiles + embeddings. The export carries
+                # only voices/ + .pkl (not recordings/), so MERGE into the existing
+                # folder rather than wiping it — preserves settings.json etc. The
+                # data_imported hook (or startup load) rebuilds the pkl from voices/.
+                if imported_speakerid_path.exists():
+                    target_speakerid_folder = os.path.join(self.appdata_dir, "plugins", "speakerid")
+                    os.makedirs(target_speakerid_folder, exist_ok=True)
+                    imported_voices = imported_speakerid_path / "voices"
+                    if imported_voices.exists():
+                        target_voices = os.path.join(target_speakerid_folder, "voices")
+                        if os.path.exists(target_voices):
+                            shutil.rmtree(target_voices)
+                        shutil.copytree(str(imported_voices), target_voices)
+                        self.logger.info("Restored plugins/speakerid/voices folder")
+                    imported_pkl = imported_speakerid_path / "speaker_embeddings.pkl"
+                    if imported_pkl.exists():
+                        shutil.copy2(str(imported_pkl), os.path.join(target_speakerid_folder, "speaker_embeddings.pkl"))
+                        self.logger.info("Restored plugins/speakerid/speaker_embeddings.pkl")
+
+                # Restore biorecorder biography. MERGE into the existing folder
+                # rather than wiping it — preserves settings.json and the locally
+                # generated voice_sample.wav. Only bio.md and answers.json were
+                # carried in the export.
+                if imported_biorecorder_path.exists():
+                    target_biorecorder_folder = os.path.join(self.appdata_dir, "plugins", "biorecorder")
+                    os.makedirs(target_biorecorder_folder, exist_ok=True)
+                    for bio_file in ("bio.md", "answers.json"):
+                        imported_file = imported_biorecorder_path / bio_file
+                        if imported_file.exists():
+                            shutil.copy2(str(imported_file), os.path.join(target_biorecorder_folder, bio_file))
+                            self.logger.info(f"Restored plugins/biorecorder/{bio_file}")
+
+                # Restore recorder audio. REPLACE the folder wholesale (not merge)
+                # so it stays in sync with the records table, which is restored as
+                # a unit from database/igoor.db above. recorder_id references in
+                # speakerid and filename references in biorecorder answers.json
+                # remain valid because both DB ids and relative paths are preserved.
+                if imported_recorder_audio_path.exists():
+                    os.makedirs(os.path.dirname(current_recorder_audio_folder), exist_ok=True)
+                    if os.path.exists(current_recorder_audio_folder):
+                        shutil.rmtree(current_recorder_audio_folder)
+                    shutil.copytree(str(imported_recorder_audio_path), current_recorder_audio_folder)
+                    self.logger.info("plugins/recorder/audio folder restored")
+
                 self.logger.info("Import completed successfully")
                 
-                # Import hook - let plugins know data was imported
+                # Import hook - let plugins know data was imported. import_user_data
+                # runs synchronously inside the FastAPI handler's event loop, so
+                # asyncio.run() would raise "cannot be called from a running event
+                # loop". Schedule the coroutine on the running loop instead; fall back
+                # to asyncio.run() if ever called from a non-async context.
                 try:
                     from plugin_manager import PluginManager
                     pm = PluginManager()
-                    asyncio.run(pm.trigger_hook("data_imported", backup_path=backup_path))
-                    self.logger.info("Triggered data_imported hook")
+                    try:
+                        loop = asyncio.get_running_loop()
+                        loop.create_task(pm.trigger_hook("data_imported", backup_path=backup_path))
+                        self.logger.info("Scheduled data_imported hook on the running loop")
+                    except RuntimeError:
+                        asyncio.run(pm.trigger_hook("data_imported", backup_path=backup_path))
+                        self.logger.info("Triggered data_imported hook")
                 except Exception as e:
                     self.logger.warning(f"Could not trigger data_imported hook: {e}")
                 

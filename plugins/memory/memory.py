@@ -21,26 +21,28 @@ class Memory(Baseplugin):
         self.settings = self.get_my_settings()
         bio = self.global_settings.get_bio()
         self.bio_name = bio.get("name")
+        self.reply_language = self.global_settings.get_reply_language()
         self.is_loaded = True
         self._build_prompt_templates()
     
     def _build_prompt_templates(self):
-        """Pre-build system prompts with bio_name filled in."""
-        # Memory system prompt (contains {bio_name} in examples)
+        """Pre-build system prompts with bio_name and reply_language filled in."""
+        # Memory system prompt (contains {bio_name} in examples and {reply_language})
         sys_template = self.prompts.get("memory", {}).get("system", "")
         sys_pm = PromptManager(template=sys_template)
-        self._memory_system_prompt = sys_pm.create_prompt(bio_name=self.bio_name)
-        
-        # Memory review system prompt (contains {bio_name})
+        self._memory_system_prompt = sys_pm.create_prompt(bio_name=self.bio_name, reply_language=self.reply_language)
+
+        # Memory review system prompt (contains {bio_name} and {reply_language})
         review_template = self.prompts.get("memory_review", {}).get("system", "")
         review_pm = PromptManager(template=review_template)
-        self._memory_review_system_prompt = review_pm.create_prompt(bio_name=self.bio_name)
+        self._memory_review_system_prompt = review_pm.create_prompt(bio_name=self.bio_name, reply_language=self.reply_language)
     
     @hookimpl
     def global_settings_updated(self):
         self.settings = self.get_my_settings()
         bio = self.global_settings.get_bio()
         self.bio_name = bio.get("name")
+        self.reply_language = self.global_settings.get_reply_language()
         self._build_prompt_templates()
     
     @hookimpl

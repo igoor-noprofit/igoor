@@ -182,10 +182,10 @@ module.exports = {
   min-width: 220px;
   max-width: 320px;
   padding: 10px 12px;
-  background: #1d1d1d;
+  background: #fff;
   border: 1px solid #333;
   border-radius: 8px;
-  color: #ddd;
+  color: #000;
   font-size: 0.85em;
   line-height: 1.4;
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);

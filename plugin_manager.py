@@ -190,6 +190,35 @@ class MyAppSpec:
         """Hook to analyze or do other stuff with last conversation"""
         pass
 
+    @pluggy.HookspecMarker(app_name)
+    def get_current_speaker(self):
+        """Hook to get the current conversation's speaker as {speakers_id, name, method},
+        where `method` records how it was identified (1=auto, -1=manual topbar, -2=active
+        no-match, -3=deactivated; 0=manual post-hoc popup is written directly by
+        conversation.py and never returned here). speakers_id may be NULL. Used to persist
+        the speaker + identification path on the conversation thread at conversation end."""
+        pass
+
+    @pluggy.HookspecMarker(app_name)
+    def get_context_speaker(self):
+        """The speaker currently in context_manager['speaker_info'] as {speakers_id, name},
+        or None if unknown. Includes pre-warmed (uncommitted) speakers — use this to inject
+        per-speaker history into the LLM even before a conversation-scoped commit. Use
+        get_current_speaker (confirmed-only) for conversation attribution/freq."""
+        pass
+
+    @pluggy.HookspecMarker(app_name)
+    def get_speaker_name(self, speakers_id):
+        """Hook to resolve a speakers_id to the speaker's name (str), or None.
+        Used to label past conversations with their interlocutor."""
+        pass
+
+    @pluggy.HookspecMarker(app_name)
+    async def get_speaker_conversations(self, speakers_id, limit):
+        """Hook to get a speaker's past conversations as an XML string (per-speaker
+        history injection). None/'' if no speaker or no history."""
+        pass
+
     
     @pluggy.HookspecMarker(app_name)
     def reset_conversation_timeout(self):

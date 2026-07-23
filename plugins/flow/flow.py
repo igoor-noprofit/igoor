@@ -228,17 +228,27 @@ class Flow(Baseplugin):
         # Get last conversations for additional context
         last_conversations_result = await self.pm.trigger_hook(hook_name="get_last_conversations")
         last_conversations = last_conversations_result[0] if last_conversations_result and last_conversations_result[0] else ""
-        
+
+        # Per-speaker history injection: past conversations with the current speaker.
+        speaker_conversations = ""
+        try:
+            spk = next((r for r in (await self.pm.trigger_hook(hook_name="get_context_speaker") or []) if r and r.get("speakers_id")), None)
+            if spk:
+                speaker_conversations = next((r for r in (await self.pm.trigger_hook(hook_name="get_speaker_conversations", speakers_id=spk["speakers_id"], limit=5) or []) if r), "")
+        except Exception as e:
+            self.logger.warning(f"speaker_conversations lookup failed: {e}")
+
         system_prompt = self._flow_system_prompt
-        
+
         # Only pass dynamic vars (static ones are pre-filled via partial)
         prompt = self._flow_usr_pm.create_prompt(
             static_context='\n'.join(actual_filtered_results.get(0, [])),
             long_term='\n'.join(actual_filtered_results.get(1, [])),
             short_term='\n'.join(actual_filtered_results.get(2, [])),
-            dynamic_context=dynamic_context, 
+            dynamic_context=dynamic_context,
             conversation=conversation,
-            last_conversations=last_conversations
+            last_conversations=last_conversations,
+            speaker_conversations=speaker_conversations
         )
         
         print(f"FINAL PROMPT : {prompt}")
