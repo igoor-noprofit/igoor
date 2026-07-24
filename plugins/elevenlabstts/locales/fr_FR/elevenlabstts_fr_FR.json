@@ -47,5 +47,6 @@
     "Voice cloned successfully": "Voix clonée avec succès",
     "Failed to clone voice": "Échec du clonage de la voix",
     "No recorded voice available": "Aucune voix enregistrée disponible",
-    "Use your biorecorder voice samples to clone your voice": "Utiliser vos enregistrements vocaux du biorecorder pour cloner votre voix"
+    "Use your biorecorder voice samples to clone your voice": "Utiliser vos enregistrements vocaux du biorecorder pour cloner votre voix",
+    "Recorded voice: {current}s recorded, at least {min}s needed for a good clone": "Voix enregistrée : {current}s enregistrés, au moins {min}s nécessaires pour un bon clonage"
 }
