@@ -389,10 +389,53 @@ class Elevenlabstts(Baseplugin):
         except HTTPException:
             raise
         except Exception as e:
-            self.logger.error(f"Error cloning voice: {e}")
-            raise HTTPException(status_code=500, detail=f"Failed to clone voice: {str(e)}")
-    
+            self.logger.error(f"Error cloning voice: {e}", exc_info=True)
+            raise HTTPException(status_code=500, detail=self._extract_clone_error_message(e))
 
+    def _extract_clone_error_message(self, e: Exception) -> str:
+        """Return a human-readable message from an ElevenLabs clone error.
+
+        The ElevenLabs SDK wraps API errors as ApiError whose ``body`` is the
+        JSON envelope {"detail": {"message": ..., "status": ...}} (sometimes a
+        bare {"detail": "..."} string). Using str(e) directly surfaces that raw
+        JSON to the user (e.g. the "voice_limit_reached" quota error). This
+        pulls out the clean message instead. The full error is logged above.
+        """
+        import json as _json
+
+        def _from(obj):
+            if isinstance(obj, dict):
+                inner = obj.get("detail")
+                if isinstance(inner, dict):
+                    return inner.get("message") or inner.get("detail") or inner.get("status")
+                if isinstance(inner, str) and inner:
+                    return inner
+                return obj.get("message") or obj.get("detail")
+            if isinstance(obj, str) and obj:
+                return obj
+            # Typed/pydantic object: fall back to attribute access
+            inner = getattr(obj, "detail", None)
+            if isinstance(inner, dict):
+                return inner.get("message") or inner.get("status")
+            if isinstance(inner, str) and inner:
+                return inner
+            return getattr(obj, "message", None)
+
+        # SDK ApiError exposes .body (parsed); FastAPI HTTPException exposes .detail
+        for attr in ("body", "detail"):
+            msg = _from(getattr(e, attr, None))
+            if msg:
+                return str(msg)
+
+        # Last resort: try parsing the string form as JSON
+        try:
+            msg = _from(_json.loads(str(e)))
+            if msg:
+                return str(msg)
+        except (ValueError, TypeError):
+            pass
+
+        return "Failed to clone voice"
         
     @hookimpl
     def speak(self, message, skip_asr):

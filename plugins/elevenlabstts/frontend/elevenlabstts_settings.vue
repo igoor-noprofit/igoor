@@ -452,7 +452,7 @@ export default {
                 });
                 if (!response.ok) {
                     const err = await response.json();
-                    throw new Error(err.detail || 'Clone failed');
+                    throw new Error(err.detail || this.t('Failed to clone voice'));
                 }
                 const data = await response.json();
                 this.formData.voice_id = data.voice_id;
@@ -484,7 +484,7 @@ export default {
                 });
                 if (!response.ok) {
                     const err = await response.json();
-                    throw new Error(err.detail || 'Clone failed');
+                    throw new Error(err.detail || this.t('Failed to clone voice'));
                 }
                 const data = await response.json();
                 this.formData.voice_id = data.voice_id;
