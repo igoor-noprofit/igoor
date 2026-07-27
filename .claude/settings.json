@@ -26,7 +26,9 @@
       "Bash(git --no-pager diff llm_manager.py)",
       "Bash(git add *)",
       "Bash(git commit *)",
-      "Bash(git --no-pager log --oneline -3)"
+      "Bash(git --no-pager log --oneline -3)",
+      "Edit(/.claude/skills/add-language/**)",
+      "Bash(grep -rn --include=*.py -E \"^[[:space:]]*\\(import|from\\)[[:space:]]+\\(speechbrain|sherpa_onnx|spacy|pydub|openwakeword|fitz|pymupdf4llm|pymupdf|pypdf|nano_vectordb|gensim|tiktoken|websockets|websocket|pywinauto|comtypes|hid|pywinusb|sounddevice|soundfile|pyaudio|rapidfuzz|fuzzywuzzy|Levenshtein|torchaudio|resampy|markdown|weasyprint|moviepy|pyttsx3|pynndescent|umap|statsmodels|networkx|lxml|nltk|fastapi|uvicorn|starlette|matplotlib|seaborn|pydot|orjson|rich|typer|attrs|cffi\\)\\\\\\\\b\" plugins tools *.py)"
     ]
   }
 }
