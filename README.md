@@ -204,10 +204,7 @@ You should have received a copy of the GNU Affero General Public License along w
 
 ## ADDING A LANGUAGE
 
-### REQUIREMENTS
-For each plugin, check if the language is supported. Start by Sherpa-ONNX local model and Whisper models.
-For each LLM, check if the language is supported too.
-For TTS, check if the external model supports the language (Eleven Labs, Speechify etc.)
+We now have a Claude skill to help developers add a new language from scratch. Use it (it' in skills\add-language).
 
 ### PLUGINS
 
