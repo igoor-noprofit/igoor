@@ -8,12 +8,12 @@ Its interface makes it easy-to-use also via eye-tracking device.
 
 Take a look at the <a href="https://igoor.org/en">IGOOR website</a> for further infos about our core principles, values and software roadmap.
 
-<img src="https://igoor.org/wp-content/uploads/2026/03/igoor-flow-en.png" alt="screenshot of the dialogue flow inside IGOOR's app" width="720">
+<img src="https://igoor.org/img/igoor-tablet-flow-en.png" alt="screenshot of the dialogue flow inside IGOOR's app" width="720">
 
 IGOOR is developed by <a href="https://igoor.org" target="_blank">IGOOR not for profit organisation</a>, in partnership with <a href="https://www.arsla.org/">ARSLA</a>, based on an <a href="https://vimeo.com/980377339?fl=pl&fe=vl" target="_blank">original idea by Igor Novitzki</a>.
 The <a href="https://www.aphp.fr/hopitaux/hendaye" target="_blank">Hôpital Marin d'Hendaye</a> is also partnering to support the evaluation phase of the tool.
 <p>
-<a href="https://arsla.org" target="_blank"><img src="https://igoor.org/wp-content/uploads/2025/06/arsla-logo-principal-png-1536x1086-1.png" alt="logo ARSLA" width="250"></a></p>
+<a href="https://arsla.org" target="_blank"><img src="https://www.arsla.org/wp-content/uploads/2026/06/Logo320x150.png" alt="logo ARSLA" width="250"></a></p>
 
 ## DOCUMENTATION
 
@@ -198,7 +198,7 @@ IGOOR is free software: you can redistribute it and/or modify it under the terms
 
 Copyright (C) 2025-2026 Carlo Giordano, Igor Novitzki and the IGOOR not-for-profit organization (https://igoor.org). UX Designer: <a href="https://zenoid.it">Piero C.</a> 
 
-IGOOR is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+IGOOR is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
 
 You should have received a copy of the GNU Affero General Public License along with IGOOR.  If not, see <https://www.gnu.org/licenses/>.
 
