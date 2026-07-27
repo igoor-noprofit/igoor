@@ -120,11 +120,12 @@ For EACH plugin that has a `fr_FR` locale file, create the corresponding new lan
 | onboarding | `plugins/onboarding/locales/{LANG_CODE}/onboarding_{LANG_CODE}.json` |
 | rag | `plugins/rag/locales/{LANG_CODE}/rag_{LANG_CODE}.json` |
 | shortcuts | `plugins/shortcuts/locales/{LANG_CODE}/shortcuts_{LANG_CODE}.json` |
+| speakerid | `plugins/speakerid/locales/{LANG_CODE}/speakerid_{LANG_CODE}.json` |
 | speechifytts | `plugins/speechifytts/locales/{LANG_CODE}/speechifytts_{LANG_CODE}.json` |
 | translator | `plugins/translator/locales/{LANG_CODE}/translator_{LANG_CODE}.json` |
 | ttsdefault | `plugins/ttsdefault/locales/{LANG_CODE}/ttsdefault_{LANG_CODE}.json` |
 
-**Plugins with NO locale files (skip these)**: asrvosk, baseplugin, extkeyb, ramcpu, recorder, survey
+**Plugins with NO locale files (skip these)**: baseplugin, extkeyb, ramcpu, recorder, survey
 
 **Important notes**:
 - `clock` and `conversation` may have empty `{}` fr_FR files. Create matching empty objects.
@@ -192,7 +193,7 @@ If the language has no T-V distinction (like English), use an empty string `""`.
 
 Edit `plugins/onboarding/frontend/onboarding_component.vue`.
 
-Find the language `<select>` block (around lines 109-114):
+Find the language `<select>` block (around lines 115-118):
 ```html
 <select v-model="prefs.lang">
     <option value="fr_FR">{{ t("French") }}</option>
@@ -221,71 +222,128 @@ Also verify these exist in `locales/{LANG_CODE}/common_{LANG_CODE}.json`.
 
 ---
 
-## Step 7 — ASR / TTS Model Support Check
+## Step 7 — ASR / TTS / Voice / Translation Support Check
 
-Adding a new language requires verifying that ASR (speech recognition) and TTS (text-to-speech) models support it. Without these checks, the user could select a new language but have broken voice input/output.
+Adding a new language requires verifying that ASR (speech recognition), TTS (text-to-speech), and voice models support it. Without these checks, the user could select a new language but have broken voice input/output.
 
-### 7a. ASR — ASRVosk model availability
+> **Note**: `asrvosk` and its `vosk_models.json` no longer exist. Local ASR is now unified under the `asrjs` plugin (Sherpa-ONNX), so there is **no Vosk step**. Do not look for `vosk_models.json`.
 
-Read `plugins/asrvosk/vosk_models.json`. This file maps locale codes to Vosk model download URLs.
+### 7a. ASR — ASRJS Sherpa local model availability (ONNX)
 
-- If `{LANG_CODE}` already has an entry → OK, no action needed.
-- If `{LANG_CODE}` is **missing** → add an entry with the correct Vosk model URLs for the new language. Vosk models are available at https://alphacephei.com/vosk/models — find the appropriate model and add `small` and `big` entries following the existing pattern. If no Vosk model exists for the language, add a **warning** to the summary report noting that the ASRVosk plugin will crash with a `KeyError` for this language.
+This is the **local, offline** ASR engine. Sherpa-ONNX models are real ONNX files (`.onnx`) shipped inside a `.tar.bz2` archive that the app downloads on first use into the user-data folder (`plugins/asrjs/models/sherpa/<name>/`). The registry mapping each language to its archive is `plugins/asrjs/sherpa_models.json`.
 
-### 7b. ASR — ASRJS Sherpa local model availability
+**How the app picks a model** (see `_get_sherpa_model_info` in `plugins/asrjs/asrjs.py`):
+- `BASE_LANG` = first two chars of `LANG_CODE` (`es_ES` → `es`).
+- It looks up `catalog[BASE_LANG][<small|big>]` (size comes from the `sherpa_model_size` setting, default `small`).
+- If `BASE_LANG` is **not a key**, it silently uses the `_fallback` entry (`sherpa-onnx-whisper-tiny`, multilingual). So an unsupported language is **not broken** — it still transcribes — but accuracy drops and it runs as offline Whisper instead of a streaming zipformer.
 
-Read `plugins/asrjs/sherpa_models.json`. This maps base language codes (e.g. `"it"`, `"fr"`) to Sherpa-ONNX model info.
+**Step 1 — Check the registry.** Read `plugins/asrjs/sherpa_models.json`.
+- If `BASE_LANG` is already a top-level key → ✅ a native model exists; nothing to add. Skip to the URL check below to confirm it still resolves.
+- If `BASE_LANG` is **missing** → decide whether a dedicated model is worth adding (Step 2). If you add nothing, add a **warning** to the summary report: local Sherpa ASR will run on the multilingual `_fallback` (whisper-tiny) — functional but less accurate.
 
-- Compute `BASE_LANG` = first two characters of `LANG_CODE` (e.g. `es_ES` → `es`).
-- If `BASE_LANG` already has an entry → OK.
-- If `BASE_LANG` is **missing** → add an entry if Sherpa models exist for the language at https://github.com/k2-fsa/sherpa-onnx/releases . Follow the existing pattern (encoder/decoder/joiner/tokenizer filenames + URLs for small and big). If no Sherpa model exists, note a **warning**: Sherpa will fall back to the multilingual Whisper tiny model (less accurate).
+**Step 2 — If adding an entry, use the correct schema.** There are two model families; `_load_sherpa_model` branches on `model_info.get("type") == "whisper"`. Pick the wrong shape and the model fails to load **silently**:
 
-### 7c. ASR — ASRJS Groq/Mistral (cloud)
+- **Streaming zipformer transducer** (preferred — real-time; the `en`/`fr`/`ko`/`zh` entries). **No `"type"` field**; third file is `"joiner"`:
+  ```json
+  "es": {
+    "small": {
+      "name": "sherpa-onnx-streaming-zipformer-es-<date>",
+      "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-zipformer-es-<date>.tar.bz2",
+      "size": "<approx>",
+      "encoder": "encoder-...int8.onnx",
+      "decoder": "decoder-...onnx",
+      "joiner": "joiner-...int8.onnx"
+    },
+    "big": { "..." : "..." }
+  }
+  ```
+- **Whisper (offline, multilingual)** (the `it` entry and `_fallback`). **Must include `"type": "whisper"`**; third file is `"tokens"` (a `.txt`), not `joiner`:
+  ```json
+  "es": {
+    "small": {
+      "name": "sherpa-onnx-whisper-tiny", "url": "...", "size": "75M",
+      "type": "whisper",
+      "encoder": "tiny-encoder.int8.onnx", "decoder": "tiny-decoder.int8.onnx", "tokens": "tiny-tokens.txt"
+    }
+  }
+  ```
+
+Find a real model on the sherpa-onnx releases page (https://github.com/k2-fsa/sherpa-onnx/releases, `asr-models` assets) or the k2-fsa sherpa pretrained-models docs. Prefer a **streaming zipformer** for the language if one exists; otherwise reuse the multilingual `sherpa-onnx-whisper-tiny`/`-base` (already covered by `_fallback`, so adding explicitly is optional). Copy the `encoder`/`decoder`/`joiner`(or `tokens`) filenames **exactly** from the archive's contents — they vary per model.
+
+**Step 3 — Verify the archive URL resolves before committing the entry.** The `.tar.bz2` at `url` is what gets downloaded at runtime (`_ensure_sherpa_model_downloaded`); a 404 fails the download silently. HEAD-check every `url` (small and big) you add or rely on:
+```bash
+curl -sILo /dev/null -w "%{http_code}\n" "<url>"
+```
+Expect `200` (302 redirects to the GitHub object-storage CDN are fine — `-L` follows them). If it returns `404`, the model name/date is wrong: do **not** add the entry, and note the failed URL in the summary report.
+
+### 7b. ASR — ASRJS Groq/Mistral (cloud)
 
 No action needed. Both Groq Whisper and Mistral Voxtral are cloud-based multilingual models. They accept a `language` parameter at transcription time and support most languages natively.
 
-### 7d. ASR — Wakeword model
+### 7c. ASR — Wakeword model
 
 Check if `plugins/asrjs/locales/{LANG_CODE}/hey_igoor_{LANG_CODE}.onnx` exists.
 
 - If it exists → OK.
 - If it **does not exist** → add a **warning** to the summary report: wakeword detection ("Hey IGOOR") will not work for this language. The user can disable wakeword in ASRJS settings as a workaround.
 
-### 7e. TTS — Speechify language support
+### 7d. TTS — Speechify language support
 
-Read `plugins/speechifytts/speechifytts.py`. Find the `supported_lang` list in the `startup()` method (search for `supported_lang`).
+Read `plugins/speechifytts/speechifytts.py`. Find the `supported_lang` list in the `startup()` method (around line 88, search for `supported_lang`).
 
 - Compute `SPEECHIFY_LANG`: convert `LANG_CODE` to Speechify format — use `fr-FR` style (hyphen, proper casing). For example: `es_ES` → `es-ES`, `pt_PT` → `pt-PT`, `en_EN` → `en`.
 - If `SPEECHIFY_LANG` is in the list → OK.
 - If **missing** → add it to the `supported_lang` list. This prevents the "language not supported" warning and enables voice filtering for the new language.
 
-### 7f. TTS — ElevenLabs
+### 7e. TTS — ElevenLabs
 
 No code change needed. All ElevenLabs models (`eleven_multilingual_v2`, `eleven_turbo_v2_5`, `eleven_flash_v2_5`, `eleven_v3`) are multilingual. The user must manually select a voice that supports the new language from their ElevenLabs account. Add a **note** to the summary report reminding the user to pick an appropriate voice.
 
-### 7g. TTS — Default (SAPI)
+### 7f. TTS — Default (SAPI)
 
 No code change needed. Uses Windows system voices. Add a **note** to the summary report that the user must have a TTS voice installed for the new language in Windows Settings → Speech → Manage voices.
 
-### Summary of ASR/TTS actions
+### 7g. Voice — Speaker ID
+
+No model change needed. Speaker recognition (the `speakerid` plugin) is **language-independent** — it compares voice biometrics, not speech content, and the underlying speechbrain model works for any language. Only the plugin's UI strings (Step 2) need translation.
+
+### 7h. Translation — Translator interlocutor-language dropdown
+
+The translation **engine** needs no change: the `translator` plugin is just a settings container, and the actual translation runs through `Baseplugin.translate_for_interlocutor()` via the multilingual LLM (`plugins/baseplugin/baseplugin.py`). It works for any language.
+
+The gap is **UI selectability only**. The "Interlocutor's Language" picker in `plugins/translator/frontend/translator_settings.vue` is a **hardcoded `<select>`** (French/English/Italian/Spanish/German/Portuguese, plus commented-out entries marked "not yet directly testable"). A new language cannot be chosen as the interlocutor's language unless an `<option>` is added there. This list is **hand-curated by testability — do NOT edit it automatically.**
+
+**Check and flag (do not edit):**
+1. Open `plugins/translator/frontend/translator_settings.vue` and search for `value="{LANG_NAME}"`.
+   - The `value` is the **English language name** (e.g. `Spanish`), NOT the locale code — it is passed straight to the LLM as `target_lang` (`translator_settings.get("interlocutor_language")`).
+2. If the option **already exists** → OK.
+3. If it is **missing** → add a line to the summary report (under a "Manual follow-up" note):
+   > To enable interlocutor translation for **{LANG_NAME}**, add to `plugins/translator/frontend/translator_settings.vue`:
+   > `<option value="{LANG_NAME}">{{ t("{LANG_NAME}") }}</option>`
+   > (and add the `"{LANG_NAME}"` key to `plugins/translator/locales/*/*.json` locale files so the label displays translated; English fallback applies otherwise.)
+
+Leave the enable/curate decision to the human.
+
+### Summary of ASR/TTS/voice/translation actions
 
 | Component | Action needed | Breaking? |
 |-----------|--------------|-----------|
-| ASRVosk | Add entry to `vosk_models.json` | **Yes** — crashes without it |
-| ASRJS Sherpa | Add entry to `sherpa_models.json` | No — falls back to multilingual |
+| ASRJS Sherpa | Add entry to `sherpa_models.json` + verify `.tar.bz2` URL resolves (HEAD 200) | No — falls back to multilingual |
 | ASRJS Groq/Mistral | None | No |
 | Wakeword model | Provide `.onnx` file | Only if wakeword enabled |
 | Speechify TTS | Add to `supported_lang` list | No — warns but continues |
 | ElevenLabs TTS | None (user picks voice) | No |
 | Default TTS (SAPI) | None (system voices) | No |
+| Speaker ID | None (language-independent voice biometrics) | No |
+| Translator (interlocutor lang) | Flag missing `<option>` in `translator_settings.vue` for manual add (do not auto-edit) | No — LLM engine is multilingual; only UI selectability |
 
 ---
 
-## Step 9 — Validate Completeness
+## Step 8 — Validate Completeness
 
 After all files are created, run these validation checks:
 
-### 7a. Key count comparison
+### 8a. Key count comparison
 
 For EACH plugin translation file, compare key counts:
 ```bash
@@ -300,7 +358,7 @@ if len(fr) != len(new): print(f'  MISMATCH!')
 
 Every file must have the SAME number of keys as its `fr_FR` counterpart.
 
-### 7b. Key match verification
+### 8b. Key match verification
 
 Verify no missing or extra keys:
 ```bash
@@ -316,7 +374,7 @@ if not missing and not extra: print(f'  OK')
 "
 ```
 
-### 7c. JSON syntax validation
+### 8c. JSON syntax validation
 
 Validate ALL created JSON files parse correctly:
 ```bash
@@ -332,14 +390,14 @@ for f in sorted(files):
 "
 ```
 
-### 7d. Python syntax check
+### 8d. Python syntax check
 
 Verify `settings_manager.py` is still valid:
 ```bash
 python -m py_compile settings_manager.py
 ```
 
-### 7e. Biorecorder questions structure validation
+### 8e. Biorecorder questions structure validation
 
 Verify the questions file matches the English source structure:
 ```bash
@@ -358,7 +416,7 @@ for cat in en:
 
 ---
 
-## Step 10 — Summary Report
+## Step 9 — Summary Report
 
 After all files are created and validated, report:
 
@@ -366,13 +424,13 @@ After all files are created and validated, report:
 2. **Files modified**: list `settings_manager.py`, `onboarding_component.vue`, and any ASR/TTS config files changed
 3. **Key counts**: table comparing key counts per plugin between `fr_FR` and the new language
 4. **Total translations**: sum of all individual string translations made
-5. **ASR/TTS compatibility report**:
-   - ASRVosk: model available? entry added to `vosk_models.json`?
-   - ASRJS Sherpa: model available? entry added to `sherpa_models.json`?
+5. **ASR/TTS/voice/translation compatibility report**:
+   - ASRJS Sherpa: native model available? entry added to `sherpa_models.json`? `.tar.bz2` URL verified to resolve (HEAD 200)?
    - Wakeword: `.onnx` file available?
    - Speechify: language added to `supported_lang`?
    - ElevenLabs: reminder to pick a compatible voice
    - Default TTS (SAPI): reminder to install a system voice
+   - Translator (interlocutor lang): present in `translator_settings.vue` dropdown? if missing → flag the exact `<option value="{LANG_NAME}">` line for manual add
 6. **Any warnings**: missing models, empty locale files, potential issues, validation failures
 
 ---
