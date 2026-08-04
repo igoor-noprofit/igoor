@@ -3,7 +3,7 @@ import langchain
 langchain.debug = True  # Enable debug mode for LangChain
 import os, time
 from settings_manager import SettingsManager
-from utils import setup_logger, setup_jsonl_logger
+from utils import setup_logger, setup_jsonl_logger, get_appdata_dir
 from langchain_openai import ChatOpenAI
 
 
@@ -22,7 +22,7 @@ PROVIDER_BASE_URLS = {
 class LLMManager:
     def __init__(self, provider, api_key, model_name, base_url=None, **kwargs):
         # Setup logger
-        self.logger = setup_logger('llm_manager', os.path.join(os.getenv('APPDATA'), __appname__))
+        self.logger = setup_logger('llm_manager', get_appdata_dir())
 
         self.global_settings = SettingsManager()
         ai = self.global_settings.get_nested(["plugins", "onboarding", "ai"], default={})
@@ -64,7 +64,7 @@ class LLMManager:
         self.json_schema = False
 
         # Setup dedicated logger for LLM invocations
-        self.invocation_logger = setup_jsonl_logger('llm_invocations', os.path.join(os.getenv('APPDATA'), __appname__))
+        self.invocation_logger = setup_jsonl_logger('llm_invocations', get_appdata_dir())
 
     def _create_chat(self):
         """Create a chat instance using OpenAI SDK with configurable base_url."""
