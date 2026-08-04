@@ -1,5 +1,6 @@
 {
     "timeout": "180000",
     "warning_time": "30000",
-    "last_conversations_count": 20
+    "last_conversations_count": 20,
+    "speaker_conversations_count": 20
 }
