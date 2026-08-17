@@ -454,8 +454,8 @@ export default {
                     model: "v5",
                     // Model files are in /plugins/asrjs/static/vad/
                     baseAssetPath: "/plugins/asrjs/static/vad/",
-                    // ONNX Runtime WASM binaries served from CDN (matching ort.js v1.22.0)
-                    onnxWASMBasePath: "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/",
+                    // ONNX Runtime WASM binaries served locally (mirrors onnxruntime-web@1.22.0 dist)
+                    onnxWASMBasePath: "/plugins/asrjs/static/vad/ort-wasm/",
 
                     // Don't start listening until user clicks mic
                     startOnLoad: false,
