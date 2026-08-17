@@ -489,7 +489,7 @@ export default {
         },
         async fetchCustomModels() {
             try {
-                const response = await fetch('http://127.0.0.1:9714/api/plugins/asrjs/list_custom_wakeword_models');
+                const response = await fetch('/api/plugins/asrjs/list_custom_wakeword_models');
                 const result = await response.json();
                 if (result.models) {
                     this.customModels = result.models;
@@ -506,7 +506,7 @@ export default {
             formData.append('file', file);
 
             try {
-                const response = await fetch('http://127.0.0.1:9714/api/plugins/asrjs/upload_wakeword_model', {
+                const response = await fetch('/api/plugins/asrjs/upload_wakeword_model', {
                     method: 'POST',
                     body: formData
                 });

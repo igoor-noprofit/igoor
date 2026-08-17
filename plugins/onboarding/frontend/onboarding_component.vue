@@ -721,11 +721,9 @@ export default {
         async exportUserData() {
             this.isExporting = true;
             try {
-                const api = await window.ensureBackendApi();
-                
                 // In pywebview, programmatic downloads don't work.
                 // Use window.open() to let pywebview handle the download.
-                const baseUrl = api.isBridgeAvailable ? window.location.origin : 'http://localhost:9714';
+                const baseUrl = window.location.origin;
                 const exportUrl = `${baseUrl}/api/data/export?include_rag=true`;
                 
                 window.open(exportUrl, '_blank');

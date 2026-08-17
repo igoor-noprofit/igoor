@@ -1,6 +1,6 @@
 // console.log('BasePluginComponent is being imported');
 const WebSocketUtil = require("./WebSocketUtil.js");
-const BASE_WS_URL = "ws://127.0.0.1:9714/ws/"; // Base WebSocket URL
+const BASE_WS_URL = `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}/ws/`; // Base WebSocket URL, derived from the serving host so remote browsers connect back to it
 
 const BasePluginComponent = {
   props: {
