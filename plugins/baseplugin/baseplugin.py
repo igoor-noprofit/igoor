@@ -3,7 +3,7 @@ from settings_manager import SettingsManager
 from status_manager import StatusManager
 from plugin_manager import hookimpl, PluginManager
 from websocket_server import websocket_server
-import os,json,asyncio
+import os,json,asyncio,base64,uuid,time
 from pathlib import Path
 from datetime import datetime
 from utils import resource_path
@@ -271,6 +271,69 @@ class Baseplugin:
         """
         success = await self.wait_for_socket_and_send(message, 'app')
         return success
+
+    def is_remote_ui(self) -> bool:
+        """
+        True when IGOOR runs headless (IGOOR_CLI=True): a browser is the UI,
+        so audio/TTS must be delivered to it instead of played on the PC.
+        """
+        return os.getenv("IGOOR_CLI", "False").lower() == "true"
+
+    async def stream_audio_to_frontend(self, audio_chunks, mime: str = "audio/mpeg") -> bool:
+        """
+        Streams audio chunks to the browser as they are produced (MediaSource
+        playback on the app websocket). Only TTS engines that can produce
+        audio bytes should call this (never SAPI/ttsdefault).
+        :param audio_chunks: iterable/iterator of bytes
+        :return: False when no browser is connected (caller falls back to local playback)
+        """
+        if not websocket_server.is_socket_open('app'):
+            self.logger.warning("No browser connected on the app websocket: cannot stream audio")
+            return False
+
+        if not hasattr(self, "_playback_done"):
+            self._playback_done = asyncio.Event()
+        self._playback_done.clear()
+
+        stream_id = uuid.uuid4().hex
+        await self.send_message_to_app({"play_stream": {"id": stream_id, "mime": mime}})
+
+        started = None
+        sent = 0
+        for chunk in audio_chunks:
+            if not websocket_server.send_bytes('app', bytes(chunk)):
+                self.logger.error("Failed to stream an audio chunk to the browser")
+                await self.send_message_to_app({"play_stream_end": {"id": stream_id, "aborted": True}})
+                return False
+            if started is None:
+                started = time.time()
+                self.logger.info(f"TTS stream {stream_id}: first chunk sent")
+            sent += 1
+        if started is not None:
+            self.logger.info(f"TTS stream {stream_id}: last chunk sent ({sent} chunks, {time.time() - started:.2f}s of streaming)")
+
+        await self.send_message_to_app({"play_stream_end": {"id": stream_id}})
+        await self.wait_playback_finished(timeout=30)
+        return True
+
+    def _on_playback_finished(self):
+        event = getattr(self, "_playback_done", None)
+        if event is not None and not event.is_set():
+            event.set()
+
+    async def wait_playback_finished(self, timeout: float = 30.0) -> bool:
+        """
+        Waits until the frontend acknowledges the end of audio playback
+        (tts_playback_finished hook) or the timeout expires.
+        """
+        if not hasattr(self, "_playback_done"):
+            self._playback_done = asyncio.Event()
+        try:
+            await asyncio.wait_for(self._playback_done.wait(), timeout=timeout)
+            return True
+        except asyncio.TimeoutError:
+            self.logger.warning(f"Browser playback ack not received within {timeout}s - continuing anyway")
+            return False
     
     def handle_llm_error(self, llm_response):
         """
