@@ -58,6 +58,11 @@ a = Analysis(
         'groq',
         'sherpa_onnx',
         'openwakeword',
+        # localtts plugin (Audio8 ONNX TTS): dynamically imported by the plugin
+        # loader, so PyInstaller's scan of main.py never sees them
+        'onnxruntime',
+        'tokenizers',
+        'soundfile',
 
         # === CORE SENTENCE TRANSFORMERS (Required) ===
         'sentence_transformers',

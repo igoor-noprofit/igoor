@@ -1,0 +1,6 @@
+{
+    "voice": "default",
+    "threads": 5,
+    "temperature": 0.7,
+    "max_new_tokens": 800
+}

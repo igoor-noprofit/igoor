@@ -1,0 +1,13 @@
+{
+    "category": "TTS",
+    "title": "Local TTS (Audio8)",
+    "description": "On-device text-to-speech with the Audio8 0.1B model: offline after download, multilingual, zero-shot voice cloning",
+    "layout": {
+        "part": "topbar",
+        "order": 5
+    },
+    "is_free": true,
+    "requires_subscription": false,
+    "requires_internet": true,
+    "has_settings": true
+}
