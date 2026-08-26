@@ -182,3 +182,10 @@ js/app.js
 js/app.vue
 /.factory
 .factory/skills/igoor-plugin-development/SKILL.md
+# Audio8 feasibility spike artifacts (heavy: model, cloned repo, side-by-side ort)
+spikes/audio8/model/
+spikes/audio8/Audio8_TTS/
+spikes/audio8/ort123/
+spikes/audio8/voices/
+spikes/audio8/outputs/
+spikes/audio8/__pycache__/
