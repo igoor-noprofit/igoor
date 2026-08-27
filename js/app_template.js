@@ -224,6 +224,11 @@ async function initializeApp() {
         }
         if (stream.objectUrl) URL.revokeObjectURL(stream.objectUrl);
         if (stream.completionTimer) clearTimeout(stream.completionTimer);
+        try {
+          if (stream.pcm && stream.pcm.ctx) stream.pcm.ctx.close();
+        } catch (e) {
+          // audio context already closed
+        }
       },
       $_startAudioStream(spec) {
         this.$_stopAudioStream();
@@ -240,9 +245,16 @@ async function initializeApp() {
           audio: null,
           objectUrl: null,
           chunks: null,
+          pcm: null,
         };
         this.audioStream = stream;
-        if (window.MediaSource && MediaSource.isTypeSupported(spec.mime)) {
+        const pcmRate = this.$_pcmRate(spec.mime);
+        if (pcmRate) {
+          // Raw PCM chunks play through WebAudio: MediaSource has no PCM/WAV
+          // support, and waiting for the whole clip would forfeit the point
+          // of streaming generation.
+          stream.pcm = { rate: pcmRate, ctx: null, nextTime: 0 };
+        } else if (window.MediaSource && MediaSource.isTypeSupported(spec.mime)) {
           stream.mediaSource = new MediaSource();
           stream.objectUrl = URL.createObjectURL(stream.mediaSource);
           stream.mediaSource.addEventListener("sourceopen", () => {
@@ -265,12 +277,65 @@ async function initializeApp() {
       $_onAudioStreamChunk(data) {
         const stream = this.audioStream;
         if (!stream) return;
+        if (stream.pcm) {
+          this.$_schedulePcmChunk(stream, data);
+          return;
+        }
         if (stream.chunks) {
           stream.chunks.push(data);
           return;
         }
         stream.queue.push(data);
         this.$_pumpAudioQueue(stream);
+      },
+      $_pcmRate(mime) {
+        if (!mime || !mime.startsWith("audio/pcm")) return 0;
+        const match = /rate=(\d+)/.exec(mime);
+        return match ? parseInt(match[1], 10) : 44100;
+      },
+      $_schedulePcmChunk(stream, data) {
+        const pcm = stream.pcm;
+        try {
+          if (!pcm.ctx) {
+            const Ctx = window.AudioContext || window.webkitAudioContext;
+            pcm.ctx = new Ctx({ sampleRate: pcm.rate });
+          }
+          const ctx = pcm.ctx;
+          if (ctx.state === "suspended") ctx.resume().catch(() => {});
+          const samples = new Int16Array(data);
+          if (!samples.length) return;
+          const buffer = ctx.createBuffer(1, samples.length, pcm.rate);
+          const channel = buffer.getChannelData(0);
+          for (let i = 0; i < samples.length; i++) channel[i] = samples[i] / 32768;
+          const source = ctx.createBufferSource();
+          source.buffer = buffer;
+          source.connect(ctx.destination);
+          // The preroll keeps a safety margin; clamping to currentTime heals
+          // underruns when chunks arrive slower than playback (RTF > 1).
+          const startAt = Math.max(ctx.currentTime + 0.12, pcm.nextTime);
+          source.start(startAt);
+          pcm.nextTime = startAt + buffer.duration;
+          if (!stream.started) {
+            stream.started = true;
+            const ensureCompletion = () => {
+              if (this.audioStream !== stream || stream.confirmedPlaying) return;
+              stream.confirmedPlaying = true;
+              this.$_scheduleStreamCompletion(stream);
+            };
+            if (ctx.state === "running") {
+              ensureCompletion();
+            } else {
+              // Autoplay blocked: retry the resume on the next user gesture
+              document.addEventListener("pointerdown", () => {
+                if (this.audioStream === stream && stream.pcm && stream.pcm.ctx) {
+                  stream.pcm.ctx.resume().then(ensureCompletion).catch(() => {});
+                }
+              }, { once: true });
+            }
+          }
+        } catch (e) {
+          console.error("PCM scheduling error:", e);
+        }
       },
       $_pumpAudioQueue(stream) {
         if (!stream.sourceBuffer || stream.sourceBuffer.updating) return;
@@ -305,6 +370,10 @@ async function initializeApp() {
           return;
         }
         stream.ended = true;
+        if (stream.pcm) {
+          this.$_scheduleStreamCompletion(stream);
+          return;
+        }
         if (stream.chunks) {
           const blob = new Blob(stream.chunks, { type: stream.mime });
           stream.objectUrl = URL.createObjectURL(blob);
@@ -338,10 +407,27 @@ async function initializeApp() {
         // Infinity while appending and the final timeupdate lands before the end),
         // so guarantee the completion ack with a timer once duration is known.
         // onended/onerror remain the instant fast paths when the browser fires them.
+        // The PCM path has no audio element: poll the AudioContext clock instead.
         if (stream.completionTimer) return;
         const check = () => {
           stream.completionTimer = null;
-          if (this.audioStream !== stream || !stream.audio) return;
+          if (this.audioStream !== stream) return;
+          if (stream.pcm) {
+            if (!stream.pcm.ctx) {
+              // no chunk ever arrived - nothing to play, ack immediately
+              this.$_notifyPlaybackFinished(stream);
+              return;
+            }
+            if (!stream.ended) {
+              // more audio may still arrive
+              stream.completionTimer = setTimeout(check, 250);
+              return;
+            }
+            const remaining = Math.max(0, stream.pcm.nextTime - stream.pcm.ctx.currentTime) * 1000 + 400;
+            stream.completionTimer = setTimeout(() => this.$_notifyPlaybackFinished(stream), remaining);
+            return;
+          }
+          if (!stream.audio) return;
           const audio = stream.audio;
           let end = isFinite(audio.duration) && audio.duration > 0 ? audio.duration : 0;
           if (end === 0 && stream.sourceBuffer && stream.sourceBuffer.buffered.length > 0) {
@@ -366,6 +452,11 @@ async function initializeApp() {
         this.audioStream = null;
         if (stream.objectUrl) URL.revokeObjectURL(stream.objectUrl);
         if (stream.completionTimer) clearTimeout(stream.completionTimer);
+        try {
+          if (stream.pcm && stream.pcm.ctx) stream.pcm.ctx.close();
+        } catch (e) {
+          // audio context already closed
+        }
         fetch("/api/hooks/tts_playback_finished", {
           method: "POST",
           headers: { "Content-Type": "application/json" },

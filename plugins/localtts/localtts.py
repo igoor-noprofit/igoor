@@ -5,12 +5,16 @@ import asyncio
 import json
 import io
 import os
+import re
+import time
+import uuid
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 from typing import Optional
 import numpy as np
 import sounddevice as sd
 import soundfile as sf
 
+from websocket_server import websocket_server
 from plugins.localtts.audio8_runtime import Audio8Runtime
 
 MODEL_REPO = "Audio8/audio8-TTS-0.1B-ONNX-INT8"
@@ -230,6 +234,45 @@ class Localtts(Baseplugin):
         sd.play(audio_array, samplerate=self.runtime.sample_rate)
         sd.wait()
 
+    def _pcm16_bytes(self, audio: np.ndarray) -> bytes:
+        audio_array = np.clip(audio, -1.0, 1.0)
+        return (audio_array * 32767).astype(np.int16).tobytes()
+
+    def _stream_speech_chunks(self, message):
+        """Blocking generator: int16 PCM chunks, one per sentence, so playback
+        starts after the first sentence while the rest is still generating
+        (same idiom as the elevenlabstts streaming generator). Whole-sentence
+        decode keeps the exact batch quality: the codec decoder gets cold
+        transients when fed partial windows, and the validated sliding-window
+        streaming decode costs >10x realtime on CPU."""
+        for sentence in self._split_sentences(message):
+            audio, _ = self.runtime.synthesize(
+                text=sentence,
+                voice=self.settings.get("voice", "default"),
+                max_new_tokens=int(self.settings.get("max_new_tokens", 800)),
+                temperature=float(self.settings.get("temperature", 0.7)),
+            )
+            yield self._pcm16_bytes(audio)
+
+    @staticmethod
+    def _split_sentences(text):
+        sentences = re.split(r"(?<=[.!?…])\s+", text.strip())
+        return [s for s in sentences if s]
+
+    def _play_audio_stream(self, chunks) -> None:
+        """Local playback of a chunk stream; blocks until the last chunk is
+        written and drained."""
+        stream = sd.OutputStream(
+            samplerate=self.runtime.sample_rate, channels=1, dtype="int16"
+        )
+        stream.start()
+        try:
+            for chunk in chunks:
+                stream.write(np.frombuffer(chunk, dtype=np.int16))
+        finally:
+            stream.stop()
+            stream.close()
+
     def _wav_bytes(self, audio: np.ndarray) -> bytes:
         buffer = io.BytesIO()
         sf.write(buffer, np.clip(audio, -1.0, 1.0), self.runtime.sample_rate, format="WAV", subtype="PCM_16")
@@ -298,6 +341,58 @@ class Localtts(Baseplugin):
             print(f"An unexpected error occurred: {e}")
             await self.call_fallback(message=message)
 
+    async def _stream_speech_to_frontend(self, message) -> bool:
+        """Streams PCM chunks to the browser while generation runs. Synthesis
+        happens in a worker thread (each sentence blocks for seconds) so the
+        event loop stays free; the websocket protocol matches
+        Baseplugin.stream_audio_to_frontend (play_stream/chunks/end + ack)."""
+        if not websocket_server.is_socket_open('app'):
+            self.logger.warning("No browser connected on the app websocket: cannot stream audio")
+            return False
+        if not hasattr(self, "_playback_done"):
+            self._playback_done = asyncio.Event()
+        self._playback_done.clear()
+
+        stream_id = uuid.uuid4().hex
+        await self.send_message_to_app(
+            {"play_stream": {"id": stream_id, "mime": f"audio/pcm16;rate={self.runtime.sample_rate}"}}
+        )
+
+        failure = threading.Event()
+
+        def produce():
+            started = None
+            sent = 0
+            try:
+                for chunk in self._stream_speech_chunks(message):
+                    if not websocket_server.send_bytes('app', chunk):
+                        failure.set()
+                        return
+                    if started is None:
+                        started = time.time()
+                        self.logger.info(f"TTS stream {stream_id}: first chunk sent")
+                    sent += 1
+                if started is not None:
+                    self.logger.info(
+                        f"TTS stream {stream_id}: last chunk sent ({sent} chunks, "
+                        f"{time.time() - started:.2f}s of streaming)"
+                    )
+            except Exception as e:
+                self.logger.error(f"TTS streaming failed: {e}")
+                failure.set()
+
+        producer = threading.Thread(target=produce, daemon=True)
+        producer.start()
+        while producer.is_alive():
+            await asyncio.sleep(0.1)
+        await self.send_message_to_app(
+            {"play_stream_end": {"id": stream_id, "aborted": failure.is_set()}}
+        )
+        if failure.is_set():
+            return False
+        await self.wait_playback_finished(timeout=30)
+        return True
+
     async def speak_func(self, message, skip_asr=False):
         try:
             if self.runtime is None or self.model_state != "ready":
@@ -308,20 +403,12 @@ class Localtts(Baseplugin):
             # an open mic would feed back into the conversation
             await self.pm.trigger_hook(hook_name="pause_asr")
             await asyncio.sleep(0.1)
-            audio, _ = await asyncio.to_thread(
-                self.runtime.synthesize,
-                text=message,
-                voice=self.settings.get("voice", "default"),
-                max_new_tokens=int(self.settings.get("max_new_tokens", 800)),
-                temperature=float(self.settings.get("temperature", 0.7)),
-            )
             if self.is_remote_ui():
-                wav = self._wav_bytes(audio)
-                streamed = await self.stream_audio_to_frontend([wav], "audio/wav")
+                streamed = await self._stream_speech_to_frontend(message)
                 if not streamed:
-                    await asyncio.to_thread(self._play_audio, audio)
+                    await asyncio.to_thread(self._play_audio_stream, self._stream_speech_chunks(message))
             else:
-                await asyncio.to_thread(self._play_audio, audio)
+                await asyncio.to_thread(self._play_audio_stream, self._stream_speech_chunks(message))
             self.run_restart_asr(force_ready=skip_asr)
             return True
         except Exception as e:
