@@ -1,0 +1,7 @@
+{
+    "voice": "auto",
+    "custom_voice_path": "",
+    "use_24l": false,
+    "temp": 0.7,
+    "eos_threshold": -4.0
+}
