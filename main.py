@@ -285,10 +285,27 @@ def on_loaded():
         logger.error("Window object is None! Cannot proceed with evaluate_js")
         return False
         
-    # Attempt to bootstrap front-end readiness
+    # Attempt to bootstrap front-end readiness. on_loaded fires on DOM load,
+    # which can precede the Vue app mounting when boot is slow (models loading,
+    # cold caches): the one-shot optional-chained call then silently no-ops,
+    # the app websocket never opens and the gui_ready hookimpls (including
+    # conversation's readiness) wait forever. Poll until the frontend has
+    # actually exposed readypy before dispatching.
     try:
+        waited = 0
+        while waited < 60:
+            try:
+                mounted = bool(window.evaluate_js("typeof window.app?.readypy === 'function'"))
+            except Exception:
+                mounted = False
+            if mounted:
+                break
+            if waited == 0:
+                logger.info("Frontend not mounted yet, waiting for window.app.readypy ...")
+            time.sleep(1)
+            waited += 1
         window.evaluate_js("window.app?.readypy?.();")
-        logger.info("✓ readypy invocation dispatched")
+        logger.info(f"✓ readypy invocation dispatched (waited {waited}s for frontend mount)")
     except Exception as e:
         logger.error(f"Failed to invoke readypy: {e}")
     
