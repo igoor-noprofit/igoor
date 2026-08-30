@@ -143,7 +143,9 @@ class Audio8Runtime:
 
     def __init__(self, model_dir: Path, voices_dir: Path, threads: int | None = 5):
         self.model_dir = Path(model_dir).resolve()
-        self.manifest = json.loads((self.model_dir / "runtime_manifest.json").read_text())
+        self.manifest = json.loads(
+            (self.model_dir / "runtime_manifest.json").read_text(encoding="utf-8")
+        )
         self.threads = threads
         self.sample_rate = int(self.manifest["sample_rate"])
         self.slow = _session(self.model_dir / self.manifest["slow_decode_model"], threads)
@@ -403,7 +405,7 @@ class Audio8Runtime:
         if not name or len(name) > 64 or name in {".", ".."} or Path(name).name != name:
             raise ValueError("voice name must be one path component with at most 64 characters")
         registration_manifest = json.loads(
-            (self.model_dir / "registration" / "registration_manifest.json").read_text()
+            (self.model_dir / "registration" / "registration_manifest.json").read_text(encoding="utf-8")
         )
         target_rate = int(registration_manifest["sample_rate"])
 
