@@ -7,11 +7,15 @@ from fastapi import Form
 from pydantic import BaseModel
 import asyncio
 import os
+import sys
 import threading
 import time
 import json
+import uuid
 import numpy as np
 import sounddevice as sd
+
+from websocket_server import websocket_server
 
 # ── Language mapping ────────────────────────────────────────────────────
 IGOOR_LANG_TO_POCKETTTS = {
@@ -330,13 +334,30 @@ class Pockettts(Baseplugin):
         (None, None) if the variant isn't on Drive or the download fails (caller
         falls back to HF). Idempotent: gdown resume= skips files already present.
         """
+        lang_dir = os.path.join(self._get_models_dir(), tts_language)
+        os.makedirs(lang_dir, exist_ok=True)
+
+        # The folder contains model.safetensors + tokenizer.model at its root
+        # (plus an embeddings/ subdir of preset voices).
+        local_files = {
+            "model": os.path.join(lang_dir, "model.safetensors"),
+            "tokenizer": os.path.join(lang_dir, "tokenizer.model"),
+        }
+        missing = [k for k, p in local_files.items()
+                   if not (os.path.isfile(p) and os.path.getsize(p) > 0)]
+
+        if not missing:
+            # Never re-query Drive when the files are already on disk: the
+            # folder listing itself fails often enough (rate limits) that it
+            # would discard a perfectly good local model.
+            return local_files, lang_dir
+
         folder_url = self._resolve_drive_folder(tts_language)
         if folder_url is None:
             return None, None
 
         import gdown
-        lang_dir = os.path.join(self._get_models_dir(), tts_language)
-        os.makedirs(lang_dir, exist_ok=True)
+
         try:
             self.logger.info(f"Downloading '{tts_language}' from Google Drive → {lang_dir}")
             # resume=True skips already-downloaded files (idempotent reloads).
@@ -347,12 +368,6 @@ class Pockettts(Baseplugin):
             )
             return None, None
 
-        # The folder contains model.safetensors + tokenizer.model at its root
-        # (plus an embeddings/ subdir of preset voices).
-        local_files = {
-            "model": os.path.join(lang_dir, "model.safetensors"),
-            "tokenizer": os.path.join(lang_dir, "tokenizer.model"),
-        }
         missing = [k for k, p in local_files.items()
                    if not (os.path.isfile(p) and os.path.getsize(p) > 0)]
         if missing:
@@ -388,10 +403,38 @@ class Pockettts(Baseplugin):
 
     # ── Model loading ───────────────────────────────────────────────────
 
+    @staticmethod
+    def _defuse_speechbrain_lazy_import():
+        """pocket-tts >= 3 pulls torch.distributed.tensor, whose import makes
+        torch call inspect.get_source -> inspect.getmodule, which scans
+        sys.modules with hasattr(module, ...). Speechbrain's lazy module
+        proxies react by eagerly importing their target — and proxies for
+        optional dependencies (k2_fsa, nlp, ...) raise ImportError, killing
+        our import. Upstream guards against the inspect-triggered case but
+        checks endswith('/inspect.py'), which never matches Windows paths.
+        Make missing optional proxies behave as missing attributes instead."""
+        from speechbrain.utils.importutils import LazyModule
+        if getattr(LazyModule.ensure_module, "_igoor_patched", False):
+            return
+        original = LazyModule.ensure_module
+
+        def ensure_module(self, stacklevel=1):
+            try:
+                return original(self, stacklevel)
+            except ImportError:
+                raise AttributeError(
+                    f"optional speechbrain module not importable: {self.target}"
+                )
+
+        ensure_module._igoor_patched = True
+        LazyModule.ensure_module = ensure_module
+
     def _load_model_threaded(self):
         """Load the pocket-tts model in a background thread.
         Called from startup() to avoid blocking the event loop."""
         try:
+            if "speechbrain" in sys.modules:
+                self._defuse_speechbrain_lazy_import()
             from pocket_tts import TTSModel
 
             self._model_loading = True
@@ -412,11 +455,20 @@ class Pockettts(Baseplugin):
             elif use_24l and language != "english":
                 # User opted into optional 24L
                 tts_language = f"{language}_24l"
+            elif language == "english" and self.settings.get("use_2026_04", True):
+                # Upstream's dated checkpoint, recommended for short sentences
+                # and voice cloning (IGOOR's main use case). Mirrored on Drive.
+                tts_language = "english_2026-04"
+                self.logger.info("English: using the 2026-04 checkpoint")
             else:
                 tts_language = language
 
+            # int8 dynamic quantization: ~30% faster on CPU (lib >= 2.0)
+            quantize = bool(self.settings.get("quantize", True))
+
             self.logger.info(
-                f"Loading pocket-tts model: language={tts_language}, temp={temp}, eos={eos_threshold}"
+                f"Loading pocket-tts model: language={tts_language}, temp={temp}, "
+                f"eos={eos_threshold}, quantize={quantize}"
             )
 
             start = time.time()
@@ -431,6 +483,7 @@ class Pockettts(Baseplugin):
                     config=config_path,
                     temp=temp,
                     eos_threshold=eos_threshold,
+                    quantize=quantize,
                 )
                 # Remember the dir so built-in voice names can be resolved to the
                 # local embeddings/*.safetensors (the library rejects predefined
@@ -442,6 +495,7 @@ class Pockettts(Baseplugin):
                     language=tts_language,
                     temp=temp,
                     eos_threshold=eos_threshold,
+                    quantize=quantize,
                 )
                 self._local_lang_dir = None
 
@@ -452,6 +506,20 @@ class Pockettts(Baseplugin):
 
             # Load voice state
             self._load_voice_state()
+
+            if self.voice_state is None:
+                # Without a voice the plugin can speak nothing: report not
+                # ready instead of silently no-oping every speak request.
+                # This happens when neither Drive weights (local embeddings)
+                # nor an HF login for the gated voice repo are available.
+                self.is_loaded = False
+                self._model_loading = False
+                self.mark_not_ready()
+                self.logger.error(
+                    "Pocket TTS loaded the model but no voice is available "
+                    "(no local embeddings and no HuggingFace login)"
+                )
+                return
 
             self.is_loaded = True
             self._model_loading = False
@@ -714,13 +782,21 @@ class Pockettts(Baseplugin):
         self.logger.info(f"TEST SPEAK: message={message}, voice={voice}")
         asyncio.create_task(self.run_speak_func(message))
 
+    @hookimpl
+    def tts_playback_finished(self):
+        """Releases wait_playback_finished after the browser acked playback,
+        so ASR restarts immediately instead of after the 30s timeout."""
+        self._on_playback_finished()
+
     # ── Speech pipeline ─────────────────────────────────────────────────
 
-    def run_restart_asr(self):
-        asyncio.create_task(self.restart_asr())
+    def run_restart_asr(self, force_ready=False):
+        asyncio.create_task(self.restart_asr(force_ready=force_ready))
 
-    async def restart_asr(self):
-        await self.pm.trigger_hook(hook_name="restart_asr")
+    async def restart_asr(self, force_ready=False):
+        # force_ready is required by asrjs's hookimpl; omitting it raises a
+        # HookCallError that can take down the ASGI serving loop.
+        await self.pm.trigger_hook(hook_name="restart_asr", force_ready=force_ready)
 
     async def run_speak_func(self, message):
         await self.pm.trigger_hook(hook_name="pause_asr")
@@ -729,7 +805,9 @@ class Pockettts(Baseplugin):
         if not success:
             self.logger.warning("speak_func failed, triggering speak_fallback")
             await self.pm.trigger_hook(hook_name="speak_fallback", message=message)
-        await self.pm.trigger_hook(hook_name="restart_asr")
+        # force_ready is required by asrjs's hookimpl; omitting it raises a
+        # HookCallError that can take down the ASGI serving loop.
+        await self.pm.trigger_hook(hook_name="restart_asr", force_ready=False)
 
     async def run_speak_func_with_translation(self, message):
         """Translate outgoing speech before speaking"""
@@ -737,64 +815,143 @@ class Pockettts(Baseplugin):
         await self.run_speak_func(translated_message)
 
     async def speak_func(self, message):
-        """Generate audio from text using pocket-tts and play it via sounddevice."""
+        """Generate audio from text: streamed to the browser in CLI mode,
+        played via sounddevice otherwise."""
         self.logger.info(f"SPEAK FUNC: {message}")
         try:
             if self.tts_model is None or self.voice_state is None:
                 self.logger.error("Cannot speak: model or voice not loaded")
                 return False
 
-            # Generate audio in a thread (CPU-bound operation)
-            def _generate():
-                audio_tensor = self.tts_model.generate_audio(
-                    self.voice_state, message
-                )
-                return audio_tensor
-
-            audio_tensor = await asyncio.to_thread(_generate)
-
-            if audio_tensor is None:
-                self.logger.error("generate_audio returned None")
-                return False
-
-            # Convert torch tensor to numpy for playback
-            import torch
-            if isinstance(audio_tensor, torch.Tensor):
-                audio_np = audio_tensor.cpu().numpy()
-            else:
-                audio_np = np.array(audio_tensor)
-
-            # Ensure 1D
-            if audio_np.ndim > 1:
-                audio_np = audio_np.squeeze()
-
-            sample_rate = self.tts_model.sample_rate
-
-            # Normalize to int16 range for sounddevice
-            if audio_np.dtype == np.float32 or audio_np.dtype == np.float64:
-                # Clamp to [-1, 1] then scale
-                audio_np = np.clip(audio_np, -1.0, 1.0)
-                audio_int16 = (audio_np * 32767).astype(np.int16)
-            else:
-                audio_int16 = audio_np.astype(np.int16)
-
-            self.logger.info(
-                f"Playing audio: {len(audio_int16)} samples at {sample_rate}Hz "
-                f"({len(audio_int16)/sample_rate:.1f}s)"
-            )
-
-            # Play audio synchronously in thread
-            def _play():
-                sd.play(audio_int16, samplerate=sample_rate)
-                sd.wait()
-
-            await asyncio.to_thread(_play)
-            self.logger.info("Playback finished")
-            return True
+            if self.is_remote_ui():
+                streamed = await self._stream_speech_to_frontend(message)
+                if not streamed:
+                    return await self._speak_local(message)
+                return True
+            return await self._speak_local(message)
 
         except Exception as e:
             self.logger.error(f"Error in speak_func: {e}", exc_info=True)
             return False
+
+    def _pcm16_bytes(self, chunk) -> bytes:
+        """Convert a generated audio chunk (torch tensor / array) to int16 PCM."""
+        import torch
+        if isinstance(chunk, torch.Tensor):
+            audio = chunk.detach().cpu().numpy()
+        else:
+            audio = np.asarray(chunk)
+        audio = np.clip(audio.reshape(-1), -1.0, 1.0)
+        return (audio * 32767).astype(np.int16).tobytes()
+
+    def _iter_speech_chunks(self, message):
+        """Blocking generator: int16 PCM chunks as pocket-tts decodes them
+        (generate_audio_stream yields as soon as audio is available)."""
+        for chunk in self.tts_model.generate_audio_stream(self.voice_state, message):
+            yield self._pcm16_bytes(chunk)
+
+    async def _stream_speech_to_frontend(self, message) -> bool:
+        """Stream PCM chunks to the browser while generation runs. Synthesis
+        happens in a worker thread so the event loop stays free; the websocket
+        protocol matches Baseplugin.stream_audio_to_frontend (play_stream /
+        binary chunks / play_stream_end + playback ack)."""
+        if not websocket_server.is_socket_open('app'):
+            self.logger.warning("No browser connected on the app websocket: cannot stream audio")
+            return False
+        if not hasattr(self, "_playback_done"):
+            self._playback_done = asyncio.Event()
+        self._playback_done.clear()
+
+        stream_id = uuid.uuid4().hex
+        await self.send_message_to_app(
+            {"play_stream": {"id": stream_id, "mime": f"audio/pcm16;rate={self.tts_model.sample_rate}"}}
+        )
+
+        failure = threading.Event()
+
+        def produce():
+            started = None
+            sent = 0
+            try:
+                for chunk in self._iter_speech_chunks(message):
+                    if not websocket_server.send_bytes('app', chunk):
+                        failure.set()
+                        return
+                    if started is None:
+                        started = time.time()
+                        self.logger.info(f"TTS stream {stream_id}: first chunk sent")
+                    sent += 1
+                if started is not None:
+                    self.logger.info(
+                        f"TTS stream {stream_id}: last chunk sent ({sent} chunks, "
+                        f"{time.time() - started:.2f}s of streaming)"
+                    )
+            except Exception as e:
+                self.logger.error(f"TTS streaming failed: {e}", exc_info=True)
+                failure.set()
+
+        producer = threading.Thread(target=produce, daemon=True)
+        producer.start()
+        while producer.is_alive():
+            await asyncio.sleep(0.1)
+        await self.send_message_to_app(
+            {"play_stream_end": {"id": stream_id, "aborted": failure.is_set()}}
+        )
+        if failure.is_set():
+            return False
+        await self.wait_playback_finished(timeout=30)
+        return True
+
+    async def _speak_local(self, message) -> bool:
+        """Whole-clip generation and local playback via sounddevice."""
+
+        # Generate audio in a thread (CPU-bound operation)
+        def _generate():
+            audio_tensor = self.tts_model.generate_audio(
+                self.voice_state, message
+            )
+            return audio_tensor
+
+        audio_tensor = await asyncio.to_thread(_generate)
+
+        if audio_tensor is None:
+            self.logger.error("generate_audio returned None")
+            return False
+
+        # Convert torch tensor to numpy for playback
+        import torch
+        if isinstance(audio_tensor, torch.Tensor):
+            audio_np = audio_tensor.cpu().numpy()
+        else:
+            audio_np = np.array(audio_tensor)
+
+        # Ensure 1D
+        if audio_np.ndim > 1:
+            audio_np = audio_np.squeeze()
+
+        sample_rate = self.tts_model.sample_rate
+
+        # Normalize to int16 range for sounddevice
+        if audio_np.dtype == np.float32 or audio_np.dtype == np.float64:
+            # Clamp to [-1, 1] then scale
+            audio_np = np.clip(audio_np, -1.0, 1.0)
+            audio_int16 = (audio_np * 32767).astype(np.int16)
+        else:
+            audio_int16 = audio_np.astype(np.int16)
+
+        self.logger.info(
+            f"Playing audio: {len(audio_int16)} samples at {sample_rate}Hz "
+            f"({len(audio_int16)/sample_rate:.1f}s)"
+        )
+
+        # Play audio synchronously in thread
+        def _play():
+            sd.play(audio_int16, samplerate=sample_rate)
+            sd.wait()
+
+        await asyncio.to_thread(_play)
+        self.logger.info("Playback finished")
+        return True
 
     # ── Incoming messages ───────────────────────────────────────────────
 

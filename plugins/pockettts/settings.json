@@ -3,5 +3,7 @@
     "custom_voice_path": "",
     "use_24l": false,
     "temp": 0.7,
-    "eos_threshold": -4.0
+    "eos_threshold": -4.0,
+    "use_2026_04": true,
+    "quantize": true
 }
