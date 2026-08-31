@@ -26,7 +26,8 @@
       "Bash(git --no-pager diff llm_manager.py)",
       "Bash(git add *)",
       "Bash(git commit *)",
-      "Bash(git --no-pager log --oneline -3)"
+      "Bash(git --no-pager log --oneline -3)",
+      "PowerShell(& \".\\\\venv\\\\Scripts\\\\python.exe\" -m py_compile plugins\\\\conversation\\\\conversation.py plugins\\\\flow\\\\flow.py plugins\\\\autocomplete\\\\autocomplete.py; \"py_compile exit=$LASTEXITCODE\")"
     ]
   }
 }
