@@ -607,6 +607,23 @@ module.exports = {
     padding-top: 1.5rem;
 }
 
+/* the global onboarding theme gives every div inside .left/.right columns a
+   10px bottom margin and forces textarea height:50vh; this component defines
+   its own spacing and lets the answer area fill the column instead, otherwise
+   the question phase spills a few px into a useless scrollbar */
+.left div div,
+.right div div {
+    margin-bottom: 0;
+}
+
+.text-input,
+.transcription-edit {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
 .btn {
     padding: 2rem 2rem;
     font-size: 1.4rem;
@@ -648,6 +665,8 @@ module.exports = {
 textarea.answer-textarea {
     width: 100%;
     max-width: 100%;
+    height: auto; /* overrides the global textarea height:50vh (css/app.less) */
+    flex: 1;
     min-height: 200px;
     background: rgba(0, 0, 0, 0.3);
     border: 1px solid rgba(255, 255, 255, 0.2);
