@@ -642,6 +642,8 @@ class Speakerid(Baseplugin):
             row = self.db_execute_sync(
                 "SELECT id, name, freq FROM speakers WHERE name = ?", (name,)
             )
+            # Roster changed — push it: the topbar component fetches speakers once at mount.
+            self.send_message_to_frontend({"type": "speakerid_speakers_changed"})
             return row[0] if row else {"id": None, "name": name, "freq": 0}
 
         @self.router.delete("/speakers/{speaker_id}")
@@ -661,6 +663,7 @@ class Speakerid(Baseplugin):
             if self.speaker_system is not None and self.speaker_system_ready:
                 await asyncio.to_thread(self.speaker_system.rebuild_speaker, name)
                 self._current_status["speaker_count"] = len(self.speaker_system.speaker_names)
+            self.send_message_to_frontend({"type": "speakerid_speakers_changed"})
             return {"id": speaker_id, "name": name, "deleted": True}
 
         @self.router.post("/reset_voice")
@@ -683,6 +686,7 @@ class Speakerid(Baseplugin):
                 await asyncio.to_thread(self.speaker_system.rebuild_speaker, name)
                 self._current_status["speaker_count"] = len(self.speaker_system.speaker_names)
             self.logger.info(f"Voice reset for '{name}' — all samples deleted")
+            self.send_message_to_frontend({"type": "speakerid_speakers_changed"})
             return {"name": name, "reset": True}
 
         @self.router.post("/records")

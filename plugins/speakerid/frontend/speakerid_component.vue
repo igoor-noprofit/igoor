@@ -424,10 +424,14 @@ export default {
                     // Handle plugin status updates
                     this.pluginStatus = data.status;
                     this.statusMessage = data.message || '';
-                    
+
                     if (data.speaker_count !== undefined) {
                         this.speakerCount = data.speaker_count;
                     }
+                } else if (data.type === 'speakerid_speakers_changed') {
+                    // Roster changed in settings (add/delete/reset) — the topbar
+                    // fetched speakers at mount, so pull the fresh list now.
+                    this.fetchSpeakers();
                 }
             } catch (e) {
                 console.error("Error parsing message:", e);
