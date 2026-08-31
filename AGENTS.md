@@ -69,7 +69,7 @@ plugin_name/
 
 **Critical Plugins**:
 - `onboarding`: User prefs and AI settings
-- `asrvosk/asrwhisper`: Speech recognition (Vosk local, Whisper via Groq and Voxtral via Mistral)
+- `asrjs`: Speech recognition (Sherpa-ONNX local, Whisper via Groq and Voxtral via Mistral, wakeword detection)
 - `elevenlabs/speechify`: TTS integration
 - `conversation`: Current conversation handling
 - `memory`: FAISS-based long/short-term memory

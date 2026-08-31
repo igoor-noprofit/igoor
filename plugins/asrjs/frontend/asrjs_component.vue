@@ -65,8 +65,8 @@ export default {
     },
     created() {
         this.audio = {
-            on: new Audio('/plugins/asrvosk/samples/on.wav'),
-            off: new Audio('/plugins/asrvosk/samples/off.wav')
+            on: new Audio('/plugins/asrjs/samples/mic_on.wav'),
+            off: new Audio('/plugins/asrjs/samples/mic_off.wav')
         };
         // Wakeword detection sound
         this.wakewordSound = new Audio('/plugins/asrjs/samples/on.wav');

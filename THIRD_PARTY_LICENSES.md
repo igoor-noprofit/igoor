@@ -778,25 +778,6 @@ provided "as is" without express or implied warranty.
 
 Source: https://pillow.readthedocs.io/
 
-### Vosk
-Copyright (c) Alpha Cephei Inc
-
-License: Apache 2.0 License (based on GitHub repository)
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-
-Source: https://github.com/alphacephei/vosk-api
-
 ---
 
 ## Fonts
@@ -924,7 +905,6 @@ http://ffmpeg.org/legal.html
 | FastAPI | MIT | https://fastapi.tiangolo.com/ |
 | NumPy | BSD 3-Clause | https://numpy.org/ |
 | Pandas | BSD 3-Clause | https://pandas.pydata.org/ |
-| Vosk | Apache 2.0 | https://github.com/alphacephei/vosk-api |
 | Public Sans Font | SIL OFL 1.1 | https://github.com/uswds/public-sans |
 
 For full license texts and details, please visit the source URLs provided above.

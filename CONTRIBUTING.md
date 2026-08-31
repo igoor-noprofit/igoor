@@ -68,7 +68,7 @@ If your contribution affects plugin behavior, include:
 * Follow the examples and directory structure shown in the README.
 * For language or model-specific updates, verify:
 
-  * Vosk / Whisper model support
+  * ASR model support (Sherpa-ONNX / Whisper / Voxtral)
   * TTS provider language availability
   * Proper embedding model compatibility for RAG
 

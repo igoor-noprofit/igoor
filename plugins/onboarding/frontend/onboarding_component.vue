@@ -415,7 +415,6 @@ export default {
                 ],
                 "Speech Recognition": [
                     { label: "Configure recognition", plugin: "asrwhisper", icon: "" },
-                    { label: "Configure recognition", plugin: "asrvosk", icon: "" },
                     { label: "Configure recognition", plugin: "asrjs", icon: "" },
                     { label: "Configure translation", plugin: "translator", icon: "" }
                 ],

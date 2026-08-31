@@ -124,7 +124,7 @@ For EACH plugin that has a `fr_FR` locale file, create the corresponding new lan
 | translator | `plugins/translator/locales/{LANG_CODE}/translator_{LANG_CODE}.json` |
 | ttsdefault | `plugins/ttsdefault/locales/{LANG_CODE}/ttsdefault_{LANG_CODE}.json` |
 
-**Plugins with NO locale files (skip these)**: asrvosk, baseplugin, extkeyb, ramcpu, recorder, survey
+**Plugins with NO locale files (skip these)**: baseplugin, extkeyb, ramcpu, recorder, survey
 
 **Important notes**:
 - `clock` and `conversation` may have empty `{}` fr_FR files. Create matching empty objects.
@@ -225,14 +225,7 @@ Also verify these exist in `locales/{LANG_CODE}/common_{LANG_CODE}.json`.
 
 Adding a new language requires verifying that ASR (speech recognition) and TTS (text-to-speech) models support it. Without these checks, the user could select a new language but have broken voice input/output.
 
-### 7a. ASR — ASRVosk model availability
-
-Read `plugins/asrvosk/vosk_models.json`. This file maps locale codes to Vosk model download URLs.
-
-- If `{LANG_CODE}` already has an entry → OK, no action needed.
-- If `{LANG_CODE}` is **missing** → add an entry with the correct Vosk model URLs for the new language. Vosk models are available at https://alphacephei.com/vosk/models — find the appropriate model and add `small` and `big` entries following the existing pattern. If no Vosk model exists for the language, add a **warning** to the summary report noting that the ASRVosk plugin will crash with a `KeyError` for this language.
-
-### 7b. ASR — ASRJS Sherpa local model availability
+### 7a. ASR — ASRJS Sherpa local model availability
 
 Read `plugins/asrjs/sherpa_models.json`. This maps base language codes (e.g. `"it"`, `"fr"`) to Sherpa-ONNX model info.
 
@@ -240,18 +233,18 @@ Read `plugins/asrjs/sherpa_models.json`. This maps base language codes (e.g. `"i
 - If `BASE_LANG` already has an entry → OK.
 - If `BASE_LANG` is **missing** → add an entry if Sherpa models exist for the language at https://github.com/k2-fsa/sherpa-onnx/releases . Follow the existing pattern (encoder/decoder/joiner/tokenizer filenames + URLs for small and big). If no Sherpa model exists, note a **warning**: Sherpa will fall back to the multilingual Whisper tiny model (less accurate).
 
-### 7c. ASR — ASRJS Groq/Mistral (cloud)
+### 7b. ASR — ASRJS Groq/Mistral (cloud)
 
 No action needed. Both Groq Whisper and Mistral Voxtral are cloud-based multilingual models. They accept a `language` parameter at transcription time and support most languages natively.
 
-### 7d. ASR — Wakeword model
+### 7c. ASR — Wakeword model
 
 Check if `plugins/asrjs/locales/{LANG_CODE}/hey_igoor_{LANG_CODE}.onnx` exists.
 
 - If it exists → OK.
 - If it **does not exist** → add a **warning** to the summary report: wakeword detection ("Hey IGOOR") will not work for this language. The user can disable wakeword in ASRJS settings as a workaround.
 
-### 7e. TTS — Speechify language support
+### 7d. TTS — Speechify language support
 
 Read `plugins/speechifytts/speechifytts.py`. Find the `supported_lang` list in the `startup()` method (search for `supported_lang`).
 
@@ -259,11 +252,11 @@ Read `plugins/speechifytts/speechifytts.py`. Find the `supported_lang` list in t
 - If `SPEECHIFY_LANG` is in the list → OK.
 - If **missing** → add it to the `supported_lang` list. This prevents the "language not supported" warning and enables voice filtering for the new language.
 
-### 7f. TTS — ElevenLabs
+### 7e. TTS — ElevenLabs
 
 No code change needed. All ElevenLabs models (`eleven_multilingual_v2`, `eleven_turbo_v2_5`, `eleven_flash_v2_5`, `eleven_v3`) are multilingual. The user must manually select a voice that supports the new language from their ElevenLabs account. Add a **note** to the summary report reminding the user to pick an appropriate voice.
 
-### 7g. TTS — Default (SAPI)
+### 7f. TTS — Default (SAPI)
 
 No code change needed. Uses Windows system voices. Add a **note** to the summary report that the user must have a TTS voice installed for the new language in Windows Settings → Speech → Manage voices.
 
@@ -271,7 +264,6 @@ No code change needed. Uses Windows system voices. Add a **note** to the summary
 
 | Component | Action needed | Breaking? |
 |-----------|--------------|-----------|
-| ASRVosk | Add entry to `vosk_models.json` | **Yes** — crashes without it |
 | ASRJS Sherpa | Add entry to `sherpa_models.json` | No — falls back to multilingual |
 | ASRJS Groq/Mistral | None | No |
 | Wakeword model | Provide `.onnx` file | Only if wakeword enabled |
@@ -367,7 +359,6 @@ After all files are created and validated, report:
 3. **Key counts**: table comparing key counts per plugin between `fr_FR` and the new language
 4. **Total translations**: sum of all individual string translations made
 5. **ASR/TTS compatibility report**:
-   - ASRVosk: model available? entry added to `vosk_models.json`?
    - ASRJS Sherpa: model available? entry added to `sherpa_models.json`?
    - Wakeword: `.onnx` file available?
    - Speechify: language added to `supported_lang`?
