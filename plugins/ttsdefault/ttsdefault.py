@@ -4,7 +4,11 @@ from settings_manager import SettingsManager
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 import asyncio
-import win32com.client
+try:
+    import win32com.client
+except ImportError:
+    # Linux/macOS: keep the plugin importable; SAPI TTS stays unavailable
+    win32com = None
 
 
 class SetVoicePayload(BaseModel):
@@ -17,6 +21,12 @@ class Ttsdefault(Baseplugin):
         self.router = None
         super().__init__(plugin_name, pm)
         self.settings = self.get_my_settings()
+        self.is_loaded = False
+        if win32com is None:
+            self.logger.warning("ttsdefault: Windows SAPI TTS not available on this platform (win32com missing) — plugin loaded but inactive")
+            self.fallback_only = False
+            self.voice_id = 0
+            return
         # Initialize SAPI
         self.fallback_only = self.settings.get("fallback_only", False)
         self.voice_id = self.settings.get("voice_id", 0)
@@ -143,6 +153,8 @@ class Ttsdefault(Baseplugin):
             
     @hookimpl
     def speak_as_igoor(self, message):
+        if not self.is_loaded:
+            return
         self.logger.info(f"§§§§ SPEAKING AS IGOOR *********************************************** : {message}")
         # Used to speak as the machine
         asyncio.create_task(self.run_speak_func(message))
