@@ -444,7 +444,7 @@ class PluginManager:
                     except Exception as e:
                         self.logger.error(f"Error loading plugin '{plugin_name}': {e}")
                         self.logger.error(f"Traceback: {traceback.format_exc()}")
-                        if IGOOR_DEBUG:
+                        if IGOOR_DEBUG and IGOOR_DEBUG.lower() == 'true':
                             self.logger.critical("EXIT BECAUSE OF ERROR LOADING PLUGIN")
                             os._exit(1)
                 else:

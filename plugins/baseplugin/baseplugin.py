@@ -48,7 +48,9 @@ class Baseplugin:
         # Construct the plugin folder path
         self.app_name = __appname__  # Get the application name from the environment variable
         self.appdata_path = os.path.dirname(get_appdata_dir())  # Base dir above the app folder (APPDATA-equivalent)
-        self.plugin_folder = os.path.join(self.appdata_path, self.app_name, 'plugins', plugin_name)
+        # Use get_appdata_dir() directly: on Linux the appdata dir is a dotfolder (~/.igoor),
+        # so the dirname()+app_name join idiom would build ~/igoor instead of ~/.igoor
+        self.plugin_folder = os.path.join(get_appdata_dir(), 'plugins', plugin_name)
         # Create the directory if it doesn't exist
         if not os.path.exists(self.plugin_folder):
             self.logger.info(f"CREATING FOLDER {self.plugin_folder}")
