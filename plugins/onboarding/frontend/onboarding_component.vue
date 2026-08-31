@@ -252,9 +252,11 @@
                         <h3 class="pluginContainerTitle">
                             <a @click="goToHome" class="breadcrumb-home">{{ t("Home") }}</a> > <a @click="backToPlugins" class="breadcrumb-plugins">{{ t("Plugins") }}</a> > {{ selectedPluginForSettings.title }}
                         </h3>
-                        <component ref="pluginSettingsComponent" :is="selectedPluginComponent" :initial-settings="currentPluginInitialSettings"
-                            :plugin-name="selectedPluginForSettings.name" :lang="lang" :onboarding-open="showModal"
-                            @save-settings="handlePluginSettingsSave" class="plugin-settings-component"></component>
+                        <div class="plugin-settings-scroll">
+                            <component ref="pluginSettingsComponent" :is="selectedPluginComponent" :initial-settings="currentPluginInitialSettings"
+                                :plugin-name="selectedPluginForSettings.name" :lang="lang" :onboarding-open="showModal"
+                                @save-settings="handlePluginSettingsSave" class="plugin-settings-component"></component>
+                        </div>
                     </div>
 
                     <div v-if="currentTab === 'plugins' && !viewingPluginSettings" class="pluginsContainer">
@@ -1121,8 +1123,68 @@ export default {
     /* border:1px solid #0ff; */
     width: 100vw;
 }
+/* Fixed-height modal: the tab bar and the save bar stay visible, each tab's
+   content scrolls on its own and only when it actually overflows.
+   Zero flex-bases keep every level a DEFINITE height, so percentage heights
+   used inside plugins (height:100%) resolve correctly */
+.tabsandpluginscontainer{
+    flex: 1 1 0%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+.tabsandpluginscontainer > *:not(ul.tabs){
+    flex: 1 1 0%;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+.tabsandpluginscontainer > *:not(ul.tabs)::-webkit-scrollbar{
+    width: 14px;
+}
+.tabsandpluginscontainer > *:not(ul.tabs)::-webkit-scrollbar-track{
+    background: var(--basecolor-darkest);
+}
+.tabsandpluginscontainer > *:not(ul.tabs)::-webkit-scrollbar-thumb{
+    background: var(--basecolor-gray-700);
+    border-radius: 7px;
+}
+.tabsandpluginscontainer > *:not(ul.tabs)::-webkit-scrollbar-thumb:hover{
+    background: var(--basecolor-accent-500);
+}
 .pct_container{
-    /* border: 1px solid #f00; */
+    display: flex;
+    flex-direction: column;
+}
+.plugin-settings-scroll{
+    /* zero flex-basis (not auto) makes this box a DEFINITE height, so plugin
+       roots using height:100% resolve instead of falling back to content size */
+    flex: 1 1 0%;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
+}
+/* plugin roots stretch to fill the available height (keeps layouts like
+   daily/biorecorder that rely on height:100% working) but never compress;
+   align-content:start stops grid roots from spreading their rows apart */
+.plugin-settings-component{
+    flex: 1 0 auto;
+    align-content: start;
+}
+.plugin-settings-scroll::-webkit-scrollbar{
+    width: 14px;
+}
+.plugin-settings-scroll::-webkit-scrollbar-track{
+    background: var(--basecolor-darkest);
+}
+.plugin-settings-scroll::-webkit-scrollbar-thumb{
+    background: var(--basecolor-gray-700);
+    border-radius: 7px;
+}
+.plugin-settings-scroll::-webkit-scrollbar-thumb:hover{
+    background: var(--basecolor-accent-500);
 }
 .about-tab {
     background: #000;
@@ -1260,6 +1322,7 @@ input:checked+.slider:before {
     display: flex;
     align-items: center;
     gap: 10px;
+    flex: 0 0 auto;
 }
 
 .save-status {
@@ -1337,13 +1400,19 @@ button:disabled {
 /* Modal content styles */
 .modal-content {
     background: #fff;
-    padding: 0 20px;
+    /* keep content (pinned save bar, scrollbars) clear of the app footer,
+       which paints on top of the modal; while settings are open the footer
+       is shrunk to max-height: 70px (footer.shrink in app.less) */
+    box-sizing: border-box;
+    padding: 0 20px 70px;
     border-radius: 8px;
     position: relative;
     color: #000;
     height: 100%;
     font-size: 18px;
     width: 100%;
+    display: flex;
+    flex-direction: column;
 }
 
 /* PLUGINS */
@@ -1374,6 +1443,7 @@ button:disabled {
     border: 1px solid #ffe082;
     padding: 12px 20px;
     border-radius: 6px;
+    flex: 0 0 auto;
     margin-bottom: 18px;
     font-size: 1em;
     text-align: center;
@@ -1494,6 +1564,7 @@ button:disabled {
     display: flex;
     align-items: center;
     gap: 10px;
+    flex: 0 0 auto;
 }
 
 a.extlink {
@@ -1606,7 +1677,8 @@ a.extlink {
 /* Dashboard Styles */
 .dashboard-container {
     padding: 20px 0;
-    height: 100%;
+    /* height comes from the flex chain (.tabsandpluginscontainer > *):
+       fills the modal when cards fit, scrolls when they overflow */
     display: flex;
     flex-direction: column;
 }
@@ -1616,7 +1688,8 @@ a.extlink {
     grid-template-columns: repeat(4, 1fr);
     grid-template-rows: repeat(auto-fill, 1fr);
     gap: 15px;
-    height: 100%;
+    /* grow to fill the available height, never shrink below card content */
+    flex: 1 0 auto;
 }
 
 .dashboard-category {

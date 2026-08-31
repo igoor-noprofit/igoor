@@ -796,12 +796,17 @@ module.exports = {
 
 <style scoped>
 .daily-settings {
-  /* border:1px solid #0f0; */
+  /* fill the plugin settings area: root is a flex item of
+     .plugin-settings-scroll; column layout lets .options stretch */
+  display: flex;
+  flex-direction: column;
 }
 
 
 .options {
   display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
   margin: 0;
   padding: 0;
 }

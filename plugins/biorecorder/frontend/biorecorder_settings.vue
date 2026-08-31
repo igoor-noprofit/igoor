@@ -466,6 +466,9 @@ module.exports = {
 .biorecorder-settings {
     padding: 1.5rem;
     height: 100%;
+    /* height must include the padding, otherwise the root overflows its
+       scroll container by the padding amount */
+    box-sizing: border-box;
     display: flex;
     flex-direction: column;
 }
@@ -770,6 +773,29 @@ textarea.answer-textarea {
 .bio-textarea:focus {
     outline: none;
     border-color: var(--color-btn-primary, #216776);
+}
+
+/* Themed scrollbars, matching the settings panel scrollbars
+   (track --basecolor-darkest, thumb --basecolor-gray-700, accent on hover) */
+textarea.answer-textarea::-webkit-scrollbar,
+.bio-textarea::-webkit-scrollbar {
+    width: 14px;
+}
+
+textarea.answer-textarea::-webkit-scrollbar-track,
+.bio-textarea::-webkit-scrollbar-track {
+    background: var(--basecolor-darkest);
+}
+
+textarea.answer-textarea::-webkit-scrollbar-thumb,
+.bio-textarea::-webkit-scrollbar-thumb {
+    background: var(--basecolor-gray-700);
+    border-radius: 7px;
+}
+
+textarea.answer-textarea::-webkit-scrollbar-thumb:hover,
+.bio-textarea::-webkit-scrollbar-thumb:hover {
+    background: var(--basecolor-accent-500);
 }
 
 .btn-save {
