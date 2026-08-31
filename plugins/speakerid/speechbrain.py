@@ -245,7 +245,19 @@ class SpeakerIdentificationSystem:
         if sample_rate != 16000:
             resampler = torchaudio.transforms.Resample(sample_rate, 16000)
             waveform = resampler(waveform)
-        
+
+        # Trim leading/trailing silence so quiet audio doesn't pollute the embedding.
+        # functional.vad only trims the front, so trim, reverse, trim again, reverse back.
+        # If VAD finds no speech at all (noise-only clip), keep the untrimmed waveform.
+        try:
+            trimmed = torchaudio.functional.vad(waveform, 16000)
+            if trimmed.shape[-1] > 0:
+                trimmed = torchaudio.functional.vad(trimmed.flip(-1), 16000).flip(-1)
+            if trimmed.shape[-1] > 0:
+                waveform = trimmed
+        except Exception:
+            pass
+
         # Add batch dimension if needed
         if waveform.dim() == 1:
             waveform = waveform.unsqueeze(0)
