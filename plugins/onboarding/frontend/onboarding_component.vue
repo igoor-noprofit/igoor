@@ -1139,26 +1139,14 @@ export default {
     overflow-y: auto;
     overflow-x: hidden;
 }
-.tabsandpluginscontainer > *:not(ul.tabs)::-webkit-scrollbar{
-    width: 14px;
-}
-.tabsandpluginscontainer > *:not(ul.tabs)::-webkit-scrollbar-track{
-    background: var(--basecolor-darkest);
-}
-.tabsandpluginscontainer > *:not(ul.tabs)::-webkit-scrollbar-thumb{
-    background: var(--basecolor-gray-700);
-    border-radius: 7px;
-}
-.tabsandpluginscontainer > *:not(ul.tabs)::-webkit-scrollbar-thumb:hover{
-    background: var(--basecolor-accent-500);
-}
 .pct_container{
     display: flex;
     flex-direction: column;
 }
 .plugin-settings-scroll{
     /* zero flex-basis (not auto) makes this box a DEFINITE height, so plugin
-       roots using height:100% resolve instead of falling back to content size */
+       roots using height:100% resolve instead of falling back to content size;
+       scrollbar look comes from the app-wide rule in css/app.less */
     flex: 1 1 0%;
     min-height: 0;
     overflow-y: auto;
@@ -1172,19 +1160,6 @@ export default {
 .plugin-settings-component{
     flex: 1 0 auto;
     align-content: start;
-}
-.plugin-settings-scroll::-webkit-scrollbar{
-    width: 14px;
-}
-.plugin-settings-scroll::-webkit-scrollbar-track{
-    background: var(--basecolor-darkest);
-}
-.plugin-settings-scroll::-webkit-scrollbar-thumb{
-    background: var(--basecolor-gray-700);
-    border-radius: 7px;
-}
-.plugin-settings-scroll::-webkit-scrollbar-thumb:hover{
-    background: var(--basecolor-accent-500);
 }
 .about-tab {
     background: #000;

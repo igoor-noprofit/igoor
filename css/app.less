@@ -481,6 +481,23 @@ footer {
     margin-bottom: 2.2vh !important;
   }
 }
+/* Themed scrollbars app-wide: dark track, light rounded thumb, easy to target
+   by gaze. More specific rules (e.g. the hidden conversation scrollbar below)
+   keep winning over these. */
+::-webkit-scrollbar {
+  width: 14px;
+  height: 14px;
+}
+::-webkit-scrollbar-track {
+  background: var(--basecolor-darkest);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--basecolor-gray-700);
+  border-radius: 7px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--basecolor-accent-500);
+}
 .conversation-plugin {
   .scrollableConv {
     width: calc(100% - 4rem - 22px);

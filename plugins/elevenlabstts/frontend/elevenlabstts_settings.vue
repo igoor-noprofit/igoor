@@ -100,10 +100,10 @@
                     </div>
                 </div>
             </div>
-            <div class="form-note"></div>
+            <!-- no empty spacer divs here: each one adds ~12px of dead height
+                 (global .right div margin) that spilled into a useless scrollbar -->
 
             <!-- Advanced controls card -->
-            <div class="form-label"></div>
             <div class="form-input" style="grid-column: 2 / span 2; padding: 10px 0;">
                 <div class="ssml-card">
                     <!-- Card header with reset button -->
@@ -211,7 +211,6 @@
 
                 </div>
             </div>
-            <div class="form-note"></div>
         </div>
     </div>
 </template>
@@ -675,6 +674,13 @@ export default {
     align-items: start;
     background: none;
     padding: 10px;
+}
+
+/* the global onboarding theme gives every div in .left/.right columns a 10px
+   bottom margin; on the last element it only adds dead height that spilled
+   into a useless scrollbar */
+.bio > div:last-child {
+    margin-bottom: 0;
 }
 
 .form-input {

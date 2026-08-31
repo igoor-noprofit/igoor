@@ -774,29 +774,7 @@ textarea.answer-textarea {
     outline: none;
     border-color: var(--color-btn-primary, #216776);
 }
-
-/* Themed scrollbars, matching the settings panel scrollbars
-   (track --basecolor-darkest, thumb --basecolor-gray-700, accent on hover) */
-textarea.answer-textarea::-webkit-scrollbar,
-.bio-textarea::-webkit-scrollbar {
-    width: 14px;
-}
-
-textarea.answer-textarea::-webkit-scrollbar-track,
-.bio-textarea::-webkit-scrollbar-track {
-    background: var(--basecolor-darkest);
-}
-
-textarea.answer-textarea::-webkit-scrollbar-thumb,
-.bio-textarea::-webkit-scrollbar-thumb {
-    background: var(--basecolor-gray-700);
-    border-radius: 7px;
-}
-
-textarea.answer-textarea::-webkit-scrollbar-thumb:hover,
-.bio-textarea::-webkit-scrollbar-thumb:hover {
-    background: var(--basecolor-accent-500);
-}
+/* scrollbar look comes from the app-wide rule in css/app.less */
 
 .btn-save {
     background: var(--color-btn-primary, #216776) !important;
