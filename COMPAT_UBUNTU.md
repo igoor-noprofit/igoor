@@ -12,12 +12,14 @@ Model: `MACOS_TEST.md`. This document is the Linux counterpart: setup copy-paste
 |---|---|
 | Headless boot (`IGOOR_CLI=True`), FastAPI on `127.0.0.1:9714`, WebSocket server | ✅ verified |
 | Full IGOOR UI in a plain browser at `http://127.0.0.1:9714/` | ✅ verified (clock, quick buttons, categories all render) |
-| 13 plugins load and activate | ✅ verified (list in appendix) |
+| 13 plugins load and activate (14 with asrjs once PyAudio is installed) | ✅ verified (list in appendix) |
+| asrjs local ASR: sherpa-onnx model auto-download + inference | ✅ verified (`POST /api/plugins/asrjs/transcribe` → 200, `sherpa-onnx transcribed: ...`) |
+| speakerid audio-chunk processing (SpeechBrain embeddings) | ✅ verified (`process_audio_chunk` → 200 buffering→processed) |
 | RAG: document upload → FAISS ingest → chunk export | ✅ verified via REST |
 | REST API: 50 endpoints incl. `/api/app/change-view`, `/api/plugins/<name>/settings` | ✅ verified |
 | `~/.igoor/` data dir (settings.json, database/, plugins/, logs/, web/) | ✅ verified |
 | Native pywebview window | ⏳ untested on this box — needs `python3-gi`/PyGObject visible to the venv (see §3) |
-| Audio capture/ASR (asrjs, speakerid, recorder) | ⏳ code cross-platform; needs `libportaudio2` + PyAudio wheel + an audio device (null-sink works) |
+| Audio capture/ASR (asrjs, speakerid, recorder) | ✅ verified — PyAudio + sounddevice + sherpa-onnx local inference all working (null-sink used as the audio device on a headless box) |
 
 ## 2. Setup (copy-paste)
 
@@ -71,8 +73,8 @@ Pass criteria (Phase-1 equivalent): uvicorn logs `Uvicorn running on http://127.
 
 | Symptom | Why | Fix / classification |
 |---|---|---|
-| `Error loading plugin 'asrjs': No module named 'pyaudio'` | PyAudio is a requirements.txt package; its wheel builds from source and needs `portaudio19-dev` | `sudo apt install portaudio19-dev` then reinstall. On this box asrjs stays deactivated until then |
-| elevenlabstts / speechifytts `OSError: PortAudio library not found` | sounddevice needs system `libportaudio2` | `sudo apt install libportaudio2` — plugins are inactive by default anyway |
+| `Error loading plugin 'asrjs': No module named 'pyaudio'` | PyAudio is a requirements.txt package; its wheel builds from source and needs `portaudio19-dev` | RESOLVED on test box: `sudo apt install portaudio19-dev` then reinstall. asrjs loads and transcribes locally |
+| elevenlabstts / speechifytts `OSError: PortAudio library not found` | sounddevice needs system `libportaudio2` | RESOLVED on test box: `sudo apt install libportaudio2` — both import cleanly now |
 | `ttsdefault: Windows SAPI TTS not available on this platform` (warning) | deliberate platform gate (win32com) | expected; native Linux TTS (espeak-ng/speech-dispatcher) = future work |
 | extkeyb "disabled" warning if activated | deliberate platform gate (win32gui/win32con) | expected; GNOME OSK port = future work |
 | Cloud TTS / LLM features error without API keys | expected by design | not porting bugs |
@@ -110,11 +112,18 @@ Plus one bug fix that also affects Windows by design (flagged for maintainer): t
 - RAG: POST documents → `{"created":1}`; GET documents → id 1 `igoor-test-doc.txt`; GET export-chunks → ingested chunk content matches; GET status → `{"ready":true}`
 - `~/.igoor/`: settings.json (+ backups), database/, plugins/, logs/, web/
 - Windows-package check: `uv pip list | grep -iE "pywin32|pywinauto|comtypes|pythonnet|winrt|pywinusb"` → no matches
-- Fresh-interpreter import sweep of all 23 plugin modules: 19 import cleanly; failures limited to pyaudio (asrjs), PortAudio (elevenlabstts/speechifytts), nonexistent-on-1.0.2 (—; localtts/pockettts are not on this branch)
+- Fresh-interpreter import sweep of all 23 plugin modules: 19 import cleanly (23/23 after system PortAudio install); failures limited to pyaudio (asrjs), PortAudio (elevenlabstts/speechifytts) — all resolved by `apt install portaudio19-dev libportaudio2`
+- **asrjs end-to-end (2026-09-01)**: `model_provider=sherpa` → auto-download of `sherpa-onnx-streaming-zipformer-en-20M-2023-02-17` (42 MB) to `~/.igoor/plugins/asrjs/models/sherpa/`; `POST /api/plugins/asrjs/transcribe` with a generated 440 Hz wav → `HTTP 200 {"status":"success","text":""}` (sine = no speech, pipeline proven); log `sherpa-onnx transcribed: ...`; WS notify chain (`listening`, `transcribing_started/ended`) received by test clients on `ws://127.0.0.1:9714/ws/{plugin}`. NOTE for headless testing: transcribe blocks in `wait_for_socket_and_send` until a WS client is connected — connect a fake frontend first.
+- **speakerid (2026-09-01)**: `POST /api/plugins/speakerid/settings {"settings":{"voice_profiles_enabled":true}}` → 204; `POST process_audio_chunk` → 200 `buffering` then 200 `processed`
 
 ## 8. Future work (explicitly out of scope here)
 
-- Native-window (GTK/WebKit) verification and packaging (.deb/AppImage)
-- asrjs/sherpa-onnx end-to-end audio test (blocked on system PortAudio on this specific box; code is cross-platform)
+- **Linux packaging — the ".exe equivalent" (recommended next step).** Nothing in IGOOR's architecture blocks a one-step Linux install; it's packaging work, not porting work. Recommended order:
+  1. **.deb** (least effort, most Ubuntu-idiomatic): `sudo apt install ./igoor.deb` or double-click in the Software app; system deps declared as `Depends: gir1.2-webkit2-4.1, libportaudio2, portaudio19-dev (unneeded at runtime), ffmpeg, xprintidle` and pulled in automatically by apt.
+  2. **AppImage** (closest to the Windows .exe experience): one file, `chmod +x`, run — bundles Python + WebKit2GTK + PortAudio + FFmpeg at the cost of a ~150–250 MB artifact.
+  - Note the one real platform asymmetry: WebView2 auto-installs on Windows, while Linux convention is the system's WebKit2GTK — the .deb handles this cleanly via Depends; an AppImage must bundle it.
+  - PyInstaller Linux builds must run on the **oldest** target distro (glibc rule): build on Ubuntu 22.04 to support 22.04+.
+- Native-window (GTK/WebKit) verification on a real display session
+- asrjs/sherpa-onnx wakeword live-loop test (transcription pipeline itself is verified; the wake-word gate uses openwakeword on the same stack)
 - extkeyb Linux port (GNOME on-screen keyboard via AT-SPI/geb ideas), ttsdefault Linux port (espeak-ng / speech-dispatcher)
 - `localtts` / `pockettts` live on `feature/pocket-tts-new` etc. — merge before any Linux audio-TTS work
