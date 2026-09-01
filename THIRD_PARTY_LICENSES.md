@@ -799,6 +799,57 @@ Source: https://github.com/alphacephei/vosk-api
 
 ---
 
+## AI Models
+
+### Pocket TTS — model weights
+Copyright (c) 2026 Kyutai
+
+License: Creative Commons Attribution 4.0 International (CC-BY-4.0)
+https://creativecommons.org/licenses/by/4.0/
+
+The pockettts plugin downloads unmodified copies of the Kyutai Pocket TTS
+weights (model.safetensors, tokenizer.model, preset voice embeddings) and
+mirrors them on Google Drive (see plugins/pockettts/models.csv) so that users
+do not need a HuggingFace account. Mirrored file revisions, as pinned by the
+pocket-tts library configs:
+
+- english, english_2026-01, french_24l, german, german_24l, italian,
+  italian_24l, portuguese, portuguese_24l, spanish, spanish_24l:
+  model.safetensors @ 39592ff23c9e
+- english_2026-04: model.safetensors @ 19f95fe2df36
+- english_2026-04_24l (not mirrored): model.safetensors @ 492522650173
+
+Source: https://huggingface.co/kyutai/pocket-tts (gated; CC-BY-4.0)
+        https://huggingface.co/kyutai/pocket-tts-without-voice-cloning (ungated)
+
+The HuggingFace access gate is a contact/prohibited-use covenant only; it
+imposes no redistribution restriction. Kyutai's prohibited-use policy (no
+voice cloning without explicit and lawful consent, no deceptive use) applies
+to and is respected by IGOOR's consent-based voice banking.
+
+### Pocket TTS — code
+Copyright (c) 2026 Kyutai
+
+License: MIT License
+
+Source: https://github.com/kyutai-labs/pocket-tts
+
+### Pocket TTS — preset voice embeddings
+Preset voices are derived from recordings with per-voice licenses
+(https://huggingface.co/kyutai/tts-voices). Only AGPLv3-compatible voices are
+distributed with IGOOR: VCTK voices (anna, azelma, charles, eponine, eve,
+fantine, george, jane, mary, michael, paul, vera — CC-BY-4.0), alba
+(alba-mackenna, CC-BY-4.0), bill_boerst, caro_davy, peter_yearsley,
+stuart_bell (voice-zero, CC0), marius, javert (voice donations, CC0),
+estelle (Kyutai recording, CC0), giovanni, lola (Mozilla Common Voice, CC0)
+and juergen (distributed in the CC-BY-4.0-tagged pocket-tts repository).
+
+NOT distributed (mirrors must exclude these files from embeddings/):
+cosette.safetensors (Expresso, CC-BY-NC), jean.safetensors (EARS, CC-BY-NC),
+rafael.safetensors (unverified source).
+
+---
+
 ## Fonts
 
 ### Public Sans
@@ -909,6 +960,8 @@ http://ffmpeg.org/legal.html
 | Component | License | Source URL |
 |------------|---------|-------------|
 | IGOOR | GPLv3 | https://github.com/igoor-noprofit/igoor |
+| Pocket TTS (weights) | CC-BY-4.0 | https://huggingface.co/kyutai/pocket-tts |
+| Pocket TTS (code) | MIT | https://github.com/kyutai-labs/pocket-tts |
 | Vue.js | MIT | https://vuejs.org/ |
 | httpVueLoader | MIT | https://github.com/franciscop/http-vue-loader |
 | VueDraggable | MIT | https://github.com/SortableJS/vue.draggable.next |

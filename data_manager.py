@@ -171,6 +171,15 @@ class DataManager:
                 else:
                     self.logger.warning("plugins/speakerid folder not found")
 
+                # Export pockettts cloned voices (safetensors voice states —
+                # for many users this IS their voice). The model weights
+                # (models/, hundreds of MB per language) are deliberately NOT
+                # exported: they re-download from the Drive mirrors / HF.
+                pockettts_voices_folder = os.path.join(self.appdata_dir, "plugins", "pockettts", "voices")
+                if os.path.exists(pockettts_voices_folder):
+                    shutil.copytree(pockettts_voices_folder, temp_path / "plugins" / "pockettts" / "voices")
+                    self.logger.info("Exported plugins/pockettts/voices folder")
+
                 # Export biorecorder biography: bio.md (the LLM-generated life
                 # story that prediction prompts read) and answers.json (the source
                 # Q&A). voice_sample.wav is a large derived artifact and is
@@ -323,6 +332,16 @@ class DataManager:
                     shutil.copytree(current_speakerid_folder, backup_speakerid_path)
                     backup_items.append("plugins/speakerid")
                     self.logger.info("Backed up plugins/speakerid folder")
+
+                # Backup pockettts voices (only if the import carries pockettts data)
+                current_pockettts_voices_folder = os.path.join(self.appdata_dir, "plugins", "pockettts", "voices")
+                imported_pockettts_voices_path = temp_path / "plugins" / "pockettts" / "voices"
+
+                if imported_pockettts_voices_path.exists() and os.path.exists(current_pockettts_voices_folder):
+                    backup_pockettts_voices_path = os.path.join(backup_path, "plugins", "pockettts", "voices")
+                    shutil.copytree(current_pockettts_voices_folder, backup_pockettts_voices_path)
+                    backup_items.append("plugins/pockettts/voices")
+                    self.logger.info("Backed up plugins/pockettts/voices folder")
 
                 # Backup biorecorder folder (only if the import carries biorecorder data)
                 current_biorecorder_folder = os.path.join(self.appdata_dir, "plugins", "biorecorder")
@@ -490,6 +509,37 @@ class DataManager:
                     if imported_pkl.exists():
                         shutil.copy2(str(imported_pkl), os.path.join(target_speakerid_folder, "speaker_embeddings.pkl"))
                         self.logger.info("Restored plugins/speakerid/speaker_embeddings.pkl")
+
+                # Restore pockettts cloned voices. MERGE file-by-file rather
+                # than wiping: only voices/ was carried, models/ re-downloads
+                # and settings.json arrives via the settings merge above.
+                if imported_pockettts_voices_path.exists():
+                    target_pockettts_voices = os.path.join(self.appdata_dir, "plugins", "pockettts", "voices")
+                    os.makedirs(target_pockettts_voices, exist_ok=True)
+                    for voice_file in imported_pockettts_voices_path.glob("*.safetensors"):
+                        shutil.copy2(str(voice_file), os.path.join(target_pockettts_voices, voice_file.name))
+                    self.logger.info("Restored plugins/pockettts/voices folder")
+
+                    # The exported settings carry custom_voice_path as an
+                    # ABSOLUTE path, which breaks on a different machine/user.
+                    # Remap it to this machine's APPDATA (same file basename,
+                    # just restored above).
+                    try:
+                        with open(current_settings, 'r', encoding='utf-8') as f:
+                            settings_data = json.load(f)
+                        pockettts_settings = settings_data.get("plugins", {}).get("pockettts", {})
+                        custom_path = pockettts_settings.get("custom_voice_path")
+                        if custom_path:
+                            local_candidate = os.path.join(
+                                self.appdata_dir, "plugins", "pockettts", "voices", os.path.basename(custom_path)
+                            )
+                            if os.path.exists(local_candidate):
+                                pockettts_settings["custom_voice_path"] = local_candidate
+                                with open(current_settings, 'w', encoding='utf-8') as f:
+                                    json.dump(settings_data, f, indent=4)
+                                self.logger.info("Remapped pockettts custom_voice_path to this machine")
+                    except Exception as e:
+                        self.logger.warning(f"Could not remap pockettts custom_voice_path: {e}")
 
                 # Restore biorecorder biography. MERGE into the existing folder
                 # rather than wiping it — preserves settings.json and the locally

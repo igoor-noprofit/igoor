@@ -123,7 +123,8 @@ MODELS_CSV = os.path.join(os.path.dirname(__file__), "models.csv")
 
 
 def _load_gdrive_models():
-    """Parse models.csv into {variant: folder_url}. Returns {} on any failure."""
+    """Parse models.csv into {variant: folder_url}. Returns {} on any failure.
+    Lines whose first field starts with '#' are comments."""
     mapping = {}
     try:
         import csv
@@ -131,8 +132,9 @@ def _load_gdrive_models():
             for row in csv.DictReader(f):
                 variant = (row.get("model") or "").strip()
                 url = (row.get("url") or "").strip()
-                if variant and url:
-                    mapping[variant] = url
+                if not variant or variant.startswith("#") or not url:
+                    continue
+                mapping[variant] = url
     except Exception:
         pass
     return mapping
