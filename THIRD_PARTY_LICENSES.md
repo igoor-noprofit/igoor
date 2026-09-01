@@ -889,7 +889,7 @@ http://ffmpeg.org/legal.html
 
 | Component | License | Source URL |
 |------------|---------|-------------|
-| IGOOR | GPLv3 | https://github.com/igoor-noprofit/igoor |
+| IGOOR | AGPLv3 | https://github.com/igoor-noprofit/igoor |
 | Vue.js | MIT | https://vuejs.org/ |
 | httpVueLoader | MIT | https://github.com/franciscop/http-vue-loader |
 | VueDraggable | MIT | https://github.com/SortableJS/vue.draggable.next |
