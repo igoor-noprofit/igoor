@@ -959,7 +959,7 @@ http://ffmpeg.org/legal.html
 
 | Component | License | Source URL |
 |------------|---------|-------------|
-| IGOOR | GPLv3 | https://github.com/igoor-noprofit/igoor |
+| IGOOR | AGPLv3 | https://github.com/igoor-noprofit/igoor |
 | Pocket TTS (weights) | CC-BY-4.0 | https://huggingface.co/kyutai/pocket-tts |
 | Pocket TTS (code) | MIT | https://github.com/kyutai-labs/pocket-tts |
 | Vue.js | MIT | https://vuejs.org/ |
