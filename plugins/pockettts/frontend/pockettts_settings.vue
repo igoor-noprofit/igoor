@@ -43,10 +43,14 @@
                     </button>
                     <button class="clone-btn" type="button" @click="triggerUploadClone"
                         :disabled="isCloning || !modelLoaded">
-                        {{ t('Upload audio to clone voice') }}
+                        {{ t('Upload audio') }}
                     </button>
                     <input type="file" ref="cloneFileInput" style="display:none"
-                        accept=".wav,.mp3,.ogg,.webm" @change="onCloneFileSelected" />
+                        accept=".wav,.mp3,.flac,.ogg,.m4a,.webm" @change="onCloneFileSelected" />
+                    <div v-if="cloneStatus" class="form-note" style="margin-top:8px">
+                        <span v-if="cloneStatus.type === 'success'" style="color:#3ca23c">{{ cloneStatus.message }}</span>
+                        <span v-else style="color:#ff6666">{{ cloneStatus.message }}</span>
+                    </div>
                 </template>
 
                 <!-- Cloning not available: show HF auth panel -->
@@ -92,15 +96,6 @@
                 </template>
             </div>
 
-            <!-- Language display -->
-            <div class="form-label">{{ t('Language') }}</div>
-            <div class="form-input">
-                <span class="lang-display">{{ modelLanguage || t('Detecting...') }}</span>
-            </div>
-            <div class="form-note">
-                {{ t('Automatically detected from your IGOOR settings') }}
-            </div>
-
             <!-- High Quality Mode (24L) -->
             <div class="form-label">{{ t('High Quality Mode (24L)') }}</div>
             <div class="form-input">
@@ -119,7 +114,10 @@
             <div class="form-label"></div>
             <div class="form-input">
                 <div style="display: flex; justify-content: space-between; align-items: center; width: 100%">
-                    <button type="button" @click="testVoice" :disabled="!modelLoaded">{{ t('Test voice') }}</button>
+                    <button type="button" @click="testVoice" :disabled="!modelLoaded || isTesting">
+                        <span v-if="isTesting">{{ t('Testing...') }}</span>
+                        <span v-else>{{ t('Test voice') }}</span>
+                    </button>
                     <div style="display: flex; gap: 8px; align-items: center;">
                         <SaveSettingsButton
                             :hasChanges="hasChanges"
@@ -209,11 +207,12 @@ export default {
             saveStatus: null,
             builtinVoices: [],
             customVoices: [],
-            modelLanguage: '',
             modelLoaded: false,
             modelLoading: true,
             voiceSampleExists: false,
             isCloning: false,
+            isTesting: false,
+            cloneStatus: null,
             cloningSource: '',
             cloningAvailable: false,
             showHfPanel: false,
@@ -299,7 +298,6 @@ export default {
                 var data = await this.callPluginRestEndpoint('pockettts', 'voices');
                 if (data.builtin) this.builtinVoices = data.builtin;
                 if (data.custom) this.customVoices = data.custom;
-                if (data.language) this.modelLanguage = data.language;
             } catch (err) {
                 console.error('Error loading voices:', err);
             }
@@ -309,7 +307,6 @@ export default {
                 var data = await this.callPluginRestEndpoint('pockettts', 'model_status');
                 this.modelLoaded = data.model_loaded;
                 this.modelLoading = data.model_loading;
-                this.modelLanguage = data.language || '';
 
                 if (this.modelLoaded && this.statusPollTimer) {
                     clearInterval(this.statusPollTimer);
@@ -390,18 +387,18 @@ export default {
                     var filename = data.path.split(/[\/\\]/).pop();
                     this.formData.voice = 'custom:' + filename;
                     this.formData.custom_voice_path = data.path;
-                    this.saveStatus = { type: 'success', message: this.t('Voice cloned successfully') };
+                    this.cloneStatus = { type: 'success', message: this.t('Voice cloned successfully') };
                     var self = this;
-                    setTimeout(function() { self.saveStatus = null; }, 3000);
+                    setTimeout(function() { self.cloneStatus = null; }, 4000);
                 }
             } catch (e) {
                 console.error('Clone error:', e);
                 var msg = (e.status === 403 || (e.detail && e.detail.includes('HuggingFace')))
                     ? this.t('Voice cloning requires HuggingFace login. Visit huggingface.co/kyutai/pocket-tts, accept terms, then run: uvx hf auth login')
                     : (e.message || this.t('Failed to clone voice'));
-                this.saveStatus = { type: 'error', message: msg };
+                this.cloneStatus = { type: 'error', message: msg };
                 var self = this;
-                setTimeout(function() { self.saveStatus = null; }, 10000);
+                setTimeout(function() { self.cloneStatus = null; }, 10000);
             } finally {
                 this.isCloning = false;
                 this.cloningSource = '';
@@ -433,17 +430,22 @@ export default {
                 var filename = data.path.split(/[\/\\]/).pop();
                 this.formData.voice = 'custom:' + filename;
                 this.formData.custom_voice_path = data.path;
-                this.saveStatus = { type: 'success', message: this.t('Voice cloned successfully') };
+                this.cloneStatus = { type: 'success', message: this.t('Voice cloned successfully') };
                 var self = this;
-                setTimeout(function() { self.saveStatus = null; }, 3000);
+                setTimeout(function() { self.cloneStatus = null; }, 4000);
             } catch (e) {
                 console.error('Clone error:', e);
-                var msg = (e.message && e.message.includes('HuggingFace'))
-                    ? this.t('Voice cloning requires HuggingFace login. Visit huggingface.co/kyutai/pocket-tts, accept terms, then run: uvx hf auth login')
-                    : (e.message || this.t('Failed to clone voice'));
-                this.saveStatus = { type: 'error', message: msg };
+                var msg;
+                if (e.message && e.message.includes('HuggingFace')) {
+                    msg = this.t('Voice cloning requires HuggingFace login. Visit huggingface.co/kyutai/pocket-tts, accept terms, then run: uvx hf auth login');
+                } else if (e.message && e.message.includes('Unsupported audio format')) {
+                    msg = this.t('Unsupported audio format. Supported: WAV, MP3, FLAC, OGG, M4A, WEBM (M4A/WEBM require ffmpeg)');
+                } else {
+                    msg = e.message || this.t('Failed to clone voice');
+                }
+                this.cloneStatus = { type: 'error', message: msg };
                 var self = this;
-                setTimeout(function() { self.saveStatus = null; }, 10000);
+                setTimeout(function() { self.cloneStatus = null; }, 10000);
 
             } finally {
                 this.isCloning = false;
@@ -452,13 +454,22 @@ export default {
             }
         },
         async testVoice() {
+            if (this.isTesting) return;
+            this.isTesting = true;
             try {
                 await this.callPluginRestEndpoint('pockettts', 'test_speak', {
                     method: 'POST',
-                    data: { message: this.t('Hello, how are you doing? I feel better today!') }
+                    // Send the raw dropdown selection so the test speaks with
+                    // the voice being tried out, not the last saved one
+                    data: {
+                        message: this.t('Hello, how are you doing? I feel better today!'),
+                        voice: this.formData.voice
+                    }
                 });
             } catch (error) {
                 console.error('Error sending test message:', error);
+            } finally {
+                this.isTesting = false;
             }
         },
         async handleSave() {
@@ -505,7 +516,6 @@ export default {
             if (payload && payload.type === 'voice_list') {
                 if (payload.builtin) this.builtinVoices = payload.builtin;
                 if (payload.custom) this.customVoices = payload.custom;
-                if (payload.language) this.modelLanguage = payload.language;
                 return true;
             }
 

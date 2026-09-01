@@ -10,7 +10,6 @@
     "Use your biorecorder voice samples to clone your voice": "Usa i campioni vocali del bio-registratore per clonare la tua voce",
     "Cloning...": "Clonazione in corso...",
     "Use recorded voice": "Usa la voce registrata",
-    "Upload audio to clone voice": "Carica un audio per clonare la voce",
     "Language": "Lingua",
     "Detecting...": "Rilevamento...",
     "Automatically detected from your IGOOR settings": "Rilevata automaticamente dalle impostazioni IGOOR",
@@ -27,5 +26,8 @@
     "Voice cloned successfully": "Voce clonata con successo",
     "Failed to clone voice": "Clonazione della voce non riuscita",
     "Voice cloning requires HuggingFace login. Visit huggingface.co/kyutai/pocket-tts, accept terms, then run: uvx hf auth login": "Il clonaggio vocale richiede l'accesso a HuggingFace. Vai su huggingface.co/kyutai/pocket-tts, accetta i termini, poi esegui: uvx hf auth login",
-    "Hello, how are you doing? I feel better today!": "Ciao, come stai? Oggi mi sento meglio!"
+    "Hello, how are you doing? I feel better today!": "Ciao, come stai? Oggi mi sento meglio!",
+    "Unsupported audio format. Supported: WAV, MP3, FLAC, OGG, M4A, WEBM (M4A/WEBM require ffmpeg)": "Formato audio non supportato. Formati accettati: WAV, MP3, FLAC, OGG, M4A, WEBM (M4A/WEBM richiedono ffmpeg)",
+    "Upload audio": "Carica un audio",
+    "Testing...": "Test in corso..."
 }

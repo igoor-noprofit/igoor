@@ -21,6 +21,7 @@ datas = [
     ('tools', 'tools'),
     ('.env', '.'),
     ('README.md', '.'),
+    ('THIRD_PARTY_LICENSES.md', '.'),
     ('index.html', '.')
 ] + webview_datas + openwakeword_datas
 

@@ -263,7 +263,15 @@ async function initializeApp() {
               stream.sourceBuffer.addEventListener("updateend", () => this.$_pumpAudioQueue(stream));
               this.$_pumpAudioQueue(stream);
             } catch (e) {
+              // e.g. SourceBuffer quota exhausted by leaked MediaSources:
+              // degrade to whole-clip blob playback instead of dead air
               console.error("MSE SourceBuffer error:", e);
+              try {
+                if (stream.mediaSource.readyState === "open") stream.mediaSource.endOfStream();
+              } catch (e2) {
+                // media source already closed
+              }
+              stream.chunks = stream.queue.splice(0);
             }
           });
           stream.audio = new Audio(stream.objectUrl);
@@ -452,6 +460,16 @@ async function initializeApp() {
         this.audioStream = null;
         if (stream.objectUrl) URL.revokeObjectURL(stream.objectUrl);
         if (stream.completionTimer) clearTimeout(stream.completionTimer);
+        // Close the MediaSource so its SourceBuffer is released; without
+        // this every completed MSE stream leaked an open MediaSource until
+        // GC caught up, and repeated streams exhausted the browser quota
+        try {
+          if (stream.mediaSource && stream.mediaSource.readyState === "open") {
+            stream.mediaSource.endOfStream();
+          }
+        } catch (e) {
+          // media source already closed
+        }
         try {
           if (stream.pcm && stream.pcm.ctx) stream.pcm.ctx.close();
         } catch (e) {

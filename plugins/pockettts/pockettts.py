@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException, UploadFile, File
 from fastapi.responses import JSONResponse
 from fastapi import Form
 from pydantic import BaseModel
+from typing import Optional
 import asyncio
 import os
 import sys
@@ -145,6 +146,10 @@ GDRIVE_MODELS = _load_gdrive_models()
 
 class TestSpeakPayload(BaseModel):
     message: str = "Hello, how are you doing? I feel better today!"
+    # Optional voice selection from the settings dropdown, so "Test voice"
+    # tests what is SELECTED (not yet saved) rather than the last saved
+    # voice. Raw dropdown value: 'auto', a built-in name, or 'custom:<file>'.
+    voice: Optional[str] = None
 
 
 class HfLoginPayload(BaseModel):
@@ -207,12 +212,25 @@ class Pockettts(Baseplugin):
 
         @self.router.post("/test_speak")
         async def test_speak(payload: TestSpeakPayload):
-            """Test speech synthesis with current settings"""
+            """Test speech synthesis. When a voice selection is provided it is
+            used for this test only (the saved settings are untouched), so the
+            button tests what the user selected in the dropdown. The request
+            completes only after playback ends, letting the settings UI keep
+            the Test button disabled for the whole test."""
             if self.tts_model is None or self.voice_state is None:
                 raise HTTPException(status_code=503, detail="Model not loaded yet")
             try:
-                asyncio.create_task(self.run_speak_func(payload.message))
-                return {"status": "speaking", "message": payload.message}
+                state = self._state_for_test(payload.voice)
+                if state is None:
+                    raise HTTPException(
+                        status_code=400, detail=f"Voice not available: {payload.voice}"
+                    )
+                success = await self.run_speak_func(payload.message, voice_state=state)
+                if not success:
+                    raise HTTPException(status_code=500, detail="Test speech failed")
+                return {"status": "done", "message": payload.message}
+            except HTTPException:
+                raise
             except Exception as e:
                 raise HTTPException(status_code=500, detail=str(e))
 
@@ -603,6 +621,88 @@ class Pockettts(Baseplugin):
 
     # ── Voice cloning ───────────────────────────────────────────────────
 
+    def _state_for_test(self, voice):
+        """Build a throwaway voice state for the Test button from the raw
+        dropdown selection ('auto', a built-in name, or 'custom:<file>').
+        Returns None when the requested voice is not available locally; the
+        caller then reports it instead of silently testing another voice."""
+        if not voice or voice == "custom":
+            # no specific selection (or bare 'custom' without a file) ->
+            # test the currently loaded voice
+            return self.voice_state
+        try:
+            if voice == "auto":
+                name = DEFAULT_VOICE.get(self._resolve_language(), "alba")
+                return self.tts_model.get_state_for_audio_prompt(
+                    self._resolve_voice_prompt(name)
+                )
+            if voice.startswith("custom:"):
+                path = os.path.join(self._get_voices_dir(), voice[len("custom:"):])
+                if not os.path.isfile(path):
+                    return None
+                return self.tts_model.get_state_for_audio_prompt(path)
+            return self.tts_model.get_state_for_audio_prompt(
+                self._resolve_voice_prompt(voice)
+            )
+        except Exception as e:
+            self.logger.warning(f"Could not prepare test voice '{voice}': {e}")
+            return None
+
+    def _unique_voice_path(self, voices_dir: str, safe_name: str) -> str:
+        """A voice .safetensors cannot be overwritten while its tensors are
+        memory-mapped by the loaded voice state (Windows os error 1224), and
+        the upload UI names clones by date so same-day clones collide. Always
+        write to a fresh, auto-suffixed file instead."""
+        base = os.path.join(voices_dir, f"{safe_name}.safetensors")
+        if not os.path.exists(base):
+            return base
+        n = 2
+        while os.path.exists(os.path.join(voices_dir, f"{safe_name} ({n}).safetensors")):
+            n += 1
+        return os.path.join(voices_dir, f"{safe_name} ({n}).safetensors")
+
+    def _prepare_clone_audio(self, audio_bytes: bytes, filename: str, voices_dir: str) -> str:
+        """Write the uploaded audio to a temp file the TTS can read and return
+        its path. Keeps the ORIGINAL extension (the reader dispatches on it —
+        naming everything .wav made every non-WAV upload fail with "file does
+        not start with RIFF id"), validates the content is readable audio,
+        and transcodes via ffmpeg when the format is not directly supported
+        (m4a, mp4, aac, webm). Raises 400 with a clear message otherwise."""
+        import soundfile as sf
+
+        ext = os.path.splitext(filename or "")[1].lower()
+        if not ext.startswith(".") or not ext[1:].isalnum():
+            ext = ".wav"
+        temp_path = os.path.join(voices_dir, f"_temp_clone{ext}")
+        with open(temp_path, "wb") as f:
+            f.write(audio_bytes)
+
+        try:
+            sf.info(temp_path)
+            return temp_path
+        except Exception:
+            pass
+
+        # Not directly readable: transcode via ffmpeg (pydub) if available
+        try:
+            from pydub import AudioSegment
+
+            wav_path = os.path.join(voices_dir, "_temp_clone.wav")
+            AudioSegment.from_file(temp_path).export(wav_path, format="wav")
+            os.remove(temp_path)
+            sf.info(wav_path)
+            return wav_path
+        except Exception:
+            try:
+                os.remove(temp_path)
+            except OSError:
+                pass
+            raise HTTPException(
+                status_code=400,
+                detail="Unsupported audio format. Supported: WAV, MP3, FLAC, OGG, M4A, WEBM "
+                       "(M4A/WEBM require ffmpeg)",
+            )
+
     async def _clone_voice_from_upload(self, audio_file: UploadFile, name: str):
         """Clone a voice from an uploaded audio file"""
         from pocket_tts import export_model_state
@@ -615,28 +715,29 @@ class Pockettts(Baseplugin):
             if not audio_bytes:
                 raise HTTPException(status_code=400, detail="Empty audio file")
 
-            # Save uploaded file temporarily
+            # Save uploaded file temporarily (validated + transcoded if needed)
             voices_dir = self._get_voices_dir()
             safe_name = "".join(c if c.isalnum() or c in " _-" else "_" for c in name)
-            temp_wav = os.path.join(voices_dir, f"_temp_{safe_name}.wav")
-            with open(temp_wav, "wb") as f:
-                f.write(audio_bytes)
+            temp_wav = self._prepare_clone_audio(audio_bytes, audio_file.filename, voices_dir)
 
             # Generate voice state from audio (CPU-bound, run in thread)
             def _clone():
                 voice_state = self.tts_model.get_state_for_audio_prompt(temp_wav)
-                # Export to safetensors for fast reload
-                safetensors_path = os.path.join(voices_dir, f"{safe_name}.safetensors")
+                # Export to safetensors for fast reload (fresh file: see
+                # _unique_voice_path)
+                safetensors_path = self._unique_voice_path(voices_dir, safe_name)
                 export_model_state(voice_state, safetensors_path)
                 return voice_state, safetensors_path
 
-            voice_state, safetensors_path = await asyncio.to_thread(_clone)
-
-            # Clean up temp wav
             try:
-                os.remove(temp_wav)
-            except OSError:
-                pass
+                voice_state, safetensors_path = await asyncio.to_thread(_clone)
+            finally:
+                # Remove the temp audio also when cloning fails (a leaked
+                # _temp_*.wav used to survive every failed clone attempt)
+                try:
+                    os.remove(temp_wav)
+                except OSError:
+                    pass
 
             # Update active voice state and settings
             self.voice_state = voice_state
@@ -689,7 +790,7 @@ class Pockettts(Baseplugin):
             # Generate voice state from biorecorder audio (CPU-bound)
             def _clone():
                 voice_state = self.tts_model.get_state_for_audio_prompt(bio_voice_path)
-                safetensors_path = os.path.join(voices_dir, f"{name}.safetensors")
+                safetensors_path = self._unique_voice_path(voices_dir, name)
                 export_model_state(voice_state, safetensors_path)
                 return voice_state, safetensors_path
 
@@ -800,10 +901,10 @@ class Pockettts(Baseplugin):
         # HookCallError that can take down the ASGI serving loop.
         await self.pm.trigger_hook(hook_name="restart_asr", force_ready=force_ready)
 
-    async def run_speak_func(self, message):
+    async def run_speak_func(self, message, voice_state=None):
         await self.pm.trigger_hook(hook_name="pause_asr")
         await asyncio.sleep(0.1)  # Ensure pause message reaches frontend
-        success = await self.speak_func(message)
+        success = await self.speak_func(message, voice_state=voice_state)
         if not success:
             self.logger.warning("speak_func failed, triggering speak_fallback")
             await self.pm.trigger_hook(hook_name="speak_fallback", message=message)
@@ -816,9 +917,10 @@ class Pockettts(Baseplugin):
         translated_message = await self.translate_for_interlocutor(message, direction="outgoing")
         await self.run_speak_func(translated_message)
 
-    async def speak_func(self, message):
+    async def speak_func(self, message, voice_state=None):
         """Generate audio from text: streamed to the browser in CLI mode,
-        played via sounddevice otherwise."""
+        played via sounddevice otherwise. voice_state lets the Test button
+        speak with a selection that isn't saved yet."""
         self.logger.info(f"SPEAK FUNC: {message}")
         try:
             if self.tts_model is None or self.voice_state is None:
@@ -826,11 +928,11 @@ class Pockettts(Baseplugin):
                 return False
 
             if self.is_remote_ui():
-                streamed = await self._stream_speech_to_frontend(message)
+                streamed = await self._stream_speech_to_frontend(message, voice_state)
                 if not streamed:
-                    return await self._speak_local(message)
+                    return await self._speak_local(message, voice_state)
                 return True
-            return await self._speak_local(message)
+            return await self._speak_local(message, voice_state)
 
         except Exception as e:
             self.logger.error(f"Error in speak_func: {e}", exc_info=True)
@@ -846,13 +948,26 @@ class Pockettts(Baseplugin):
         audio = np.clip(audio.reshape(-1), -1.0, 1.0)
         return (audio * 32767).astype(np.int16).tobytes()
 
-    def _iter_speech_chunks(self, message):
+    # Playback padding: pocket-tts generates speech starting at sample 0
+    # with almost no tail, so output warm-up (browser AudioContext, speaker
+    # amp power-save) clips the head of very short replies like "Oui".
+    PLAYBACK_LEAD_S = 0.15
+    PLAYBACK_TAIL_S = 0.10
+
+    def _silence_bytes(self, seconds: float) -> bytes:
+        rate = int(self.tts_model.sample_rate)
+        return b"\x00" * (int(seconds * rate) * 2)  # int16 mono
+
+    def _iter_speech_chunks(self, message, voice_state=None):
         """Blocking generator: int16 PCM chunks as pocket-tts decodes them
         (generate_audio_stream yields as soon as audio is available)."""
-        for chunk in self.tts_model.generate_audio_stream(self.voice_state, message):
+        state = voice_state if voice_state is not None else self.voice_state
+        yield self._silence_bytes(self.PLAYBACK_LEAD_S)
+        for chunk in self.tts_model.generate_audio_stream(state, message):
             yield self._pcm16_bytes(chunk)
+        yield self._silence_bytes(self.PLAYBACK_TAIL_S)
 
-    async def _stream_speech_to_frontend(self, message) -> bool:
+    async def _stream_speech_to_frontend(self, message, voice_state=None) -> bool:
         """Stream PCM chunks to the browser while generation runs. Synthesis
         happens in a worker thread so the event loop stays free; the websocket
         protocol matches Baseplugin.stream_audio_to_frontend (play_stream /
@@ -875,7 +990,7 @@ class Pockettts(Baseplugin):
             started = None
             sent = 0
             try:
-                for chunk in self._iter_speech_chunks(message):
+                for chunk in self._iter_speech_chunks(message, voice_state):
                     if not websocket_server.send_bytes('app', chunk):
                         failure.set()
                         return
@@ -904,13 +1019,14 @@ class Pockettts(Baseplugin):
         await self.wait_playback_finished(timeout=30)
         return True
 
-    async def _speak_local(self, message) -> bool:
+    async def _speak_local(self, message, voice_state=None) -> bool:
         """Whole-clip generation and local playback via sounddevice."""
 
         # Generate audio in a thread (CPU-bound operation)
         def _generate():
+            state = voice_state if voice_state is not None else self.voice_state
             audio_tensor = self.tts_model.generate_audio(
-                self.voice_state, message
+                state, message
             )
             return audio_tensor
 
@@ -940,6 +1056,12 @@ class Pockettts(Baseplugin):
             audio_int16 = (audio_np * 32767).astype(np.int16)
         else:
             audio_int16 = audio_np.astype(np.int16)
+
+        # Same head/tail padding as the streaming path: output warm-up
+        # clips speech that starts at sample 0 (e.g. "Oui")
+        pad_lead = np.zeros(int(self.PLAYBACK_LEAD_S * sample_rate), dtype=np.int16)
+        pad_tail = np.zeros(int(self.PLAYBACK_TAIL_S * sample_rate), dtype=np.int16)
+        audio_int16 = np.concatenate([pad_lead, audio_int16, pad_tail])
 
         self.logger.info(
             f"Playing audio: {len(audio_int16)} samples at {sample_rate}Hz "
