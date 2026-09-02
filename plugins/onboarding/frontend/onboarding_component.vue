@@ -421,6 +421,7 @@ export default {
                     { label: "Configure translation", plugin: "translator", icon: "" }
                 ],
                 "Vocal Synthesis": [
+                    { label: "Configure Pocket TTS", plugin: "pockettts", icon: "" },
                     { label: "Configure ElevenLabs", plugin: "elevenlabstts", icon: "" },
                     { label: "Configure Speechify", plugin: "speechifytts", icon: "" },
                     { label: "Configure Windows Voice", plugin: "ttsdefault", icon: "" },

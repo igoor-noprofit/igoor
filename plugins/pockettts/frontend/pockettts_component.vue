@@ -1,26 +1,25 @@
 <template>
-    <div class="elevenlabs">
+    <div class="pockettts">
     </div>
 </template>
 
 <script>
 const BasePluginComponent = require('/js/BasePluginComponent.js');
 module.exports = {
-    name: "elevenlabs",
+    name: "pockettts",
     mixins: [BasePluginComponent],
     methods: {
         async $_speak(msg) {
+            const self = this;
             try {
                 console.log("triggering speak hook with message " + msg);
-                const api = await window.ensureBackendApi();
-                await api.triggerHook("speak", { message: msg });
+                const result = pywebview.api.trigger_hook("speak", { message: msg });
             } catch (error) {
                 console.error('Error triggering speak hook: ', error);
             }
         },
         $_customMethod() {
-            console.log("custom method");
-            // Call a method from the mixin
+            console.log("pockettts custom method");
             this.commonMethod();
         }
     }

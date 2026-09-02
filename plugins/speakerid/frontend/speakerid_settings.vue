@@ -155,7 +155,7 @@
 </template>
 
 <script>
-const RecorderComponent = require('/plugins/recorder/frontend/RecorderComponent.vue');
+const RecorderComponent = require('/plugins/recorder/frontend/recorder_component.vue');
 const HelpPopover = require('/js/HelpPopover.vue');
 const BasePluginComponent = require('/js/BasePluginComponent.js');
 

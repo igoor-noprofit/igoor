@@ -155,6 +155,11 @@ class Speechifytts(Baseplugin):
         # Schedule the speak_func to run in the background (with translation)
         asyncio.create_task(self.run_speak_func_with_translation(message, skip_asr=skip_asr))
         asyncio.create_task(self.pm.trigger_hook(hook_name="reset_conversation_timeout"))
+
+    @hookimpl
+    def tts_playback_finished(self):
+        # Browser acknowledged end of streamed audio playback
+        self._on_playback_finished()
         
     @hookimpl
     def test_speak(self, message, **kwargs):
@@ -521,15 +526,22 @@ class Speechifytts(Baseplugin):
 
             print("Decoding complete. Preparing for playback...")
 
-            # 3. Play the audio using pydub playback
-            print("Playing audio...")
+            # 3. Play the audio
             await self.pm.trigger_hook(hook_name="pause_asr")
             await asyncio.sleep(0.1)  # Ensure pause message reaches frontend
 
-            def play_audio():
-                play(audio_segment)
+            if self.is_remote_ui():
+                # Speechify returns the complete audio only: single-chunk stream
+                mp3_buffer = audio_segment.export(format="mp3")
+                streamed = await self.stream_audio_to_frontend([mp3_buffer.getvalue()], "audio/mpeg")
+                if not streamed:
+                    # No browser connected - fall back to local playback
+                    await asyncio.to_thread(play, audio_segment)
+            else:
+                def play_audio():
+                    play(audio_segment)
 
-            await asyncio.to_thread(play_audio)
+                await asyncio.to_thread(play_audio)
             self.run_restart_asr(force_ready=skip_asr)
             print("Playback finished.")
             

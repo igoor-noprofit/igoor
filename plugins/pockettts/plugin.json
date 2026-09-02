@@ -1,0 +1,14 @@
+{
+    "active": false,
+    "category": "TTS",
+    "title": "Pocket TTS",
+    "description": "Free, local, CPU-only text-to-speech with voice cloning. No API key or internet needed after first model download.",
+    "layout": {
+        "part": "topbar",
+        "order": 0
+    },
+    "is_free": true,
+    "requires_subscription": false,
+    "requires_internet": false,
+    "has_settings": true
+}

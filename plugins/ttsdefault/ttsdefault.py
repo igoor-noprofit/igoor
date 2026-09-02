@@ -166,6 +166,10 @@ class Ttsdefault(Baseplugin):
 
     async def speak_func(self, message):
         self.logger.info("SPEAK FUNC:" + message)
+        if self.is_remote_ui():
+            # SAPI synthesizes and plays on the PC in one synchronous call:
+            # it cannot be streamed to the browser, even on the same machine.
+            self.logger.warning("SAPI TTS cannot reach the browser - speaking on PC speakers")
         try:
             # Run SAPI speech in a separate thread to avoid blocking
             await asyncio.to_thread(self.speaker.Speak, message)

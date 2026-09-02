@@ -52,6 +52,10 @@ a = Analysis(
         'groq',
         'sherpa_onnx',
         'openwakeword',
+        # pockettts plugin: loaded dynamically by the plugin loader
+        'pocket_tts',
+        'gdown',
+        'yaml',
 
         # === CORE SENTENCE TRANSFORMERS (Required) ===
         'sentence_transformers',
