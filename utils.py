@@ -217,6 +217,16 @@ def get_platform():
     return platform.system()
 
 
+_PLATFORM_KEYS = {"Windows": "windows", "Darwin": "macos", "Linux": "linux"}
+
+
+def get_platform_key():
+    """Return the normalized platform key ("windows"/"macos"/"linux") used by
+    the plugin.json "platforms" compatibility flags."""
+    system = get_platform()
+    return _PLATFORM_KEYS.get(system, system.lower())
+
+
 def get_appdata_dir(create: bool = True) -> str:
     """Return the platform-specific application data directory for IGOOR."""
     system = get_platform()

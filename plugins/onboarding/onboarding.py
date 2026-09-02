@@ -340,7 +340,8 @@ class Onboarding(Baseplugin):
                 # Get activation state from settings.json
                 is_active = plugins_activation.get(plugin_name, False)
                 self.logger.info(f"Plugin {plugin_name} activation state: {is_active}")
-                plugin["active"] = is_active
+                # OS-incompatible plugins are shown as inactive (settings are preserved)
+                plugin["active"] = is_active if plugin.get("compatible", True) else False
                 
                 # Mark core plugins as locked
                 plugin["is_core"] = (
@@ -369,7 +370,12 @@ class Onboarding(Baseplugin):
         if is_core:
             self.logger.warning(f"Attempted to toggle core plugin {plugin_name}")
             return False
-        
+
+        # Refuse to activate a plugin that cannot run on this OS
+        if is_active and not plugin_manager._plugin_is_compatible(plugin_name):
+            self.logger.warning(f"Attempted to activate plugin {plugin_name} not compatible with this platform")
+            return False
+
         # Update settings.json
         settings = plugin_manager.settings_manager.get_settings()
         if "plugins_activation" not in settings:

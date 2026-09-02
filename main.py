@@ -192,8 +192,9 @@ def load_frontend_components(lang):
 
     # Iterate over plugins metadata
     for plugin_name, metadata in plugins_metadata.items():
-        # Check activation state from settings.json instead of metadata
-        if plugins_activation.get(plugin_name, False):
+        # Check activation state from settings.json instead of metadata,
+        # but never inject a plugin whose OS the plugin.json "platforms" flag excludes
+        if plugins_activation.get(plugin_name, False) and manager._plugin_is_compatible(plugin_name, metadata):
             logger.info(f"Plugin {plugin_name} is active")
             component_name = ''.join(word.capitalize() for word in plugin_name.split('_'))
             component_path = f"/plugins/{plugin_name}/frontend/{plugin_name}_component.vue?v={IGOOR_VERSION}"

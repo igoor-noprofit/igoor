@@ -1,4 +1,5 @@
 {
+    "platforms": ["windows"],
     "category": "UI",
     "title": "Virtual keyboard",
     "description": "Integration with TabTip.exe and (in the future) with IGOOR external on-screen keyboard",

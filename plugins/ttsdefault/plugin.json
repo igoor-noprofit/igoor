@@ -1,5 +1,6 @@
 {
     "active": true,
+    "platforms": ["windows"],
     "category": "TTS",
     "title": "Default Text-to-speech",
     "description": "Fallback TTS using Windows OS voices",

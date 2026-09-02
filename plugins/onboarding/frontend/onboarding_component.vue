@@ -273,7 +273,7 @@
                             <!-- Plugins Grid for Active Tab -->
                             <div v-if="activeTab" class="plugins-grid">
                                 <div v-for="plugin in pluginsByCategory[activeTab]" :key="plugin.name"
-                                    class="plugin-card" :class="{ 'core-plugin': plugin.is_core }">
+                                    class="plugin-card" :class="{ 'core-plugin': plugin.is_core, 'incompatible-plugin': plugin.compatible === false }">
                                     <div class="plugin-header">
                                         <h3 class="plugin-title">
                                             {{ plugin.title }}
@@ -281,7 +281,7 @@
                                         </h3>
                                         <div class="plugin-actions">
                                             <label class="switch"><input type="checkbox" :checked="plugin.active"
-                                                    :disabled="plugin.is_core"
+                                                    :disabled="plugin.is_core || plugin.compatible === false"
                                                     @change="togglePlugin(activeTab, plugin.name, $event.target.checked)"><span
                                                     class="slider round"></span></label>
                                             <!-- Settings Icon for non-core plugins -->
@@ -295,6 +295,9 @@
                                     <div class="plugin-requirements">
                                         <span v-if="plugin.is_core" class="requirement core">
                                             🔒 {{ t("Core Plugin") }}
+                                        </span>
+                                        <span v-if="plugin.compatible === false" class="requirement incompatible">
+                                            ⛔ {{ t("Not available on this platform") }}
                                         </span>
                                         <span v-if="plugin.requires_internet" class="requirement">
                                             🌐 {{ t("Requires Internet") }}
@@ -956,6 +959,10 @@ export default {
                 console.log("Cannot toggle core plugin:", pluginName);
                 return;
             }
+            if (plugin && plugin.compatible === false) {
+                console.log("Plugin not available on this platform:", pluginName);
+                return;
+            }
 
             try {
                 const backendApi = await window.ensureBackendApi();
@@ -1409,6 +1416,17 @@ button:disabled {
 }
 
 .requirement.core {
+    background: #6c757d;
+    color: white;
+}
+
+.incompatible-plugin {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    opacity: 0.7;
+}
+
+.requirement.incompatible {
     background: #6c757d;
     color: white;
 }

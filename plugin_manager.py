@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 load_dotenv()
 from typing import Any
 from status_manager import StatusManager
-from utils import resource_path, setup_logger, get_appdata_dir
+from utils import resource_path, setup_logger, get_appdata_dir, get_platform_key
 from websocket_server import websocket_server
 
 IGOOR_DEBUG = os.getenv('IGOOR_DEBUG', 'False')
@@ -383,8 +383,25 @@ class PluginManager:
             self.logger.warning(f"Hook '{hook_name}' not found.")
             return None
     
+    def _plugin_is_compatible(self, plugin_name, metadata=None):
+        """True if the plugin can run on this OS.
+
+        Reads the optional "platforms" list from plugin.json (e.g.
+        ["windows"]); an absent/empty list means compatible everywhere.
+        Never touches settings: an incompatible plugin keeps its stored
+        activation so settings.json stays portable across OSes.
+        """
+        if metadata is None:
+            metadata = self.all_plugins.get(plugin_name, {})
+        platforms = metadata.get("platforms")
+        return not platforms or get_platform_key() in platforms
+
     def is_active(self, plugin_name):
         """Check if a plugin is active based on settings.json"""
+        # OS gate first: incompatible plugins are never active, whatever
+        # settings.json says (and their stored state is left untouched).
+        if not self._plugin_is_compatible(plugin_name):
+            return False
         settings = self.settings_manager.get_settings()
         plugins_activation = settings.get("plugins_activation", {})
         
@@ -426,6 +443,12 @@ class PluginManager:
                     is_active = True
                 elif plugin_name in exclude_list:
                     self.logger.info(f"Plugin '{plugin_name}' is in the exclude_list, overriding is_active to False.")
+                    is_active = False
+
+                # Platform gate: an OS-incompatible plugin is never loaded,
+                # even when forced via active_list or activated in settings.
+                if is_active and not self._plugin_is_compatible(plugin_name):
+                    self.logger.info(f"Plugin '{plugin_name}' is not compatible with this platform - not loading")
                     is_active = False
 
                 if os.path.isdir(plugin_path) and is_active:
@@ -499,6 +522,7 @@ class PluginManager:
             if category not in plugins_by_category:
                 plugins_by_category[category] = []
                 
+            compatible = self._plugin_is_compatible(plugin_name, metadata)
             plugin_info = {
                 "name": plugin_name,
                 "title": metadata.get("title", plugin_name),
@@ -507,8 +531,9 @@ class PluginManager:
                 "requires_subscription": metadata.get("requires_subscription", False),
                 "is_free": metadata.get("is_free", True),
                 "category": category,
-                "active": plugins_activation.get(plugin_name, False),  # Get activation state from settings.json
-                "has_settings": metadata.get("has_settings", False)
+                "active": plugins_activation.get(plugin_name, False) if compatible else False,  # Get activation state from settings.json (inert for OS-incompatible plugins)
+                "has_settings": metadata.get("has_settings", False),
+                "compatible": compatible
             }
             
             plugins_by_category[category].append(plugin_info)
@@ -669,9 +694,13 @@ class PluginManager:
     def activate_plugin(self, plugin_name):
         """Activates a plugin by setting its 'active' status to True in its plugin.json."""
         self.logger.info(f"ACTIVATING {plugin_name}")
+        if not self._plugin_is_compatible(plugin_name):
+            self.logger.warning(f"Plugin '{plugin_name}' is not compatible with this platform - activation refused")
+            return False
         self._set_plugin_active_status(plugin_name, True)
         self.copy_default_plugin_settings_if_needed(plugin_name)
         # self._trigger_plugin_hook(plugin_name, 'activate')
+        return True
 
     def deactivate_plugin(self, plugin_name):
         """Deactivates a plugin by setting its 'active' status to False in its plugin.json."""

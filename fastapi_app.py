@@ -109,9 +109,15 @@ def create_app() -> FastAPI:
     async def api_toggle_plugin(plugin_name: str, payload: TogglePluginPayload):
         try:
             if payload.active:
-                plugin_manager.activate_plugin(plugin_name)
+                if not plugin_manager.activate_plugin(plugin_name):
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Plugin '{plugin_name}' is not available on this platform",
+                    )
             else:
                 plugin_manager.deactivate_plugin(plugin_name)
+        except HTTPException:
+            raise
         except Exception as exc:
             raise HTTPException(status_code=500, detail=str(exc)) from exc
         return {"status": "ok"}
