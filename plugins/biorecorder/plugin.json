@@ -8,5 +8,16 @@
     "layout": {
         "part": "plugins",
         "order": 50
-    }
+    },
+    "user_data": [
+        {
+            "path": "bio.md"
+        },
+        {
+            "path": "answers.json"
+        },
+        {
+            "path": "voice_sample.wav"
+        }
+    ]
 }

@@ -66,7 +66,40 @@ class DataManager:
                 obsolete.extend(self._find_obsolete_keys(value, current[key], current_path))
         
         return obsolete
-    
+
+    def _declared_user_data(self):
+        """Collect per-plugin user-data declarations from the repo plugins
+        dir (plugins/<name>/plugin.json -> "user_data"). Reading the files
+        instead of loaded plugin objects keeps data of DEACTIVATED plugins
+        exportable. Each entry is (plugin_name, relative_path, mode) where
+        mode is "merge" (default) or "replace" (import wipes the local path
+        first, e.g. recorder audio that must stay in sync with the DB).
+        Malformed declarations are skipped with a warning."""
+        declarations = []
+        plugins_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "plugins")
+        if not os.path.isdir(plugins_dir):
+            self.logger.warning(f"plugins dir not found for user_data scan: {plugins_dir}")
+            return declarations
+        for plugin_name in sorted(os.listdir(plugins_dir)):
+            manifest_path = os.path.join(plugins_dir, plugin_name, "plugin.json")
+            if not os.path.isfile(manifest_path):
+                continue
+            try:
+                with open(manifest_path, "r", encoding="utf-8") as f:
+                    manifest = json.load(f)
+                for entry in manifest.get("user_data", []) or []:
+                    if isinstance(entry, str):
+                        entry = {"path": entry}
+                    rel_path = (entry.get("path") or "").strip()
+                    if not rel_path or ".." in rel_path.split(os.sep) or ".." in rel_path.split("/"):
+                        self.logger.warning(f"Invalid user_data entry in {plugin_name}: {entry}")
+                        continue
+                    mode = entry.get("mode", "merge")
+                    declarations.append((plugin_name, rel_path, mode))
+            except (OSError, json.JSONDecodeError) as e:
+                self.logger.warning(f"Could not read plugin.json of {plugin_name}: {e}")
+        return declarations
+
     def export_user_data(self, output_path: Optional[str] = None, include_rag: bool = True) -> Dict:
         """
         Export user data to a ZIP file.
@@ -144,69 +177,21 @@ class DataManager:
                     else:
                         self.logger.warning("plugins/rag folder not found")
 
-                # Export custom wakeword models
-                custom_wakeword_folder = os.path.join(self.appdata_dir, "plugins", "asrjs", "custom_wakeword")
-                if os.path.exists(custom_wakeword_folder):
-                    shutil.copytree(custom_wakeword_folder, temp_path / "plugins" / "asrjs" / "custom_wakeword")
-                    self.logger.info("Exported plugins/asrjs/custom_wakeword folder")
-                else:
-                    self.logger.warning("plugins/asrjs/custom_wakeword folder not found")
-
-                # Export speaker ID voice profiles + embeddings so recognition survives
-                # import. The DB carries the speaker rows; voices/ is the source of truth
-                # the pkl rebuilds from, and the pkl is portable (names + numpy, no abs
-                # paths). recordings/ chunk dumps are deliberately excluded.
-                speakerid_folder = os.path.join(self.appdata_dir, "plugins", "speakerid")
-                if os.path.exists(speakerid_folder):
-                    speakerid_dest = temp_path / "plugins" / "speakerid"
-                    os.makedirs(speakerid_dest, exist_ok=True)
-                    voices_folder = os.path.join(speakerid_folder, "voices")
-                    if os.path.exists(voices_folder):
-                        shutil.copytree(voices_folder, speakerid_dest / "voices")
-                        self.logger.info("Exported plugins/speakerid/voices folder")
-                    pkl_file = os.path.join(speakerid_folder, "speaker_embeddings.pkl")
-                    if os.path.exists(pkl_file):
-                        shutil.copy2(pkl_file, speakerid_dest / "speaker_embeddings.pkl")
-                        self.logger.info("Exported plugins/speakerid/speaker_embeddings.pkl")
-                else:
-                    self.logger.warning("plugins/speakerid folder not found")
-
-                # Export pockettts cloned voices (safetensors voice states —
-                # for many users this IS their voice). The model weights
-                # (models/, hundreds of MB per language) are deliberately NOT
-                # exported: they re-download from the Drive mirrors / HF.
-                pockettts_voices_folder = os.path.join(self.appdata_dir, "plugins", "pockettts", "voices")
-                if os.path.exists(pockettts_voices_folder):
-                    shutil.copytree(pockettts_voices_folder, temp_path / "plugins" / "pockettts" / "voices")
-                    self.logger.info("Exported plugins/pockettts/voices folder")
-
-                # Export biorecorder biography: bio.md (the LLM-generated life
-                # story that prediction prompts read) and answers.json (the source
-                # Q&A). voice_sample.wav is a large derived artifact and is
-                # excluded to keep the archive small.
-                biorecorder_folder = os.path.join(self.appdata_dir, "plugins", "biorecorder")
-                if os.path.exists(biorecorder_folder):
-                    biorecorder_dest = temp_path / "plugins" / "biorecorder"
-                    os.makedirs(biorecorder_dest, exist_ok=True)
-                    for bio_file in ("bio.md", "answers.json"):
-                        src_file = os.path.join(biorecorder_folder, bio_file)
-                        if os.path.exists(src_file):
-                            shutil.copy2(src_file, biorecorder_dest / bio_file)
-                            self.logger.info(f"Exported plugins/biorecorder/{bio_file}")
-                else:
-                    self.logger.warning("plugins/biorecorder folder not found")
-
-                # Export recorder audio files (plugins/recorder/audio/<plugin>/*.wav).
-                # The records table itself lives in the shared database/igoor.db
-                # (already exported above); these are the referenced WAV files.
-                # Needed so biorecorder can regenerate its voice sample and so
-                # speakerid recorder_id linkages stay resolvable after import.
-                recorder_audio_folder = os.path.join(self.appdata_dir, "plugins", "recorder", "audio")
-                if os.path.exists(recorder_audio_folder):
-                    shutil.copytree(recorder_audio_folder, temp_path / "plugins" / "recorder" / "audio")
-                    self.logger.info("Exported plugins/recorder/audio folder")
-                else:
-                    self.logger.warning("plugins/recorder/audio folder not found")
+                # Export everything declared in plugin.json "user_data" keys
+                # (pockettts voices, biorecorder biography, recorder audio,
+                # custom wakewords...). Works for deactivated plugins too:
+                # declarations are read from the repo plugins dir, not from
+                # loaded plugin objects.
+                for plugin_name, rel_path, _mode in self._declared_user_data():
+                    src = os.path.join(self.appdata_dir, "plugins", plugin_name, rel_path)
+                    if os.path.exists(src):
+                        dest = temp_path / "plugins" / plugin_name / rel_path
+                        os.makedirs(os.path.dirname(dest), exist_ok=True)
+                        if os.path.isdir(src):
+                            shutil.copytree(src, dest)
+                        else:
+                            shutil.copy2(src, dest)
+                        self.logger.info(f"Exported plugins/{plugin_name}/{rel_path}")
 
                 # Create ZIP file
                 with zipfile.ZipFile(output_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
@@ -313,55 +298,22 @@ class DataManager:
                     backup_items.append("plugins/rag")
                     self.logger.info("Backed up plugins/rag folder")
 
-                # Backup custom wakeword folder
-                current_wakeword_folder = os.path.join(self.appdata_dir, "plugins", "asrjs", "custom_wakeword")
-                imported_wakeword_path = temp_path / "plugins" / "asrjs" / "custom_wakeword"
-
-                if imported_wakeword_path.exists() and os.path.exists(current_wakeword_folder):
-                    backup_wakeword_path = os.path.join(backup_path, "plugins", "asrjs", "custom_wakeword")
-                    shutil.copytree(current_wakeword_folder, backup_wakeword_path)
-                    backup_items.append("plugins/asrjs/custom_wakeword")
-                    self.logger.info("Backed up plugins/asrjs/custom_wakeword folder")
-
-                # Backup speaker ID folder (only if the import carries speakerid data)
-                current_speakerid_folder = os.path.join(self.appdata_dir, "plugins", "speakerid")
-                imported_speakerid_path = temp_path / "plugins" / "speakerid"
-
-                if imported_speakerid_path.exists() and os.path.exists(current_speakerid_folder):
-                    backup_speakerid_path = os.path.join(backup_path, "plugins", "speakerid")
-                    shutil.copytree(current_speakerid_folder, backup_speakerid_path)
-                    backup_items.append("plugins/speakerid")
-                    self.logger.info("Backed up plugins/speakerid folder")
-
-                # Backup pockettts voices (only if the import carries pockettts data)
-                current_pockettts_voices_folder = os.path.join(self.appdata_dir, "plugins", "pockettts", "voices")
-                imported_pockettts_voices_path = temp_path / "plugins" / "pockettts" / "voices"
-
-                if imported_pockettts_voices_path.exists() and os.path.exists(current_pockettts_voices_folder):
-                    backup_pockettts_voices_path = os.path.join(backup_path, "plugins", "pockettts", "voices")
-                    shutil.copytree(current_pockettts_voices_folder, backup_pockettts_voices_path)
-                    backup_items.append("plugins/pockettts/voices")
-                    self.logger.info("Backed up plugins/pockettts/voices folder")
-
-                # Backup biorecorder folder (only if the import carries biorecorder data)
-                current_biorecorder_folder = os.path.join(self.appdata_dir, "plugins", "biorecorder")
-                imported_biorecorder_path = temp_path / "plugins" / "biorecorder"
-
-                if imported_biorecorder_path.exists() and os.path.exists(current_biorecorder_folder):
-                    backup_biorecorder_path = os.path.join(backup_path, "plugins", "biorecorder")
-                    shutil.copytree(current_biorecorder_folder, backup_biorecorder_path)
-                    backup_items.append("plugins/biorecorder")
-                    self.logger.info("Backed up plugins/biorecorder folder")
-
-                # Backup recorder audio folder (only if the import carries recorder audio)
-                current_recorder_audio_folder = os.path.join(self.appdata_dir, "plugins", "recorder", "audio")
-                imported_recorder_audio_path = temp_path / "plugins" / "recorder" / "audio"
-
-                if imported_recorder_audio_path.exists() and os.path.exists(current_recorder_audio_folder):
-                    backup_recorder_audio_path = os.path.join(backup_path, "plugins", "recorder", "audio")
-                    shutil.copytree(current_recorder_audio_folder, backup_recorder_audio_path)
-                    backup_items.append("plugins/recorder/audio")
-                    self.logger.info("Backed up plugins/recorder/audio folder")
+                # Backup every declared user_data path that the import
+                # actually carries and that exists locally (pockettts voices,
+                # biorecorder files, recorder audio, custom wakewords,
+                # speakerid voices + embeddings...)
+                for plugin_name, rel_path, _mode in self._declared_user_data():
+                    imported_declared = temp_path / "plugins" / plugin_name / rel_path
+                    current_declared = os.path.join(self.appdata_dir, "plugins", plugin_name, rel_path)
+                    if imported_declared.exists() and os.path.exists(current_declared):
+                        backup_dest = os.path.join(backup_path, "plugins", plugin_name, rel_path)
+                        os.makedirs(os.path.dirname(backup_dest), exist_ok=True)
+                        if os.path.isdir(current_declared):
+                            shutil.copytree(current_declared, backup_dest)
+                        else:
+                            shutil.copy2(current_declared, backup_dest)
+                        backup_items.append(f"plugins/{plugin_name}/{rel_path}")
+                        self.logger.info(f"Backed up plugins/{plugin_name}/{rel_path}")
 
                 warnings = []
                 
@@ -484,87 +436,40 @@ class DataManager:
                         shutil.copytree(str(imported_rag_path), current_rag_folder)
                         self.logger.info("plugins/rag folder restored (embedding model compatible)")
 
-                # Restore custom wakeword folder
-                if imported_wakeword_path.exists():
-                    if os.path.exists(current_wakeword_folder):
-                        shutil.rmtree(current_wakeword_folder)
-                    shutil.copytree(imported_wakeword_path, current_wakeword_folder)
-                    self.logger.info("plugins/asrjs/custom_wakeword folder restored")
-
-                # Restore speaker ID voice profiles + embeddings. The export carries
-                # only voices/ + .pkl (not recordings/), so MERGE into the existing
-                # folder rather than wiping it — preserves settings.json etc. The
-                # data_imported hook (or startup load) rebuilds the pkl from voices/.
-                if imported_speakerid_path.exists():
-                    target_speakerid_folder = os.path.join(self.appdata_dir, "plugins", "speakerid")
-                    os.makedirs(target_speakerid_folder, exist_ok=True)
-                    imported_voices = imported_speakerid_path / "voices"
-                    if imported_voices.exists():
-                        target_voices = os.path.join(target_speakerid_folder, "voices")
-                        if os.path.exists(target_voices):
-                            shutil.rmtree(target_voices)
-                        shutil.copytree(str(imported_voices), target_voices)
-                        self.logger.info("Restored plugins/speakerid/voices folder")
-                    imported_pkl = imported_speakerid_path / "speaker_embeddings.pkl"
-                    if imported_pkl.exists():
-                        shutil.copy2(str(imported_pkl), os.path.join(target_speakerid_folder, "speaker_embeddings.pkl"))
-                        self.logger.info("Restored plugins/speakerid/speaker_embeddings.pkl")
-
-                # Restore pockettts cloned voices. MERGE file-by-file rather
-                # than wiping: only voices/ was carried, models/ re-downloads
-                # and settings.json arrives via the settings merge above.
-                if imported_pockettts_voices_path.exists():
-                    target_pockettts_voices = os.path.join(self.appdata_dir, "plugins", "pockettts", "voices")
-                    os.makedirs(target_pockettts_voices, exist_ok=True)
-                    for voice_file in imported_pockettts_voices_path.glob("*.safetensors"):
-                        shutil.copy2(str(voice_file), os.path.join(target_pockettts_voices, voice_file.name))
-                    self.logger.info("Restored plugins/pockettts/voices folder")
-
-                    # The exported settings carry custom_voice_path as an
-                    # ABSOLUTE path, which breaks on a different machine/user.
-                    # Remap it to this machine's APPDATA (same file basename,
-                    # just restored above).
-                    try:
-                        with open(current_settings, 'r', encoding='utf-8') as f:
-                            settings_data = json.load(f)
-                        pockettts_settings = settings_data.get("plugins", {}).get("pockettts", {})
-                        custom_path = pockettts_settings.get("custom_voice_path")
-                        if custom_path:
-                            local_candidate = os.path.join(
-                                self.appdata_dir, "plugins", "pockettts", "voices", os.path.basename(custom_path)
-                            )
-                            if os.path.exists(local_candidate):
-                                pockettts_settings["custom_voice_path"] = local_candidate
-                                with open(current_settings, 'w', encoding='utf-8') as f:
-                                    json.dump(settings_data, f, indent=4)
-                                self.logger.info("Remapped pockettts custom_voice_path to this machine")
-                    except Exception as e:
-                        self.logger.warning(f"Could not remap pockettts custom_voice_path: {e}")
-
-                # Restore biorecorder biography. MERGE into the existing folder
-                # rather than wiping it — preserves settings.json and the locally
-                # generated voice_sample.wav. Only bio.md and answers.json were
-                # carried in the export.
-                if imported_biorecorder_path.exists():
-                    target_biorecorder_folder = os.path.join(self.appdata_dir, "plugins", "biorecorder")
-                    os.makedirs(target_biorecorder_folder, exist_ok=True)
-                    for bio_file in ("bio.md", "answers.json"):
-                        imported_file = imported_biorecorder_path / bio_file
-                        if imported_file.exists():
-                            shutil.copy2(str(imported_file), os.path.join(target_biorecorder_folder, bio_file))
-                            self.logger.info(f"Restored plugins/biorecorder/{bio_file}")
-
-                # Restore recorder audio. REPLACE the folder wholesale (not merge)
-                # so it stays in sync with the records table, which is restored as
-                # a unit from database/igoor.db above. recorder_id references in
-                # speakerid and filename references in biorecorder answers.json
-                # remain valid because both DB ids and relative paths are preserved.
-                if imported_recorder_audio_path.exists():
-                    os.makedirs(os.path.dirname(current_recorder_audio_folder), exist_ok=True)
-                    if os.path.exists(current_recorder_audio_folder):
-                        shutil.rmtree(current_recorder_audio_folder)
-                    shutil.copytree(str(imported_recorder_audio_path), current_recorder_audio_folder)
-                    self.logger.info("plugins/recorder/audio folder restored")
+                # Restore every declared user_data path carried by the import.
+                # mode "merge" (default): copy over without deleting local
+                # siblings (pockettts voices, biorecorder files — preserves
+                # local files the export didn't carry). mode "replace": wipe
+                # the local path first (recorder audio must stay in sync with
+                # the records table restored as a unit from igoor.db; custom
+                # wakewords likewise). Plugin-specific fixups (e.g. remapping
+                # stale absolute paths in settings) live in the plugins
+                # themselves, not here.
+                for plugin_name, rel_path, mode in self._declared_user_data():
+                    imported_declared = temp_path / "plugins" / plugin_name / rel_path
+                    if not imported_declared.exists():
+                        continue
+                    target = os.path.join(self.appdata_dir, "plugins", plugin_name, rel_path)
+                    os.makedirs(os.path.dirname(target), exist_ok=True)
+                    if mode == "replace":
+                        if os.path.isdir(target):
+                            shutil.rmtree(target)
+                        elif os.path.isfile(target):
+                            os.remove(target)
+                        shutil.copytree(str(imported_declared), target)
+                    else:  # merge
+                        if imported_declared.is_dir():
+                            os.makedirs(target, exist_ok=True)
+                            for imported_file in imported_declared.rglob("*"):
+                                if imported_file.is_file():
+                                    dest_file = os.path.join(
+                                        target, imported_file.relative_to(imported_declared)
+                                    )
+                                    os.makedirs(os.path.dirname(dest_file), exist_ok=True)
+                                    shutil.copy2(str(imported_file), dest_file)
+                        else:
+                            shutil.copy2(str(imported_declared), target)
+                    self.logger.info(f"Restored plugins/{plugin_name}/{rel_path} ({mode})")
 
                 self.logger.info("Import completed successfully")
                 

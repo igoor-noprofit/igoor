@@ -591,11 +591,23 @@ class Pockettts(Baseplugin):
                     self.logger.info(f"Loading custom voice from: {custom_path}")
                     self.voice_state = self.tts_model.get_state_for_audio_prompt(custom_path)
                 else:
-                    self.logger.warning(f"Custom voice path not found: {custom_path}, falling back to auto")
-                    voice_name = DEFAULT_VOICE.get(language, "alba")
-                    self.voice_state = self.tts_model.get_state_for_audio_prompt(
-                        self._resolve_voice_prompt(voice_name)
-                    )
+                    # Self-heal: settings store an absolute path, which breaks
+                    # after importing data on another machine/user. If the same
+                    # file name exists in this plugin's voices folder (restored
+                    # by the import), adopt it silently.
+                    self.logger.warning(f"Custom voice path not found: {custom_path}")
+                    basename = os.path.basename(custom_path) if custom_path else ""
+                    local_candidate = os.path.join(self._get_voices_dir(), basename) if basename else ""
+                    if basename and os.path.isfile(local_candidate):
+                        self.logger.info(f"Adopting local voice file with same name: {local_candidate}")
+                        self.update_my_settings("custom_voice_path", local_candidate)
+                        self.settings = self.get_my_settings()
+                        self.voice_state = self.tts_model.get_state_for_audio_prompt(local_candidate)
+                    else:
+                        voice_name = DEFAULT_VOICE.get(language, "alba")
+                        self.voice_state = self.tts_model.get_state_for_audio_prompt(
+                            self._resolve_voice_prompt(voice_name)
+                        )
 
             else:
                 # Specific built-in voice name (e.g. "estelle")

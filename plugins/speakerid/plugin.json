@@ -20,5 +20,14 @@
             "version": "1.1"
         }
     },
-    "has_settings": true
+    "has_settings": true,
+    "user_data": [
+        {
+            "path": "voices",
+            "mode": "replace"
+        },
+        {
+            "path": "speaker_embeddings.pkl"
+        }
+    ]
 }

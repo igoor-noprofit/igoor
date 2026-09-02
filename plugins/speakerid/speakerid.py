@@ -27,6 +27,14 @@ class Speakerid(Baseplugin):
     COMMIT_VOTES = 3          # slow path: min agreeing detections (majority of the window)
     EVIDENCE_WINDOW = 5       # how many recent detections the evidence window keeps
 
+    # Folder-name hardening: the speaker's name becomes the voices/<name>/ folder.
+    RESERVED_NAMES = frozenset(  # Windows device names — unusable as folders (with any extension)
+        {"CON", "PRN", "AUX", "NUL", "CONIN$", "CONOUT$"}
+        | {f"COM{i}" for i in range(1, 10)}
+        | {f"LPT{i}" for i in range(1, 10)}
+    )
+    MAX_NAME_LEN = 100        # the APPDATA path prefix + MAX_PATH leave ~190 chars; 100 is plenty for a person name
+
     def __init__(self, plugin_name, pm):
         self.pm = pm
         super().__init__(plugin_name, pm)
@@ -616,11 +624,10 @@ class Speakerid(Baseplugin):
             # Report per-speaker whether a voice profile exists. A name-only speaker
             # (added without recording) has no voices/<name>/ folder → has_voice=False,
             # so it is selectable for manual tagging but not auto-recognized.
-            voices_dir = os.path.join(self.plugin_folder, "voices")
             for row in rows:
-                speaker_dir = os.path.join(voices_dir, row.get("name", ""))
+                speaker_dir = self._safe_speaker_dir(row.get("name", ""))
                 wav_count = 0
-                if row.get("name") and os.path.isdir(speaker_dir):
+                if speaker_dir and os.path.isdir(speaker_dir):
                     wav_count = sum(1 for f in os.listdir(speaker_dir) if f.lower().endswith(".wav"))
                 row["has_voice"] = wav_count > 0
                 row["sample_count"] = wav_count
@@ -630,14 +637,29 @@ class Speakerid(Baseplugin):
         async def add_speaker(payload: Dict[str, Any]):
             name = self._sanitize_name(payload.get("name", ""))
             if not name:
-                raise HTTPException(status_code=400, detail="name is required")
+                raise HTTPException(
+                    status_code=400,
+                    detail="name is required, reserved, too long, or has no usable characters",
+                )
             # Name-only by design: no voices/ folder, no embedding. The UNIQUE
             # constraint is a safety net; check first to avoid exception-as-control-flow.
+            # NOCASE: Windows folders are case-insensitive but SQLite UNIQUE is not —
+            # "jessica" must reuse the "Jessica" row, not silently share her voice folder.
             existing = self.db_execute_sync(
-                "SELECT id, name, freq FROM speakers WHERE name = ?", (name,)
+                "SELECT id, name, freq FROM speakers WHERE name = ? COLLATE NOCASE", (name,)
             )
             if existing:
                 return existing[0]
+            # Same clash from the other side: a voices/<name>/ folder that arrived
+            # without a DB row (e.g. an import) — Windows compares folder names
+            # case-insensitively too.
+            voices_dir = os.path.join(self.plugin_folder, "voices")
+            if os.path.isdir(voices_dir) and any(
+                d != name and d.lower() == name.lower() for d in os.listdir(voices_dir)
+            ):
+                raise HTTPException(
+                    status_code=409, detail="a voices folder with a similar name already exists"
+                )
             self.db_execute_sync("INSERT INTO speakers (name) VALUES (?)", (name,))
             row = self.db_execute_sync(
                 "SELECT id, name, freq FROM speakers WHERE name = ?", (name,)
@@ -657,12 +679,16 @@ class Speakerid(Baseplugin):
             self.db_execute_sync("DELETE FROM records WHERE speakers_id = ?", (speaker_id,))
             self.db_execute_sync("DELETE FROM speakers WHERE id = ?", (speaker_id,))
             # Remove the voice folder so recognition stops, then rebuild the index.
-            speaker_dir = os.path.join(self.plugin_folder, "voices", name)
-            if os.path.isdir(speaker_dir):
-                shutil.rmtree(speaker_dir, ignore_errors=True)
-            if self.speaker_system is not None and self.speaker_system_ready:
-                await asyncio.to_thread(self.speaker_system.rebuild_speaker, name)
-                self._current_status["speaker_count"] = len(self.speaker_system.speaker_names)
+            # Only when the name resolves safely inside voices/ (crafted-import guard).
+            speaker_dir = self._safe_speaker_dir(name)
+            if speaker_dir is None:
+                self.logger.warning(f"delete_speaker: unsafe stored name {name!r} — rows deleted, files left alone")
+            else:
+                if os.path.isdir(speaker_dir):
+                    shutil.rmtree(speaker_dir, ignore_errors=True)
+                if self.speaker_system is not None and self.speaker_system_ready:
+                    await asyncio.to_thread(self.speaker_system.rebuild_speaker, name)
+                    self._current_status["speaker_count"] = len(self.speaker_system.speaker_names)
             self.send_message_to_frontend({"type": "speakerid_speakers_changed"})
             return {"id": speaker_id, "name": name, "deleted": True}
 
@@ -675,16 +701,19 @@ class Speakerid(Baseplugin):
             if not rows:
                 raise HTTPException(status_code=404, detail=f"No speaker with id {speaker_id}")
             name = rows[0]["name"]
-            speaker_dir = os.path.join(self.plugin_folder, "voices", name)
-            if os.path.isdir(speaker_dir):
-                for old in Path(speaker_dir).glob("*.wav"):
-                    try:
-                        old.unlink()
-                    except OSError:
-                        pass
-            if self.speaker_system is not None and self.speaker_system_ready:
-                await asyncio.to_thread(self.speaker_system.rebuild_speaker, name)
-                self._current_status["speaker_count"] = len(self.speaker_system.speaker_names)
+            speaker_dir = self._safe_speaker_dir(name)
+            if speaker_dir is None:
+                self.logger.warning(f"reset_voice: unsafe stored name {name!r} — no files touched")
+            else:
+                if os.path.isdir(speaker_dir):
+                    for old in Path(speaker_dir).glob("*.wav"):
+                        try:
+                            old.unlink()
+                        except OSError:
+                            pass
+                if self.speaker_system is not None and self.speaker_system_ready:
+                    await asyncio.to_thread(self.speaker_system.rebuild_speaker, name)
+                    self._current_status["speaker_count"] = len(self.speaker_system.speaker_names)
             self.logger.info(f"Voice reset for '{name}' — all samples deleted")
             self.send_message_to_frontend({"type": "speakerid_speakers_changed"})
             return {"name": name, "reset": True}
@@ -695,6 +724,10 @@ class Speakerid(Baseplugin):
             speakers_id = payload.get("speakers_id")
             if recorder_id is None or speakers_id is None:
                 raise HTTPException(status_code=400, detail="recorder_id and speakers_id are required")
+            # Ints by contract (they feed DB lookups and the enrolled WAV filename) —
+            # a string id would only fail later at the lookup, so reject it here.
+            if not isinstance(recorder_id, int) or not isinstance(speakers_id, int):
+                raise HTTPException(status_code=400, detail="recorder_id and speakers_id must be integers")
 
             # Resolve the speaker's canonical name (= folder name = pkl key = display name).
             speaker_rows = self.db_execute_sync(
@@ -722,7 +755,12 @@ class Speakerid(Baseplugin):
             warning = None
             try:
                 wav_src = self._resolve_recorder_wav(recorder_id)
-                speaker_dir = os.path.join(self.plugin_folder, "voices", speaker_name)
+                speaker_dir = self._safe_speaker_dir(speaker_name)
+                if speaker_dir is None:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Speaker name {speaker_name!r} is not safe to use as a folder",
+                    )
                 os.makedirs(speaker_dir, exist_ok=True)
                 dest = os.path.join(speaker_dir, f"{recorder_id}_{int(time.time())}.wav")
                 shutil.copyfile(str(wav_src), dest)
@@ -959,16 +997,41 @@ class Speakerid(Baseplugin):
     def _sanitize_name(self, raw) -> str:
         """Normalize a person name into the single canonical identity key: it becomes
         the speakers.name, the voices/<name>/ folder, the pkl key, and the displayed
-        name. Collapse whitespace, strip filesystem-illegal chars and leading dots;
-        return '' (→ rejected by callers) for empty/whitespace-only input.
+        name. Collapse whitespace; strip filesystem-illegal chars, control chars, and
+        leading/trailing dots/spaces (Win32 silently strips trailing dots/spaces at
+        folder creation, which would desync the DB name from the on-disk folder).
+        Return '' (→ rejected by callers) for empty input, Windows-reserved device
+        names (CON, COM1, … — reserved with any extension too), and names over
+        MAX_NAME_LEN chars.
         """
         if raw is None:
             return ""
         name = str(raw).strip()
         name = re.sub(r"\s+", " ", name)               # collapse internal whitespace
+        name = re.sub(r"[\x00-\x1f\x7f]", "", name)    # control chars — illegal in Windows filenames
         name = re.sub(r'[\\/:\*\?"<>\|]', "", name)    # filesystem-illegal / path separators
-        name = name.lstrip(".")                         # no hidden files / ../ tricks
-        return name.strip()
+        name = name.strip(". ")                        # no hidden files / ../ tricks / Win32 dot-stripping
+        stem = name.split(".", 1)[0].strip()           # reserved names stay reserved with an extension
+        if len(name) > self.MAX_NAME_LEN or stem.upper() in self.RESERVED_NAMES:
+            return ""
+        return name
+
+    def _safe_speaker_dir(self, name) -> Optional[str]:
+        """On-disk path for a speaker's voices/<name>/ folder, for every endpoint that
+        touches files (list/delete/reset/enroll). Re-sanitizes the DB value and
+        verifies the resolved path sits directly inside voices/: realpath also
+        resolves symlinks/junctions, so a crafted or corrupt data import can't
+        redirect a delete or an enrollment outside voices/. Returns None when the
+        name can't be used safely; callers skip the file work and log/4xx.
+        """
+        clean = self._sanitize_name(name)
+        if not clean:
+            return None
+        voices_dir = os.path.realpath(os.path.join(self.plugin_folder, "voices"))
+        speaker_dir = os.path.realpath(os.path.join(voices_dir, clean))
+        if os.path.dirname(speaker_dir) != voices_dir:
+            return None
+        return speaker_dir
 
     def _resolve_recorder_wav(self, recorder_id):
         """Resolve the on-disk WAV path for a recorder record, in-process (no HTTP).
