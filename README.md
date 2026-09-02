@@ -54,7 +54,7 @@ platforms — run from source on the `feature/v1-multiplatform` branch:
 | OS | Status | System dependencies |
 |---|---|---|
 | Windows 10/11 | production (installers) | WebView2 Runtime (bundled in installers); FFmpeg in PATH for some TTS plugins |
-| Ubuntu/Debian | boots, core plugins verified (browser or headless `IGOOR_CLI=True`) | `sudo apt install ffmpeg libportaudio2 portaudio19-dev python3-gi gir1.2-webkit2-4.1` (+ optional `xprintidle`) |
+| Ubuntu/Debian | boots, core plugins verified (browser or headless `IGOOR_HEADLESS=true`) | `sudo apt install ffmpeg libportaudio2 portaudio19-dev python3-gi gir1.2-webkit2-4.1` (+ optional `xprintidle`) |
 | macOS | port in progress — see [MACOS_TEST.md](MACOS_TEST.md) | `brew install portaudio ffmpeg` |
 
 Verified results and known limitations on Linux: [COMPAT_UBUNTU.md](COMPAT_UBUNTU.md).
@@ -150,9 +150,26 @@ Other models can be saved in this folder.
 
 ## LAUNCH
 
-*EXPERIMENTAL*: You can now launch IGOOR in CLI mode (IGOOR_CLI=True in .env), which is a headless mode you can access with the browser at http://127.0.0.1:9714/ (via FastAPI). As of now this is mostly for easier debug with VueDevTools, agents etc.
+Default mode is the pywebview window (Edge WebView2) on the machine; the same UI is also reachable locally at http://127.0.0.1:9714/ in any browser.
 
-Default mode is inside pywebview webedge window (IGOOR_CLI=False).
+Two environment variables (in `.env`) define how IGOOR runs:
+
+| `IGOOR_HEADLESS` | `IGOOR_ACCESS_FROM_OUTSIDE` | Runtime mode |
+|---|---|---|
+| false | false | **Default**: native window + local browser |
+| true | false | Local browser only (no window) — debugging, agents, smoke tests |
+| false | true | Native window + **remote browsers** — tablet/caregiver access on the LAN or a Tailscale network |
+| true | true | **Headless server**: no window, remote + local browsers — Linux/macOS test boxes, remote testing |
+
+(`IGOOR_HEADLESS` was formerly named `IGOOR_CLI`; the old name still works.)
+
+Remote-testing recipe: on the test box run
+`IGOOR_HEADLESS=true IGOOR_ACCESS_FROM_OUTSIDE=true python main.py`,
+then open `http://<machine-ip>:9714` from any device that can reach it (e.g. its Tailscale IP).
+When external access is enabled, TTS audio is streamed to the connected browsers (the Windows-voices/SAPI plugin cannot stream and plays on the machine's speakers instead).
+
+⚠️ External access is unauthenticated: enable it only on trusted or private networks (e.g. a Tailscale tailnet).
+
 PLEASE NOTE: Opening inside both pywebview AND external browser will yield unwanted sync between the two clients.
 
 

@@ -274,10 +274,14 @@ class Baseplugin:
 
     def is_remote_ui(self) -> bool:
         """
-        True when IGOOR runs headless (IGOOR_CLI=True): a browser is the UI,
-        so audio/TTS must be delivered to it instead of played on the PC.
+        True when a browser may be the UI: headless run (IGOOR_HEADLESS=True,
+        legacy IGOOR_CLI honored) or external access enabled
+        (IGOOR_ACCESS_FROM_OUTSIDE=True). TTS audio is then streamed to the
+        connected browsers instead of being played on the PC speakers.
         """
-        return os.getenv("IGOOR_CLI", "False").lower() == "true"
+        headless = os.getenv("IGOOR_HEADLESS", os.getenv("IGOOR_CLI", "False")).lower() == "true"
+        outside = os.getenv("IGOOR_ACCESS_FROM_OUTSIDE", "False").lower() == "true"
+        return headless or outside
 
     async def stream_audio_to_frontend(self, audio_chunks, mime: str = "audio/mpeg") -> bool:
         """

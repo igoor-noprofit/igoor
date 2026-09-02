@@ -10,7 +10,7 @@ Model: `MACOS_TEST.md`. This document is the Linux counterpart: setup copy-paste
 
 | Area | Status |
 |---|---|
-| Headless boot (`IGOOR_CLI=True`), FastAPI on `127.0.0.1:9714`, WebSocket server | ✅ verified |
+| Headless boot (`IGOOR_HEADLESS=true`, formerly `IGOOR_CLI`), FastAPI on `127.0.0.1:9714`, WebSocket server | ✅ verified |
 | Full IGOOR UI in a plain browser at `http://127.0.0.1:9714/` | ✅ verified (clock, quick buttons, categories all render) |
 | 13 plugins load and activate (14 with asrjs once PyAudio is installed) | ✅ verified (list in appendix) |
 | plugin `platforms` flag (plugin.json): windows-only plugins skipped cleanly at load on Linux | ✅ verified — ttsdefault + extkeyb skipped, zero errors, log `Skipping plugin 'ttsdefault'` |
@@ -62,7 +62,8 @@ grep -rn "getenv('APPDATA')" --include="*.py" .   # only utils.py:224, inside th
 
 ```bash
 # headless (verified) — UI then lives at http://127.0.0.1:9714/
-IGOOR_CLI=True python main.py
+# add IGOOR_ACCESS_FROM_OUTSIDE=true to also accept remote browsers (Tailscale/LAN)
+IGOOR_HEADLESS=true python main.py
 
 # native window (WebKit2GTK backend; NOT yet verified on this box)
 python main.py
@@ -125,7 +126,7 @@ Plus one bug fix that also affects Windows by design (flagged for maintainer): t
 After merging `feature/v1-for-linux` with the Windows-side 1.1.0 work, the full check-suite was re-run on Ubuntu 24.04 / Python 3.10.6:
 
 - `uv pip install -r requirements.txt`: initially **failed to resolve** — `beartype==0.18.5` (stale transitive pin, line 22) vs `beartype>=0.22.5` (pocket-tts block, line 223) is unsatisfiable on **every platform**. Fixed by removing the stale pin (no first-party code imports beartype). After the fix: pocket-tts 3.0.2, python-xlib 0.33, einops, sentencepiece install cleanly.
-- Boot (`IGOOR_CLI=True`): uvicorn up, **zero ERROR/CRITICAL lines** (excluding the known clock-locale fallback), 24 plugins discovered, 13 activated.
+- Boot (`IGOOR_HEADLESS=true`): uvicorn up, **zero ERROR/CRITICAL lines** (excluding the known clock-locale fallback), 24 plugins discovered, 13 activated.
 - `platforms` flag verified: `ttsdefault` and `extkeyb` (`"platforms": ["windows"]`) skipped at load time with clean log lines — no more load-then-gate for them (the gates stay as defense-in-depth).
 - Regression suite all green: `/` 200, `/api/plugins/by-category` 200, `/api/context` 200, `/api/app/change-view` 204, `/api/plugins/asrjs/settings` 200, `/health` 200 `{"status":"ok"}` (57 endpoints vs 50 on the linux branch).
 - asrjs E2E re-verified: POST `/api/plugins/asrjs/transcribe` (fake WS frontends connected) → 200 `{"status":"success","text":""}` + `sherpa-onnx transcribed: ...` in the log; WS notify chain intact.

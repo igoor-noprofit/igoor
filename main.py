@@ -53,9 +53,13 @@ def start_fastapi_server() -> None:
     if fastapi_server and fastapi_thread and fastapi_thread.is_alive():
         return
 
+    # Loopback by default; IGOOR_ACCESS_FROM_OUTSIDE=true opts into all
+    # interfaces (remote browsers on the LAN / Tailscale / tablets).
+    host = "0.0.0.0" if os.getenv('IGOOR_ACCESS_FROM_OUTSIDE', 'False').lower() == 'true' else "127.0.0.1"
+
     config = uvicorn.Config(
         fastapi_app,
-        host="0.0.0.0",
+        host=host,
         port=9714,
         log_level="info",
     )
@@ -160,9 +164,9 @@ def signal_handler(sig, frame):
 signal.signal(signal.SIGINT, signal_handler)
 
 # VARS HERE
-IGOOR_DEBUG = os.getenv('IGOOR_DEBUG', 'False') 
-IGOOR_CLI = os.getenv('IGOOR_CLI', 'False') 
-IGOOR_ONTOP = os.getenv('IGOOR_ONTOP', 'False') 
+IGOOR_DEBUG = os.getenv('IGOOR_DEBUG', 'False')
+IGOOR_HEADLESS = os.getenv('IGOOR_HEADLESS', os.getenv('IGOOR_CLI', 'False'))  # legacy IGOOR_CLI still honored
+IGOOR_ONTOP = os.getenv('IGOOR_ONTOP', 'False')
 IGOOR_VERSION_CODENAME = __codename__
 IGOOR_VERSION=__version__
 
@@ -406,15 +410,15 @@ if __name__ == "__main__":
     prefs = settings.get_nested(["plugins", "onboarding", "prefs"], default={})
     lang = prefs.get("lang")
 
-    if IGOOR_CLI.lower() == 'true':
-        logger.info("IGOOR_CLI active: running headless API/WebSocket server only")
+    if IGOOR_HEADLESS.lower() == 'true':
+        logger.info("IGOOR_HEADLESS active: running headless API/WebSocket server only (no native window)")
         load_frontend_components(lang=lang)
         start_fastapi_server()
         try:
             while not shutdown_event.is_set():
                 time.sleep(1)
         except KeyboardInterrupt:
-            logger.info("Shutdown requested (CLI mode)")
+            logger.info("Shutdown requested (headless mode)")
         finally:
             stop_fastapi_server()
     else:
