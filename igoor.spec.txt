@@ -47,12 +47,6 @@ a = Analysis(
         'win32con',
         'pywinauto',
         # === YOUR EXISTING IMPORTS ===
-        'elevenlabslib',
-        'pydub.playback',
-        'speechify',
-        'pymupdf4llm',
-        'PIL.ImageGrab',
-        'pyaudio',
         *collect_submodules('speechbrain'),  # bundle every submodule in the PYZ (lazy-loaded ones like inference.speaker aren't seen by PyInstaller's bytecode scan). The find_imports() os.listdir issue is handled by the on-disk Tree added to a.datas below — no patch needed.
         'numpy',
         'groq',
