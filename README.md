@@ -46,6 +46,25 @@ https://github.com/igoor-noprofit/igoor/releases/download/latest/IGOOR.exe
 
 Microsoft Edge WebView2 Runtime is © Microsoft Corporation.
 
+### OTHER PLATFORMS (EXPERIMENTAL — RUN FROM SOURCE)
+
+IGOOR is being ported to Linux and macOS. There is no installer yet for these
+platforms — run from source on the `feature/v1-multiplatform` branch:
+
+| OS | Status | System dependencies |
+|---|---|---|
+| Windows 10/11 | production (installers) | WebView2 Runtime (bundled in installers); FFmpeg in PATH for some TTS plugins |
+| Ubuntu/Debian | boots, core plugins verified (browser or headless `IGOOR_CLI=True`) | `sudo apt install ffmpeg libportaudio2 portaudio19-dev python3-gi gir1.2-webkit2-4.1` (+ optional `xprintidle`) |
+| macOS | port in progress — see [MACOS_TEST.md](MACOS_TEST.md) | `brew install portaudio ffmpeg` |
+
+Verified results and known limitations on Linux: [COMPAT_UBUNTU.md](COMPAT_UBUNTU.md).
+
+Plugins declare the OSes they support through an optional `"platforms"` key in
+their `plugin.json` (e.g. `"platforms": ["windows"]` for a Windows-only plugin).
+On an incompatible OS the plugin appears as unavailable in the Extensions list
+and is never loaded, while its activation state in `settings.json` is left
+untouched — so a user's settings and data stay portable across OSes.
+
 ### AI INFERENCE PROVIDER
 
 The only AI inference provider currently meeting our requirements of speed, privacy, quality, support of opensource models and availability of both ASR/LLM inference is Groq.

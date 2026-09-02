@@ -1,8 +1,8 @@
 # IGOOR on macOS — Phase 1 Boot Test
 
-Goal: confirm the app **launches a window and boots** on macOS. This validates the `os.getenv('APPDATA')` → `get_appdata_dir()` migration done on `feature/v1-for-mac`. It is *not* a full-feature test — expect audio plugins to fail on a remote Mac (no mic/speaker hardware).
+Goal: confirm the app **launches a window and boots** on macOS. This validates the `os.getenv('APPDATA')` → `get_appdata_dir()` migration (originally done on `feature/v1-for-mac`, now carried by the unified branch). It is *not* a full-feature test — expect audio plugins to fail on a remote Mac (no mic/speaker hardware).
 
-> Branch: **`feature/v1-for-mac`** · Target: **macOS** (Apple Silicon or Intel) · Python **3.10.6**
+> Branch: **`feature/v1-multiplatform`** (unified multiplatform branch; supersedes `feature/v1-for-mac`) · Target: **macOS** (Apple Silicon or Intel) · Python **3.10.6**
 
 ---
 
@@ -21,9 +21,9 @@ A remote macOS desktop is fine. Pick one with **per-minute/hourly** billing so a
 ## 2. Setup (copy-paste)
 
 ```bash
-# clone the mac branch
-git clone <your-repo-url> igoor && cd igoor
-git checkout feature/v1-for-mac
+# clone the unified multiplatform branch
+git clone https://github.com/igoor-noprofit/igoor.git igoor && cd igoor
+git checkout feature/v1-multiplatform
 
 # system deps (audio libs + FFmpeg — needed by sounddevice/PyAudio/pydub)
 brew install portaudio ffmpeg

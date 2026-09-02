@@ -11,6 +11,7 @@ IGOOR is an open-source and free conversational application, controllable also b
 - Configuration: `plugin.json` with activation status, category, and database schema
 - Settings: `settings.json` for user preferences
 - "has_settings": true in plugin.json to allow displaying of plugin settings interface
+- Optional `"platforms": ["windows", "macos", "linux"]` in plugin.json restricts the plugin to those OSes (absent = all platforms). Values match `utils.get_platform_key()`. On an incompatible OS the plugin is never loaded, is shown as a disabled "Not available on this platform" card in the Extensions list, and activation is refused — but its `plugins_activation` entry in settings.json is NEVER modified, so user settings stay portable across OSes.
 - "user_data" in plugin.json declares the plugin's exportable user data (paths relative to the plugin's APPDATA folder), included automatically by onboarding's export/import. Entries: `{"path": "voices"}` (merge on import, default) or `{"path": "audio", "mode": "replace"}` (wipe local path first, for data that must stay in sync with the DB). Plugins without the key contribute nothing; rag is handled bespoke in data_manager.py because it needs logic beyond copying (embedding-model compatibility). Works for deactivated plugins too (declarations are read from the repo, not from loaded plugins). NEVER hardcode new plugin folders in data_manager.py — declare them here.
 
 **Communication Patterns**:
