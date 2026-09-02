@@ -31,7 +31,6 @@ a = Analysis(
     binaries=[],
     datas=datas,
     hiddenimports=[
-        'elevenlabslib',
         'pydub.playback',
         'speechify',
         'pymupdf4llm',
