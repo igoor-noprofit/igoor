@@ -11,14 +11,14 @@ from dotenv import load_dotenv
 load_dotenv()
 from typing import Any
 from status_manager import StatusManager
-from utils import resource_path, setup_logger
+from utils import resource_path, setup_logger, get_appdata_dir
 from websocket_server import websocket_server
 
-IGOOR_DEBUG = os.getenv('IGOOR_DEBUG', 'False') 
+IGOOR_DEBUG = os.getenv('IGOOR_DEBUG', 'False')
 app_name = __appname__
 hookspec = pluggy.HookspecMarker(app_name)
 hookimpl = pluggy.HookimplMarker(app_name)
-logger = setup_logger('pm', os.path.join(os.getenv('APPDATA'), app_name))
+logger = setup_logger('pm', get_appdata_dir())
 
 class MyAppSpec:
     '''
@@ -444,7 +444,7 @@ class PluginManager:
                     except Exception as e:
                         self.logger.error(f"Error loading plugin '{plugin_name}': {e}")
                         self.logger.error(f"Traceback: {traceback.format_exc()}")
-                        if IGOOR_DEBUG:
+                        if IGOOR_DEBUG and IGOOR_DEBUG.lower() == 'true':
                             self.logger.critical("EXIT BECAUSE OF ERROR LOADING PLUGIN")
                             os._exit(1)
                 else:

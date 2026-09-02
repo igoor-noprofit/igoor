@@ -8,7 +8,7 @@ from pathlib import Path
 from datetime import datetime
 from utils import resource_path
 from llm_manager import LLMManager
-from utils import setup_logger
+from utils import setup_logger, get_appdata_dir
 from db_manager import DatabaseManager
 
 class Baseplugin:
@@ -19,8 +19,8 @@ class Baseplugin:
         self.plugin_name = plugin_name
         
         self.logger = setup_logger(
-            f'plugins.{plugin_name}', 
-            os.path.join(os.getenv('APPDATA'), __appname__),
+            f'plugins.{plugin_name}',
+            get_appdata_dir(),
             separate_plugin_log=False
         )
         
@@ -47,8 +47,10 @@ class Baseplugin:
         # self.pm = pm
         # Construct the plugin folder path
         self.app_name = __appname__  # Get the application name from the environment variable
-        self.appdata_path = os.getenv('APPDATA')  # Get the APPDATA path from the environment variable
-        self.plugin_folder = os.path.join(self.appdata_path, self.app_name, 'plugins', plugin_name)
+        self.appdata_path = os.path.dirname(get_appdata_dir())  # Base dir above the app folder (APPDATA-equivalent)
+        # Use get_appdata_dir() directly: on Linux the appdata dir is a dotfolder (~/.igoor),
+        # so the dirname()+app_name join idiom would build ~/igoor instead of ~/.igoor
+        self.plugin_folder = os.path.join(get_appdata_dir(), 'plugins', plugin_name)
         # Create the directory if it doesn't exist
         if not os.path.exists(self.plugin_folder):
             self.logger.info(f"CREATING FOLDER {self.plugin_folder}")

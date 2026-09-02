@@ -6,6 +6,7 @@ import locale
 import os, shutil
 from dotenv import load_dotenv
 load_dotenv()
+from utils import get_appdata_dir
 import asyncio,json
 from fastapi import APIRouter
 from fastapi.responses import FileResponse
@@ -18,7 +19,7 @@ async def get_alert_sound():
     """Serve the alerte.wav audio file"""
     try:
         # Get path to the copied alerte.wav file
-        appdata_path = os.getenv('APPDATA')
+        appdata_path = os.path.dirname(get_appdata_dir())  # Base dir above the app folder (APPDATA-equivalent)
         app_name = __import__('version').__appname__
         alert_file_path = os.path.join(appdata_path, app_name, 'web', 'alerte.wav')
         
@@ -90,7 +91,7 @@ class Shortcuts(Baseplugin):
             source_path = os.path.join(self._app_plugin_folder, 'alerte.wav')
             
             # Get APPDATA path and construct /web folder path
-            appdata_path = os.getenv('APPDATA')
+            appdata_path = os.path.dirname(get_appdata_dir())  # Base dir above the app folder (APPDATA-equivalent)
             app_name = __import__('version').__appname__
             web_folder = os.path.join(appdata_path, app_name, 'web')
             
