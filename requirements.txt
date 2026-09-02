@@ -19,7 +19,8 @@ attrs==24.2.0
 autograd==1.7.0
 babel==2.17.0
 backrefs==5.9
-beartype==0.18.5
+# beartype: unified to >=0.22.5 (see pocket-tts block at bottom); the stale
+# ==0.18.5 pin made requirements unsatisfiable on every platform
 blis==1.2.0
 bottle==0.13.2
 catalogue==2.0.10
