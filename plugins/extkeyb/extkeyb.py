@@ -4,7 +4,14 @@ from plugin_manager import hookimpl
 import json,socket,os,time
 import psutil
 import subprocess
-import win32gui, win32con
+try:
+    import win32gui, win32con
+    WIN32_AVAILABLE = True
+except ImportError:
+    # Linux/macOS: keep the plugin importable; all win32 features stay disabled
+    win32gui = None
+    win32con = None
+    WIN32_AVAILABLE = False
 
 
 class Extkeyb(Baseplugin):
@@ -12,6 +19,12 @@ class Extkeyb(Baseplugin):
         self.pm = pm
         super().__init__(plugin_name, pm)
         self.settings = self.get_my_settings()
+        if not WIN32_AVAILABLE:
+            self.logger.warning("extkeyb: Windows-only plugin (win32gui/win32con unavailable on this platform) — external keyboard automation disabled")
+            self.keyb_type = None
+            self.app_exe = ""
+            self.ready = False
+            return
         self.is_igoor_maximized = True
         self.keyb_type = self.settings.get("keyb_type","osk")
         self.logger.info(f"Using external keyboard type {self.keyb_type}")
