@@ -23,7 +23,11 @@ class Clock(Baseplugin):
         # Set locale if found, otherwise log a warning and use system default
         try:
             if loc:
-                locale.setlocale(locale.LC_TIME, loc)
+                try:
+                    locale.setlocale(locale.LC_TIME, loc)
+                except locale.Error:
+                    # Some OSes only accept the encoding-suffixed form (e.g. fr_FR.UTF-8 on Linux)
+                    locale.setlocale(locale.LC_TIME, f"{loc}.UTF-8")
             else:
                 self.logger.warning("Locale not found in settings, using system default.")
                 # Attempt to set to default locale, might vary by system

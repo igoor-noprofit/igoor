@@ -59,7 +59,7 @@ ghp-import==2.1.0
 greenlet==3.1.1
 groq==0.31.0
 h11==0.14.0
-hid==1.0.7
+hid==1.0.7 ; sys_platform == 'win32'
 httpcore==1.0.6
 httplib2==0.22.0
 httpx-sse==0.4.1
@@ -141,12 +141,13 @@ pymupdf4llm==0.0.17
 pynndescent==0.5.13
 pyparsing==3.2.0
 pypdf==5.1.0
-pyreadline3==3.5.4
+pyreadline3==3.5.4 ; sys_platform == 'win32'
 python-Levenshtein==0.26.0
 python-multipart==0.0.22
 python-dateutil==2.9.0.post0
 python-dotenv==1.1.1
 pythonnet==3.0.4 ; sys_platform == 'win32'
+python-xlib ; sys_platform == 'linux'
 pytz==2024.2
 pywebview==5.3
 pyobjc-framework-Cocoa ; sys_platform == 'darwin'

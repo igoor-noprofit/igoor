@@ -45,11 +45,9 @@ class Baseplugin:
         if self._plugin_metadata.get('requires_db', False):
             self._init_database()
         # self.pm = pm
-        # Construct the plugin folder path
+        # Construct the plugin folder path (get_appdata_dir() is the app folder
+        # itself on every OS, including the ~/.igoor dotfolder on Linux)
         self.app_name = __appname__  # Get the application name from the environment variable
-        self.appdata_path = os.path.dirname(get_appdata_dir())  # Base dir above the app folder (APPDATA-equivalent)
-        # Use get_appdata_dir() directly: on Linux the appdata dir is a dotfolder (~/.igoor),
-        # so the dirname()+app_name join idiom would build ~/igoor instead of ~/.igoor
         self.plugin_folder = os.path.join(get_appdata_dir(), 'plugins', plugin_name)
         # Create the directory if it doesn't exist
         if not os.path.exists(self.plugin_folder):
@@ -138,7 +136,7 @@ class Baseplugin:
     def get_bio_context(self) -> str:
         """Load biorecorder bio.md and return a formatted context string for LLM prompts.
         Returns an empty string if bio.md does not exist (plugin is optional)."""
-        bio_path = Path(self.appdata_path, self.app_name, 'plugins', 'biorecorder', 'bio.md')
+        bio_path = Path(get_appdata_dir(), 'plugins', 'biorecorder', 'bio.md')
         if not bio_path.exists():
             return ""
         try:

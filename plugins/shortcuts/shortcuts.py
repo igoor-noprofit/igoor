@@ -18,10 +18,8 @@ router = APIRouter(prefix="/plugins/shortcuts")
 async def get_alert_sound():
     """Serve the alerte.wav audio file"""
     try:
-        # Get path to the copied alerte.wav file
-        appdata_path = os.path.dirname(get_appdata_dir())  # Base dir above the app folder (APPDATA-equivalent)
-        app_name = __import__('version').__appname__
-        alert_file_path = os.path.join(appdata_path, app_name, 'web', 'alerte.wav')
+        # Get path to the copied alerte.wav file (appdata web dir is a dotfolder on Linux)
+        alert_file_path = os.path.join(get_appdata_dir(), 'web', 'alerte.wav')
         
         if os.path.exists(alert_file_path):
             return FileResponse(alert_file_path, media_type="audio/wav")
@@ -90,10 +88,8 @@ class Shortcuts(Baseplugin):
             # Source file in plugin folder
             source_path = os.path.join(self._app_plugin_folder, 'alerte.wav')
             
-            # Get APPDATA path and construct /web folder path
-            appdata_path = os.path.dirname(get_appdata_dir())  # Base dir above the app folder (APPDATA-equivalent)
-            app_name = __import__('version').__appname__
-            web_folder = os.path.join(appdata_path, app_name, 'web')
+            # Appdata web folder (get_appdata_dir() is already the app folder, including the ~/.igoor dotfolder on Linux)
+            web_folder = os.path.join(get_appdata_dir(), 'web')
             
             # Debug logging
             self.logger.info(f"Copying alert sound from: {source_path}")

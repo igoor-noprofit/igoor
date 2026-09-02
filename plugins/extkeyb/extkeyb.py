@@ -1,6 +1,7 @@
 from plugins.baseplugin.baseplugin import Baseplugin
 from plugins.baseplugin.baseplugin import Baseplugin
 from plugin_manager import hookimpl
+from utils import get_appdata_dir
 import json,socket,os,time
 import psutil
 import subprocess
@@ -68,7 +69,7 @@ class Extkeyb(Baseplugin):
     
     # TODO: RECHECK ENTIRE FUNCTION 
     def locate_igoor_app(self):
-        install_path = os.path.join(self.appdata_path, self.app_name, "extkeyb-install-path.txt")
+        install_path = os.path.join(get_appdata_dir(), "extkeyb-install-path.txt")
         self.logger.info(f"looking for {install_path}")
         if os.path.exists(install_path):
             with open(install_path, "r") as f:

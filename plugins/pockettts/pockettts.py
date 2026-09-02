@@ -1,6 +1,7 @@
 from plugin_manager import hookimpl
 from plugins.baseplugin.baseplugin import Baseplugin
 from settings_manager import SettingsManager
+from utils import get_appdata_dir
 from fastapi import APIRouter, HTTPException, UploadFile, File
 from fastapi.responses import JSONResponse
 from fastapi import Form
@@ -787,7 +788,7 @@ class Pockettts(Baseplugin):
         try:
             # Fetch voice sample from biorecorder plugin
             bio_voice_path = os.path.join(
-                self.appdata_path, self.app_name, "plugins", "biorecorder", "voice_sample.wav"
+                get_appdata_dir(), "plugins", "biorecorder", "voice_sample.wav"
             )
 
             if not os.path.exists(bio_voice_path):

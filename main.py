@@ -11,7 +11,6 @@ from settings_manager import SettingsManager
 from websocket_server import websocket_server
 import signal
 import sys
-import tkinter as tk
 import asyncio
 import threading
 from typing import Optional
@@ -92,6 +91,13 @@ def on_idle_change(is_idle):
 
 def show_splash_screen(image_path):
     """Create a simple splash screen with a logo."""
+    try:
+        import tkinter as tk
+    except ImportError:
+        # Optional dependency: minimal/headless Python installs (e.g. Linux
+        # without python3-tk) must still be able to boot the app.
+        logger.warning("tkinter not available - skipping splash screen")
+        return None, None
     splash_root = tk.Tk()
     splash_root.overrideredirect(True)  # Remove window borders
 
@@ -432,10 +438,11 @@ if __name__ == "__main__":
                     except Exception:
                         pass
 
-            _splash_observer = TkSplashObserver(splash_root, status_label)
-            StatusManager().register_observer(_splash_observer)
-            # Initial hint
-            StatusManager().set_status("Starting services…")
+            if splash_root is not None:
+                _splash_observer = TkSplashObserver(splash_root, status_label)
+                StatusManager().register_observer(_splash_observer)
+                # Initial hint
+                StatusManager().set_status("Starting services…")
         except Exception as e:
             logger.error(f"Failed wiring splash status observer: {e}")
 
@@ -452,6 +459,7 @@ if __name__ == "__main__":
             StatusManager().set_status("Launching window…")
         except Exception:
             pass
-        splash_root.destroy()
+        if splash_root is not None:
+            splash_root.destroy()
         start_webview()
 
