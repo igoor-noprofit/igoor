@@ -515,6 +515,26 @@ export default {
                 // Backend will send 'ready' status when ASR + wakeword models are ready
                 console.log('VAD initialized successfully with Silero v5 model, waiting for backend ready...');
 
+                // A (re)connecting browser never receives the backend's one-shot
+                // status/settings pushes (each was delivered to the first frontend
+                // only): catch up by fetching the current state. Settings go through
+                // handleIncomingMessage so they are applied exactly like a push.
+                try {
+                    const response = await fetch('/api/plugins/asrjs/status');
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.status && this.status === 'loading') {
+                            this.status = data.status;
+                            console.log('Fetched current ASR status:', data.status);
+                        }
+                        if (data.settings) {
+                            await this.handleIncomingMessage({ data: JSON.stringify({ settings: data.settings }) });
+                        }
+                    }
+                } catch (fetchError) {
+                    console.warn('Failed to fetch current ASR status:', fetchError);
+                }
+
             } catch (error) {
                 console.error('Failed to initialize VAD:', error);
                 this.status = 'error';

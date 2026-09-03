@@ -137,6 +137,7 @@ class Asrjs(Baseplugin):
         self.is_loaded = False  # Make sure this is initialized
         self.wakeword_detected = False  # Initialize wakeword state
         self.wakeword_model_loaded = False  # Track wakeword model loading
+        self.current_status = "loading"  # Latest pushed status, served to (re)connecting frontends
         super().__init__(plugin_name, pm)
         
         # Create recordings directory for persistent audio files
@@ -222,6 +223,14 @@ class Asrjs(Baseplugin):
             self._router_registered = True
         elif fastapi_app is None:
             self.logger.warning("FastAPI app not available; asrjs endpoints not registered")
+
+    async def send_status(self, status):
+        """Record the latest ASR status so (re)connecting frontends can fetch it
+        via GET /api/plugins/asrjs/status: status pushes are one-shot deliveries
+        (wait_for_socket_and_send sends each message once), so a browser that
+        connects after a push would otherwise stay stuck in 'loading'."""
+        self.current_status = status
+        await super().send_status(status)
 
     def send_settings_to_frontend(self):
         """Override to include onboarding AI info so frontend knows if API keys are available from onboarding"""
@@ -819,7 +828,17 @@ class Asrjs(Baseplugin):
             return
 
         self.router = APIRouter(prefix="/api/plugins/asrjs", tags=["asrjs"])
-        
+
+        @self.router.get("/status")
+        async def get_status_endpoint():
+            """Current ASR state for (re)connecting frontends: the one-shot
+            status/settings websocket pushes are only delivered to whichever
+            frontend was connected when they were sent."""
+            return {
+                "status": self.current_status,
+                "settings": self.get_my_settings(),
+            }
+
         @self.router.post("/start_recording")
         async def start_recording_endpoint():
             """Start recording via HTTP endpoint"""
