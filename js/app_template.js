@@ -175,6 +175,13 @@ async function initializeApp() {
 
         this.websocketUtil.onopen = () => {
           console.log("APP WebSocket connection opened");
+          // Self-heal after a real disconnection (>2s, overlay was showing):
+          // every plugin websocket died with the connection and the page
+          // state is stale - reload to re-establish everything cleanly.
+          if (this.connectionLost) {
+            location.reload();
+            return;
+          }
           this.backendConnected = true;
           this.everConnected = true;
           this.connectionLost = false;

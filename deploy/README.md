@@ -59,5 +59,6 @@ launchctl load ~/Library/LaunchAgents/org.igoor.server.plist
 - The server machine survives IGOOR crashes (restart within ~5 s) and reboots
   (auto-started again).
 - Remote browsers that were connected during a restart will show the
-  "Connection lost — reconnecting…" overlay (see the frontend) and come back
-  on their own once the server is up.
+  "Connection lost — reconnecting…" overlay and **reload themselves** as soon
+  as the server is back, so all plugin websockets and state are re-established
+  cleanly (this is why a bare restart needs no manual page refresh).
