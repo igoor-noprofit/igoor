@@ -9,8 +9,7 @@
              browser fullscreen instead (tablets / remote devices). -->
         <button v-else class="btn btn-shortcut fullscreen" @click="$_toggleFullscreen()">
             <i class="ph-light ph-arrows-out"></i>
-            <h3 v-show="!shrink">{{ isFullscreen ? t('Exit fullscreen') : t('Go fullscreen') }}</h3>
-            <h3 v-show="shrink">{{ t('Fullscreen') }}</h3>
+            <h3>{{ t('Fullscreen') }}</h3>
         </button>
         <button
             v-for="button in visibleButtons"
@@ -37,7 +36,6 @@ export default {
             status: 'loading',
             shrink: false,
             isBridge: null,  // null until ensureBackendApi resolves; false in a plain browser
-            isFullscreen: false,
             isAlertPlaying: false,
             alertTimeout: null,
             alertAudio: null,
@@ -255,9 +253,6 @@ export default {
         $_minimise() {
             window.ensureBackendApi().then((api) => api.winMinimize());
         },
-        $_onFullscreenChange() {
-            this.isFullscreen = Boolean(document.fullscreenElement);
-        },
         $_toggleFullscreen() {
             if (document.fullscreenElement) {
                 document.exitFullscreen().catch((e) => console.warn('Failed to exit fullscreen:', e));
@@ -364,7 +359,6 @@ export default {
         window.ensureBackendApi().then((api) => {
             this.isBridge = Boolean(api && api.isBridgeAvailable);
         });
-        document.addEventListener('fullscreenchange', this.$_onFullscreenChange);
         // Load settings
         this.loadSettings();
         // Listen for settings updates
@@ -374,7 +368,6 @@ export default {
         // Stop any playing alert when component is destroyed
         this.stopAlertPlayback();
         // Remove listeners
-        document.removeEventListener('fullscreenchange', this.$_onFullscreenChange);
         window.removeEventListener('settings-updated', this.loadSettings);
     }
 };
@@ -460,7 +453,12 @@ export default {
 }
 
 .btn-shortcut i.ph-light {
-    font-size: 44px;
-    line-height: 1;
+    /* Match the neighboring svg/img icons: 64px box with the glyph drawing
+       ~75% of it; phosphor glyphs occupy ~0.84em of the font-size. */
+    width: 100%;
+    max-width: 64px;
+    font-size: 55px;
+    line-height: 64px;
+    text-align: center;
 }
 </style>
