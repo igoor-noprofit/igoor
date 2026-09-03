@@ -733,9 +733,11 @@ class Pockettts(Baseplugin):
             safe_name = "".join(c if c.isalnum() or c in " _-" else "_" for c in name)
             temp_wav = self._prepare_clone_audio(audio_bytes, audio_file.filename, voices_dir)
 
-            # Generate voice state from audio (CPU-bound, run in thread)
+            # Generate voice state from audio (CPU-bound, run in thread).
+            # truncate=True trims uploads to the first 30 s — upstream's own
+            # server/CLI do the same; conditioning beyond 30 s adds nothing.
             def _clone():
-                voice_state = self.tts_model.get_state_for_audio_prompt(temp_wav)
+                voice_state = self.tts_model.get_state_for_audio_prompt(temp_wav, truncate=True)
                 # Export to safetensors for fast reload (fresh file: see
                 # _unique_voice_path)
                 safetensors_path = self._unique_voice_path(voices_dir, safe_name)
@@ -800,9 +802,10 @@ class Pockettts(Baseplugin):
             voices_dir = self._get_voices_dir()
             name = f"my_voice_{time.strftime('%Y%m%d_%H%M')}"
 
-            # Generate voice state from biorecorder audio (CPU-bound)
+            # Generate voice state from biorecorder audio (CPU-bound);
+            # truncate=True caps conditioning at the first 30 s (see upload path)
             def _clone():
-                voice_state = self.tts_model.get_state_for_audio_prompt(bio_voice_path)
+                voice_state = self.tts_model.get_state_for_audio_prompt(bio_voice_path, truncate=True)
                 safetensors_path = self._unique_voice_path(voices_dir, name)
                 export_model_state(voice_state, safetensors_path)
                 return voice_state, safetensors_path

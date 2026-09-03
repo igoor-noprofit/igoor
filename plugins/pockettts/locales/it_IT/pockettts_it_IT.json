@@ -29,5 +29,6 @@
     "Hello, how are you doing? I feel better today!": "Ciao, come stai? Oggi mi sento meglio!",
     "Unsupported audio format. Supported: WAV, MP3, FLAC, OGG, M4A, WEBM (M4A/WEBM require ffmpeg)": "Formato audio non supportato. Formati accettati: WAV, MP3, FLAC, OGG, M4A, WEBM (M4A/WEBM richiedono ffmpeg)",
     "Upload audio": "Carica un audio",
-    "Testing...": "Test in corso..."
+    "Testing...": "Test in corso...",
+    "For best results use 10-20 seconds of clean, single-speaker audio. Longer files are automatically trimmed to the first 30 seconds.": "Per risultati ottimali, usa 10-20 secondi di audio pulito con una sola voce. I file più lunghi vengono automaticamente ridotti ai primi 30 secondi."
 }

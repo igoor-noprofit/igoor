@@ -47,6 +47,9 @@
                     </button>
                     <input type="file" ref="cloneFileInput" style="display:none"
                         accept=".wav,.mp3,.flac,.ogg,.m4a,.webm" @change="onCloneFileSelected" />
+                    <div class="form-note" style="margin-top:8px">
+                        {{ t('For best results use 10-20 seconds of clean, single-speaker audio. Longer files are automatically trimmed to the first 30 seconds.') }}
+                    </div>
                     <div v-if="cloneStatus" class="form-note" style="margin-top:8px">
                         <span v-if="cloneStatus.type === 'success'" style="color:#3ca23c">{{ cloneStatus.message }}</span>
                         <span v-else style="color:#ff6666">{{ cloneStatus.message }}</span>
