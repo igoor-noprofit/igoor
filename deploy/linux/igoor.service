@@ -1,0 +1,23 @@
+# IGOOR headless server - systemd USER unit (keeps ~/.igoor owned by the user).
+#
+# Install (adjust the two paths below to your clone first):
+#   mkdir -p ~/.config/systemd/user
+#   cp igoor.service ~/.config/systemd/user/
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now igoor
+#   loginctl enable-linger "$USER"   # keep running after logout
+#
+# Logs: journalctl --user -u igoor -f
+
+[Unit]
+Description=IGOOR headless server
+After=network-online.target
+
+[Service]
+WorkingDirectory=%h/igoor
+ExecStart=%h/igoor/venv/bin/python main.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

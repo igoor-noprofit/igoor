@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- IGOOR headless server - launchd agent (keeps restarting IGOOR).
+     Install:
+       - replace CHANGE_ME below with your username / clone path
+       - cp org.igoor.server.plist ~/Library/LaunchAgents/
+       - launchctl load ~/Library/LaunchAgents/org.igoor.server.plist
+     Remove:  launchctl unload ~/Library/LaunchAgents/org.igoor.server.plist -->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>org.igoor.server</string>
+    <key>WorkingDirectory</key>
+    <string>/Users/CHANGE_ME/igoor</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/CHANGE_ME/igoor/venv/bin/python</string>
+        <string>main.py</string>
+    </array>
+    <key>KeepAlive</key>
+    <true/>
+    <key>ThrottleInterval</key>
+    <integer>5</integer>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/tmp/igoor-server.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/igoor-server.err</string>
+</dict>
+</plist>
