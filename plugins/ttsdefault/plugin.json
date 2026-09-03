@@ -3,7 +3,7 @@
     "platforms": ["windows"],
     "category": "TTS",
     "title": "Default Text-to-speech",
-    "description": "Fallback TTS using Windows OS voices",
+    "description": "Fallback TTS using Windows OS voices. Please note: if you use IGOOR on a remote device, the audio is streamed to the LOCAL device for playback.",
     "layout": {
         "part": "topbar",
         "order": 0
