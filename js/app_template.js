@@ -102,6 +102,10 @@ async function initializeApp() {
         bootProgressHideTimer: null,
         bootNotReady: [],
         bootNotReadyVisible: false,
+        backendConnected: false,
+        everConnected: false,
+        connectionLost: false,
+        connectionLostTimer: null,
       };
     },
     components: {
@@ -121,6 +125,23 @@ async function initializeApp() {
           return [];
         }
         return this.bootNotReady.slice().sort();
+      },
+      connectionLostMessage() {
+        const messages = {
+          connecting: {
+            en_EN: "Connecting to IGOOR…",
+            fr_FR: "Connexion à IGOOR…",
+            it_IT: "Connessione a IGOOR…",
+          },
+          lost: {
+            en_EN: "Connection lost — reconnecting…",
+            fr_FR: "Connexion perdue — reconnexion…",
+            it_IT: "Connessione persa — riconnessione…",
+          },
+        };
+        const lang =
+          this.lang && messages.connecting[this.lang] ? this.lang : "en_EN";
+        return this.everConnected ? messages.lost[lang] : messages.connecting[lang];
       },
     },
     async mounted() {
@@ -154,6 +175,13 @@ async function initializeApp() {
 
         this.websocketUtil.onopen = () => {
           console.log("APP WebSocket connection opened");
+          this.backendConnected = true;
+          this.everConnected = true;
+          this.connectionLost = false;
+          if (this.connectionLostTimer) {
+            clearTimeout(this.connectionLostTimer);
+            this.connectionLostTimer = null;
+          }
         };
 
         this.websocketUtil.onmessage = (event) => {
@@ -192,6 +220,15 @@ async function initializeApp() {
 
         this.websocketUtil.onclose = () => {
           console.log("WebSocket connection closed");
+          this.backendConnected = false;
+          // Grace period: the 1s reconnect attempts during a server restart
+          // must not flash the overlay at the user.
+          if (!this.connectionLostTimer) {
+            this.connectionLostTimer = setTimeout(() => {
+              this.connectionLostTimer = null;
+              this.connectionLost = true;
+            }, 2000);
+          }
           setTimeout(() => this.connectAppWebSocket(), 1000);
         };
 

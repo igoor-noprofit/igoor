@@ -1,6 +1,13 @@
 <div id="apploading" v-show="appview == 'loading' || !pywebviewready">
     <img src="img/igoor_logo.png" alt="Igoor Logo">
 </div>
+<!-- Shown when the websocket to the IGOOR server has been down for more than
+     2 seconds (server PC rebooted, network/Tailscale lost): reassures the user
+     and hides the frozen UI. Clears automatically on reconnect. -->
+<div id="connection-lost" v-if="connectionLost">
+    <img src="img/igoor_logo.png" alt="Igoor Logo">
+    <h1>{{ connectionLostMessage }}</h1>
+</div>
 <div id="minimized" v-show="minimized" @click="maximize">
     <button height="80">
         <img src="img/igoor_minimized_icon.png" />
