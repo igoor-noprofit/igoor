@@ -284,18 +284,54 @@ def load_frontend_components(lang):
 
 def on_closing():
     stop_fastapi_server()
-    websocket_server.stop()  
+    websocket_server.stop()
     print("WebSocket server has been closed.")
+
+_gui_ready_fired = False
+
+def _fire_gui_ready_once(source: str) -> None:
+    """Trigger the gui_ready hook exactly once per app run.
+
+    Plugins (conversation above all) only mark themselves ready inside this
+    hook, so it must fire in every runtime mode: from on_loaded in GUI mode,
+    or from the first app-websocket connection in headless mode.
+    """
+    global _gui_ready_fired
+    if _gui_ready_fired:
+        return
+    _gui_ready_fired = True
+    logger.info(f"Firing gui_ready hook (source: {source})")
+    try:
+        asyncio.run(manager.trigger_hook("gui_ready"))
+        logger.info("✓ gui_ready hook triggered successfully")
+    except Exception as e:
+        logger.error(f"Failed to trigger gui_ready hook: {e}")
+
+def _start_headless_gui_ready_watch() -> None:
+    """Headless mode has no pywebview window, so on_loaded (and with it the
+    gui_ready hook) would never fire. Watch for the first browser connecting
+    to the app websocket — that is the 'a GUI now exists' signal — and fire
+    the hook from there."""
+    def watch():
+        while not shutdown_event.is_set():
+            try:
+                if websocket_server.is_socket_open('app'):
+                    _fire_gui_ready_once("first app websocket connection (headless)")
+                    return
+            except Exception:
+                pass
+            time.sleep(1)
+    threading.Thread(target=watch, daemon=True, name="headless-gui-ready").start()
 
 def on_loaded():
     global window
     logger.info("=== on_loaded function triggered ===")
-    
+
     # Check if window object is available
     if window is None:
         logger.error("Window object is None! Cannot proceed with evaluate_js")
         return False
-        
+
     # Attempt to bootstrap front-end readiness. on_loaded fires on DOM load,
     # which can precede the Vue app mounting when boot is slow (models loading,
     # cold caches): the one-shot optional-chained call then silently no-ops,
@@ -319,13 +355,9 @@ def on_loaded():
         logger.info(f"✓ readypy invocation dispatched (waited {waited}s for frontend mount)")
     except Exception as e:
         logger.error(f"Failed to invoke readypy: {e}")
-    
-    try:
-        asyncio.run(manager.trigger_hook("gui_ready"))
-        logger.info("✓ gui_ready hook triggered successfully")
-    except Exception as e:
-        logger.error(f"Failed to trigger gui_ready hook: {e}")
-    
+
+    _fire_gui_ready_once("pywebview window loaded")
+
     try:
         prefs = settings.get_prefs()
         idle_threshold = prefs.get("idle_threshold", 10)
@@ -414,6 +446,9 @@ if __name__ == "__main__":
         logger.info("IGOOR_HEADLESS active: running headless API/WebSocket server only (no native window)")
         load_frontend_components(lang=lang)
         start_fastapi_server()
+        # No pywebview window exists in this mode: fire gui_ready when the
+        # first browser connects to the app websocket (see _fire_gui_ready_once).
+        _start_headless_gui_ready_watch()
         try:
             while not shutdown_event.is_set():
                 time.sleep(1)
