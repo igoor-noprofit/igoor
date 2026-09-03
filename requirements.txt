@@ -157,7 +157,6 @@ pywin32==308 ; sys_platform == 'win32'
 pywinauto==0.6.9 ; sys_platform == 'win32'
 pywinusb==0.4.2 ; sys_platform == 'win32'
 pywttr-models==2.0.1
-pyxnat==1.6.2
 pyyaml-env-tag==1.1
 rapidfuzz==3.10.0
 rdflib==6.3.2
