@@ -182,3 +182,9 @@ js/app.js
 js/app.vue
 /.factory
 .factory/skills/igoor-plugin-development/SKILL.md
+
+# MSIX packaging (keep sources, ignore build output and signing material)
+installer/msix/layout/
+installer/msix/*.msix
+installer/msix/*.cer
+installer/msix/*.pfx
