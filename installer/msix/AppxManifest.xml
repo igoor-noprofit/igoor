@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  IGOOR MSIX manifest (full-trust Win32 / PyInstaller onedir app).
+
+  Identity below uses the REAL Partner Center reservation:
+  - Name = reserved app name "IGOOR.IGOOR" (must match exactly)
+  - Publisher = the account's Publisher ID (Partner Center, Account settings)
+  For LOCAL sideload testing, the package is signed with a self-signed cert
+  whose subject equals the Publisher string exactly (make_test_cert.ps1);
+  test machines must trust that cert (TrustedPeople + Root). Store
+  submissions are re-signed by Microsoft - end users see no prompts.
+-->
+<Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+         xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+         xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities">
+
+  <Identity Name="IGOOR.IGOOR"
+            Version="1.1.0.0"
+            ProcessorArchitecture="x64"
+            Publisher="CN=AFF811DC-40E0-4A1D-A8C8-AA38A5208E53" />
+
+  <Properties>
+    <DisplayName>IGOOR</DisplayName>
+    <PublisherDisplayName>IGOOR</PublisherDisplayName>
+    <Logo>assets\StoreLogo.png</Logo>
+  </Properties>
+
+  <Resources>
+    <Resource Language="en-US" />
+  </Resources>
+
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.19041.0" MaxVersionTested="10.0.26100.0" />
+  </Dependencies>
+
+  <Capabilities>
+    <rescap:Capability Name="runFullTrust" />
+  </Capabilities>
+
+  <Applications>
+    <Application Id="IGOOR"
+                 Executable="igoor.exe"
+                 EntryPoint="Windows.FullTrustProcess">
+      <uap:VisualElements DisplayName="IGOOR"
+                          Description="Assistive eye-tracking communication app for people with neurodegenerative diseases."
+                          BackgroundColor="#121617"
+                          Square44x44Logo="assets\Square44x44Logo.png"
+                          Square150x150Logo="assets\Square150x150Logo.png" />
+    </Application>
+  </Applications>
+
+</Package>
