@@ -4,10 +4,27 @@ for /f "usebackq delims=" %%T in (`powershell -NoProfile -Command "[int][double]
 
 echo Starting build at %date% %time%
 
+where pyinstaller >nul 2>nul
+if errorlevel 1 (
+    echo ERROR: pyinstaller not found on PATH - activate the venv first ^(venv\Scripts\activate^)
+    exit /b 1
+)
+
 copy /Y igoor.spec.txt igoor.spec
 rmdir /s /q build
 rmdir /s /q "dist\igoor"
 pyinstaller igoor.spec --noconfirm
+if errorlevel 1 (
+    echo.
+    echo ERROR: PyInstaller build failed!
+    exit /b 1
+)
+
+if not exist "dist\igoor\igoor.exe" (
+    echo.
+    echo ERROR: Build reported success but dist\igoor\igoor.exe is missing!
+    exit /b 1
+)
 
 rem Record end time
 for /f "usebackq delims=" %%T in (`powershell -NoProfile -Command "[int][double]::Parse((Get-Date -UFormat %%s))"`) do set "__end=%%T"
