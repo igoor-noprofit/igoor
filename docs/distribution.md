@@ -132,3 +132,14 @@ now get the normal one-time consent dialog.
 Both fixes are in AppxManifest.xml; version bumped to 1.1.1 for the
 Store resubmission (higher version than the published 1.1.0.0 is
 mandatory). Submission: private audience -> Surface test -> public.
+
+## Update 2026-09-05: first-run language for MSIX solved
+
+MSIX has no install-time language question (Inno Setup rewrote
+IGOOR_START_LANG in .env). First run now auto-detects the OS UI language
+(settings_manager._detect_start_lang): IGOOR_START_LANG wins if set (dev
+and Inno channels unchanged), else GetUserDefaultUILanguage/locale mapping
+to an existing locales/ folder (exact match, then language prefix:
+fr_CA->fr_FR, en_US->en_EN), else en_EN. env.production no longer pins the
+language. Ships with the next Store submission (1.1.1 already in
+certification keeps English defaults).
