@@ -19,6 +19,7 @@ from utils import (
     setup_logger,
     get_appdata_dir,
     get_appdata_web_js_dir,
+    create_desktop_shortcut,
 )
 from fastapi_app import app as fastapi_app
 import uvicorn
@@ -31,6 +32,11 @@ if sys.stderr.encoding != 'utf-8':
 
 appdata_dir = get_appdata_dir(create=True)
 logger = setup_logger('main', appdata_dir)
+
+# MSIX (Store) builds: ensure a desktop icon exists on first run - Store
+# packages only get a Start-menu entry by default.
+if sys.platform == 'win32' and 'WindowsApps' in os.path.realpath(sys.executable):
+    create_desktop_shortcut(logger)
 context_manager = ContextManager()
 manager = PluginManager()
 fastapi_server: Optional[uvicorn.Server] = None

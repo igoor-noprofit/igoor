@@ -15,7 +15,7 @@
          xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities">
 
   <Identity Name="IGOOR.IGOOR"
-            Version="1.1.2.0"
+            Version="1.1.3.0"
             ProcessorArchitecture="x64"
             Publisher="CN=AFF811DC-40E0-4A1D-A8C8-AA38A5208E53" />
 
@@ -27,6 +27,8 @@
 
   <Resources>
     <Resource Language="en-US" />
+    <Resource Language="fr-FR" />
+    <Resource Language="it-IT" />
   </Resources>
 
   <Dependencies>

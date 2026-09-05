@@ -259,3 +259,49 @@ def get_appdata_web_js_dir(create: bool = True) -> str:
     if create:
         os.makedirs(path, exist_ok=True)
     return path
+
+
+def create_desktop_shortcut(logger=None) -> bool:
+    """MSIX installs get no desktop icon by default; create a desktop
+    shortcut targeting the app's AUMID once (idempotent). For the
+    eye-tracking audience this must not require hunting through the Start
+    menu. The shortcut survives Store updates: the package family name in
+    the AUMID is version-independent."""
+    import re
+
+    try:
+        import win32com.client
+
+        exe_path = os.path.realpath(sys.executable)
+        package_dir = os.path.basename(os.path.dirname(exe_path))
+        # PackageFullName = Name_Version_Arch__PublisherHash
+        parts = package_dir.split('_')
+        if len(parts) < 5 or not parts[-1]:
+            return False
+        family = parts[0] + '_' + parts[-1]
+
+        app_id = 'IGOOR'
+        manifest_path = os.path.join(os.path.dirname(exe_path), 'AppxManifest.xml')
+        if os.path.exists(manifest_path):
+            with open(manifest_path, 'r', encoding='utf-8') as f:
+                match = re.search(r'<Application Id="([^"]+)"', f.read())
+            if match:
+                app_id = match.group(1)
+
+        wsh = win32com.client.Dispatch('WScript.Shell')
+        desktop = wsh.SpecialFolders('Desktop')
+        target = os.path.join(desktop, 'IGOOR.lnk')
+        if os.path.exists(target):
+            return False
+
+        shortcut = wsh.CreateShortcut(target)
+        shortcut.TargetPath = f'shell:AppsFolder\\{family}!{app_id}'
+        shortcut.Description = 'IGOOR'
+        shortcut.Save()
+        if logger:
+            logger.info(f'Created desktop shortcut: {target}')
+        return True
+    except Exception as e:
+        if logger:
+            logger.warning(f'create_desktop_shortcut failed: {e}')
+        return False

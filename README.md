@@ -43,6 +43,11 @@ Download latest executable from:
 
 https://github.com/igoor-noprofit/igoor/releases/download/latest/IGOOR.exe
 
+**Microsoft Store edition:** when installed from the Microsoft Store, IGOOR
+creates a desktop shortcut by itself on first run (Store apps only get a
+Start-menu entry by default) - no need to open the Store again or hunt for
+the app. The shortcut keeps working across automatic updates.
+
 
 Microsoft Edge WebView2 Runtime is © Microsoft Corporation.
 
