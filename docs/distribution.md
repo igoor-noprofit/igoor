@@ -143,3 +143,15 @@ to an existing locales/ folder (exact match, then language prefix:
 fr_CA->fr_FR, en_US->en_EN), else en_EN. env.production no longer pins the
 language. Ships with the next Store submission (1.1.1 already in
 certification keeps English defaults).
+
+## Server-mode decision (2026-09-05)
+
+True Windows Service / pre-logon server deployments stay on the Inno Setup /
+GitHub Releases channel (classic installers can register services). MSIX
+builds ship windowed-only (HEADLESS=False, ACCESS_FROM_OUTSIDE=False in
+env.production): Microsoft does not support services in MSIX, and the
+version-stamped WindowsApps path would break a service registration on
+every Store update. If Store-side headless is ever requested, the supported
+route is onboarding prompts persisted to settings.json (env vars remain as
+dev overrides) + the windows.startupTask manifest extension for logon
+auto-start - no admin rights required.
