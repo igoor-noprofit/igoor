@@ -56,6 +56,11 @@ rem production one instead. Inno Setup rewrites .env at install time; MSIX
 rem cannot, so the package must already contain the right defaults.
 copy /Y "!HERE!env.production" "!LAYOUT!\_internal\.env" >nul
 
+rem Keep the manifest's Identity Version in sync with version.py: the Store
+rem rejects packages whose full name (name+version+arch) collides with a
+rem published package of different content.
+powershell -NoProfile -Command "(Get-Content '!LAYOUT!\AppxManifest.xml') -replace 'Version=\"[0-9.]+\"', 'Version=\"!PKG_VERSION!\"' | Set-Content '!LAYOUT!\AppxManifest.xml'"
+
 echo Packaging with makeappx (a few minutes for ~1.2 GB)...
 "!SDK_BIN!\makeappx.exe" pack /h SHA256 /d "!LAYOUT!" /p "!HERE!IGOOR-!PKG_VERSION!.msix"
 if !ERRORLEVEL! NEQ 0 (
