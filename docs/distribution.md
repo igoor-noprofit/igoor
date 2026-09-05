@@ -107,3 +107,28 @@ package flight to verify the Store-signed install experience.
 unchanged, no build started). Cause unknown — no project script or agent
 command explains it. Rebuilt via `create_exe.bat`. If it recurs, suspect
 antivirus cleanup or an interrupted external tool.
+
+## Update 2026-09-05: THE root cause found; mic capability added
+
+**The activation bug that blocked everything was a single manifest value:**
+`EntryPoint` must be **`Windows.FullTrustApplication`**, NOT
+`Windows.FullTrustProcess`. The wrong value passes makeappx, passes
+installation, passes Store certification - and then activation fails
+silently (TWinUI 5961, 0x8027025B, phase "COM ActivateExtension", no
+process ever created) on every machine. Found by dumping Windows
+Terminal's manifest for comparison - always diff against a known-good
+reference. With the fix, the packaged app launches end-to-end (window,
+plugins, logging to real %APPDATA% - which also confirms uninstall
+preserves user data).
+
+**Microphone**: packaged apps are gated by Windows per-app privacy
+settings; without a capability declaration the toggle defaults off and
+asrjs fails with "Permission denied by system" in the pywebview window
+(browser access works because the browser owns its own mic grant).
+Fixed by declaring `<DeviceCapability Name="microphone" />` in the
+manifest (NOT `<uap:Capability>` - that fails schema validation). Users
+now get the normal one-time consent dialog.
+
+Both fixes are in AppxManifest.xml; version bumped to 1.1.1 for the
+Store resubmission (higher version than the published 1.1.0.0 is
+mandatory). Submission: private audience -> Surface test -> public.
