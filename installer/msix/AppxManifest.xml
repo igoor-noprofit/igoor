@@ -35,12 +35,13 @@
 
   <Capabilities>
     <rescap:Capability Name="runFullTrust" />
+    <DeviceCapability Name="microphone" />
   </Capabilities>
 
   <Applications>
     <Application Id="IGOOR"
                  Executable="igoor.exe"
-                 EntryPoint="Windows.FullTrustProcess">
+                 EntryPoint="Windows.FullTrustApplication">
       <uap:VisualElements DisplayName="IGOOR"
                           Description="Assistive eye-tracking communication app for people with neurodegenerative diseases."
                           BackgroundColor="#121617"

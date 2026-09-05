@@ -8,6 +8,9 @@ rem Usage: build_msix.bat [cert_thumbprint]
 rem   1. Run create_exe.bat first (needs dist\igoor\igoor.exe)
 rem   2. Optional: pass a certificate thumbprint to sign the .msix
 rem      with signtool after packaging (e.g. the self-signed test cert).
+rem
+rem NOTE: run makeappx from a FOREGROUND shell only. Running it through a
+rem background-task pipe wrapper hangs it (output pipe never drains).
 rem ========================================
 
 set "SDK_BIN=C:\Program Files (x86)\Windows Kits\10\bin\10.0.26100.0\x64"
@@ -73,7 +76,7 @@ if !ERRORLEVEL! NEQ 0 (
 "!SDK_BIN!\signtool.exe" verify /pa "!MSIX!"
 if !ERRORLEVEL! NEQ 0 (
     echo ERROR: signature verification failed
-    exit /b !ERRORLEVEL!
+    exit /b 1
 )
 echo Signed and verified.
 
