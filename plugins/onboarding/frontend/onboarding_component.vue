@@ -84,7 +84,7 @@
                                     <button class="shortcut-item btn btn-primary warning" @click="$refs.importFileInput.click()" :disabled="isImporting">
                                         <span class="shortcut-label">{{ isImporting ? t('Importing...') : t('Import Data') }}</span>
                                     </button>
-                                    <button class="shortcut-item btn btn-primary" @click="openDataFolder">
+                                    <button v-if="isBridge !== false" class="shortcut-item btn btn-primary" @click="openDataFolder">
                                         <span class="shortcut-label">{{ t('Open Data Folder') }}</span>
                                     </button>
                                 </div>
@@ -370,6 +370,7 @@ export default {
         return {
             activeTab: 'core', // Initialize with a default category to prevent empty state
             pluginData: {},
+            isBridge: null,  // null until ensureBackendApi resolves; false in a plain (remote) browser
             currentTab: 'bio', // For main tabs (bio, prefs, ai, plugins, about)
             showModal: false,
             bio: {
@@ -439,6 +440,9 @@ export default {
     async mounted() {
         // Wait for backend API or pywebview bridge
         const api = await ensureBackendApi();
+        // pywebview (desktop window) vs plain browser (remote device) - hides the
+        // "Open Data Folder" button in browsers (it opens Explorer on the host).
+        this.isBridge = Boolean(api.isBridgeAvailable);
         if (api.isBridgeAvailable) {
             await api.waitUntilReady();
         }
