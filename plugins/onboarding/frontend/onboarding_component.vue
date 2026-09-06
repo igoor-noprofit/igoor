@@ -84,6 +84,9 @@
                                     <button class="shortcut-item btn btn-primary warning" @click="$refs.importFileInput.click()" :disabled="isImporting">
                                         <span class="shortcut-label">{{ isImporting ? t('Importing...') : t('Import Data') }}</span>
                                     </button>
+                                    <button class="shortcut-item btn btn-primary" @click="openDataFolder">
+                                        <span class="shortcut-label">{{ t('Open Data Folder') }}</span>
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -629,6 +632,14 @@ export default {
                 await fetch('/api/plugins/onboarding/open_sound_settings', { method: 'POST' });
             } catch (e) {
                 console.error('Could not open Windows microphone settings:', e);
+            }
+        },
+        async openDataFolder() {
+            // Opens %APPDATA%/igoor (all user data lives there) in the OS file explorer.
+            try {
+                await fetch('/api/plugins/onboarding/open_data_folder', { method: 'POST' });
+            } catch (e) {
+                console.error('Could not open the data folder:', e);
             }
         },
         onProviderChange() {

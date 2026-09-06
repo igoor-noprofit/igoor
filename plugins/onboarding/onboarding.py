@@ -2,11 +2,14 @@ from plugins.baseplugin.baseplugin import Baseplugin
 from plugin_manager import hookimpl, PluginManager
 import json
 import os
+import sys
+import subprocess
 import asyncio
 from dotenv import load_dotenv
 load_dotenv()
 from context_manager import context_manager
 from settings_manager import SettingsManager
+from utils import get_appdata_dir
 from fastapi import APIRouter, HTTPException
 
 class Onboarding(Baseplugin):
@@ -91,6 +94,21 @@ class Onboarding(Baseplugin):
                     os.startfile('ms-settings:sound')
                     return {"status": "success"}
                 return {"status": "error", "message": "Not supported on this platform"}
+            except Exception as e:
+                return {"status": "error", "message": str(e)}
+
+        @self.router.post("/open_data_folder")
+        async def open_data_folder_endpoint():
+            """Open the IGOOR data folder (where all user data is stored) in the OS file explorer."""
+            try:
+                path = get_appdata_dir()
+                if os.name == 'nt':
+                    os.startfile(path)
+                elif sys.platform == 'darwin':
+                    subprocess.Popen(['open', path])
+                else:
+                    subprocess.Popen(['xdg-open', path])
+                return {"status": "success"}
             except Exception as e:
                 return {"status": "error", "message": str(e)}
 
