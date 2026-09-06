@@ -1,6 +1,12 @@
 @echo off
 setlocal enabledelayedexpansion
 
+rem Signing thumbprint used by the MSIX build (option 6): the self-signed
+rem test cert in the current user's store. Set to empty to build the MSIX
+rem unsigned - Partner Center re-signs on upload anyway, so this only
+rem matters for local sideload testing.
+set "MSIX_SIGN_THUMBPRINT=029A3BD0B0CEB90B06525C09606546C3A61AE999"
+
 rem ========================================
 rem Menu: Choose build option
 rem ========================================
@@ -13,8 +19,9 @@ echo 2) Create exe file AND installer
 echo 3) Create both AND push to GitHub release
 echo 4) Push to GitHub release only (exe and installer already exist)
 echo 5) Create only the installer (skip exe build)
+echo 6) Create exe file AND MSIX package (Microsoft Store)
 echo.
-set /p BUILD_CHOICE="Enter your choice (1/2/3/4/5): "
+set /p BUILD_CHOICE="Enter your choice (1/2/3/4/5/6): "
 
 if "!BUILD_CHOICE!"=="1" (
     set "CREATE_EXE=1"
@@ -43,6 +50,14 @@ if "!BUILD_CHOICE!"=="4" (
 if "!BUILD_CHOICE!"=="5" (
     set "CREATE_EXE=0"
     set "CREATE_INSTALLER=1"
+    set "CREATE_MSIX=0"
+    set "PUSH_GITHUB=0"
+    goto START_BUILD
+)
+if "!BUILD_CHOICE!"=="6" (
+    set "CREATE_EXE=1"
+    set "CREATE_INSTALLER=0"
+    set "CREATE_MSIX=1"
     set "PUSH_GITHUB=0"
     goto START_BUILD
 )
@@ -58,6 +73,7 @@ if "!BUILD_CHOICE!"=="2" echo Creating exe file AND installer...
 if "!BUILD_CHOICE!"=="3" echo Creating exe, installer, AND pushing to GitHub release...
 if "!BUILD_CHOICE!"=="4" echo Pushing to GitHub release only (assuming exe and installer already exist)...
 if "!BUILD_CHOICE!"=="5" echo Creating only the installer (skipping exe build)...
+if "!BUILD_CHOICE!"=="6" echo Creating exe file AND MSIX package (Microsoft Store)...
 echo.
 
 rem Record start time (seconds since Unix epoch) using PowerShell
@@ -125,6 +141,26 @@ echo Installer created successfully.
 echo.
 
 :SKIP_INSTALLER
+
+if "!CREATE_MSIX!"=="1" goto CREATE_MSIX
+goto SKIP_MSIX
+
+:CREATE_MSIX
+echo Step 3: Creating MSIX package (Microsoft Store)...
+echo ----------------------------------------
+rem build_msix.bat reads the version from version.py, injects the production
+rem .env and syncs the manifest Identity Version; pass the thumbprint to also
+rem sign for local sideload testing (see MSIX_SIGN_THUMBPRINT above).
+call "%~dp0installer\msix\build_msix.bat" !MSIX_SIGN_THUMBPRINT!
+if !ERRORLEVEL! NEQ 0 (
+    echo.
+    echo ERROR: MSIX packaging failed!
+    exit /b !ERRORLEVEL!
+)
+echo MSIX package created successfully.
+echo.
+
+:SKIP_MSIX
 rem Record end time
 for /f "usebackq delims=" %%T in (`powershell -NoProfile -Command "[int][double]::Parse((Get-Date -UFormat %%s))"`) do set "__end=%%T"
 
@@ -158,6 +194,7 @@ if "!BUILD_CHOICE!"=="2" echo Created: Exe file + Installer
 if "!BUILD_CHOICE!"=="3" echo Created: Exe file + Installer + GitHub release
 if "!BUILD_CHOICE!"=="4" echo Created: GitHub release only (exe and installer already exist)
 if "!BUILD_CHOICE!"=="5" echo Created: Installer only (exe build skipped)
+if "!BUILD_CHOICE!"=="6" echo Created: Exe file + MSIX package (Microsoft Store)
 echo.
 
 if "!PUSH_GITHUB!"=="0" goto END
