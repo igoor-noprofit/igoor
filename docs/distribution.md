@@ -155,3 +155,19 @@ every Store update. If Store-side headless is ever requested, the supported
 route is onboarding prompts persisted to settings.json (env vars remain as
 dev overrides) + the windows.startupTask manifest extension for logon
 auto-start - no admin rights required.
+
+## Update 2026-09-06: AppData virtualization CORRECTED (critical)
+
+Earlier claim that full-trust MSIX writes to real %APPDATA% was WRONG: by
+default MSIX redirects AppData/HKCU writes into the per-package container
+(LocalAppData\Packages\<family>\), which is DELETED ON UNINSTALL - losing
+cloned voices, memory and settings, contradicting our privacy policy (found
+by the user on the Surface). Fixed via Flexible Virtualization:
+desktop6:FileSystemWriteVirtualization=disabled,
+desktop6:RegistryWriteVirtualization=disabled + restricted capability
+unvirtualizedResources (Partner Center approval form; supported 1903+).
+Verified locally: packaged 1.1.5 run creates real %APPDATA%\igoor\logs
+entries (unambiguous test with prior logs moved aside). Data now survives
+uninstall; Open Data Folder opens the live folder; Inno and Store channels
+share the same real data. Data written by earlier virtualized test builds
+lives orphaned in the container - test installs only, no user impact.
