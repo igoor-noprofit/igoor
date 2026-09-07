@@ -17,7 +17,7 @@
          IgnorableNamespaces="desktop6">
 
   <Identity Name="IGOOR.IGOOR"
-            Version="1.1.5.0"
+            Version="1.1.6.0"
             ProcessorArchitecture="x64"
             Publisher="CN=AFF811DC-40E0-4A1D-A8C8-AA38A5208E53" />
 

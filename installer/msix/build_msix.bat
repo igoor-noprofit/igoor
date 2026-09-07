@@ -58,9 +58,10 @@ copy /Y "!HERE!env.production" "!LAYOUT!\_internal\.env" >nul
 
 rem Keep the manifest's Identity Version in sync with version.py: the Store
 rem rejects packages whose full name (name+version+arch) collides with a
-rem published package of different content. NOTE: -creplace (case-sensitive)
-rem so the lowercase version= in the <?xml?> declaration is left alone.
-powershell -NoProfile -Command "(Get-Content '!LAYOUT!\AppxManifest.xml') -creplace 'Version=\"[0-9.]+\"', 'Version=\"!PKG_VERSION!\"' | Set-Content '!LAYOUT!\AppxManifest.xml' -Encoding UTF8"
+rem published package of different content. Anchored to line start so ONLY
+rem the Identity's Version attribute is touched - a loose pattern also
+rem rewrites MinVersion/MaxVersionTested inside TargetDeviceFamily.
+powershell -NoProfile -Command "(Get-Content '!LAYOUT!\AppxManifest.xml') -creplace '^(\s*)Version=\"[0-9.]+\"', ('$1' + 'Version=\"!PKG_VERSION!\"') | Set-Content '!LAYOUT!\AppxManifest.xml' -Encoding UTF8"
 
 echo Packaging with makeappx (a few minutes for ~1.2 GB)...
 "!SDK_BIN!\makeappx.exe" pack /h SHA256 /d "!LAYOUT!" /p "!HERE!IGOOR-!PKG_VERSION!.msix"
