@@ -1142,7 +1142,9 @@ export default {
 
 .pluginsContainer{
     /* border:1px solid #0ff; */
-    width: 100vw;
+    /* 100% (not 100vw): the modal has horizontal padding, so 100vw overflows
+       it and the last grid column gets clipped by overflow-x:hidden */
+    width: 100%;
 }
 /* Fixed-height modal: the tab bar and the save bar stay visible, each tab's
    content scrolls on its own and only when it actually overflows.
@@ -1411,6 +1413,16 @@ button:disabled {
     flex-direction: column;
 }
 
+/* The native focus ring is drawn just OUTSIDE the element box, and the left
+   columns (Bio, Préférences) start exactly on the edge of the scroll
+   containers, which clip with overflow-x:hidden — the ring loses its left
+   edge. Draw it inside the field instead. */
+.modal-content input:focus-visible,
+.modal-content textarea:focus-visible,
+.modal-content select:focus-visible {
+    outline-offset: -2px;
+}
+
 /* PLUGINS */
 .core-plugin {
     background: #f8f9fa;
@@ -1465,7 +1477,8 @@ button:disabled {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
     gap: 20px;
-    padding: 20px 0;
+    /* gutter before the scrollbar of the scroll container (.pluginsContainer) */
+    padding: 20px 20px 20px 0;
 }
 
 .plugin-card {
@@ -1492,6 +1505,7 @@ button:disabled {
     margin: 0;
     font-size: 1.1em;
     font-weight: 600;
+    line-height: 1.2rem;
     max-width: 80%;
 }
 
@@ -1683,7 +1697,9 @@ a.extlink {
 
 /* Dashboard Styles */
 .dashboard-container {
-    padding: 20px 0;
+    /* right padding keeps a gutter between the cards and the scrollbar
+       that appears on this scroll container when the cards overflow */
+    padding: 20px 20px 20px 0;
     /* height comes from the flex chain (.tabsandpluginscontainer > *):
        fills the modal when cards fit, scrolls when they overflow */
     display: flex;

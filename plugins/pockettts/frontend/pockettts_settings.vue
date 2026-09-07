@@ -47,9 +47,8 @@
                     </button>
                     <input type="file" ref="cloneFileInput" style="display:none"
                         accept=".wav,.mp3,.flac,.ogg,.m4a,.webm" @change="onCloneFileSelected" />
-                    <div class="form-note" style="margin-top:8px">
-                        {{ t('For best results use 10-20 seconds of clean, single-speaker audio. Longer files are automatically trimmed to the first 30 seconds.') }}
-                    </div>
+                    <HelpPopover :text="t('For best results use 10-20 seconds of clean, single-speaker audio. Longer files are automatically trimmed to the first 30 seconds.')"
+                        :t="t" :lang="lang" />
                     <div v-if="cloneStatus" class="form-note" style="margin-top:8px">
                         <span v-if="cloneStatus.type === 'success'" style="color:#3ca23c">{{ cloneStatus.message }}</span>
                         <span v-else style="color:#ff6666">{{ cloneStatus.message }}</span>
@@ -102,8 +101,11 @@
             <!-- High Quality Mode (24L) -->
             <div class="form-label">{{ t('High Quality Mode (24L)') }}</div>
             <div class="form-input">
-                <input type="checkbox" id="use_24l" v-model="formData.use_24l" />
-                <label for="use_24l" class="checkbox-label">
+                <label class="switch" style="margin: 0;">
+                    <input type="checkbox" id="use_24l" v-model="formData.use_24l" />
+                    <span class="slider round"></span>
+                </label>
+                <label for="use_24l" class="checkbox-label" style="margin: 0;">
                     {{ t('Use 24-layer model (higher quality, slower)') }}
                 </label>
             </div>
@@ -186,12 +188,14 @@
 <script>
 import BasePluginComponent from '/js/BasePluginComponent.js';
 import SaveSettingsButton from '/js/SaveSettingsButton.vue';
+import HelpPopover from '/js/HelpPopover.vue';
 
 export default {
     name: 'pocketttsSettings',
     mixins: [BasePluginComponent],
     components: {
-        SaveSettingsButton
+        SaveSettingsButton,
+        HelpPopover
     },
     props: {
         initialSettings: Object
