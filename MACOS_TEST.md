@@ -1,8 +1,10 @@
-# IGOOR on macOS — Phase 1 Boot Test
+# IGOOR on macOS — Boot Test
 
-Goal: confirm the app **launches a window and boots** on macOS. This validates the `os.getenv('APPDATA')` → `get_appdata_dir()` migration (originally done on `feature/v1-for-mac`, now carried by the unified branch). It is *not* a full-feature test — expect audio plugins to fail on a remote Mac (no mic/speaker hardware).
+Goal: confirm the app **launches a window and boots** on macOS. This validates the `os.getenv('APPDATA')` → `get_appdata_dir()` migration (originally done on `feature/v1-for-mac`, now carried by the unified branch) **and** the plugin platform gating (`"platforms"` in plugin.json). It is *not* a full-feature test — expect audio plugins to fail on a remote Mac (no mic/speaker hardware).
 
-> Branch: **`feature/v1-multiplatform`** (unified multiplatform branch; supersedes `feature/v1-for-mac`) · Target: **macOS** (Apple Silicon or Intel) · Python **3.10.6**
+> Branch: **`feature/v1-multiplatform`** (unified multiplatform branch; supersedes `feature/v1-for-mac`) · Target: **macOS, Apple Silicon (M-series) only** · Python **3.10.6**
+
+⚠️ **Apple Silicon is required.** `torch==2.8.0` / `torchaudio==2.8.0` publish no Intel (x86_64) macOS wheels — `pip install` fails on Intel Macs with "no matching distribution". If you rent a remote Mac, it **must** be M-series.
 
 ---
 
@@ -11,8 +13,8 @@ Goal: confirm the app **launches a window and boots** on macOS. This validates t
 A remote macOS desktop is fine. Pick one with **per-minute/hourly** billing so a smoke test costs ~$1–2:
 
 - **Scaleway M1 as-a-Service** — per-minute, best for a quick session: https://scaleway.com/en/hello-m1/
-- **RentAMac.io** — flat ~$3.30/day: https://rentamac.io/
-- **MacinCloud** — hourly/daily pay-as-you-go: https://www.macincloud.com/
+- **RentAMac.io** — flat ~$3.30/day (M4 Macs): https://rentamac.io/
+- **MacinCloud** — hourly/daily pay-as-you-go: https://www.macincloud.com/ — ⚠️ they rent **both Intel and Apple Silicon** machines; pick an **M-series** plan (see the torch warning above)
 
 ⚠️ Browser-only services (BrowserStack, Browserling) **do not work** — IGOOR is a desktop app, not a website.
 
@@ -28,12 +30,20 @@ git checkout feature/v1-multiplatform
 # system deps (audio libs + FFmpeg — needed by sounddevice/PyAudio/pydub)
 brew install portaudio ffmpeg
 
+# PyAudio 0.2.14 builds from source on macOS — needs a compiler.
+# Homebrew normally installs the CLT, but be explicit to avoid a confusing pip failure:
+xcode-select --install   # no-op if already present
+
+# optional (Homebrew Python only): tkinter for the splash screen.
+# The app boots fine without it — you just skip the splash.
+brew install python-tk@3.10
+
 # python env
 python3.10 -m venv venv
 source venv/bin/activate
 python -m pip install --upgrade pip
 
-# install deps — should SKIP the 8 Windows-only packages and INSTALL pyobjc
+# install deps — should SKIP the 10 Windows-only packages and INSTALL the pyobjc stack
 pip install -r requirements.txt
 ```
 
@@ -44,7 +54,7 @@ pip install -r requirements.txt
 pip list | grep -iE "pywin32|pywinauto|comtypes|pythonnet|winrt"
 
 # 2. confirm the macOS webview backend is present:
-pip list | grep -i pyobjc          # expect: pyobjc-framework-Cocoa (+ core deps)
+pip list | grep -i pyobjc          # expect the pyobjc stack (Cocoa, WebKit, Quartz, …) — pywebview pulls them all on darwin
 
 # 3. confirm the data-dir helper resolves to the macOS location:
 python -c "from utils import get_appdata_dir; print(get_appdata_dir())"
@@ -68,6 +78,7 @@ python main.py
 - [ ] The local server is up: open `http://127.0.0.1:9714/` in Safari — should show the IGOOR UI
 - [ ] `~/Library/Application Support/igoor/` got created with `settings.json`, `database/`, `plugins/`, `logs/`
 - [ ] No Python traceback in the terminal on startup
+- [ ] In Settings → Extensions, `ttsdefault` and `extkeyb` appear as disabled cards with **"Not available on this platform"** (this verifies the platform gate works end-to-end — their activation entries in settings.json must stay untouched)
 
 **If you see a window open — Phase 1 passes.** That's the whole point of this test.
 
@@ -79,10 +90,11 @@ These are fine to ignore — they're Phase 2/3 work, already documented in `.fac
 
 | Plugin | Symptom | Why |
 |---|---|---|
-| `ttsdefault` | fails to load | Windows SAPI not on Mac → needs `say`/AVSpeech port |
-| `extkeyb` | fails to load | Win32 keyboard automation → needs gating |
+| `ttsdefault` | disabled card "Not available on this platform" | Windows-only SAPI — **platform-gated** (never imported on Mac; a `say`/AVSpeech port is future work). TTS on Mac: use `pockettts` (local) or `elevenlabstts` / `speechifytts` (cloud) |
+| `extkeyb` | disabled card "Not available on this platform" | Win32 keyboard automation — **platform-gated**; the `igoor` socket-keyboard mode is the cross-platform path |
 | `asrjs` / TTS | mic/sound errors | remote Mac has no audio hardware |
 | `bugreport` | black screenshot | needs Screen Recording permission (System Settings → Privacy) |
+| `open sound settings` links | "Not supported on this platform" | `ms-settings:sound` is Windows-only; no macOS System Settings deep-link yet (non-fatal) |
 
 ---
 
@@ -90,18 +102,21 @@ These are fine to ignore — they're Phase 2/3 work, already documented in `.fac
 
 | Error | Meaning / Fix |
 |---|---|
-| `ModuleNotFoundError: win32com` / `win32gui` / `pywinauto` | a plugin importing a Windows-only module — expected; it should be caught, but if it crashes the app, note which plugin |
+| pip fails building **PyAudio** | missing compiler — run `xcode-select --install`, then retry |
+| pip: **no matching distribution for torch/torchaudio** | you're on an **Intel Mac** — torch 2.8.0 has no x86_64 macOS wheels; switch to an Apple Silicon machine |
+| app hard-exits (`os._exit`) on a plugin error | `IGOOR_DEBUG=true` makes any plugin load failure fatal — keep it unset for this test |
+| `ModuleNotFoundError: win32com` / `win32gui` / `pywinauto` | should NOT happen anymore (gate + guarded imports) — if it does, note which plugin; it should be caught |
 | `OSError: ... portaudio` | run `brew install portaudio` again |
-| `pywebview` can't open a window | confirm `pyobjc-framework-Cocoa` installed (step 2 sanity check) |
+| `pywebview` can't open a window | confirm the pyobjc stack installed (step 2 sanity check) |
 | `FileNotFoundError: ffmpeg` | run `brew install ffmpeg` |
 | Window opens but UI is blank | open Safari dev tools (or Safari → Develop); WKWebView caching differs from Edge — note the console errors |
-| `TypeError: ... not NoneType` (APPDATA) | the migration didn't take — run `grep -rn "getenv('APPDATA')" *.py plugins/` and report what's left |
+| `TypeError: ... not NoneType` (APPDATA) | the migration didn't take — run `grep -rn "getenv('APPDATA')" *.py plugins/` and report what's left (the only valid hit is inside `utils.get_appdata_dir`) |
 
 ---
 
-## 7. What to capture for Phase 2
+## 7. What to capture afterwards
 
-If the boot works, grab these so the next phases (plugin ports, `.dmg` packaging) have a baseline:
+If the boot works, grab these so the remaining work (macOS TTS port, `.dmg` packaging) has a baseline:
 
 1. The **full startup log** from the terminal
 2. A **screenshot** of the open window
