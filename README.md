@@ -75,7 +75,7 @@ untouched — so a user's settings and data stay portable across OSes.
 The only AI inference provider currently meeting our requirements of speed, privacy, quality, support of opensource models and availability of both ASR/LLM inference is Groq.
 Signup for a FREE-tier access to Groq's API here:
 
-https://console.groq.com/login
+https://console.groq.com/keys
 
 For production use, you will need a developer tier self-serve (Pay per Token) access, 
 or you'll rapidly incur in rate limits errors.

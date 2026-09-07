@@ -173,7 +173,7 @@
                                     <p v-if="apiKeyError" class="error-message">{{ apiKeyErrorMessage }}</p>
                                     <p v-if="ai.provider === 'groq'">
                                         {{ t("Groq is our default provider:") }}<br>
-                                        <a class="extlink" href="https://console.groq.com/login" target="_blank">{{ t("To obtain a FREE api key sign up here") }}</a><br>
+                                        <a class="extlink" href="https://console.groq.com/keys" target="_blank">{{ t("To obtain a FREE api key sign up here") }}</a><br>
                                         <a class="extlink" href="https://groq.com/privacy-policy/" target="_blank">{{ t("Provider privacy policy") }}</a>
                                     </p>
                                     <p v-else-if="ai.provider === 'cerebras'">
