@@ -12,7 +12,7 @@ Goal: confirm the app **launches a window and boots** on macOS. This validates t
 
 A remote macOS desktop is fine. Pick one with **per-minute/hourly** billing so a smoke test costs ~$1–2:
 
-- **Scaleway M1 as-a-Service** — per-minute, best for a quick session: https://scaleway.com/en/hello-m1/
+- **Scaleway M1 as-a-Service** — ~€0.10/hr, macOS desktop ready in ~5 min. ⚠️ **24-hour minimum lease** (Apple licensing), so even a quick test costs the ~€2.40 day floor: https://scaleway.com/en/hello-m1/
 - **RentAMac.io** — flat ~$3.30/day (M4 Macs): https://rentamac.io/
 - **MacinCloud** — hourly/daily pay-as-you-go: https://www.macincloud.com/ — ⚠️ they rent **both Intel and Apple Silicon** machines; pick an **M-series** plan (see the torch warning above)
 
@@ -29,6 +29,9 @@ git checkout feature/v1-multiplatform
 
 # system deps (audio libs + FFmpeg — needed by sounddevice/PyAudio/pydub)
 brew install portaudio ffmpeg
+
+# Python 3.10 — NOT preinstalled; Homebrew's default python is newer
+brew install python@3.10
 
 # PyAudio 0.2.14 builds from source on macOS — needs a compiler.
 # Homebrew normally installs the CLT, but be explicit to avoid a confusing pip failure:

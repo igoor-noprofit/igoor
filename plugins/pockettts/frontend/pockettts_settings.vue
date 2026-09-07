@@ -467,10 +467,14 @@ export default {
                 await this.callPluginRestEndpoint('pockettts', 'test_speak', {
                     method: 'POST',
                     // Send the raw dropdown selection so the test speaks with
-                    // the voice being tried out, not the last saved one
+                    // the voice being tried out, not the last saved one, plus
+                    // the current (possibly unsaved) slider values so
+                    // Temperature/EOS can be auditioned before saving
                     data: {
                         message: this.t('Hello, how are you doing? I feel better today!'),
-                        voice: this.formData.voice
+                        voice: this.formData.voice,
+                        temp: this.tempValue,
+                        eos: this.eosValue
                     }
                 });
             } catch (error) {

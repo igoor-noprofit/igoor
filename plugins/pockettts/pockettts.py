@@ -151,6 +151,10 @@ class TestSpeakPayload(BaseModel):
     # tests what is SELECTED (not yet saved) rather than the last saved
     # voice. Raw dropdown value: 'auto', a built-in name, or 'custom:<file>'.
     voice: Optional[str] = None
+    # Optional unsaved slider values, so Temperature/EOS can be auditioned
+    # with the Test button before saving. Applied to this test only.
+    temp: Optional[float] = None
+    eos: Optional[float] = None
 
 
 class HfLoginPayload(BaseModel):
@@ -226,6 +230,10 @@ class Pockettts(Baseplugin):
                     raise HTTPException(
                         status_code=400, detail=f"Voice not available: {payload.voice}"
                     )
+                if payload.temp is not None or payload.eos is not None:
+                    # consumed (and cleared) by speak_func for this test only;
+                    # the next real speak re-applies the saved settings
+                    self._test_overrides = {"temp": payload.temp, "eos": payload.eos}
                 success = await self.run_speak_func(payload.message, voice_state=state)
                 if not success:
                     raise HTTPException(status_code=500, detail="Test speech failed")
@@ -864,9 +872,13 @@ class Pockettts(Baseplugin):
         self.settings = self.get_my_settings()
 
         # Check if language-affecting settings changed (requires model reload)
-        old_lang = old_settings.get("use_24l", False)
-        new_lang = self.settings.get("use_24l", False)
-        if old_lang != new_lang:
+        # Weight-level settings that genuinely require a model reload
+        # (temp/eos are NOT here: they are applied at speak time)
+        reload_keys = ("use_24l", "use_2026_04", "quantize")
+        needs_reload = any(
+            old_settings.get(k, None) != self.settings.get(k, None) for k in reload_keys
+        )
+        if needs_reload:
             self.logger.info("Model config changed, reloading model...")
             model_thread = threading.Thread(target=self._load_model_threaded, daemon=True)
             model_thread.start()
@@ -927,11 +939,23 @@ class Pockettts(Baseplugin):
         # force_ready is required by asrjs's hookimpl; omitting it raises a
         # HookCallError that can take down the ASGI serving loop.
         await self.pm.trigger_hook(hook_name="restart_asr", force_ready=False)
+        return success
 
     async def run_speak_func_with_translation(self, message):
         """Translate outgoing speech before speaking"""
         translated_message = await self.translate_for_interlocutor(message, direction="outgoing")
         await self.run_speak_func(translated_message)
+
+    def _apply_generation_params(self, temp_override=None, eos_override=None):
+        """Push the current generation settings onto the model before a
+        generation. temp/eos_threshold are plain mutable attributes the
+        library reads on every sampling step, so this makes saved settings
+        (or Test-button overrides) take effect immediately — no reload."""
+        temp = temp_override if temp_override is not None else self.settings.get("temp", 0.7)
+        eos = eos_override if eos_override is not None else self.settings.get("eos_threshold", -4.0)
+        self.tts_model.temp = float(temp)
+        self.tts_model.eos_threshold = float(eos)
+        self.logger.info(f"Generation params: temp={self.tts_model.temp}, eos={self.tts_model.eos_threshold}")
 
     async def speak_func(self, message, voice_state=None):
         """Generate audio from text: streamed to the browser in CLI mode,
@@ -942,6 +966,15 @@ class Pockettts(Baseplugin):
             if self.tts_model is None or self.voice_state is None:
                 self.logger.error("Cannot speak: model or voice not loaded")
                 return False
+
+            # Saved temp/eos apply at speak time (no reload needed); a
+            # Test-time override from _test_overrides wins for this call only
+            overrides = getattr(self, "_test_overrides", None)
+            if overrides:
+                self._apply_generation_params(overrides.get("temp"), overrides.get("eos"))
+                self._test_overrides = None
+            else:
+                self._apply_generation_params()
 
             if self.is_remote_ui():
                 streamed = await self._stream_speech_to_frontend(message, voice_state)
