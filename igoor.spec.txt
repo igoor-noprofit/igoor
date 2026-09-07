@@ -10,6 +10,12 @@ webview_datas = collect_data_files('webview', includes=['js/*'])
 # can't initialize, and download_models() would try to write into the read-only _internal dir.
 openwakeword_datas = collect_data_files('openwakeword')
 
+# pocket_tts runtime config templates (config/*.yaml, e.g. french_24l.yaml).
+# The pockettts plugin reads them via pocket_tts CONFIGS_DIR when cloning a
+# local-weights config; without bundling, every frozen build fails with
+# FileNotFoundError on _internal\pocket_tts\config\<lang>.yaml.
+pockettts_datas = collect_data_files('pocket_tts')
+
 # Merge with your existing datas
 datas = [
     ('css', 'css'),
@@ -23,7 +29,7 @@ datas = [
     ('README.md', '.'),
     ('THIRD_PARTY_LICENSES.md', '.'),
     ('index.html', '.')
-] + webview_datas + openwakeword_datas
+] + webview_datas + openwakeword_datas + pockettts_datas
 
 a = Analysis(
     ['main.py'],
