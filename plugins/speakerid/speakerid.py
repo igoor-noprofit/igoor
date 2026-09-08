@@ -15,7 +15,6 @@ from context_manager import context_manager
 from fastapi import APIRouter, HTTPException, File, UploadFile
 from plugin_manager import hookimpl
 from plugins.baseplugin.baseplugin import Baseplugin
-from .speechbrain import SpeakerIdentificationSystem
 import time  # For timestamp
 from types import SimpleNamespace
 
@@ -56,6 +55,7 @@ class Speakerid(Baseplugin):
         # Ready status tracking
         self.speaker_system_ready = False
         self.initialization_complete = False
+        self._init_thread_running = False
         self._current_status = {
             "status": "not_initialized",
             "message": "SpeakerID not yet initialized",
@@ -173,10 +173,16 @@ class Speakerid(Baseplugin):
         # Refresh the privacy gate if our own settings changed (e.g. via the standard
         # settings UI rather than the /voice_profiles endpoint).
         if plugin_name == self.plugin_name and isinstance(new_settings, dict):
+            was_enabled = self.voice_profiles_enabled
             self.voice_profiles_enabled = bool(new_settings.get("voice_profiles_enabled", False))
             self._current_status["voice_profiles_enabled"] = self.voice_profiles_enabled
             self.assignment_popup_enabled = bool(new_settings.get("assignment_popup_enabled", False))
             self._current_status["assignment_popup_enabled"] = self.assignment_popup_enabled
+            # Lazy enable: switched on at runtime → load SpeechBrain now in the
+            # background (no restart). Switching off just closes the gate; the
+            # model stays resident until the app restarts.
+            if self.voice_profiles_enabled and not was_enabled:
+                self._start_speaker_system_init()
 
     @hookimpl
     def get_current_speaker(self):
@@ -297,7 +303,7 @@ class Speakerid(Baseplugin):
         this makes it live). Guarded on the system being ready; if not, startup will
         load the restored voices/."""
         if not self.speaker_system or not self.speaker_system_ready:
-            self.logger.info("data_imported: speaker system not ready — startup will load the restored voices/")
+            self.logger.info("data_imported: speaker system not ready — restored voices/ load when the system initializes (startup or enabling voice profiles)")
             return
         try:
             await asyncio.to_thread(self.speaker_system.rebuild)
@@ -351,56 +357,21 @@ class Speakerid(Baseplugin):
                 os.makedirs(voices_dir, exist_ok=True)
                 self.logger.info(f"Created voices directory: {voices_dir}")
             
-            # Initialize speaker identification system in background thread
-            self.logger.info("Initializing SpeechBrain system...")
-            
-            def init_speaker_system():
-                try:
-                    self.speaker_system = SpeakerIdentificationSystem(
-                        voices_dir=voices_dir, 
-                        embeddings_file=embeddings_file,
-                        plugin_dir=self.plugin_folder  # Pass plugin folder for model storage
-                    )
-                    self.speaker_system_ready = True
-                    self.initialization_complete = True
-                    
-                    speaker_count = len(self.speaker_system.speaker_names) if self.speaker_system.speaker_names else 0
-                    self.logger.info(f"SpeakerID plugin initialized with {speaker_count} enrolled speakers")
-                    
-                    # Store status for frontend to fetch later
-                    self._current_status = {
-                        "status": "ready",
-                        "speaker_count": speaker_count,
-                        "message": f"Ready - {speaker_count} speakers enrolled",
-                        "timestamp": time.time()
-                    }
-                    # Reflect readiness in the app boot-progress lifecycle.
-                    self.mark_ready()
-                except Exception as e:
-                    self.logger.error(f"Failed to initialize speaker system: {e}")
-                    self.initialization_complete = True
-                    self.speaker_system_ready = False
-                    
-                    # Store error status for frontend to fetch later
-                    self._current_status = {
-                        "status": "error",
-                        "error": str(e),
-                        "message": "Failed to initialize speaker identification",
-                        "timestamp": time.time()
-                    }
-            
-            # Start initialization in background thread to avoid blocking
-            import threading
-            init_thread = threading.Thread(target=init_speaker_system, daemon=True)
-            init_thread.start()
-            self.logger.info("SpeechBrain initialization started in background thread")
-            
-            # Initialize default status
-            self._current_status = {
-                "status": "loading",
-                "message": "Initializing speaker identification system...",
-                "timestamp": time.time()
-            }
+            if self.voice_profiles_enabled:
+                self._start_speaker_system_init(voices_dir, embeddings_file)
+            else:
+                # SpeechBrain/torch stay unloaded unless voice profiles are enabled
+                # (default off): eager loading cost ~100-300 MB of RAM for a feature
+                # the privacy gate kept switched off anyway. Enabling them at runtime
+                # loads the model lazily — no restart needed.
+                self.initialization_complete = True
+                self._current_status = {
+                    "status": "disabled",
+                    "message": "Voice profiles are disabled - speaker recognition not loaded",
+                    "timestamp": time.time()
+                }
+                self.mark_ready()
+                self.logger.info("Voice profiles disabled: SpeechBrain not loaded")
             
             self._ensure_router()
             fastapi_app = getattr(self.pm, "fastapi_app", None)
@@ -423,6 +394,76 @@ class Speakerid(Baseplugin):
             # Initialize minimal state to prevent crashes
             self.speaker_system = None
             self.audio_buffer = deque(maxlen=32000)
+
+    def _start_speaker_system_init(self, voices_dir=None, embeddings_file=None):
+        """Load the SpeechBrain identification system in a background thread.
+
+        Called from startup() when voice profiles are enabled, and lazily when
+        they are switched on at runtime (settings_updated hook or the
+        /voice_profiles endpoint) — no restart needed. No-op when a load is
+        already running or the system is already up."""
+        if self._init_thread_running:
+            return
+        if self.speaker_system is not None and self.speaker_system_ready:
+            return
+        if voices_dir is None:
+            voices_dir = os.path.join(self.plugin_folder, "voices")
+        if embeddings_file is None:
+            embeddings_file = os.path.join(self.plugin_folder, "speaker_embeddings.pkl")
+
+        self._init_thread_running = True
+        self.logger.info("Initializing SpeechBrain system...")
+        self._current_status = {
+            "status": "loading",
+            "message": "Initializing speaker identification system...",
+            "timestamp": time.time()
+        }
+
+        def init_speaker_system():
+            try:
+                # Deferred import keeps torch/speechbrain/faiss out of RAM unless
+                # the system is actually used (the module-top import used to pull
+                # them in at plugin import time).
+                from .speechbrain import SpeakerIdentificationSystem
+                self.speaker_system = SpeakerIdentificationSystem(
+                    voices_dir=voices_dir,
+                    embeddings_file=embeddings_file,
+                    plugin_dir=self.plugin_folder  # Pass plugin folder for model storage
+                )
+                self.speaker_system_ready = True
+                self.initialization_complete = True
+
+                speaker_count = len(self.speaker_system.speaker_names) if self.speaker_system.speaker_names else 0
+                self.logger.info(f"SpeakerID plugin initialized with {speaker_count} enrolled speakers")
+
+                # Store status for frontend to fetch later
+                self._current_status = {
+                    "status": "ready",
+                    "speaker_count": speaker_count,
+                    "message": f"Ready - {speaker_count} speakers enrolled",
+                    "timestamp": time.time()
+                }
+                # Reflect readiness in the app boot-progress lifecycle.
+                self.mark_ready()
+            except Exception as e:
+                self.logger.error(f"Failed to initialize speaker system: {e}")
+                self.initialization_complete = True
+                self.speaker_system_ready = False
+
+                # Store error status for frontend to fetch later
+                self._current_status = {
+                    "status": "error",
+                    "error": str(e),
+                    "message": "Failed to initialize speaker identification",
+                    "timestamp": time.time()
+                }
+            finally:
+                self._init_thread_running = False
+
+        # Start initialization in background thread to avoid blocking
+        init_thread = threading.Thread(target=init_speaker_system, daemon=True)
+        init_thread.start()
+        self.logger.info("SpeechBrain initialization started in background thread")
 
     @hookimpl
     def process_audio_chunk(self, audio_data: bytes, sample_rate: int = 48000):
@@ -565,6 +606,9 @@ class Speakerid(Baseplugin):
             self.update_my_settings("voice_profiles_enabled", enabled)
             self.voice_profiles_enabled = enabled
             self._current_status["voice_profiles_enabled"] = enabled
+            # Lazy enable: load SpeechBrain now if it isn't loaded yet (no restart).
+            if enabled:
+                self._start_speaker_system_init()
             self.logger.info(f"voice_profiles_enabled set to {enabled}")
             return {"voice_profiles_enabled": enabled}
 
@@ -778,7 +822,7 @@ class Speakerid(Baseplugin):
                     })
                     self.logger.info(f"Enrollment complete for '{speaker_name}' ({count} speaker(s) indexed)")
                 else:
-                    warning = "Speaker system not ready; WAV saved, will enroll on next startup"
+                    warning = "Speaker system not ready; WAV saved, will enroll when the speaker system loads"
                     self.logger.warning(warning)
             except HTTPException:
                 raise
