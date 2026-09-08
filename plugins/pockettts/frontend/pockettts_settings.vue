@@ -170,12 +170,12 @@
                     <div class="ssml-row">
                         <div class="ssml-left">{{ t('EOS Threshold') }}</div>
                         <div class="ssml-center">
-                            <input type="range" :min="-10" :max="0" step="0.5"
+                            <input type="range" :min="-10" :max="-1" step="0.5"
                                 v-model.number="eosValue" @input="onEosChange" />
                         </div>
                         <div class="ssml-right">
                             <input type="number" class="numeric-input" v-model.number="eosValue"
-                                @change="onEosChange" step="0.5" min="-10" max="0" />
+                                @change="onEosChange" step="0.5" min="-10" max="-1" />
                         </div>
                     </div>
                 </div>
@@ -270,7 +270,9 @@ export default {
         },
         onEosChange() {
             if (this.eosValue < -10) this.eosValue = -10;
-            if (this.eosValue > 0) this.eosValue = 0;
+            // 0 would effectively disable EOS (log-probs never exceed it) and
+            // generations would ramble — cap at -1, matching the slider max
+            if (this.eosValue > -1) this.eosValue = -1;
             this.formData.eos_threshold = parseFloat(this.eosValue.toFixed(1));
         },
         onVoiceChange() {

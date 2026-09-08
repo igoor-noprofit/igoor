@@ -868,6 +868,15 @@ class Pockettts(Baseplugin):
         old_settings = self.settings.copy() if self.settings else {}
         self.settings = self.get_my_settings()
 
+        # Self-heal stored EOS values above -1 (e.g. 0.0 saved by an older
+        # UI): see _apply_generation_params for why the cap exists.
+        try:
+            if float(self.settings.get("eos_threshold", -4.0)) > -1.0:
+                self.update_my_settings("eos_threshold", -1.0)
+                self.settings = self.get_my_settings()
+        except (TypeError, ValueError):
+            pass
+
         # Check if language-affecting settings changed (requires model reload)
         # Weight-level settings that genuinely require a model reload
         # (temp/eos are NOT here: they are applied at speak time)
@@ -952,8 +961,13 @@ class Pockettts(Baseplugin):
         (or Test-button overrides) take effect immediately — no reload."""
         temp = temp_override if temp_override is not None else self.settings.get("temp", 0.7)
         eos = eos_override if eos_override is not None else self.settings.get("eos_threshold", -4.0)
+        # EOS fires only when its log-prob exceeds the threshold, and log-probs
+        # are <= 0: a threshold of 0 (or above) can therefore never trigger and
+        # generations ramble until the secondary stopping heuristics. Cap at
+        # -1; the settings-UI slider max matches.
+        eos = min(float(eos), -1.0)
         self.tts_model.temp = float(temp)
-        self.tts_model.eos_threshold = float(eos)
+        self.tts_model.eos_threshold = eos
         self.logger.info(f"Generation params: temp={self.tts_model.temp}, eos={self.tts_model.eos_threshold}")
 
     async def speak_func(self, message, voice_state=None):
