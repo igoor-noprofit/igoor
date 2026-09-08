@@ -320,6 +320,9 @@ export default {
                     this.statusPollTimer = null;
                     // Load voices once model is ready
                     await this.loadVoices();
+                    // Cloning availability depends on which weights finished
+                    // loading — re-check now that the model is up
+                    await this.checkHfStatus();
                 }
             } catch (err) {
                 console.error('Error checking model status:', err);
@@ -339,7 +342,7 @@ export default {
         async checkHfStatus() {
             try {
                 var data = await this.callPluginRestEndpoint('pockettts', 'hf_status');
-                this.cloningAvailable = data.cloning_available || data.cloning_model_cached;
+                this.cloningAvailable = !!data.cloning_available;
             } catch (e) {
                 this.cloningAvailable = false;
             }

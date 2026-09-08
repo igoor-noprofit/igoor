@@ -258,7 +258,11 @@ class Pockettts(Baseplugin):
 
         @self.router.get("/hf_status")
         async def hf_status():
-            """Check if a HuggingFace token is stored and cloning is available."""
+            """Report voice-cloning availability. Ground truth is the loaded
+            model itself: pocket-tts keeps has_voice_cloning True unless it
+            had to fall back to the no-cloning weights (HuggingFace download
+            without login). Drive-downloaded weights include cloning, so no
+            HuggingFace token is needed on that path."""
             try:
                 from huggingface_hub import get_token
                 token = get_token()
@@ -266,13 +270,13 @@ class Pockettts(Baseplugin):
             except Exception:
                 has_token = False
 
-            cloning_available = has_token and self.tts_model is not None and self.voice_state is not None
-            # Also check if the cloning model weights exist in cache
-            cloning_model_cached = self._check_cloning_model_cached()
+            cloning_available = (
+                self.tts_model is not None
+                and getattr(self.tts_model, "has_voice_cloning", False)
+            )
             return {
                 "has_token": has_token,
-                "cloning_model_cached": cloning_model_cached,
-                "cloning_available": cloning_available or cloning_model_cached,
+                "cloning_available": cloning_available,
             }
 
         @self.router.post("/hf_login")
@@ -322,25 +326,6 @@ class Pockettts(Baseplugin):
                     "is_custom": True,
                 })
         return custom
-
-    def _check_cloning_model_cached(self):
-        """Check if pocket-tts voice-cloning weights exist in HuggingFace cache."""
-        try:
-            cache_dir = os.path.join(os.path.expanduser("~"), ".cache", "huggingface", "hub")
-            cloning_model_dir = os.path.join(cache_dir, "models--kyutai--pocket-tts")
-            if not os.path.isdir(cloning_model_dir):
-                return False
-            # The cloning model has a significantly larger blob than the no-cloning one
-            blobs_dir = os.path.join(cloning_model_dir, "blobs")
-            if not os.path.isdir(blobs_dir):
-                return False
-            for fname in os.listdir(blobs_dir):
-                fpath = os.path.join(blobs_dir, fname)
-                if os.path.isfile(fpath) and os.path.getsize(fpath) > 50 * 1024 * 1024:
-                    return True
-            return False
-        except Exception:
-            return False
 
     # ── Google Drive model download ───────────────────────────────────────
 
@@ -914,10 +899,10 @@ class Pockettts(Baseplugin):
             model_thread.start()
 
     @hookimpl
-    def speak(self, message):
+    def speak(self, message, skip_asr):
         if self.is_loaded and self.voice_state is not None:
             self.logger.info(f"§§§§ POCKETTTS SPEAKING: {message}")
-            asyncio.create_task(self.run_speak_func_with_translation(message))
+            asyncio.create_task(self.run_speak_func_with_translation(message, skip_asr=skip_asr))
 
     @hookimpl
     def test_speak(self, message, **kwargs):
@@ -941,22 +926,24 @@ class Pockettts(Baseplugin):
         # HookCallError that can take down the ASGI serving loop.
         await self.pm.trigger_hook(hook_name="restart_asr", force_ready=force_ready)
 
-    async def run_speak_func(self, message, voice_state=None):
+    async def run_speak_func(self, message, voice_state=None, skip_asr=False):
         await self.pm.trigger_hook(hook_name="pause_asr")
         await asyncio.sleep(0.1)  # Ensure pause message reaches frontend
         success = await self.speak_func(message, voice_state=voice_state)
         if not success:
             self.logger.warning("speak_func failed, triggering speak_fallback")
             await self.pm.trigger_hook(hook_name="speak_fallback", message=message)
-        # force_ready is required by asrjs's hookimpl; omitting it raises a
-        # HookCallError that can take down the ASGI serving loop.
-        await self.pm.trigger_hook(hook_name="restart_asr", force_ready=False)
+        # force_ready carries speak()'s skip_asr: True returns ASR to idle
+        # (wakeword-armed) instead of listening, e.g. after an emergency
+        # shortcut speak. It is required by asrjs's hookimpl; omitting it
+        # raises a HookCallError that can take down the ASGI serving loop.
+        await self.pm.trigger_hook(hook_name="restart_asr", force_ready=skip_asr)
         return success
 
-    async def run_speak_func_with_translation(self, message):
+    async def run_speak_func_with_translation(self, message, skip_asr=False):
         """Translate outgoing speech before speaking"""
         translated_message = await self.translate_for_interlocutor(message, direction="outgoing")
-        await self.run_speak_func(translated_message)
+        await self.run_speak_func(translated_message, skip_asr=skip_asr)
 
     def _apply_generation_params(self, temp_override=None, eos_override=None):
         """Push the current generation settings onto the model before a
