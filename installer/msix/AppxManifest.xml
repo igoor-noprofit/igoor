@@ -38,6 +38,7 @@
     <Resource Language="en-US" />
     <Resource Language="fr-FR" />
     <Resource Language="it-IT" />
+    <Resource Language="pt-BR" />
   </Resources>
 
   <Dependencies>

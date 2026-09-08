@@ -132,11 +132,13 @@ async function initializeApp() {
             en_EN: "Connecting to IGOOR…",
             fr_FR: "Connexion à IGOOR…",
             it_IT: "Connessione a IGOOR…",
+            pt_BR: "Conectando ao IGOOR…",
           },
           lost: {
             en_EN: "Connection lost — reconnecting…",
             fr_FR: "Connexion perdue — reconnexion…",
             it_IT: "Connessione persa — riconnessione…",
+            pt_BR: "Conexão perdida — reconectando…",
           },
         };
         const lang =

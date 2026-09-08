@@ -111,6 +111,7 @@ class SettingsManager:
         "es_ES": "Spanish",
         "de_DE": "German",
         "pt_PT": "Portuguese",
+        "pt_BR": "Brazilian Portuguese",
     }
 
     def get_lang(self):
@@ -124,6 +125,7 @@ class SettingsManager:
         "it_IT": "Usare sempre il 'tu', mai il 'Lei'. Tono informale e caloroso.",
         "es_ES": "Usar siempre 'tú', nunca 'usted'. Tono informal y cercano.",
         "pt_PT": "Usar sempre 'tu', nunca 'você' formal. Tom informal e próximo.",
+        "pt_BR": "Sempre usar 'você', nunca 'tu'. Tom informal e caloroso. Usar vocabulário e construção do português do Brasil, nunca do português europeu.",
         "en_EN": "",  # English has no T-V distinction
     }
 

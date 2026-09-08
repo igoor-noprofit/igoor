@@ -84,6 +84,8 @@ Copy `locales/en_EN/default_settings.json` as the base template. Change exactly 
 
 Do NOT change any other fields (api keys, provider, model_name, plugins_activation, etc.).
 
+**Note**: creating `locales/{LANG_CODE}/` also changes first-run OS detection. `_detect_start_lang()` in `settings_manager.py` prefix-matches the OS locale, so every `{lang}_*` OS locale (e.g. `pt_PT`, `pt_AO` once `pt_BR` exists) now resolves to the new folder — users of the same language's other regional variants get THIS locale on first run.
+
 ---
 
 ## Step 2 — Create Plugin Translation Files
@@ -118,16 +120,23 @@ For EACH plugin that has a `fr_FR` locale file, create the corresponding new lan
 | memory | `plugins/memory/locales/{LANG_CODE}/memory_{LANG_CODE}.json` |
 | meteo | `plugins/meteo/locales/{LANG_CODE}/meteo_{LANG_CODE}.json` |
 | onboarding | `plugins/onboarding/locales/{LANG_CODE}/onboarding_{LANG_CODE}.json` |
+| pockettts | `plugins/pockettts/locales/{LANG_CODE}/pockettts_{LANG_CODE}.json` |
 | rag | `plugins/rag/locales/{LANG_CODE}/rag_{LANG_CODE}.json` |
 | shortcuts | `plugins/shortcuts/locales/{LANG_CODE}/shortcuts_{LANG_CODE}.json` |
+| speakerid | `plugins/speakerid/locales/{LANG_CODE}/speakerid_{LANG_CODE}.json` |
 | speechifytts | `plugins/speechifytts/locales/{LANG_CODE}/speechifytts_{LANG_CODE}.json` |
 | translator | `plugins/translator/locales/{LANG_CODE}/translator_{LANG_CODE}.json` |
 | ttsdefault | `plugins/ttsdefault/locales/{LANG_CODE}/ttsdefault_{LANG_CODE}.json` |
 
+> NOTE: keep this table in sync with the codebase — the authoritative list is
+> `glob: plugins/*/locales/fr_FR/*.json` from the pre-flight inventory above.
+> (pockettts and speakerid were added after the first languages and were
+> initially missing from this table.)
+
 **Plugins with NO locale files (skip these)**: baseplugin, extkeyb, ramcpu, recorder, survey
 
 **Important notes**:
-- `clock` and `conversation` may have empty `{}` fr_FR files. Create matching empty objects.
+- `clock` and `conversation` may have empty `{}` fr_FR files. `conversation`'s is genuinely empty — create a matching empty object. `clock`'s fr_FR file is empty but its `it_IT` file has keys: when a plugin's fr_FR file is empty (or has fewer keys than a sibling locale), use the locale file with the MOST keys as the reference. Keys come from `t()` usage in the component source; extra keys in a locale file are harmless, missing ones silently fall back to English.
 - `onboarding` is the largest file (~120 keys). Take extra care with this translation.
 - `biorecorder` also has a separate questions file — see Step 3.
 
@@ -186,6 +195,26 @@ Examples:
 
 If the language has no T-V distinction (like English), use an empty string `""`.
 
+Regional variants may invert the convention: `pt_PT`'s note uses "tu", but `pt_BR`'s uses "Sempre usar 'você', nunca 'tu'". Write the note for the variant being added, and give `LANG_TO_NAME` a distinct name for it (e.g. `"pt_BR": "Brazilian Portuguese"` alongside `"pt_PT": "Portuguese"`) so the LLM's `{reply_language}` is unambiguous.
+
+### 4c. Frontend connection-lost messages
+
+`js/app_template.js` has an inline per-language dict inside the `connectionLostMessage` computed property ("Connecting to IGOOR…" / "Connection lost — reconnecting…"). Add `{LANG_CODE}` entries for both keys — any unknown language silently falls back to en_EN there.
+
+### 4d. Backend per-language data
+
+These are NOT `t()`-based; each needs its own language entry or the feature silently falls back to English:
+
+| File | What to add |
+|------|-------------|
+| `plugins/meteo/meteo.py` | a `"{LANG_CODE}"` entry in `WMO_DESCRIPTIONS` for **every** weather code (lookup falls back to `en_EN` per code) |
+| `plugins/daily/daily.json` | a top-level `"{LANG_CODE}"` section: translate the category/item **keys** from the `en_EN` section (see the `fr_FR` section for the pattern), preserve `freq`/`fixed`/`pref` values exactly |
+| `plugins/biorecorder/biorecorder.py` | the hardcoded `locale_map` in `_load_questions` needs `"{base_code}": "{LANG_CODE}"` (e.g. `"pt": "pt_BR"`) — without it the questions always load in English even though the translated file exists |
+
+### 4e. ASRJS Whisper silence-hallucination filter
+
+`clean_whisper_silence` in `plugins/asrjs/asrjs.py` strips known Whisper hallucination strings emitted on silence/music (caption artifacts like the French "Sous-titrage…" entries). Research the new language's commonly reported Whisper artifacts and add them to `SILENCE_STRINGS`.
+
 ---
 
 ## Step 5 — Update Onboarding Language Dropdown
@@ -219,6 +248,8 @@ The onboarding translation file (`plugins/onboarding/locales/{LANG_CODE}/onboard
 
 Also verify these exist in `locales/{LANG_CODE}/common_{LANG_CODE}.json`.
 
+**Also update the EXISTING languages' files**: add the new language's name key to every other shipped locale — `plugins/onboarding/locales/fr_FR/onboarding_fr_FR.json` (e.g. `"Portuguese": "Portugais"`), the `it_IT` counterpart (`"Portoghese"`), and `locales/fr_FR/common_fr_FR.json` + `locales/it_IT/common_it_IT.json` — placed next to the existing language-name keys. Without this, French/Italian users see the raw English name ("Portuguese") in their own dropdown.
+
 ---
 
 ## Step 7 — ASR / TTS Model Support Check
@@ -232,6 +263,7 @@ Read `plugins/asrjs/sherpa_models.json`. This maps base language codes (e.g. `"i
 - Compute `BASE_LANG` = first two characters of `LANG_CODE` (e.g. `es_ES` → `es`).
 - If `BASE_LANG` already has an entry → OK.
 - If `BASE_LANG` is **missing** → add an entry if Sherpa models exist for the language at https://github.com/k2-fsa/sherpa-onnx/releases . Follow the existing pattern (encoder/decoder/joiner/tokenizer filenames + URLs for small and big). If no Sherpa model exists, note a **warning**: Sherpa will fall back to the multilingual Whisper tiny model (less accurate).
+- If the chosen model already emits punctuation + capitalization (whisper-type, NeMo `*_pc` names), add `"punctuated": true` to its catalog entry (see the `it`, `pt` and `_fallback` entries): `_transcribe_with_sherpa` then keeps the transcript's raw casing instead of lowercasing it, which would otherwise destroy proper-noun capitalization ("João" → "joão").
 
 ### 7b. ASR — ASRJS Groq/Mistral (cloud)
 
@@ -260,6 +292,15 @@ No code change needed. All ElevenLabs models (`eleven_multilingual_v2`, `eleven_
 
 No code change needed. Uses Windows system voices. Add a **note** to the summary report that the user must have a TTS voice installed for the new language in Windows Settings → Speech → Manage voices.
 
+### 7g. TTS — PocketTTS (kyutai)
+
+Read `plugins/pockettts/pockettts.py` and check two things:
+
+1. The language map `IGOOR_LANG_TO_POCKETTTS` — if the new locale (and its base code) is **missing**, add entries mapping it to the pocket-tts language name (e.g. `"pt_BR": "portuguese", "pt": "portuguese"`).
+2. `plugins/pockettts/models.csv` — verify a row exists for that pocket-tts language variant. If not, the model weights are not mirrored and local synthesis for that language cannot work; add a **warning** to the summary report.
+
+Also check `BUILTIN_VOICES` in the same file: some languages intentionally have an empty preset-voice list (voices excluded for license incompatibility with AGPLv3). If the list is empty for the new language, note that "auto" falls back to a cross-language default voice and users should clone a voice for native quality.
+
 ### Summary of ASR/TTS actions
 
 | Component | Action needed | Breaking? |
@@ -269,9 +310,33 @@ No code change needed. Uses Windows system voices. Add a **note** to the summary
 | Wakeword model | Provide `.onnx` file | Only if wakeword enabled |
 | Speechify TTS | Add to `supported_lang` list | No — warns but continues |
 | ElevenLabs TTS | None (user picks voice) | No |
+| PocketTTS | Check `IGOOR_LANG_TO_POCKETTTS` + `models.csv` | No — warns but continues |
 | Default TTS (SAPI) | None (system voices) | No |
 
 ---
+
+## Step 8 — Update the MSIX Package Manifest
+
+The MSIX package declares its supported languages to Windows/the Store in
+`installer/msix/AppxManifest.xml`, inside the `<Resources>` block:
+
+```xml
+<Resources>
+    <Resource Language="en-US" />
+    <Resource Language="fr-FR" />
+    ...
+</Resources>
+```
+
+Add one line for the new language:
+
+- Convert the locale code to a **BCP-47 hyphenated tag**: `{ll}_{CC}` → `{ll}-{CC}` (e.g. `pt_BR` → `pt-BR`, `es_ES` → `es-ES`).
+- **Special case**: `en_EN` is declared as `en-US` (there is no `en-EN` in BCP-47).
+- Keep the block sorted consistently with the existing entries.
+
+**Never edit `installer/msix/layout/AppxManifest.xml`** — the `layout/` folder is build output regenerated by `build_msix.bat`, which copies the repo manifest in at packaging time (line ~51).
+
+If an Inno Setup channel ever ships a language list too (no `.iss` is in the repo today), update it in the same step.
 
 ## Step 9 — Validate Completeness
 
@@ -291,6 +356,10 @@ if len(fr) != len(new): print(f'  MISMATCH!')
 ```
 
 Every file must have the SAME number of keys as its `fr_FR` counterpart.
+
+Two caveats:
+- Compare against the reference you actually translated from — e.g. `clock` has an empty fr_FR file, so compare against its `it_IT` file instead.
+- If the fr_FR and it_IT files for a plugin disagree on key count (drift — e.g. onboarding historically differed by a few keys), translate from the file with the SUPERSET of keys; extra keys are harmless, missing keys fall back to English.
 
 ### 7b. Key match verification
 
@@ -355,7 +424,7 @@ for cat in en:
 After all files are created and validated, report:
 
 1. **Files created**: list every new file with its full path
-2. **Files modified**: list `settings_manager.py`, `onboarding_component.vue`, and any ASR/TTS config files changed
+2. **Files modified**: list `settings_manager.py`, `onboarding_component.vue`, `installer/msix/AppxManifest.xml` (new `<Resource Language>`), and any ASR/TTS config files changed
 3. **Key counts**: table comparing key counts per plugin between `fr_FR` and the new language
 4. **Total translations**: sum of all individual string translations made
 5. **ASR/TTS compatibility report**:

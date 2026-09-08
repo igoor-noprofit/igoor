@@ -1,0 +1,17 @@
+{
+    "Save": "Salvar",
+    "+ Category": "+ Categoria",
+    "+ Item": "+ Item",
+    "Do you really want to delete this delete this category?": "Deseja realmente excluir esta categoria?",
+    "Do you really want to delete this item?": "Deseja realmente excluir este item?",
+    "Cancel": "Cancelar",
+    "Maximum categories reached on the destination page.": "Número máximo de categorias atingido na página de destino.",
+    "Do you really want to delete this delete this item?": "Deseja realmente excluir este item?",
+    "Drag item here": "Arraste o item para cá",
+    "Confirm": "Confirmar",
+    "Edit": "Editar",
+    "Back": "Voltar",
+    "Reorder item": "Reordenar item",
+    "Categories": "Categorias",
+    "Delete category": "Excluir categoria"
+}

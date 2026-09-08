@@ -642,6 +642,10 @@ class Asrjs(Baseplugin):
                     provider="cpu",
                 )
             self.logger.info(f"sherpa-onnx model loaded from {model_path}")
+            # Whether the model already emits punctuation + proper casing
+            # (whisper, NeMo *_pc): _transcribe_with_sherpa must then keep the
+            # raw casing instead of lowercasing everything.
+            self._sherpa_model_punctuated = bool(model_info.get("punctuated"))
         except ImportError:
             self.logger.error("sherpa-onnx not installed. Run: pip install sherpa-onnx")
         except Exception as e:
@@ -715,10 +719,14 @@ class Asrjs(Baseplugin):
                 self.sherpa_recognizer.decode_stream(stream)
                 text = stream.result.text
 
-            text = text.strip().lower()
-            # Capitalize first letter
-            if text:
-                text = text[0].upper() + text[1:]
+            if getattr(self, '_sherpa_model_punctuated', False):
+                # Model already emits punctuation + capitalization - keep as-is
+                text = text.strip()
+            else:
+                text = text.strip().lower()
+                # Capitalize first letter
+                if text:
+                    text = text[0].upper() + text[1:]
 
             self.logger.info(f"sherpa-onnx transcribed: {text[:100]}...")
             return text
@@ -1071,7 +1079,12 @@ class Asrjs(Baseplugin):
         print(f"Transcribed text: {text}")
         SILENCE_STRINGS = [
             "Sous-titrage ST' 501",
-            "Sous-titrage Société Radio-Canada"
+            "Sous-titrage Société Radio-Canada",
+            # pt-BR: hallucinations on silence/music (caption artifacts)
+            "Obrigado por assistir",
+            "Se inscreva no canal",
+            "Inscreva-se no canal",
+            "Até o próximo vídeo",
         ]
         for s in SILENCE_STRINGS:
             # Remove at start

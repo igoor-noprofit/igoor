@@ -1,0 +1,383 @@
+{
+  "Identidade": [
+    {
+      "text": "Seu local e ano de nascimento",
+      "mandatory": true,
+      "instructions": ""
+    },
+    {
+      "text": "Onde você mora atualmente?",
+      "mandatory": true,
+      "instructions": ""
+    },
+    {
+      "text": "Você pode descrever sua casa em algumas palavras?",
+      "mandatory": false,
+      "instructions": ""
+    }
+  ],
+  "Família": [
+    {
+      "text": "Você é casado(a), vive em união estável ou mora junto? Qual é o nome do seu companheiro ou da sua companheira?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Você tem filhos? Pode nos dizer os nomes e as idades deles?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Você tem irmãos? Quais são os nomes deles?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Há outros membros da família que têm uma importância especial para você?",
+      "mandatory": false,
+      "instructions": ""
+    }
+  ],
+  "Amigos e vida social": [
+    {
+      "text": "Quem são seus amigos mais próximos?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Você pode me falar sobre um amigo de longa data e sobre a relação de vocês?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Existem diferentes grupos de amigos na sua vida?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Há amigos ou pessoas próximas que apoiam você de maneira especial no dia a dia?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Há pessoas que se afastaram de você nos últimos anos?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Você participa de outros grupos que são importantes para você? (associação, clube, pessoas que conheceu nas redes sociais…)",
+      "mandatory": false,
+      "instructions": ""
+    }
+  ],
+  "Rotina e vida diária": [
+    {
+      "text": "Como é um dia típico para você?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Você é mais uma pessoa da manhã ou da noite?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "O que deixa você de bom humor pela manhã?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Você tem rituais ou hábitos que dão ritmo ao seu dia?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Qual é o seu cantinho favorito em casa?",
+      "mandatory": false,
+      "instructions": ""
+    }
+  ],
+  "Comidas e prazeres": [
+    {
+      "text": "Você tem alguma alergia ou intolerância alimentar?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Quais são seus pratos favoritos ou seus tipos de culinária preferidos?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Quais são suas bebidas favoritas?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Existem comidas de que você realmente não gosta?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Você gosta de cozinhar, ou tem uma receita favorita?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Existe alguma comida que você ama mesmo sabendo que não devia?",
+      "mandatory": false,
+      "instructions": ""
+    }
+  ],
+  "Hobbies e entretenimento": [
+    {
+      "text": "Quais seriados ou programas de TV você está assistindo agora?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Você gosta de jogos (jogos de tabuleiro, videogame, palavras cruzadas, sudoku…)?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Você acompanha algum esporte ou algum time em particular?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Você usa redes sociais? Quais?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Você tem algum podcast, canal do YouTube ou programa de rádio que gosta de ouvir?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Você está muito empolgado(a) com alguma coisa ultimamente?",
+      "mandatory": false,
+      "instructions": ""
+    }
+  ],
+  "Animais e natureza": [
+    {
+      "text": "Você tem um animal de estimação? Qual é o nome dele?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Você gosta da natureza? Existe alguma paisagem ou lugar natural que é especial para você?",
+      "mandatory": false,
+      "instructions": ""
+    }
+  ],
+  "Viagens e lugares": [
+    {
+      "text": "Existe alguma viagem ou algum lugar que marcou você de maneira especial?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Se você pudesse estar em qualquer lugar do mundo agora, onde estaria?",
+      "mandatory": false,
+      "instructions": ""
+    }
+  ],
+  "Personalidade e traços de caráter": [
+    {
+      "text": "Como você descreveria sua personalidade em algumas palavras?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Como você reage às dificuldades ou aos obstáculos?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Você usa humor ou ironia no seu jeito de se comunicar?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "O que faz você rir?",
+      "mandatory": false,
+      "instructions": ""
+    }
+  ],
+  "Estilo e aparência": [
+    {
+      "text": "Se você tivesse que se descrever fisicamente para alguém que nunca o(a) viu, o que diria?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Como você descreveria seu estilo de se vestir no dia a dia (por exemplo: clássico, casual, original, elegante…)?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Você tem acessórios (joias, lenços, chapéus, relógios) de que gosta de usar? Eles têm uma história especial?",
+      "mandatory": false,
+      "instructions": ""
+    }
+  ],
+  "Preferências de comunicação": [
+    {
+      "text": "Sobre quais assuntos você mais gosta de conversar?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Existem assuntos que você prefere evitar?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Como você prefere ser chamado(a) (formal, informal, apelido…)?",
+      "mandatory": false,
+      "instructions": ""
+    }
+  ],
+  "Trajetória profissional": [
+    {
+      "text": "Qual é, ou qual foi, sua principal profissão?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Você pode me contar sobre projetos profissionais dos quais você se orgulha muito?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Como a sua carreira evoluiu ao longo dos anos?",
+      "mandatory": false,
+      "instructions": ""
+    }
+  ],
+  "Preferências artísticas e culturais": [
+    {
+      "text": "Que música você ouve quando quer relaxar?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Quais são seus filmes ou diretores favoritos?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Você gosta de ler? Quais são seus autores ou gêneros literários favoritos?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Você tem paixões artísticas ou pratica alguma forma de arte?",
+      "mandatory": false,
+      "instructions": ""
+    }
+  ],
+  "Opiniões e valores": [
+    {
+      "text": "Quais são seus principais valores na vida?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Existem causas ou questões sociais que são especialmente importantes para você?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Como você enxerga o futuro?",
+      "mandatory": false,
+      "instructions": ""
+    }
+  ],
+  "Experiência com a doença": [
+    {
+      "text": "Você pode descrever como reagiu quando recebeu seu diagnóstico?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "O que tem sido a coisa mais difícil de aceitar na sua condição?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "A sua situação de saúde mudou sua forma de ver a vida? Se sim, você poderia dizer como?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Que conselho você daria a alguém que está passando por uma situação parecida?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Há aspectos positivos que você ganhou com essa experiência?",
+      "mandatory": false,
+      "instructions": ""
+    }
+  ],
+  "Equipamentos e adaptações": [
+    {
+      "text": "Quais equipamentos ou recursos de tecnologia assistiva você usa no dia a dia?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Existe algum equipamento que melhorou bastante a sua qualidade de vida?",
+      "mandatory": false,
+      "instructions": ""
+    }
+  ],
+  "História pessoal e lembranças": [
+    {
+      "text": "Você pode compartilhar uma lembrança da infância que marcou você?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Você pode citar um momento decisivo ou uma grande virada na sua vida?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Existe uma fase da sua vida que você considera a mais feliz?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Se você tivesse que resumir sua trajetória de vida até aqui em algumas frases, o que diria?",
+      "mandatory": false,
+      "instructions": ""
+    }
+  ],
+  "Aspirações": [
+    {
+      "text": "Quais são suas esperanças ou objetivos no momento?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "O que você gostaria que as outras pessoas dissessem sobre você no futuro?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Existem mensagens especiais que você gostaria de deixar para as pessoas que ama?",
+      "mandatory": false,
+      "instructions": ""
+    },
+    {
+      "text": "Como você gostaria que sua história pessoal influenciasse outras pessoas?",
+      "mandatory": false,
+      "instructions": ""
+    }
+  ]
+}

@@ -119,6 +119,7 @@
                                     <option value="fr_FR">{{ t("French") }}</option>
                                     <option value="en_EN">{{ t("English") }}</option>
                                     <option value="it_IT">{{ t("Italian") }}</option>
+                                    <option value="pt_BR">{{ t("Portuguese") }}</option>
                                 </select>
                             </div>
                             <!--div>

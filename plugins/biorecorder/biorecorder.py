@@ -84,7 +84,8 @@ class Biorecorder(Baseplugin):
         locale_map = {
             "en": "en_EN",
             "fr": "fr_FR",
-            "it": "it_IT"
+            "it": "it_IT",
+            "pt": "pt_BR"
         }
         locale_folder = locale_map.get(lang_code, "en_EN")
 

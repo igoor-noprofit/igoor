@@ -77,6 +77,7 @@
             "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-whisper-tiny.tar.bz2",
             "size": "75M",
             "type": "whisper",
+            "punctuated": true,
             "encoder": "tiny-encoder.int8.onnx",
             "decoder": "tiny-decoder.int8.onnx",
             "tokens": "tiny-tokens.txt"
@@ -86,9 +87,30 @@
             "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-whisper-base.tar.bz2",
             "size": "150M",
             "type": "whisper",
+            "punctuated": true,
             "encoder": "base-encoder.int8.onnx",
             "decoder": "base-decoder.int8.onnx",
             "tokens": "base-tokens.txt"
+        }
+    },
+    "pt": {
+        "small": {
+            "name": "sherpa-onnx-nemo-transducer-stt_pt_fastconformer_hybrid_large_pc-int8",
+            "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-nemo-transducer-stt_pt_fastconformer_hybrid_large_pc-int8.tar.bz2",
+            "size": "136M",
+            "punctuated": true,
+            "encoder": "encoder.int8.onnx",
+            "decoder": "decoder.int8.onnx",
+            "joiner": "joiner.int8.onnx"
+        },
+        "big": {
+            "name": "sherpa-onnx-nemo-transducer-stt_pt_fastconformer_hybrid_large_pc",
+            "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-nemo-transducer-stt_pt_fastconformer_hybrid_large_pc.tar.bz2",
+            "size": "473M",
+            "punctuated": true,
+            "encoder": "encoder.onnx",
+            "decoder": "decoder.onnx",
+            "joiner": "joiner.onnx"
         }
     },
     "_fallback": {
@@ -96,6 +118,7 @@
         "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-whisper-tiny.tar.bz2",
         "size": "75M",
         "type": "whisper",
+        "punctuated": true,
         "encoder": "tiny-encoder.int8.onnx",
         "decoder": "tiny-decoder.int8.onnx",
         "tokens": "tiny-tokens.txt"
