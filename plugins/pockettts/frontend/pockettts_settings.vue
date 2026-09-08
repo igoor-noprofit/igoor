@@ -59,9 +59,9 @@
                 <template v-else>
                     <div class="hf-auth-panel">
                         <div class="hf-auth-header" @click="showHfPanel = !showHfPanel">
-                            <span class="hf-lock-icon">🔒</span>
+                            <span class="hf-lock-icon ph-light ph-lock"></span>
                             <span>{{ t('Enable voice cloning') }}</span>
-                            <span class="hf-chevron">{{ showHfPanel ? '▲' : '▼' }}</span>
+                            <i class="ph-light hf-chevron" :class="showHfPanel ? 'ph-caret-up' : 'ph-caret-down'"></i>
                         </div>
                         <div v-if="showHfPanel" class="hf-auth-body">
                             <div class="hf-step">
@@ -326,6 +326,13 @@ export default {
                     // loading — re-check now that the model is up
                     await this.checkHfStatus();
                 }
+                if (!this.modelLoaded && !this.modelLoading && this.statusPollTimer) {
+                    // Hard failure: loading finished without a model. Stop
+                    // polling (the error banner is showing); reopening the
+                    // settings panel restarts the checks.
+                    clearInterval(this.statusPollTimer);
+                    this.statusPollTimer = null;
+                }
             } catch (err) {
                 console.error('Error checking model status:', err);
             }
@@ -517,25 +524,6 @@ export default {
                 var self = this;
                 setTimeout(function() { self.saveStatus = null; }, 3000);
             }
-        },
-        handleIncomingMessage(event) {
-            var handled = BasePluginComponent.methods.handleIncomingMessage.call(this, event);
-            if (handled) return true;
-
-            var payload;
-            try {
-                payload = JSON.parse(event.data);
-            } catch (err) {
-                return false;
-            }
-
-            if (payload && payload.type === 'voice_list') {
-                if (payload.builtin) this.builtinVoices = payload.builtin;
-                if (payload.custom) this.customVoices = payload.custom;
-                return true;
-            }
-
-            return false;
         }
     },
     async created() {

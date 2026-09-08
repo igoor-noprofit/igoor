@@ -173,6 +173,18 @@ class Pockettts(Baseplugin):
         self._model_loading = False
         # P-core count on hybrid CPUs, 0 elsewhere (see _generation_threads)
         self._gen_threads_hint = 0
+        # Serializes generation+playback: overlapping speaks would interleave
+        # PCM chunks into the browser's single audio stream (and the library
+        # documents generate_audio_stream as not thread-safe)
+        self._speak_lock = asyncio.Lock()
+        # Reload guard: requests arriving while a load runs are queued into
+        # _reload_pending instead of starting a second concurrent load
+        self._reload_request_lock = threading.Lock()
+        self._reload_pending = False
+        # Language the current/last load was requested for, published by the
+        # loader thread itself so global_settings_updated can tell an in-flight
+        # load from a real language change (no duplicate load at startup)
+        self._requested_language = None
         # When the model is loaded from local Drive-downloaded weights, this holds
         # the language dir (containing model.safetensors + embeddings/). Used to
         # resolve built-in voice names to local .safetensors paths, since the
@@ -237,7 +249,11 @@ class Pockettts(Baseplugin):
                     # consumed (and cleared) by speak_func for this test only;
                     # the next real speak re-applies the saved settings
                     self._test_overrides = {"temp": payload.temp, "eos": payload.eos}
-                success = await self.run_speak_func(payload.message, voice_state=state)
+                # No speak_fallback here: a pockettts audition must not make
+                # another engine (e.g. ttsdefault) speak in its place
+                success = await self.run_speak_func(
+                    payload.message, voice_state=state, fallback_on_failure=False
+                )
                 if not success:
                     raise HTTPException(status_code=500, detail="Test speech failed")
                 return {"status": "done", "message": payload.message}
@@ -302,9 +318,7 @@ class Pockettts(Baseplugin):
             # Reload model in background — this time cloning weights will be downloaded
             self.tts_model = None
             self.voice_state = None
-            self.ready = False
-            model_thread = threading.Thread(target=self._load_model_threaded, daemon=True)
-            model_thread.start()
+            self._request_model_reload()
             return {"status": "authenticated", "message": "Model reloading with voice cloning support…"}
 
     # ── Custom voices management ────────────────────────────────────────
@@ -324,7 +338,9 @@ class Pockettts(Baseplugin):
                 label = os.path.splitext(f)[0].replace("_", " ").title()
                 custom.append({
                     "name": f,
-                    "label": f"🎤 {label} (Cloned)",
+                    # plain name: the UI's "Cloned voices" optgroup already
+                    # distinguishes them (and keeps the label translatable)
+                    "label": label,
                     "path": os.path.join(voices_dir, f),
                     "is_custom": True,
                 })
@@ -446,9 +462,35 @@ class Pockettts(Baseplugin):
         ensure_module._igoor_patched = True
         LazyModule.ensure_module = ensure_module
 
-    def _load_model_threaded(self):
-        """Load the pocket-tts model in a background thread.
-        Called from startup() to avoid blocking the event loop."""
+    def _request_model_reload(self):
+        """Start the model-loading thread, or queue a reload if one is already
+        running (the runner picks it up when it finishes). Two concurrent
+        loads would double RAM and CPU for no benefit. Also flips the plugin
+        to not-ready so the boot-progress bar reflects the reload."""
+        with self._reload_request_lock:
+            if self._model_loading:
+                self._reload_pending = True
+                self.logger.info("Model load already in progress — reload queued")
+                return
+            self._model_loading = True
+        self.mark_not_ready()
+        threading.Thread(target=self._run_model_loads, daemon=True).start()
+
+    def _run_model_loads(self):
+        """Runner for _request_model_reload: keeps _model_loading true until
+        no further reload was queued, then clears it."""
+        while True:
+            self._load_model_once()
+            with self._reload_request_lock:
+                if self._reload_pending:
+                    self._reload_pending = False
+                    continue
+                self._model_loading = False
+                return
+
+    def _load_model_once(self):
+        """Load the pocket-tts model (runs in a background thread; callers go
+        through _request_model_reload, which owns the _model_loading flag)."""
         try:
             if "speechbrain" in sys.modules:
                 self._defuse_speechbrain_lazy_import()
@@ -466,8 +508,9 @@ class Pockettts(Baseplugin):
                 self._defuse_speechbrain_lazy_import()
                 from pocket_tts import TTSModel
 
-            self._model_loading = True
             language = self._resolve_language()
+            # published for global_settings_updated (see comment in __init__)
+            self._requested_language = language
             use_24l = self.settings.get("use_24l", False)
             temp = float(self.settings.get("temp", 0.7))
             eos_threshold = float(self.settings.get("eos_threshold", -4.0))
@@ -482,13 +525,13 @@ class Pockettts(Baseplugin):
                     f"override via the cpu_threads setting)"
                 )
 
-            # Some languages ONLY have a 24L model (French, Portuguese, Spanish).
+            # Some languages only ship a 24L model (currently French — see
+            # REQUIRES_24L; all others have both variants).
             # The _24l suffix is passed as the `language` arg directly (e.g. "french_24l").
             # `config` is only for custom .yaml config file paths — do NOT use it here.
             must_use_24l = language in REQUIRES_24L
 
             if must_use_24l:
-                # French, Portuguese, Spanish require the 24L variant
                 tts_language = f"{language}_24l"
                 self.logger.info(f"Language '{language}' requires 24L — loading as language='{tts_language}'")
             elif use_24l and language != "english":
@@ -552,7 +595,6 @@ class Pockettts(Baseplugin):
                 # This happens when neither Drive weights (local embeddings)
                 # nor an HF login for the gated voice repo are available.
                 self.is_loaded = False
-                self._model_loading = False
                 self.mark_not_ready()
                 self.logger.error(
                     "Pocket TTS loaded the model but no voice is available "
@@ -561,12 +603,11 @@ class Pockettts(Baseplugin):
                 return
 
             self.is_loaded = True
-            self._model_loading = False
             self.mark_ready()
             self.logger.info("Pocket TTS is ready")
 
         except Exception as e:
-            self._model_loading = False
+            self.mark_not_ready()
             self.logger.error(f"Failed to load pocket-tts model: {e}", exc_info=True)
 
     def _resolve_voice_prompt(self, voice_name):
@@ -668,7 +709,11 @@ class Pockettts(Baseplugin):
                     self._resolve_voice_prompt(name)
                 )
             if voice.startswith("custom:"):
-                path = os.path.join(self._get_voices_dir(), voice[len("custom:"):])
+                # basename() after separator normalization kills any ../ in
+                # the value (it normally comes from the dropdown, but this is
+                # a plain REST POST endpoint)
+                filename = os.path.basename(voice[len("custom:"):].replace("\\", "/"))
+                path = os.path.join(self._get_voices_dir(), filename)
                 if not os.path.isfile(path):
                     return None
                 return self.tts_model.get_state_for_audio_prompt(path)
@@ -764,7 +809,10 @@ class Pockettts(Baseplugin):
                 return voice_state, safetensors_path
 
             try:
-                voice_state, safetensors_path = await asyncio.to_thread(_clone)
+                # Same lock as speech: the clone encoder shares the model
+                # with generation, which must not run concurrently
+                async with self._speak_lock:
+                    voice_state, safetensors_path = await asyncio.to_thread(_clone)
             finally:
                 # Remove the temp audio also when cloning fails (a leaked
                 # _temp_*.wav used to survive every failed clone attempt)
@@ -830,7 +878,9 @@ class Pockettts(Baseplugin):
                 export_model_state(voice_state, safetensors_path)
                 return voice_state, safetensors_path
 
-            voice_state, safetensors_path = await asyncio.to_thread(_clone)
+            # Clone shares the model with generation — see lock note above
+            async with self._speak_lock:
+                voice_state, safetensors_path = await asyncio.to_thread(_clone)
 
             # Update active voice state and settings
             self.voice_state = voice_state
@@ -869,9 +919,8 @@ class Pockettts(Baseplugin):
 
         self.settings = self.get_my_settings()
 
-        # Load model in background thread (like asrvosk pattern)
-        model_thread = threading.Thread(target=self._load_model_threaded, daemon=True)
-        model_thread.start()
+        # Load model in background thread
+        self._request_model_reload()
         self.logger.info("Pocket TTS model loading started in background thread")
 
     @hookimpl
@@ -901,38 +950,38 @@ class Pockettts(Baseplugin):
         )
         if needs_reload:
             self.logger.info("Model config changed, reloading model...")
-            model_thread = threading.Thread(target=self._load_model_threaded, daemon=True)
-            model_thread.start()
+            self._request_model_reload()
         else:
             # Just voice change — reload voice state only
             old_voice = old_settings.get("voice", "auto")
             new_voice = self.settings.get("voice", "auto")
             if old_voice != new_voice or old_settings.get("custom_voice_path") != self.settings.get("custom_voice_path"):
-                self._load_voice_state()
+                # Voice loads can be CPU-bound (audio-prompt encode): keep the
+                # event loop free; speaks until then use the previous voice.
+                asyncio.create_task(asyncio.to_thread(self._load_voice_state))
 
     @hookimpl
     def global_settings_updated(self):
         """Called when global settings (language etc.) change"""
-        old_language = self.model_language
+        # self.lang is set once in Baseplugin.__init__; refresh it so language
+        # changes actually reach _resolve_language
+        self.lang = self.settings_manager.get_lang()
         self.settings = self.get_my_settings()
         new_language = self._resolve_language()
 
-        if new_language != old_language:
-            self.logger.info(f"Language changed from {old_language} to {new_language}, reloading model...")
-            model_thread = threading.Thread(target=self._load_model_threaded, daemon=True)
-            model_thread.start()
+        # _requested_language is published by the loader thread itself, so a
+        # load still in flight (model_language not yet set) is not mistaken
+        # for a language change — no duplicate load at startup.
+        current = self.model_language or self._requested_language
+        if new_language != current:
+            self.logger.info(f"Language changed from {current} to {new_language}, reloading model...")
+            self._request_model_reload()
 
     @hookimpl
     def speak(self, message, skip_asr):
         if self.is_loaded and self.voice_state is not None:
             self.logger.info(f"§§§§ POCKETTTS SPEAKING: {message}")
             asyncio.create_task(self.run_speak_func_with_translation(message, skip_asr=skip_asr))
-
-    @hookimpl
-    def test_speak(self, message, **kwargs):
-        voice = kwargs.get('voice', None)
-        self.logger.info(f"TEST SPEAK: message={message}, voice={voice}")
-        asyncio.create_task(self.run_speak_func(message))
 
     @hookimpl
     def tts_playback_finished(self):
@@ -942,19 +991,12 @@ class Pockettts(Baseplugin):
 
     # ── Speech pipeline ─────────────────────────────────────────────────
 
-    def run_restart_asr(self, force_ready=False):
-        asyncio.create_task(self.restart_asr(force_ready=force_ready))
-
-    async def restart_asr(self, force_ready=False):
-        # force_ready is required by asrjs's hookimpl; omitting it raises a
-        # HookCallError that can take down the ASGI serving loop.
-        await self.pm.trigger_hook(hook_name="restart_asr", force_ready=force_ready)
-
-    async def run_speak_func(self, message, voice_state=None, skip_asr=False):
+    async def run_speak_func(self, message, voice_state=None, skip_asr=False,
+                             fallback_on_failure=True):
         await self.pm.trigger_hook(hook_name="pause_asr")
         await asyncio.sleep(0.1)  # Ensure pause message reaches frontend
         success = await self.speak_func(message, voice_state=voice_state)
-        if not success:
+        if not success and fallback_on_failure:
             self.logger.warning("speak_func failed, triggering speak_fallback")
             await self.pm.trigger_hook(hook_name="speak_fallback", message=message)
         # force_ready carries speak()'s skip_asr: True returns ASR to idle
@@ -1006,31 +1048,50 @@ class Pockettts(Baseplugin):
         finally:
             torch.set_num_threads(previous)
 
+    def _log_rtf(self, wall_s, audio_s, context):
+        """Warn when a generation ran below realtime: the browser streaming
+        path audibly gaps in that case (each late chunk restarts playback),
+        and it flags machines that would be better served by a cloud TTS."""
+        if audio_s > 0 and wall_s / audio_s >= 1.0:
+            self.logger.warning(
+                f"{context}: generation ran below realtime "
+                f"(RTF {wall_s / audio_s:.2f} — {wall_s:.1f}s for {audio_s:.1f}s of audio)"
+            )
+
     async def speak_func(self, message, voice_state=None):
         """Generate audio from text: streamed to the browser in CLI mode,
         played via sounddevice otherwise. voice_state lets the Test button
         speak with a selection that isn't saved yet."""
         self.logger.info(f"SPEAK FUNC: {message}")
         try:
+            # Consume Test-button overrides exactly once, whatever happens
+            # next (an early return used to leak them into the next speak)
+            overrides = getattr(self, "_test_overrides", None)
+            self._test_overrides = None
+
             if self.tts_model is None or self.voice_state is None:
                 self.logger.error("Cannot speak: model or voice not loaded")
                 return False
 
-            # Saved temp/eos apply at speak time (no reload needed); a
-            # Test-time override from _test_overrides wins for this call only
-            overrides = getattr(self, "_test_overrides", None)
-            if overrides:
-                self._apply_generation_params(overrides.get("temp"), overrides.get("eos"))
-                self._test_overrides = None
-            else:
-                self._apply_generation_params()
+            # Serialized: a concurrent speak (reply + Test click, rapid
+            # replies) would interleave PCM chunks into the browser's single
+            # audio stream, and the library's generator is not thread-safe.
+            # The lock spans generation + playback, so queued speaks are
+            # heard in order instead of garbled together.
+            async with self._speak_lock:
+                # Saved temp/eos apply at speak time (no reload needed); a
+                # Test-time override wins for this call only
+                if overrides:
+                    self._apply_generation_params(overrides.get("temp"), overrides.get("eos"))
+                else:
+                    self._apply_generation_params()
 
-            if self.is_remote_ui():
-                streamed = await self._stream_speech_to_frontend(message, voice_state)
-                if not streamed:
-                    return await self._speak_local(message, voice_state)
-                return True
-            return await self._speak_local(message, voice_state)
+                if self.is_remote_ui():
+                    streamed = await self._stream_speech_to_frontend(message, voice_state)
+                    if not streamed:
+                        return await self._speak_local(message, voice_state)
+                    return True
+                return await self._speak_local(message, voice_state)
 
         except Exception as e:
             self.logger.error(f"Error in speak_func: {e}", exc_info=True)
@@ -1087,6 +1148,7 @@ class Pockettts(Baseplugin):
         def produce():
             started = None
             sent = 0
+            samples = 0
             try:
                 with self._generation_threads():
                     for chunk in self._iter_speech_chunks(message, voice_state):
@@ -1097,11 +1159,16 @@ class Pockettts(Baseplugin):
                             started = time.time()
                             self.logger.info(f"TTS stream {stream_id}: first chunk sent")
                         sent += 1
+                        samples += len(chunk) // 2  # int16 mono
                 if started is not None:
+                    wall = time.time() - started
                     self.logger.info(
                         f"TTS stream {stream_id}: last chunk sent ({sent} chunks, "
-                        f"{time.time() - started:.2f}s of streaming)"
+                        f"{wall:.2f}s of streaming)"
                     )
+                    rate = int(self.tts_model.sample_rate)
+                    self._log_rtf(wall, samples / rate if rate else 0.0,
+                                  f"TTS stream {stream_id}")
             except Exception as e:
                 self.logger.error(f"TTS streaming failed: {e}", exc_info=True)
                 failure.set()
@@ -1130,7 +1197,9 @@ class Pockettts(Baseplugin):
                 )
             return audio_tensor
 
+        gen_start = time.time()
         audio_tensor = await asyncio.to_thread(_generate)
+        gen_time = time.time() - gen_start
 
         if audio_tensor is None:
             self.logger.error("generate_audio returned None")
@@ -1163,10 +1232,12 @@ class Pockettts(Baseplugin):
         pad_tail = np.zeros(int(self.PLAYBACK_TAIL_S * sample_rate), dtype=np.int16)
         audio_int16 = np.concatenate([pad_lead, audio_int16, pad_tail])
 
+        audio_s = len(audio_int16) / sample_rate
         self.logger.info(
             f"Playing audio: {len(audio_int16)} samples at {sample_rate}Hz "
-            f"({len(audio_int16)/sample_rate:.1f}s)"
+            f"({audio_s:.1f}s, generated in {gen_time:.1f}s)"
         )
+        self._log_rtf(gen_time, audio_s, "Local playback")
 
         # Play audio synchronously in thread
         def _play():
@@ -1178,40 +1249,6 @@ class Pockettts(Baseplugin):
         return True
 
     # ── Incoming messages ───────────────────────────────────────────────
-
-    def process_incoming_message(self, message):
-        """Handle messages from the frontend WebSocket"""
-        try:
-            data = message
-            if isinstance(message, (bytes, bytearray)):
-                try:
-                    data = message.decode('utf-8')
-                except Exception:
-                    data = message
-
-            if isinstance(data, str):
-                try:
-                    data = json.loads(data)
-                except Exception:
-                    pass
-
-            if isinstance(data, dict) and 'action' in data:
-                if data.get('action') == 'test_speak':
-                    msg = data.get('message', 'Hello, how are you doing?')
-                    asyncio.create_task(self.run_speak_func(msg))
-                    return
-                elif data.get('action') == 'get_voices':
-                    language = self._resolve_language()
-                    voices = BUILTIN_VOICES.get(language, [])
-                    custom = self._get_custom_voices()
-                    self.send_message_to_frontend({
-                        "type": "voice_list",
-                        "builtin": voices,
-                        "custom": custom,
-                        "language": language,
-                    }, plugin_name='pocketttsSettings')
-                    return
-
-            super().process_incoming_message(message)
-        except Exception as e:
-            self.logger.error(f"Error processing incoming message: {e}")
+    # No override needed: the legacy websocket 'test_speak'/'get_voices'
+    # actions were removed with the REST endpoints taking over, and
+    # Baseplugin.process_incoming_message handles get_settings/save_settings.
