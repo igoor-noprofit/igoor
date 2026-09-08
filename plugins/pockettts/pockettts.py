@@ -464,7 +464,19 @@ class Pockettts(Baseplugin):
         try:
             if "speechbrain" in sys.modules:
                 self._defuse_speechbrain_lazy_import()
-            from pocket_tts import TTSModel
+            try:
+                from pocket_tts import TTSModel
+            except ImportError:
+                # The speakerid plugin imports speechbrain in its own background
+                # thread; if that lands while we are mid-import, speechbrain's
+                # lazy proxies kill this import (see _defuse_speechbrain_lazy_import).
+                # By now speechbrain IS in sys.modules, so defuse and retry once —
+                # modules that completed during the failed attempt stay cached.
+                if "speechbrain" not in sys.modules:
+                    raise
+                self.logger.warning("pocket-tts import hit the speechbrain lazy-proxy race — defusing and retrying")
+                self._defuse_speechbrain_lazy_import()
+                from pocket_tts import TTSModel
 
             self._model_loading = True
             language = self._resolve_language()
