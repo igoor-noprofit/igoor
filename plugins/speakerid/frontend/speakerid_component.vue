@@ -17,7 +17,7 @@
             <button type="button"
                     class="btn btn-secondary speakerid-topbar__btn"
                     :class="{ 'is-active': isUnknownActive }"
-                    @click="selectUnknown">{{ t('unknown') }}</button>
+                    @click="selectUnknown">{{ t('Unknown') }}</button>
         </div>
 
         <!-- End-of-conversation assignment popup: a manual fallback shown only when a
@@ -25,8 +25,8 @@
              of the topbar. Preselects Unknown; auto-dismisses after 15s (stays Unknown). -->
         <div v-if="showAssignmentPopup" class="confirm-overlay" @click.self="closeAssignmentPopup">
             <div class="confirm-modal" role="dialog" aria-modal="true">
-                <p class="confirm-modal__title">{{ t('assignment_popup_title') }}</p>
-                <p class="confirm-modal__hint">{{ t('assignment_popup_subtitle') }}</p>
+                <p class="confirm-modal__title">{{ t('Who was talking during this conversation?') }}</p>
+                <p class="confirm-modal__hint">{{ t('Select the person, or close to leave Unknown.') }}</p>
                 <div class="confirm-modal__speakers">
                     <button v-for="s in assignmentDisplayedSpeakers" :key="s.id"
                             type="button"
@@ -41,7 +41,7 @@
                     <button type="button"
                             class="btn btn-secondary speakerid-topbar__btn"
                             :class="{ 'is-active': assignmentSelection === null }"
-                            @click="assignConversationSpeaker(null)">{{ t('unknown') }}</button>
+                            @click="assignConversationSpeaker(null)">{{ t('Unknown') }}</button>
                 </div>
             </div>
         </div>
@@ -250,7 +250,7 @@ export default {
 
         getDisplayName() {
             if (!this.currentSpeaker.name || this.currentSpeaker.name === 'unknown') {
-                return this.t('unknown');
+                return this.t('Unknown');
             }
             return this.currentSpeaker.name;
         },

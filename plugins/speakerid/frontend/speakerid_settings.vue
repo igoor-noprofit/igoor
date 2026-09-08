@@ -11,7 +11,7 @@
                         type="text"
                         class="speakerid-settings__input"
                         v-model="newPersonName"
-                        :placeholder="t('new_person_name_placeholder')"
+                        :placeholder="t('Name of the person…')"
                         :disabled="isAdding"
                         @keyup.enter="addPerson"
                     />
@@ -21,7 +21,7 @@
                         @click="addPerson"
                         :disabled="isAdding || !newPersonName.trim()"
                     >
-                        {{ isAdding ? t('adding') : t('add_person') }}
+                        {{ isAdding ? t('Adding…') : t('Add person') }}
                     </button>
                 </div>
                 <!-- Privacy gate: master switch for live speaker recognition. -->
@@ -31,16 +31,16 @@
                             <input type="checkbox" v-model="voiceProfilesEnabled" @change="saveVoiceProfiles" />
                             <span class="slider round"></span>
                         </label>
-                        <span class="speakerid-settings__gate-label">{{ t('voice_profiles_enabled') }}</span>
-                        <HelpPopover :text="t('voice_profiles_hint')" :t="t" :lang="lang" />
+                        <span class="speakerid-settings__gate-label">{{ t('Automatic speaker recognition') }}</span>
+                        <HelpPopover :text="t('100% local process: neither voice enrollment nor recognition send any data over the Internet. When enabled, the microphone is continuously analyzed to identify who is speaking.')" :t="t" :lang="lang" />
                     </div>
                     <div class="speakerid-settings__gate-row">
                         <label class="switch">
                             <input type="checkbox" v-model="assignmentPopupEnabled" @change="saveAssignmentPopup" />
                             <span class="slider round"></span>
                         </label>
-                        <span class="speakerid-settings__gate-label">{{ t('assignment_popup_enabled') }}</span>
-                        <HelpPopover :text="t('assignment_popup_hint')" :t="t" :lang="lang" />
+                        <span class="speakerid-settings__gate-label">{{ t('Assignment popup at end of conversation') }}</span>
+                        <HelpPopover :text="t('At the end of a conversation whose speaker was not recognized, offers a manual assignment popup. 100% local process.')" :t="t" :lang="lang" />
                     </div>
                 </div>
             </div>
@@ -48,9 +48,9 @@
             <!-- RIGHT column: people list -->
             <div class="speakerid-settings__col speakerid-settings__col-right">
                 <section class="speakerid-settings__section">
-                    <h3 class="speakerid-settings__title">{{ t('people') }}</h3>
-                    <div v-if="isLoadingSpeakers" class="speakerid-settings__status">{{ t('loading_speakers') }}</div>
-                    <div v-else-if="speakers.length === 0" class="speakerid-settings__status">{{ t('no_speakers') }}</div>
+                    <h3 class="speakerid-settings__title">{{ t('People') }}</h3>
+                    <div v-if="isLoadingSpeakers" class="speakerid-settings__status">{{ t('Loading…') }}</div>
+                    <div v-else-if="speakers.length === 0" class="speakerid-settings__status">{{ t('No people yet. Add one above.') }}</div>
                     <ul v-else class="speakerid-settings__list">
                         <li v-for="s in speakers" :key="s.id" class="speaker-row">
                             <span class="speaker-row__name">{{ s.name }}</span>
@@ -62,23 +62,23 @@
                                     :disabled="isSaving"
                                     @click="startRecordingFor(s)"
                                 >
-                                    {{ t('add_recording') }}
+                                    {{ t('Add a recording') }}
                                 </button>
                                 <button
                                     v-if="s.has_voice && voiceProfilesEnabled"
                                     type="button"
                                     class="speakerid-settings__btn speakerid-settings__btn--neutral"
                                     :disabled="isSaving"
-                                    :title="t('reset_voice')"
-                                    :aria-label="t('reset_voice')"
+                                    :title="t('Reset voice')"
+                                    :aria-label="t('Reset voice')"
                                     @click="askResetVoice(s)"
                                 ><i class="ph-light ph-arrows-counter-clockwise"></i></button>
                                 <button
                                     type="button"
                                     class="speakerid-settings__btn speakerid-settings__btn--danger"
                                     :disabled="isSaving"
-                                    :title="t('delete')"
-                                    :aria-label="t('delete')"
+                                    :title="t('Delete')"
+                                    :aria-label="t('Delete')"
                                     @click="askDeleteSpeaker(s)"
                                 ><i class="ph-light ph-trash"></i></button>
                             </span>
@@ -91,7 +91,7 @@
         <!-- Contextual recorder: enrolls a voice for the selected speaker -->
         <div v-if="recordingForSpeaker" class="speakerid-settings__recorder">
             <div class="speakerid-settings__recorder-label">
-                {{ t('recording_for') }}: <strong>{{ recordingForSpeaker.name }}</strong>
+                {{ t('Recording for') }}: <strong>{{ recordingForSpeaker.name }}</strong>
                 <button type="button" class="speakerid-settings__btn speakerid-settings__btn--sm" @click="cancelRecording">
                     ✕
                 </button>
@@ -99,15 +99,15 @@
 
             <!-- Phrase-guided enrollment: 3 suggested phrases, encourage ≥3 recordings (~10s each) -->
             <div class="speakerid-settings__guide">
-                <p class="speakerid-settings__guide-instr">{{ t('enrollment_instruction') }}</p>
-                <p class="speakerid-settings__guide-instr">{{ t('recording_tip') }}</p>
+                <p class="speakerid-settings__guide-instr">{{ t('Read this sentence naturally, at normal speed (about 10 seconds). Make at least 3 recordings for better recognition.') }}</p>
+                <p class="speakerid-settings__guide-instr">{{ t('Tip: record several sentences from different positions and distances from the microphone for more robust recognition.') }}</p>
                 <p class="speakerid-settings__guide-progress">
-                    {{ t('recording_progress', { count: (recordingForSpeaker.sample_count || 0) }) }}
-                    <span v-if="(recordingForSpeaker.sample_count || 0) >= minRecordings" class="speakerid-settings__guide-done">{{ t('enrollment_enough') }}</span>
+                    {{ t('Recordings: {count}', { count: (recordingForSpeaker.sample_count || 0) }) }}
+                    <span v-if="(recordingForSpeaker.sample_count || 0) >= minRecordings" class="speakerid-settings__guide-done">{{ t('✓ Enough recordings! You can close, or continue to improve recognition.') }}</span>
                 </p>
                 <div class="speakerid-settings__phrase-card">
                     <div class="speakerid-settings__phrase-label">
-                        <span>{{ t('phrase_to_read') }}</span>
+                        <span>{{ t('Phrase to read') }}</span>
                         <span class="speakerid-settings__phrase-count">{{ Math.min(phraseIndex + 1, currentPhraseSet.length) }} / {{ currentPhraseSet.length }}</span>
                     </div>
                     <p :key="phraseIndex" class="speakerid-settings__phrase-current speakerid-settings__phrase-current--appear">{{ currentPhrase }}</p>
@@ -130,7 +130,7 @@
                     @click="saveRecording"
                     :disabled="!pendingBlob || isSaving"
                 >
-                    {{ isSaving ? t('saving') : t('save_recording') }}
+                    {{ isSaving ? t('Saving…') : t('Save recording') }}
                 </button>
                 <span v-if="statusMessage" class="speakerid-settings__status">{{ statusMessage }}</span>
             </div>
@@ -141,7 +141,7 @@
             <div class="confirm-modal" role="dialog" aria-modal="true">
                 <p class="confirm-modal__text">{{ confirmText }}</p>
                 <div class="confirm-modal__actions">
-                    <button type="button" class="speakerid-settings__btn" @click="cancelAction">{{ t('cancel') }}</button>
+                    <button type="button" class="speakerid-settings__btn" @click="cancelAction">{{ t('Cancel') }}</button>
                     <button
                         type="button"
                         class="speakerid-settings__btn"
@@ -185,17 +185,18 @@ module.exports = {
             bioName: '',
             // Phrase-guided enrollment: encourage ≥3 recordings (~10s each). The intro
             // phrase uses the speaker's own name; the pool holds caregiver→user phrases
-            // (addressing the user by {user}). Text + {speaker}/{user} placeholders live
-            // in the locale file; $_buildPhraseSet interpolates them via t().
-            enrollmentIntroKey: 'enrollment_phrase_intro',
+            // (addressing the user by {user}). The keys are the English master texts,
+            // with {speaker}/{user} placeholders; $_buildPhraseSet interpolates via t()
+            // and locale files translate them.
+            enrollmentIntroKey: 'Hello, my name is {speaker}. I\'m recording my voice so the app can recognize me.',
             enrollmentPhraseKeys: [
-                'enrollment_phrase_1',
-                'enrollment_phrase_2',
-                'enrollment_phrase_3',
-                'enrollment_phrase_4',
-                'enrollment_phrase_5',
-                'enrollment_phrase_6',
-                'enrollment_phrase_7'
+                'Hello {user}, did you sleep well last night? How about a nice breakfast?',
+                'Hi {user}, how are you feeling today? Do you need anything?',
+                'Tell me {user}, does anything hurt? Would you like me to reposition you a bit?',
+                'Hi {user}, I made your coffee. Do you want it now or a bit later?',
+                '{user}, the weather is lovely outside. Would you like to go out on the terrace for a bit?',
+                'Hey {user}, do you remember our walk yesterday? It was really nice.',
+                '{user}, we got news from the family today. Want me to tell you about it?'
             ],
             currentPhraseSet: [],
             phraseIndex: 0,
@@ -206,10 +207,10 @@ module.exports = {
     computed: {
         recorderLabels() {
             return {
-                start: this.t('start_recording'),
-                stop: this.t('stop'),
-                play: this.t('play_back'),
-                recording: this.t('recording')
+                start: this.t('Start recording'),
+                stop: this.t('Stop'),
+                play: this.t('Play'),
+                recording: this.t('Recording…')
             };
         },
         // Show one phrase at a time (the one to read now). After all are done we hold
@@ -222,12 +223,12 @@ module.exports = {
         confirmText() {
             if (!this.pendingAction) return '';
             const a = this.pendingAction;
-            if (a.type === 'reset') return this.t('confirm_reset', { name: a.speaker.name });
-            return this.t('confirm_delete', { name: a.speaker.name });
+            if (a.type === 'reset') return this.t("Reset {name}'s voice profile? All recordings will be deleted.", { name: a.speaker.name });
+            return this.t('Delete {name}? Associated conversations will NOT be deleted.', { name: a.speaker.name });
         },
         confirmLabel() {
             if (!this.pendingAction) return '';
-            return this.pendingAction.type === 'reset' ? this.t('reset_voice') : this.t('delete');
+            return this.pendingAction.type === 'reset' ? this.t('Reset voice') : this.t('Delete');
         }
     },
     mounted() {
@@ -241,7 +242,7 @@ module.exports = {
                 this.speakers = await this.callPluginRestEndpoint('speakerid', 'speakers') || [];
             } catch (e) {
                 console.error('Failed to load speakers', e);
-                this.statusMessage = this.t('error_loading_speakers');
+                this.statusMessage = this.t('Error loading people');
             } finally {
                 this.isLoadingSpeakers = false;
             }
@@ -294,10 +295,10 @@ module.exports = {
                 });
                 this.newPersonName = '';
                 await this.loadSpeakers();
-                this.statusMessage = this.t('person_added');
+                this.statusMessage = this.t('Person added');
             } catch (e) {
                 console.error('Failed to add person', e);
-                this.statusMessage = this.t('error_adding_person');
+                this.statusMessage = this.t('Error adding the person');
             } finally {
                 this.isAdding = false;
             }
@@ -341,16 +342,16 @@ module.exports = {
 
         onRecorderError(error) {
             console.error('Recorder error', error);
-            this.statusMessage = this.t('recorder_error');
+            this.statusMessage = this.t('Recorder error');
         },
 
         async saveRecording() {
             if (!this.pendingBlob) {
-                this.statusMessage = this.t('record_audio_first');
+                this.statusMessage = this.t('Record audio first');
                 return;
             }
             if (!this.recordingForSpeaker) {
-                this.statusMessage = this.t('record_audio_first');
+                this.statusMessage = this.t('Record audio first');
                 return;
             }
             this.isSaving = true;
@@ -401,7 +402,7 @@ module.exports = {
                 }
             } catch (error) {
                 console.error('Failed to save recording', error);
-                this.statusMessage = error.message || this.t('error_saving_recording');
+                this.statusMessage = error.message || this.t('Error saving the recording');
             } finally {
                 this.isSaving = false;
             }
@@ -435,12 +436,12 @@ module.exports = {
                     await this.callPluginRestEndpoint('speakerid', `speakers/${action.speaker.id}`, {
                         method: 'DELETE'
                     });
-                    this.statusMessage = this.t('person_deleted');
+                    this.statusMessage = this.t('Person deleted');
                 }
                 await this.loadSpeakers();
             } catch (e) {
                 console.error('Action failed', e);
-                this.statusMessage = this.t('error_deleting_person');
+                this.statusMessage = this.t('Error deleting the person');
             } finally {
                 this.isSaving = false;
             }
