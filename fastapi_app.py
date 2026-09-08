@@ -95,8 +95,8 @@ def create_app() -> FastAPI:
         plugin_name: str, payload: UpdateSettingsPayload
     ):
         settings_manager.update_plugin_settings(plugin_name, payload.settings, plugin_manager)
-        # Trigger settings_updated hook for the specific plugin (not global_settings_updated)
-        await plugin_manager.trigger_hook('settings_updated', plugin_name=plugin_name, new_settings=payload.settings)
+        # settings_updated is triggered inside update_plugin_settings (it
+        # receives plugin_manager); triggering it here too fired the hook twice.
         return Response(status_code=status.HTTP_204_NO_CONTENT)
 
     @api_router.post("/settings/reload")
