@@ -1,12 +1,13 @@
 from plugin_manager import hookimpl
 from plugins.baseplugin.baseplugin import Baseplugin
 from settings_manager import SettingsManager
-from utils import get_appdata_dir
+from utils import get_appdata_dir, get_ideal_torch_threads
 from fastapi import APIRouter, HTTPException, UploadFile, File
 from fastapi.responses import JSONResponse
 from fastapi import Form
 from pydantic import BaseModel
 from typing import Optional
+from contextlib import contextmanager
 import asyncio
 import os
 import sys
@@ -170,6 +171,8 @@ class Pockettts(Baseplugin):
         self.voice_state = None
         self.model_language = None
         self._model_loading = False
+        # P-core count on hybrid CPUs, 0 elsewhere (see _generation_threads)
+        self._gen_threads_hint = 0
         # When the model is loaded from local Drive-downloaded weights, this holds
         # the language dir (containing model.safetensors + embeddings/). Used to
         # resolve built-in voice names to local .safetensors paths, since the
@@ -469,6 +472,16 @@ class Pockettts(Baseplugin):
             temp = float(self.settings.get("temp", 0.7))
             eos_threshold = float(self.settings.get("eos_threshold", -4.0))
 
+            self._gen_threads_hint = get_ideal_torch_threads()
+            if self._gen_threads_hint:
+                import torch
+                self.logger.info(
+                    f"Hybrid CPU detected: generation will use "
+                    f"{self._gen_threads_hint} torch threads (currently "
+                    f"{torch.get_num_threads()} — pocket-tts pins 1 at import; "
+                    f"override via the cpu_threads setting)"
+                )
+
             # Some languages ONLY have a 24L model (French, Portuguese, Spanish).
             # The _24l suffix is passed as the `language` arg directly (e.g. "french_24l").
             # `config` is only for custom .yaml config file paths — do NOT use it here.
@@ -742,7 +755,8 @@ class Pockettts(Baseplugin):
             # truncate=True trims uploads to the first 30 s — upstream's own
             # server/CLI do the same; conditioning beyond 30 s adds nothing.
             def _clone():
-                voice_state = self.tts_model.get_state_for_audio_prompt(temp_wav, truncate=True)
+                with self._generation_threads():
+                    voice_state = self.tts_model.get_state_for_audio_prompt(temp_wav, truncate=True)
                 # Export to safetensors for fast reload (fresh file: see
                 # _unique_voice_path)
                 safetensors_path = self._unique_voice_path(voices_dir, safe_name)
@@ -810,7 +824,8 @@ class Pockettts(Baseplugin):
             # Generate voice state from biorecorder audio (CPU-bound);
             # truncate=True caps conditioning at the first 30 s (see upload path)
             def _clone():
-                voice_state = self.tts_model.get_state_for_audio_prompt(bio_voice_path, truncate=True)
+                with self._generation_threads():
+                    voice_state = self.tts_model.get_state_for_audio_prompt(bio_voice_path, truncate=True)
                 safetensors_path = self._unique_voice_path(voices_dir, name)
                 export_model_state(voice_state, safetensors_path)
                 return voice_state, safetensors_path
@@ -970,6 +985,27 @@ class Pockettts(Baseplugin):
         self.tts_model.eos_threshold = eos
         self.logger.info(f"Generation params: temp={self.tts_model.temp}, eos={self.tts_model.eos_threshold}")
 
+    @contextmanager
+    def _generation_threads(self):
+        """Pin torch threads around CPU-bound generation. torch's default
+        (one thread per physical core) is slower on hybrid CPUs — the model's
+        small per-op parallel regions lose more to thread sync and E-core drag
+        than they gain (see utils.get_ideal_torch_threads). Scoped and
+        restored afterwards so the process's other torch users are unaffected.
+        A cpu_threads setting above 0 overrides the heuristic live."""
+        override = int((self.settings or {}).get("cpu_threads", 0) or 0)
+        threads = override if override > 0 else self._gen_threads_hint
+        if not threads:
+            yield
+            return
+        import torch
+        previous = torch.get_num_threads()
+        torch.set_num_threads(threads)
+        try:
+            yield
+        finally:
+            torch.set_num_threads(previous)
+
     async def speak_func(self, message, voice_state=None):
         """Generate audio from text: streamed to the browser in CLI mode,
         played via sounddevice otherwise. voice_state lets the Test button
@@ -1052,14 +1088,15 @@ class Pockettts(Baseplugin):
             started = None
             sent = 0
             try:
-                for chunk in self._iter_speech_chunks(message, voice_state):
-                    if not websocket_server.send_bytes('app', chunk):
-                        failure.set()
-                        return
-                    if started is None:
-                        started = time.time()
-                        self.logger.info(f"TTS stream {stream_id}: first chunk sent")
-                    sent += 1
+                with self._generation_threads():
+                    for chunk in self._iter_speech_chunks(message, voice_state):
+                        if not websocket_server.send_bytes('app', chunk):
+                            failure.set()
+                            return
+                        if started is None:
+                            started = time.time()
+                            self.logger.info(f"TTS stream {stream_id}: first chunk sent")
+                        sent += 1
                 if started is not None:
                     self.logger.info(
                         f"TTS stream {stream_id}: last chunk sent ({sent} chunks, "
@@ -1087,9 +1124,10 @@ class Pockettts(Baseplugin):
         # Generate audio in a thread (CPU-bound operation)
         def _generate():
             state = voice_state if voice_state is not None else self.voice_state
-            audio_tensor = self.tts_model.generate_audio(
-                state, message
-            )
+            with self._generation_threads():
+                audio_tensor = self.tts_model.generate_audio(
+                    state, message
+                )
             return audio_tensor
 
         audio_tensor = await asyncio.to_thread(_generate)

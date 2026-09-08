@@ -227,6 +227,37 @@ def get_platform_key():
     return _PLATFORM_KEYS.get(system, system.lower())
 
 
+def get_ideal_torch_threads():
+    """Suggest a torch CPU thread count for small-model inference; 0 = keep
+    torch's default.
+
+    torch's default (one thread per physical core) is a poor fit for hybrid
+    CPUs (Intel 12th gen+): small per-op parallel regions lose more to thread
+    sync and to slow E-cores than they gain. On such chips the P-core count is
+    the sweet spot (measured on an i7-1360P with pocket-tts: RTF 0.77 with 4
+    threads vs 0.93 with the default 12).
+
+    Topology is inferred from psutil counts alone: E-cores have no
+    hyperthreading, so on a hybrid chip logical - physical == P-cores
+    (e.g. 4P+8E: 16 logical, 12 physical -> 4). Uniform topologies (no HT, or
+    exactly 2x logical) keep torch's default.
+    """
+    try:
+        import psutil
+
+        physical = psutil.cpu_count(logical=False) or 0
+        logical = psutil.cpu_count(logical=True) or 0
+    except Exception:
+        return 0
+    if not physical or not logical:
+        return 0
+    if logical <= physical or logical == 2 * physical:
+        # Uniform topology (no HT, or homogeneous HT): default is fine
+        return 0
+    p_cores = logical - physical
+    return p_cores if p_cores >= 1 else 0
+
+
 def get_appdata_dir(create: bool = True) -> str:
     """Return the platform-specific application data directory for IGOOR."""
     system = get_platform()

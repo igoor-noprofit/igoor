@@ -5,5 +5,6 @@
     "temp": 0.7,
     "eos_threshold": -4.0,
     "use_2026_04": true,
-    "quantize": true
+    "quantize": true,
+    "cpu_threads": 0
 }
