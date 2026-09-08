@@ -9,6 +9,8 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+
+.v2c 
 .playwright-mcp
 
 gitleaks-report.json
