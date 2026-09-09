@@ -1220,7 +1220,11 @@ input.add-item-input {
 }
 
 .settings-actions .btn-secondary {
-  background-color: #ccc;
+  background-color: var(--basecolor-gray-700, #556265);
+}
+
+.settings-actions .btn-primary {
+  background-color: #407d1c;
 }
 
 button.settings-delete-category-btn {
@@ -1331,7 +1335,7 @@ button.btn-side {
 }
 
 .btn-secondary {
-  background-color: #ccc;
+  background-color: var(--basecolor-gray-700, #556265);
 }
 
 .dialog-backdrop {

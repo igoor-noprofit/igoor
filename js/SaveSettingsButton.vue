@@ -79,12 +79,23 @@ module.exports = {
 .save-settings-button {
   display: flex;
   gap: 1rem;
+  justify-content: flex-end;
 }
 
 .save-settings-button button {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+/* Explicit backgrounds: the settings modal's global `.onboarding.plugin button`
+   rule (0,2,1) would otherwise paint both buttons green. */
+.save-settings-button button.btn-secondary {
+  background-color: var(--basecolor-gray-700, #556265);
+}
+
+.save-settings-button button.btn-primary {
+  background-color: #407d1c;
 }
 
 .loading-spinner {
