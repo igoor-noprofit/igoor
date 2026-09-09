@@ -92,8 +92,8 @@ class Rag(Baseplugin):
                     [Document(page_content="Initial empty document", metadata={"source": "init"})],
                     self.embedding_function
                 )
-                await self.save_index(store_type)
                 self.index_loaded[store_type] = True
+                await self.save_index(store_type)
     
     async def initialize_resources(self):
         # 1. Check if DB tables have been created
