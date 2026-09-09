@@ -27,7 +27,14 @@ A remote macOS desktop is fine. Pick one with **per-minute/hourly** billing so a
 git clone https://github.com/igoor-noprofit/igoor.git igoor && cd igoor
 git checkout feature/v1-multiplatform
 
+# 0. Homebrew — NOT preinstalled (e.g. on rented Scaleway Macs):
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+# then add to PATH (Apple Silicon) — the installer prints these same two lines at the end:
+echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> ~/.zprofile
+eval "$(/opt/homebrew/bin/brew shellenv)"
+
 # system deps (audio libs + FFmpeg — needed by sounddevice/PyAudio/pydub)
+# note: the brew installer above auto-installs the Xcode CLT, so xcode-select --install is already covered
 brew install portaudio ffmpeg
 
 # Python 3.10 — NOT preinstalled; Homebrew's default python is newer
