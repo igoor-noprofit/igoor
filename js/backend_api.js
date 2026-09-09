@@ -152,6 +152,13 @@ class BackendApi {
     return undefined;
   }
 
+  async getClipboard() {
+    // The desktop shell has no working paste shortcut (WKWebView), so text
+    // paste goes through the backend's clipboard reader.
+    const response = await this._getJson("/app/clipboard");
+    return pick(response, "text", "");
+  }
+
   async changeWindowState(action) {
     if (action === "maximize") {
       return this.maximize();

@@ -109,8 +109,8 @@
 
             <!-- Microphone -->
             <div class="form-input" style="display: flex; align-items: center; gap: 8px;">
-                <button type="button" @click="openWindowsMicSettings">{{t('Open Windows microphone settings')}}</button>
-                <HelpPopover :text="t('IGOOR uses your Windows default microphone.')" :t="t" :lang="lang"/>
+                <button type="button" @click="openMicSettings">{{t('Open OS microphone settings')}}</button>
+                <HelpPopover :text="t('IGOOR uses your system default microphone.')" :t="t" :lang="lang"/>
             </div>
 
             <!-- Microphone Volume Indicator -->
@@ -397,12 +397,12 @@ export default {
         clearShortcut() {
             this.formData.shortcut = '';
         },
-        async openWindowsMicSettings() {
-            // IGOOR captures from the Windows default mic; let the user manage it in the OS.
+        async openMicSettings() {
+            // IGOOR captures from the OS default mic; let the user manage it in the OS.
             try {
                 await this.callPluginRestEndpoint('asrjs', 'open_sound_settings', { method: 'POST' });
             } catch (e) {
-                console.error('Could not open Windows microphone settings:', e);
+                console.error('Could not open the OS microphone settings:', e);
             }
         },
         onProviderChange() {

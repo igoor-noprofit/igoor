@@ -251,7 +251,15 @@ export default {
             }
         },
         $_minimise() {
-            window.ensureBackendApi().then((api) => api.winMinimize());
+            // Use the app-level minimize (window shrinks to a small always-on-top
+            // corner window with a restore button), the same flow as the topbar
+            // logo click — winMinimize() only does an OS taskbar/dock minimize,
+            // which resizes nothing and is dead on some platforms.
+            if (window.app && typeof window.app.minimize === 'function') {
+                window.app.minimize();
+                return;
+            }
+            window.ensureBackendApi().then((api) => api.minimize());
         },
         $_toggleFullscreen() {
             if (document.fullscreenElement) {

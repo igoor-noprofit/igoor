@@ -80,8 +80,100 @@ const options = {
 };
 const backendApiPromise = window.ensureBackendApi();
 const { loadModule, version } = window["vue3-sfc-loader"];
+
+// WKWebView (the desktop shell on macOS) does not resolve external SVG
+// references — <use xlink:href="img/svgdefs.svg#icon-x"> renders nothing —
+// so every sprite-based icon would vanish in the pywebview window while
+// working in a browser. Fetch the sprite once, inline it into the document
+// and rewrite all sprite references (present and future) to same-document
+// fragments, which every engine supports.
+async function installSvgSpriteShim() {
+  if (window.__igoorSvgSpriteShim) {
+    return;
+  }
+  window.__igoorSvgSpriteShim = true;
+  const SPRITE_RE = /^(?:.*\/)?svgdefs\.svg#(.+)$/;
+  const rewriteUse = (use) => {
+    for (const attr of ["xlink:href", "href"]) {
+      const value = use.getAttribute(attr);
+      if (!value) {
+        continue;
+      }
+      const match = value.match(SPRITE_RE);
+      if (match) {
+        use.setAttribute(attr, "#" + match[1]);
+      }
+    }
+  };
+  const rewriteTree = (root) => {
+    if (root instanceof SVGUseElement) {
+      rewriteUse(root);
+    }
+    if (root.querySelectorAll) {
+      root.querySelectorAll("use").forEach(rewriteUse);
+    }
+  };
+  try {
+    const response = await fetch("/img/svgdefs.svg");
+    if (!response.ok) {
+      return;
+    }
+    const container = document.createElement("div");
+    container.style.display = "none";
+    container.innerHTML = await response.text();
+    document.body.insertBefore(container, document.body.firstChild);
+    document.querySelectorAll("use").forEach(rewriteUse);
+    new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        mutation.addedNodes.forEach(rewriteTree);
+      }
+    }).observe(document.documentElement, { childList: true, subtree: true });
+  } catch (error) {
+    console.warn("SVG sprite shim failed:", error);
+  }
+}
+
+// The WKWebView desktop shell has no Edit menu, so the Cmd+V shortcut never
+// reaches web inputs (paste silently does nothing — in a browser it works).
+// On macOS, route Cmd+V in text fields through the backend clipboard reader.
+function installPasteShim() {
+  if (window.__igoorPasteShim || !/Mac/i.test(navigator.platform)) {
+    return;
+  }
+  window.__igoorPasteShim = true;
+  document.addEventListener("keydown", async (event) => {
+    if (!(event.metaKey || event.ctrlKey) || event.key !== "v") {
+      return;
+    }
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement)) {
+      return;
+    }
+    event.preventDefault();
+    try {
+      const backendApi = await backendApiPromise;
+      const text = (await backendApi.getClipboard()) || "";
+      if (!text) {
+        return;
+      }
+      try {
+        const start = target.selectionStart ?? target.value.length;
+        const end = target.selectionEnd ?? target.value.length;
+        target.setRangeText(text, start, end, "end");
+      } catch (e) {
+        // Password fields may refuse selection access: replace wholesale
+        target.value = (target.value || "") + text;
+      }
+      target.dispatchEvent(new Event("input", { bubbles: true }));
+    } catch (e) {
+      console.warn("Paste shim failed:", e);
+    }
+  });
+}
 async function initializeApp() {
   console.log("initializing app");
+  installSvgSpriteShim();
+  installPasteShim();
   const appTemplate = await options.getFile("/js/app.vue?v={{VERSION}}");
   app = Vue.createApp({
     data() {

@@ -227,6 +227,41 @@ def get_platform_key():
     return _PLATFORM_KEYS.get(system, system.lower())
 
 
+def open_os_sound_settings():
+    """Open the OS sound/microphone settings so the user can pick or verify
+    the default input device. Returns (success: bool, message: str)."""
+    import subprocess
+
+    key = get_platform_key()
+    try:
+        if key == "windows":
+            os.startfile("ms-settings:sound")  # noqa: attribute exists on Windows only
+            return True, "ok"
+        if key == "macos":
+            # macOS Ventura (13) renamed System Preferences to System Settings
+            # and moved panes to extension ids; fall back to the legacy pane.
+            major = int(platform.mac_ver()[0].split(".")[0] or 0)
+            target = (
+                "x-apple.systempreferences:com.apple.Sound-Settings.extension"
+                if major >= 13
+                else "x-apple.systempreferences:com.apple.preference.sound?input"
+            )
+            if subprocess.run(["open", target], timeout=5).returncode != 0:
+                subprocess.run(["open", "x-apple.systempreferences:com.apple.preference.sound?input"], timeout=5)
+            return True, "ok"
+        if key == "linux":
+            for cmd in (["pavucontrol"], ["gnome-control-center", "sound"], ["kcmshell5", "kcm_pulseaudio"]):
+                try:
+                    subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    return True, "ok"
+                except FileNotFoundError:
+                    continue
+            return False, "No supported sound settings tool found"
+    except Exception as e:
+        return False, str(e)
+    return False, f"Not supported on this platform ({key})"
+
+
 def get_ideal_torch_threads():
     """Suggest a torch CPU thread count for small-model inference; 0 = keep
     torch's default.

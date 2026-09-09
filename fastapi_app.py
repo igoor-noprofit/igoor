@@ -143,6 +143,39 @@ def create_app() -> FastAPI:
             raise HTTPException(status_code=500, detail=str(exc))
         return Response(status_code=status.HTTP_204_NO_CONTENT)
 
+    @api_router.get("/app/clipboard")
+    async def api_get_clipboard():
+        """Return the OS clipboard text so the UI can offer a Paste button.
+
+        WKWebView (pywebview on macOS) does not route the Cmd+V shortcut to web
+        inputs, and the async Clipboard API is unavailable there — the desktop
+        frontend reads the clipboard through this endpoint instead.
+        """
+        import platform as _platform
+        import subprocess
+
+        system = _platform.system()
+        text = ""
+        try:
+            if system == "Darwin":
+                text = subprocess.run(["pbpaste"], capture_output=True, text=True, timeout=2).stdout
+            elif system == "Windows":
+                result = subprocess.run(
+                    ["powershell", "-NoProfile", "-Command", "Get-Clipboard -Raw"],
+                    capture_output=True, text=True, timeout=3,
+                )
+                text = result.stdout.rstrip("\r\n")
+            else:
+                for cmd in (["xclip", "-selection", "clipboard", "-o"], ["xsel", "--clipboard", "--output"]):
+                    try:
+                        text = subprocess.run(cmd, capture_output=True, text=True, timeout=2).stdout
+                        break
+                    except FileNotFoundError:
+                        continue
+        except Exception as exc:
+            logger.warning(f"Could not read clipboard: {exc}")
+        return {"text": text}
+
     @api_router.get("/context")
     async def api_get_context():
         return context_manager.get_context()
