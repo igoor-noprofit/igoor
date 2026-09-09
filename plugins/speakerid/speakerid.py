@@ -73,6 +73,13 @@ class Speakerid(Baseplugin):
         self.buffer_duration = 2.0
         self.min_audio_duration = 1.0
         self.identification_cooldown = 3.0
+        # Pre-warm staleness: a pre-warmed speaker must be re-confirmed by fresh
+        # detections within this many seconds, or it reverts to unknown. Without
+        # it, silence never clears a pre-warm (no-match results don't touch the
+        # context), so a name detected hours ago could be promoted+locked at the
+        # next conversation open.
+        self.prewarm_ttl = 30.0
+        self._last_prewarm_refresh = 0.0
 
         # Audio settings - will be updated based on actual input
         self.sample_rate = 16000  # chunks arrive pre-downsampled to 16kHz by the asrjs worklet
@@ -94,6 +101,7 @@ class Speakerid(Baseplugin):
         self.current_utterance_start = 0
         self._infer_busy = False
         self._last_tentative_push = None
+        self._last_prewarm_refresh = 0.0
         # Deterministic-commit state: once a speaker is committed, detection LOCKS
         # for the rest of the conversation (cleared here on abandon/reset).
         self.committed_speaker = None
@@ -133,6 +141,11 @@ class Speakerid(Baseplugin):
         even while locked. Idempotent: only acts on the first message."""
         if self.conversation_active:
             return
+        # A stale pre-warm must not be promoted: expire it first. Silence never
+        # re-confirms anything, and chunks may have stopped entirely (mic off,
+        # asrjs down) while the room was quiet — so the promotion path can't rely
+        # on the chunk heartbeat having caught the expiry.
+        self._expire_stale_prewarm()
         self.conversation_active = True
         self.evidence_window = deque(maxlen=self.EVIDENCE_WINDOW)   # fresh voting
         with self.buffer_lock:
@@ -336,6 +349,7 @@ class Speakerid(Baseplugin):
             self.buffer_duration = self.settings.get("buffer_duration", 2.0)
             self.min_audio_duration = self.settings.get("min_audio_duration", 1.0)
             self.identification_cooldown = self.settings.get("identification_cooldown", 3.0)
+            self.prewarm_ttl = self.settings.get("prewarm_ttl", 30.0)
             # Privacy gate: when off, NO mic audio is accepted for identification (asrjs
             # won't post, and the endpoints early-return). Default off — opt-in.
             self.voice_profiles_enabled = bool(self.settings.get("voice_profiles_enabled", False))
@@ -514,6 +528,11 @@ class Speakerid(Baseplugin):
         if len(audio_data) < 100:
             return {"status": "small_chunk", "message": "Audio chunk too small to process"}
 
+        # Chunk heartbeat: with ~2s chunks this re-checks pre-warm staleness often
+        # enough that an aged-out name disappears from the context/topbar within a
+        # couple of seconds of the TTL lapsing (silence itself runs no detections).
+        self._expire_stale_prewarm()
+
         with self.buffer_lock:
             if self.audio_buffer is None:
                 self.audio_buffer = bytearray()
@@ -602,6 +621,28 @@ class Speakerid(Baseplugin):
             self._handle_detection(match, confidence, top_results)
         except Exception as e:
             self.logger.error(f"Error during speaker identification: {e}")
+
+    def _expire_stale_prewarm(self):
+        """Revert a pre-warmed speaker to unknown when it hasn't been re-confirmed by
+        a fresh detection within prewarm_ttl seconds. No-match results and silence
+        never touch the context, so without this a pre-warm lingers forever and would
+        be promoted + locked at the next conversation open no matter how stale."""
+        if self._last_prewarm_refresh <= 0:
+            return
+        info = (context_manager.get_context() or {}).get("speaker_info") or {}
+        name = info.get("name")
+        if info.get("status") != "prewarmed" or not name or name == "unknown":
+            self._last_prewarm_refresh = 0.0   # pre-warm already gone — drop the timer
+            return
+        if time.time() - self._last_prewarm_refresh <= self.prewarm_ttl:
+            return
+        self._last_prewarm_refresh = 0.0
+        self.evidence_window.clear()           # stale votes must not seed the next commit
+        self.logger.info(
+            f"Pre-warmed speaker '{name}' expired — no re-confirming detection within "
+            f"{self.prewarm_ttl:.0f}s, reverting to unknown"
+        )
+        self._update_speaker_context("unknown", 0.0, "unknown")
     
 
     
@@ -1016,11 +1057,13 @@ class Speakerid(Baseplugin):
         detection for the rest of the conversation) only applies when a conversation is
         active — during the inter-conversation gap the same injection is a continuous
         PRE-WARM: it keeps the prompt ready but stays unlocked so the ambient speaker
-        can be revised. A conversation-scoped commit (or a manual set_speaker) is what
-        actually locks."""
+        can be revised (every re-detection refreshes the prewarm_ttl clock). A
+        conversation-scoped commit (or a manual set_speaker) is what actually locks."""
         status = "confirmed" if self.conversation_active else "prewarmed"
         if self.conversation_active:
             self.committed_speaker = name          # LOCK — conversations only
+        else:
+            self._last_prewarm_refresh = time.time()   # pre-warm: refresh the TTL
         self.last_speaker.id = name
         self.last_speaker.confidence = score
         self.last_phrase_speaker.id = name

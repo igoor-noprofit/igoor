@@ -5,6 +5,7 @@
     "buffer_duration": 2.0,
     "min_audio_duration": 1.0,
     "identification_cooldown": 2.0,
+    "prewarm_ttl": 30.0,
     "voice_profiles_enabled": false,
     "assignment_popup_enabled": false
 }
