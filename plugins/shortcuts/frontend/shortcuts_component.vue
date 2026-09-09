@@ -440,7 +440,9 @@ export default {
 .btn-shortcut .icon,
 .btn-shortcut img {
     width: 100%;
-    height: auto;
+    /* Explicit height: the sprite's viewBox lives on the <symbol>, so the svg
+       has no intrinsic ratio and height:auto collapses to 0 in WebKit. */
+    height: 64px;
     max-width: 64px;
     max-height: 64px;
     object-fit: contain;

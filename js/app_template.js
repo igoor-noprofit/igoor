@@ -119,8 +119,16 @@ async function installSvgSpriteShim() {
       return;
     }
     const container = document.createElement("div");
-    container.style.display = "none";
+    // WebKit does not render <use> targets inside a display:none subtree:
+    // hide the sprite with a zero-size clip instead, and drop the
+    // display="none" attribute the sprite file puts on its <svg> root.
+    container.style.cssText = "position:absolute;width:0;height:0;overflow:hidden";
+    container.setAttribute("aria-hidden", "true");
     container.innerHTML = await response.text();
+    const svgRoot = container.querySelector("svg");
+    if (svgRoot) {
+      svgRoot.removeAttribute("display");
+    }
     document.body.insertBefore(container, document.body.firstChild);
     document.querySelectorAll("use").forEach(rewriteUse);
     new MutationObserver((mutations) => {
