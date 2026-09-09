@@ -8,7 +8,7 @@ class AudioProcessor extends AudioWorkletProcessor {
         this.wakewordBuffer = [];  // Buffer for wakeword detection
         this.nativeSampleRate = sampleRate;
         this.targetSampleRate = 16000;
-        this.chunkDuration = 3.0;
+        this.chunkDuration = 2.0;
         this.wakewordChunkDuration = 0.08;  // 80ms chunks for wakeword detection
 
         // Handle messages from main thread
@@ -91,7 +91,7 @@ class AudioProcessor extends AudioWorkletProcessor {
             const downsampledData = this.downsampleAudio(inputChannel, this.nativeSampleRate, this.targetSampleRate);
             this.speakerIdBuffer.push(...downsampledData);
 
-            // Check if we have enough data for a chunk (3 seconds at 16kHz)
+            // Check if we have enough data for a chunk (chunkDuration seconds at 16kHz)
             const chunkSize = Math.floor(this.targetSampleRate * this.chunkDuration);
             if (this.speakerIdBuffer.length >= chunkSize) {
                 const chunk = this.speakerIdBuffer.slice(0, chunkSize);

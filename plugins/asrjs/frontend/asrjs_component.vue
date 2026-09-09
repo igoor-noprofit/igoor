@@ -635,11 +635,9 @@ export default {
             this.$_writeString(view, 36, 'data');
             view.setUint32(40, int16Array.length * 2, true);
 
-            // Write audio data
-            const offset = 44;
-            for (let i = 0; i < int16Array.length; i++) {
-                view.setInt16(offset + i * 2, int16Array[i], true);
-            }
+            // Write audio data (typed-array copy — per-sample DataView calls are
+            // slow at chunk size)
+            new Int16Array(buffer, 44).set(int16Array);
 
             return new Blob([buffer], { type: 'audio/wav' });
         },
@@ -708,16 +706,6 @@ export default {
 
 
 
-        $_float32ToInt16(float32Array) {
-            // Convert Float32Array to Int16Array (16-bit signed PCM)
-            const int16Array = new Int16Array(float32Array.length);
-            for (let i = 0; i < float32Array.length; i++) {
-                const s = Math.max(-1, Math.min(1, float32Array[i]));
-                int16Array[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
-            }
-            return int16Array;
-        },
-
         async $_sendFixedChunkToSpeakerID(float32Chunk) {
             // Send fixed chunk to speakerid for identification
             if (!this.speakerIdAvailable || !this.voiceProfilesEnabled) {
@@ -730,32 +718,35 @@ export default {
                 return;
             }
 
-            try {
-                // Convert float32 to int16
-                const int16Data = this.$_float32ToInt16(float32Chunk);
+            const send = async () => {
+                try {
+                    // Convert to WAV format
+                    const wavBlob = this.$_createWAVChunk(float32Chunk, 16000);
 
-                // Convert to WAV format
-                const wavBlob = this.$_createWAVChunk(float32Chunk, 16000);
+                    // Send to speakerid endpoint
+                    const formData = new FormData();
+                    formData.append('audio_file', wavBlob, 'chunk.wav');
+                    formData.append('sample_rate', '16000');
 
-                // Send to speakerid endpoint
-                const formData = new FormData();
-                formData.append('audio_file', wavBlob, 'chunk.wav');
-                formData.append('sample_rate', '16000');
+                    const response = await fetch('/api/plugins/speakerid/process_audio_chunk', {
+                        method: 'POST',
+                        body: formData
+                    });
 
-                const response = await fetch('/api/plugins/speakerid/process_audio_chunk', {
-                    method: 'POST',
-                    body: formData
-                });
-
-                if (response.ok) {
-                    const result = await response.json();
-                    console.log('Fixed chunk sent to speakerid:', result);
-                } else {
-                    console.error('Error sending fixed chunk to speakerid:', response.status);
+                    if (response.ok) {
+                        const result = await response.json();
+                        console.log('Fixed chunk sent to speakerid:', result);
+                    } else {
+                        console.error('Error sending fixed chunk to speakerid:', response.status);
+                    }
+                } catch (error) {
+                    console.error('Error sending fixed chunk to speakerid:', error);
                 }
-            } catch (error) {
-                console.error('Error sending fixed chunk to speakerid:', error);
-            }
+            };
+            // Serialize: chunks must reach the backend in capture order — on a slow
+            // machine overlapping fetches could interleave them into the rolling buffer.
+            this._speakerIdChain = (this._speakerIdChain || Promise.resolve()).then(send, send);
+            return this._speakerIdChain;
         },
 
         async $_sendWakewordChunk(int16Chunk) {

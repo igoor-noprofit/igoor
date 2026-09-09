@@ -1,6 +1,7 @@
 import os
 
 import pickle
+import logging
 import numpy as np
 from pathlib import Path
 import threading
@@ -15,11 +16,14 @@ warnings.filterwarnings('ignore')
 from speechbrain.inference.speaker import SpeakerRecognition
 
 class SpeakerIdentificationSystem:
-    def __init__(self, voices_dir="./voices", embeddings_file="speaker_embeddings.pkl", model_name="speechbrain/spkrec-ecapa-voxceleb", plugin_dir=None):
+    def __init__(self, voices_dir="./voices", embeddings_file="speaker_embeddings.pkl", model_name="speechbrain/spkrec-ecapa-voxceleb", plugin_dir=None, logger=None):
         self.voices_dir = Path(voices_dir)
         self.embeddings_file = embeddings_file
         self.model_name = model_name
         self.plugin_dir = plugin_dir
+        # The plugin passes its logger so per-identification traces land in the app
+        # log at debug level instead of print()ing to stdout on the hot path.
+        self.logger = logger or logging.getLogger(__name__)
 
         # Load the SpeechBrain model - savedir is optional in 1.0+, uses HF cache directly
         print("Loading speaker recognition model...")
@@ -276,7 +280,7 @@ class SpeakerIdentificationSystem:
         """Extract embedding from raw audio data (numpy array)"""
         # Convert to tensor
         waveform = torch.from_numpy(audio_data).float()
-        
+
         # Ensure mono and add batch dimension
         if waveform.dim() == 1:
             waveform = waveform.unsqueeze(0)
@@ -285,7 +289,15 @@ class SpeakerIdentificationSystem:
                 waveform = waveform.mean(dim=0, keepdim=True)
         else:
             waveform = waveform.reshape(1, -1)
-        
+
+        # The model expects 16kHz — resample anything else (same as extract_embedding).
+        # Previously the sample_rate arg was silently ignored, so a caller at another
+        # rate would get a garbage embedding with no error.
+        if sample_rate != 16000:
+            import torchaudio
+            resampler = torchaudio.transforms.Resample(sample_rate, 16000)
+            waveform = resampler(waveform)
+
         # Encode to get embedding
         with torch.no_grad():
             embeddings = self.classifier.encode_batch(waveform)
@@ -331,10 +343,10 @@ class SpeakerIdentificationSystem:
         """
         # Fast best-effort bail-out before the (expensive) embedding forward pass.
         if self.index is None or len(self.speaker_names) == 0:
-            print("No speakers enrolled - returning empty results")
+            self.logger.debug("No speakers enrolled - returning empty results")
             return None, 0.0, []
 
-        print(f"Identifying speaker from audio: {len(audio_data)} samples at {sample_rate} Hz")
+        self.logger.debug(f"Identifying speaker from audio: {len(audio_data)} samples at {sample_rate} Hz")
 
         # Extract embedding (pure: only local state + the read-only self.classifier)
         test_embedding = self.extract_embedding_from_audio(audio_data, sample_rate)
@@ -344,7 +356,7 @@ class SpeakerIdentificationSystem:
         # rebuild() can't swap them mid-read (would IndexError on speaker_names[idx]).
         with self._index_lock:
             if self.index is None or len(self.speaker_names) == 0:
-                print("No speakers enrolled - returning empty results")
+                self.logger.debug("No speakers enrolled - returning empty results")
                 return None, 0.0, []
             similarities, indices = self.index.search(
                 test_embedding_normalized.reshape(1, -1),
@@ -356,9 +368,9 @@ class SpeakerIdentificationSystem:
         # Best match
         best_match = results[0][0] if results[0][1] >= threshold else None
         best_score = results[0][1] if results else 0.0
-        
-        print(f"Speaker identification result: {best_match} (confidence: {best_score:.2f})")
-        print(f"Top {len(results)} matches: {[(name, f'{score:.2f}') for name, score in results]}")
+
+        self.logger.debug(f"Speaker identification result: {best_match} (confidence: {best_score:.2f})")
+        self.logger.debug(f"Top {len(results)} matches: {[(name, f'{score:.2f}') for name, score in results]}")
 
         return best_match, best_score, results
     
