@@ -1,7 +1,7 @@
 from settings_manager import SettingsManager
 from plugins.baseplugin.baseplugin import Baseplugin
 from plugin_manager import hookimpl, PluginManager
-import os, json
+import os, json, shutil
 from langchain_community.document_loaders import TextLoader
 import pymupdf4llm
 from langchain_community.vectorstores import FAISS
@@ -921,6 +921,18 @@ class Rag(Baseplugin):
         md_text = pymupdf4llm.to_markdown(file_path)
         return md_text
 
+    def _purge_hf_cache(self, model_name, cache_folder):
+        """Remove the model's HuggingFace cache folder when a cached load has
+        already failed: the snapshot is incomplete/corrupt and would keep
+        failing (even online) since the loader resolves to the cached path."""
+        model_dir = os.path.join(cache_folder, "models--" + model_name.replace("/", "--"))
+        if os.path.isdir(model_dir):
+            try:
+                shutil.rmtree(model_dir, ignore_errors=True)
+                self.logger.info(f"Removed incomplete HuggingFace cache for {model_name}")
+            except Exception as e:
+                self.logger.warning(f"Could not remove incomplete HuggingFace cache for {model_name}: {e}")
+
     def get_embedding_function(self):
         self.logger.debug("LOADING EMBEDDING FUNCTION")
         embedding_model = self.settings.get("embedding_model")
@@ -953,6 +965,7 @@ class Rag(Baseplugin):
                 return hf
             except Exception as e:
                 self.logger.warning(f"Failed to load from cache: {e}. Trying online...")
+                self._purge_hf_cache(embedding_model, cache_folder)
                 model_kwargs['local_files_only'] = False
                 hf = HuggingFaceBgeEmbeddings(
                     model_name=embedding_model,
@@ -984,6 +997,7 @@ class Rag(Baseplugin):
                 return hf
             except Exception as e:
                 self.logger.warning(f"Failed to load from cache: {e}. Trying online...")
+                self._purge_hf_cache(embedding_model, cache_folder)
                 model_kwargs["local_files_only"] = False
                 hf = HuggingFaceEmbeddings(
                     model_name=embedding_model,
