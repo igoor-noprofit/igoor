@@ -80,6 +80,7 @@ module.exports = {
   display: flex;
   gap: 1rem;
   justify-content: flex-end;
+  flex: 1;
 }
 
 .save-settings-button button {

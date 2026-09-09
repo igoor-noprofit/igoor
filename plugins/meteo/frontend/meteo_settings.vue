@@ -52,7 +52,7 @@
                 :placeholder="t('ex. 13.12292393')"
             />
         </div>
-        <div class="form-note"></div>
+        <div class="form-note" v-if="shouldShowManualCoords"></div>
 
         <div class="form-label" v-if="shouldShowManualCoords">
             {{ t('Longitude') }}
@@ -64,11 +64,12 @@
                 :placeholder="t('ex. 1.848349')"
             />
         </div>
-        <div class="form-note"></div>
+        <div class="form-note" v-if="shouldShowManualCoords"></div>
 
-        <!-- Save Button (spans all columns) -->
+        <!-- Save Button (just after the fields) -->
         <div class="form-label"></div>
-        <div class="form-input" style="grid-column: 2 / -1;">
+        <div class="form-input"></div>
+        <div class="form-actions">
             <SaveSettingsButton
                 :hasChanges="hasUnsavedChanges"
                 :loading="isSaving"
@@ -306,6 +307,17 @@ export default {
     line-height: 1.4;
     padding-top: 2px;
     text-align: left;
+    min-width: 0;
+    max-width: 550px;
+    overflow-wrap: anywhere;
+}
+
+.form-actions {
+    display: flex;
+}
+
+.form-actions .save-settings-button {
+    justify-content: flex-start;
 }
 
 select, input[type="text"], input[type="password"], input[type="url"] {
