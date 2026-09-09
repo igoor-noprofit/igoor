@@ -71,6 +71,6 @@
     "Medium": "Médio",
     "Slow": "Lento",
     "Very slow": "Muito lento",
-    "Open Windows microphone settings": "Abrir as configurações de microfone do Windows",
-    "IGOOR uses your Windows default microphone.": "O IGOOR usa o microfone padrão do Windows."
+    "Open OS microphone settings": "Abrir as configurações de microfone do sistema",
+    "IGOOR uses your system default microphone.": "O IGOOR usa o microfone padrão do sistema."
 }

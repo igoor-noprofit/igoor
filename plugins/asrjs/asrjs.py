@@ -10,7 +10,7 @@ import groq
 import numpy as np
 from typing import Optional
 from fastapi import APIRouter, UploadFile, File, HTTPException
-from utils import setup_logger, get_base_language_code
+from utils import setup_logger, get_base_language_code, open_os_sound_settings
 from pathlib import Path
 
 WAKEWORD_MODELS_DIR = os.path.join(os.path.dirname(__file__), "static", "wakeword")
@@ -1061,16 +1061,16 @@ class Asrjs(Baseplugin):
 
         @self.router.post("/open_sound_settings")
         async def open_sound_settings_endpoint():
-            """Open Windows Sound settings so the user can choose/verify the default microphone.
+            """Open the OS sound settings so the user can choose/verify the default microphone.
 
-            IGOOR captures from the Windows default input device, so device choice is managed
+            IGOOR captures from the OS default input device, so device choice is managed
             in the OS rather than in-app (browser deviceIds are not durable across sessions).
             """
             try:
-                if os.name == 'nt':
-                    os.startfile('ms-settings:sound')
+                success, message = open_os_sound_settings()
+                if success:
                     return {"status": "success"}
-                return {"status": "error", "message": "Not supported on this platform"}
+                return {"status": "error", "message": message}
             except Exception as e:
                 self.logger.error(f"Error opening sound settings: {e}")
                 return {"status": "error", "message": str(e)}

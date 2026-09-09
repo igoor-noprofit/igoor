@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 load_dotenv()
 from context_manager import context_manager
 from settings_manager import SettingsManager
-from utils import get_appdata_dir
+from utils import get_appdata_dir, open_os_sound_settings
 from fastapi import APIRouter, HTTPException
 
 class Onboarding(Baseplugin):
@@ -88,12 +88,12 @@ class Onboarding(Baseplugin):
 
         @self.router.post("/open_sound_settings")
         async def open_sound_settings_endpoint():
-            """Open Windows Sound settings so the user can choose the default microphone."""
+            """Open the OS sound settings so the user can choose the default microphone."""
             try:
-                if os.name == 'nt':
-                    os.startfile('ms-settings:sound')
+                success, message = open_os_sound_settings()
+                if success:
                     return {"status": "success"}
-                return {"status": "error", "message": "Not supported on this platform"}
+                return {"status": "error", "message": message}
             except Exception as e:
                 return {"status": "error", "message": str(e)}
 

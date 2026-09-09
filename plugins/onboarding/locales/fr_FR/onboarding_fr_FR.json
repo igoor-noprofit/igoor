@@ -128,5 +128,6 @@
   "Biography": "Biographie",
   "Complete Biography": "Compléter la biographie",
   "Start Biography": "Commencer la biographie",
-  "Open Windows microphone settings": "Ouvrir les paramètres du microphone Windows"
+  "Open OS microphone settings": "Ouvrir les paramètres du microphone du système",
+  "Paste": "Coller"
 }

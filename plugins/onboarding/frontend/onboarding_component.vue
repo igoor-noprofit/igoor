@@ -56,8 +56,8 @@
                                     </button>
                                     <button v-if="categoryItem.category === 'Speech Recognition'"
                                             class="shortcut-item btn btn-primary"
-                                            @click="openWindowsMicSettings">
-                                        <span class="shortcut-label">{{ t("Open Windows microphone settings") }}</span>
+                                            @click="openMicSettings">
+                                        <span class="shortcut-label">{{ t("Open OS microphone settings") }}</span>
                                     </button>
                                 </div>
                             </div>
@@ -168,6 +168,9 @@
                                             :class="{'input-error': apiKeyError, 'input-success': apiKeyValid}"
                                             :disabled="isValidating"
                                         />
+                                        <button type="button" @click="$_pasteApiKey" :disabled="isValidating" :title="t('Paste')" style="display: flex; align-items: center; padding: 6px 10px;">
+                                            <i class="ph-light ph-clipboard-text"></i>
+                                        </button>
                                         <span v-if="isValidating">{{ t('Validating...') }}</span>
                                         <span v-if="apiKeyValid" class="valid-icon">✓</span>
                                     </div>
@@ -631,12 +634,25 @@ export default {
         }
     },
     methods: {
-        async openWindowsMicSettings() {
-            // IGOOR captures from the Windows default mic; let the user manage it in the OS.
+        async $_pasteApiKey() {
+            // The desktop shell has no working paste shortcut (and eye-tracking
+            // users benefit from a single click): read the clipboard on the backend.
+            try {
+                const backendApi = await window.ensureBackendApi();
+                const text = await backendApi.getClipboard();
+                if (text && text.trim()) {
+                    this.ai.api_key = text.trim();
+                }
+            } catch (e) {
+                console.error('Could not read the clipboard:', e);
+            }
+        },
+        async openMicSettings() {
+            // IGOOR captures from the OS default mic; let the user manage it in the OS.
             try {
                 await fetch('/api/plugins/onboarding/open_sound_settings', { method: 'POST' });
             } catch (e) {
-                console.error('Could not open Windows microphone settings:', e);
+                console.error('Could not open the OS microphone settings:', e);
             }
         },
         async openDataFolder() {
