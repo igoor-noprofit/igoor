@@ -105,12 +105,18 @@
                     {{ t('Recordings: {count}', { count: (recordingForSpeaker.sample_count || 0) }) }}
                     <span v-if="(recordingForSpeaker.sample_count || 0) >= minRecordings" class="speakerid-settings__guide-done">{{ t('✓ Enough recordings! You can close, or continue to improve recognition.') }}</span>
                 </p>
-                <div class="speakerid-settings__phrase-card">
+                <div v-if="phraseIndex < currentPhraseSet.length" class="speakerid-settings__phrase-card">
                     <div class="speakerid-settings__phrase-label">
                         <span>{{ t('Phrase to read') }}</span>
-                        <span class="speakerid-settings__phrase-count">{{ Math.min(phraseIndex + 1, currentPhraseSet.length) }} / {{ currentPhraseSet.length }}</span>
+                        <span class="speakerid-settings__phrase-count">{{ phraseIndex + 1 }} / {{ currentPhraseSet.length }}</span>
                     </div>
                     <p :key="phraseIndex" class="speakerid-settings__phrase-current speakerid-settings__phrase-current--appear">{{ currentPhrase }}</p>
+                </div>
+                <div v-else class="speakerid-settings__phrase-card">
+                    <div class="speakerid-settings__phrase-label">
+                        <span>{{ t('Free recording') }}</span>
+                    </div>
+                    <p class="speakerid-settings__phrase-current">{{ t('Well done! Now record freely: talk about anything you like. Every extra recording in your natural voice improves recognition.') }}</p>
                 </div>
             </div>
 
@@ -213,8 +219,9 @@ module.exports = {
                 recording: this.t('Recording…')
             };
         },
-        // Show one phrase at a time (the one to read now). After all are done we hold
-        // on the last phrase; the counter + "enough" message signal completion.
+        // Show one phrase at a time (the one to read now). Once all suggested phrases
+        // are read, the template switches to the free-recording card (no more
+        // suggestions) so the user can talk about anything.
         currentPhrase() {
             const set = this.currentPhraseSet;
             if (!set.length) return '';
@@ -309,8 +316,12 @@ module.exports = {
             this.pendingBlob = null;
             this.statusMessage = '';
             this.recordingsThisSession = 0;
-            this.phraseIndex = 0;
             this.currentPhraseSet = this.$_buildPhraseSet(speaker.name);
+            // A speaker who already has the ≥3 suggested-phrase recordings reopens
+            // in free-recording mode — no need to re-read the phrases.
+            this.phraseIndex = (speaker.sample_count || 0) >= this.minRecordings
+                ? this.currentPhraseSet.length
+                : 0;
         },
 
         $_buildPhraseSet(name) {

@@ -32,6 +32,8 @@
     "{user}, we got news from the family today. Want me to tell you about it?": "{user}, on a reçu des nouvelles de la famille aujourd'hui. Tu veux que je te raconte ?",
     "Recordings: {count}": "Enregistrements : {count}",
     "✓ Enough recordings! You can close, or continue to improve recognition.": "✓ C'est suffisant ! Vous pouvez fermer, ou continuer pour améliorer la reconnaissance.",
+    "Free recording": "Enregistrement libre",
+    "Well done! Now record freely: talk about anything you like. Every extra recording in your natural voice improves recognition.": "Bravo ! Maintenant, enregistrez-vous librement : parlez de ce que vous voulez. Chaque enregistrement supplémentaire dans votre voix naturelle améliore la reconnaissance.",
     "Cancel": "Annuler",
     "Delete {name}? Associated conversations will NOT be deleted.": "Supprimer {name} ? Les conversations associées NE SERONT PAS supprimées.",
     "Reset {name}'s voice profile? All recordings will be deleted.": "Réinitialiser l'empreinte vocale de {name} ? Tous les enregistrements seront supprimés.",
