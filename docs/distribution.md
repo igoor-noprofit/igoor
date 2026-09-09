@@ -171,3 +171,57 @@ entries (unambiguous test with prior logs moved aside). Data now survives
 uninstall; Open Data Folder opens the live folder; Inno and Store channels
 share the same real data. Data written by earlier virtualized test builds
 lives orphaned in the container - test installs only, no user impact.
+
+# macOS distribution strategy
+
+## Decision record (2026-09)
+
+Goal: the macOS equivalent of the Windows SmartScreen problem — kill the
+Gatekeeper "unidentified developer" dialog for a DMG download.
+
+| Option | Verdict | Why |
+|---|---|---|
+| **Developer ID + notarized DMG** | **Chosen** | Standard Mac indie route. Notarization gives a clean first-launch (no right-click→Open needed), no sandbox required, all current features keep working. Needs the paid Apple Developer Program ($99/yr). |
+| Mac App Store | Deferred | MAS requires full App Sandbox — unlike full-trust MSIX there is no escape hatch. Audit list below; revisit after the DMG channel is running. |
+| Unsigned / ad-hoc DMG | Test builds only | Right-click → Open friction; App Translocation quirks. Fine for internal testing, not users. |
+
+## Pipeline (installer/dmg/)
+
+- `make_icns.py` — regenerates `img/igoor.icns` from the 256px frame of
+  `img/igoor_logo_pLG_icon.ico`.
+- `build_dmg.sh` — one command: production `.env` swap → PyInstaller
+  (`igoor.spec.txt`, platform-branched; BUNDLE step builds `IGOOR.app` with
+  `NSMicrophoneUsageDescription` — required or a notarized app crashes on
+  first mic access) → codesign → `hdiutil` DMG → optional notarize/staple →
+  optional GitHub release upload.
+- Apple Silicon only: torch 2.8.0 ships no macOS x86_64 wheels. Documented in
+  the README platform table.
+
+Environment variables:
+- `IGOOR_CODESIGN_IDENTITY` — "Developer ID Application: NAME (TEAMID)".
+  Unset → ad-hoc signature (local test only).
+- `IGOOR_NOTARY_PROFILE` — keychain profile created once with
+  `xcrun notarytool store-credentials`. Unset → skip notarization.
+- `--upload-release` flag — uploads to the GitHub release (`.github_token.txt`).
+
+Build-time gotcha: PyInstaller 6.x (via altgraph) still imports
+`pkg_resources`, removed in setuptools 81+ — keep `setuptools<81` in the
+build venv (pinned in requirements.txt).
+
+Data layout verified: all runtime writes go to
+`~/Library/Application Support/igoor` (APPDATA convention, same as Windows)
+and `~/.cache/huggingface` — nothing is written inside `IGOOR.app`, so the
+code signature stays valid across runs and model downloads.
+
+## Mac App Store audit (future, if ever pursued)
+
+Sandbox blockers to fix first:
+- subprocess `pbpaste` (clipboard endpoint) → replace with NSPasteboard
+  (pyobjc-framework-Cocoa is already a dependency)
+- subprocess `open` (OS mic settings) → NSWorkspace.openURL
+- ffmpeg via subprocess (recorder/some TTS) → must ship inside the bundle;
+  child processes inherit the sandbox
+- `get_appdata_dir()` paths → resolve into the app container
+  (`~/Library/Containers/...`)
+- Entitlements set needed: app-sandbox, network server+client (loopback
+  FastAPI), microphone, hardened runtime

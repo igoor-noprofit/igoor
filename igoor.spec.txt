@@ -1,6 +1,18 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+import os
+import re
+import sys
+
 from PyInstaller.utils.hooks import collect_data_files, collect_submodules
+
+IS_WINDOWS = sys.platform == 'win32'
+IS_MACOS = sys.platform == 'darwin'
+
+# App version from version.py (single source of truth; read via regex to keep
+# the spec free of import side effects).
+with open('version.py', 'r', encoding='utf-8') as _f:
+    VERSION = re.search(r"__version__\s*=\s*['\"]([^'\"]+)", _f.read()).group(1)
 
 # Collect pywebview JS files
 webview_datas = collect_data_files('webview', includes=['js/*'])
@@ -31,56 +43,69 @@ datas = [
     ('index.html', '.')
 ] + webview_datas + openwakeword_datas + pockettts_datas
 
+hiddenimports = [
+    'pydub.playback',
+    'speechify',
+    'pymupdf4llm',
+    'PIL.ImageGrab',
+    'pyaudio',
+    'huggingface_hub',
+    'prompt_manager',
+    'context_manager',
+    'settings_manager',
+    'llm_manager',
+    'db_manager',
+    'pydantic.deprecated.decorator',
+    # === YOUR EXISTING IMPORTS ===
+    *collect_submodules('speechbrain'),  # bundle every submodule in the PYZ (lazy-loaded ones like inference.speaker aren't seen by PyInstaller's bytecode scan). The find_imports() os.listdir issue is handled by the on-disk Tree added to a.datas below — no patch needed.
+    'numpy',
+    'groq',
+    'sherpa_onnx',
+    'openwakeword',
+    # pockettts plugin: loaded dynamically by the plugin loader
+    'pocket_tts',
+    'gdown',
+    'yaml',
+
+    # === CORE SENTENCE TRANSFORMERS (Required) ===
+    'sentence_transformers',
+    'sentence_transformers.models',
+
+    # === TRANSFORMERS (Required) ===
+    'transformers',
+    'transformers.models.bert',  # If using BERT-based models
+
+    # === TORCH (Required) ===
+    'torch',
+    'torch.nn',
+
+    # === SCIPY - Only if you get scipy errors ===
+    # Uncomment ONLY if needed:
+    # 'scipy',
+    # 'scipy.special.cython_special'
+
+]
+
+if IS_WINDOWS:
+    hiddenimports += [
+        'win32gui',
+        'win32con',
+        'pywinauto',
+    ]
+
+if IS_MACOS:
+    hiddenimports += [
+        # pywebview picks its GUI backend at runtime; the cocoa backend module
+        # is only reached through a dynamic import.
+        'webview.platforms.cocoa',
+    ]
+
 a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[],
     datas=datas,
-    hiddenimports=[
-        'pydub.playback',
-        'speechify',
-        'pymupdf4llm',
-        'PIL.ImageGrab',
-        'pyaudio',
-        'huggingface_hub',
-        'prompt_manager',
-        'context_manager',
-        'settings_manager',
-        'llm_manager',
-        'db_manager',
-        'pydantic.deprecated.decorator',
-        'win32gui',
-        'win32con',
-        'pywinauto',
-        # === YOUR EXISTING IMPORTS ===
-        *collect_submodules('speechbrain'),  # bundle every submodule in the PYZ (lazy-loaded ones like inference.speaker aren't seen by PyInstaller's bytecode scan). The find_imports() os.listdir issue is handled by the on-disk Tree added to a.datas below — no patch needed.
-        'numpy',
-        'groq',
-        'sherpa_onnx',
-        'openwakeword',
-        # pockettts plugin: loaded dynamically by the plugin loader
-        'pocket_tts',
-        'gdown',
-        'yaml',
-
-        # === CORE SENTENCE TRANSFORMERS (Required) ===
-        'sentence_transformers',
-        'sentence_transformers.models',
-        
-        # === TRANSFORMERS (Required) ===
-        'transformers',
-        'transformers.models.bert',  # If using BERT-based models
-        
-        # === TORCH (Required) ===
-        'torch',
-        'torch.nn',
-        
-        # === SCIPY - Only if you get scipy errors ===
-        # Uncomment ONLY if needed:
-        # 'scipy',
-        # 'scipy.special.cython_special'
-
-    ],
+    hiddenimports=hiddenimports,
     hookspath=['.'],
     hooksconfig={},
     runtime_hooks=[],
@@ -99,8 +124,8 @@ a = Analysis(
 # filenames. Imports still resolve from the PYZ (frozen importer takes
 # precedence) — no venv patch. Added to a.datas (a TOC of 3-tuples), NOT to the
 # pre-Analysis datas list (which expects 2-tuples and rejects Tree's entries).
-import os as _os, speechbrain as _sb
-a.datas += Tree(_os.path.dirname(_sb.__file__), prefix='speechbrain')
+import speechbrain as _sb
+a.datas += Tree(os.path.dirname(_sb.__file__), prefix='speechbrain')
 
 pyz = PYZ(a.pure)
 
@@ -113,13 +138,17 @@ exe = EXE(
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
-    upx=True,
+    upx=(True if IS_WINDOWS else False),
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
-    codesign_identity=None,
+    # Whole-tree signing happens after PyInstaller: signtool on the MSIX
+    # (Windows, installer/msix/build_msix.bat) or codesign on the .app
+    # (macOS, installer/dmg/build_dmg.sh). These only cover the bootloader
+    # binary; env override lets a build machine pre-sign it.
+    codesign_identity=os.environ.get('IGOOR_CODESIGN_IDENTITY'),
     entitlements_file=None,
-    icon="img/logo_ig_lxL_icon.ico",
+    icon=("img/logo_ig_lxL_icon.ico" if IS_WINDOWS else "img/igoor.icns"),
     console=False
 )
 
@@ -128,7 +157,29 @@ coll = COLLECT(
     a.binaries,
     a.datas,
     strip=False,
-    upx=True,
+    upx=(True if IS_WINDOWS else False),
     upx_exclude=[],
     name='igoor',
 )
+
+if IS_MACOS:
+    # macOS .app bundle. codesign_identity/entitlements are applied by
+    # installer/dmg/build_dmg.sh (env: IGOOR_CODESIGN_IDENTITY); PyInstaller
+    # itself ad-hoc signs (arm64 requirement) when the identity is None here.
+    bundle = BUNDLE(
+        coll,
+        name='IGOOR.app',
+        icon='img/igoor.icns',
+        bundle_identifier='org.igoor.igoor',
+        version=VERSION,
+        info_plist={
+            # pyaudio/sounddevice capture goes through CoreAudio: without this
+            # key a signed/notarized app crashes on first microphone access.
+            'NSMicrophoneUsageDescription': 'IGOOR uses the microphone for speech recognition and voice control.',
+            'NSHighResolutionCapable': True,
+            # Apple Silicon only: torch 2.8.0 ships no macOS x86_64 wheels.
+            'LSMinimumSystemVersion': '11.0',
+            'CFBundleShortVersionString': VERSION,
+            'CFBundleVersion': VERSION,
+        },
+    )

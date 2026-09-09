@@ -58,9 +58,10 @@ and it now includes a **Multiplatform Rules** section that binds you.
 5. Deliver `COMPAT_MACOS.md` + evidence a human maintainer reviews in one
    sitting.
 
-Out of scope: .dmg packaging, code signing, notarization (gated on an Apple
-Developer account — future work), porting extkeyb/ttsdefault to Mac
-equivalents, performance tuning.
+Out of scope: Mac App Store submission (requires full App Sandbox — see the
+audit list in docs/distribution.md), porting extkeyb/ttsdefault to Mac
+equivalents, performance tuning. Done since: .dmg packaging, Developer ID
+signing and notarization pipeline (`installer/dmg/build_dmg.sh`).
 
 ## Your working documents
 
