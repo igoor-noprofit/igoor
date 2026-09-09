@@ -5,7 +5,7 @@ import tempfile
 from pathlib import Path
 from typing import Dict, Optional
 
-from fastapi import APIRouter, FastAPI, HTTPException, UploadFile, WebSocket, WebSocketDisconnect, status, Query
+from fastapi import APIRouter, FastAPI, HTTPException, Request, UploadFile, WebSocket, WebSocketDisconnect, status, Query
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from pydantic import BaseModel
 from starlette.staticfiles import StaticFiles
@@ -210,6 +210,17 @@ def create_app() -> FastAPI:
     app.mount("/img", StaticFiles(directory=resource_path("img")), name="img")
     app.mount("/plugins", StaticFiles(directory=resource_path("plugins")), name="plugins")
     app.mount("/locales", StaticFiles(directory=resource_path("locales")), name="locales")
+
+    @app.middleware("http")
+    async def revalidate_static_assets(request: Request, call_next):
+        # Frontend assets (.vue/.js/.css served from the app root) change on every
+        # upgrade; without an explicit Cache-Control the browser heuristic-caches
+        # them and renders a stale UI until the cache happens to expire.
+        response = await call_next(request)
+        if "Cache-Control" not in response.headers:
+            response.headers["Cache-Control"] = "no-cache"
+        return response
+
     @app.websocket("/ws/{plugin_name}")
     async def websocket_endpoint(websocket: WebSocket, plugin_name: str):
         name = plugin_name.strip("/") or "app"
