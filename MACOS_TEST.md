@@ -10,7 +10,7 @@ Goal: confirm the app **launches a window and boots** on macOS. This validates t
 
 ## 1. Get a Mac (if you don't have one)
 
-A remote macOS desktop is fine. Pick one with **per-minute/hourly** billing so a smoke test costs ~$1–2:
+A remote macOS desktop is fine. Note that Apple licensing forces most providers to a **24-hour minimum billing** (see per-service notes below):
 
 - **Scaleway M1 as-a-Service** — ~€0.10/hr, macOS desktop ready in ~5 min. ⚠️ **24-hour minimum lease** (Apple licensing), so even a quick test costs the ~€2.40 day floor: https://scaleway.com/en/hello-m1/
 - **RentAMac.io** — flat ~$3.30/day (M4 Macs): https://rentamac.io/
@@ -20,9 +20,35 @@ A remote macOS desktop is fine. Pick one with **per-minute/hourly** billing so a
 
 ---
 
-## 2. Setup (copy-paste)
+## 2. Setup
+
+### The one-command way (recommended)
+
+[`setup_mac.sh`](./setup_mac.sh) does everything below — **including installing Homebrew and the Xcode CLT if missing** (it checks each prerequisite first, so it's safe to re-run, and it's the easiest thing to hand to someone on a Mac). From any folder:
 
 ```bash
+curl -fsSL https://raw.githubusercontent.com/igoor-noprofit/igoor/feature/v1-multiplatform/setup_mac.sh -o setup_mac.sh
+bash setup_mac.sh
+```
+
+Useful variants:
+
+```bash
+IGOOR_BRANCH=macfix bash setup_mac.sh   # use a different branch
+bash setup_mac.sh --run                 # setup + launch immediately
+```
+
+Each step prints its own duration estimate; expect **~15–30 min end-to-end**, almost all of it `pip install`. The script finishes with sanity checks (Windows packages skipped, pyobjc present, data dir resolves) and launch instructions.
+
+### Manual steps (reference — what the script does)
+
+```bash
+# 0. Homebrew — NOT preinstalled (e.g. on rented Scaleway Macs):
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+# then add it to PATH (Apple Silicon) — the installer prints these same two lines at the end:
+echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> ~/.zprofile
+eval "$(/opt/homebrew/bin/brew shellenv)"
+
 # clone the unified multiplatform branch
 git clone https://github.com/igoor-noprofit/igoor.git igoor && cd igoor
 git checkout feature/v1-multiplatform
