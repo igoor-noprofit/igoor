@@ -47,13 +47,12 @@ class Memory(Baseplugin):
     
     @hookimpl
     def startup(self):
-        loop = asyncio.get_event_loop()
         try:
-            loop = asyncio.get_event_loop()
-            self.mark_ready()
+            asyncio.get_event_loop()
         except RuntimeError:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
+            # No event loop in this thread (e.g. uvloop policy): create one
+            asyncio.set_event_loop(asyncio.new_event_loop())
+        self.mark_ready()
         # self.test_plugin()
     
     async def _startup_async(self):
