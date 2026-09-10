@@ -59,7 +59,7 @@ experimental .dmg build (Apple Silicon):
 | OS | Status | System dependencies |
 |---|---|---|
 | Windows 10/11 | production (installers) | WebView2 Runtime (bundled in installers); FFmpeg in PATH for some TTS plugins |
-| Ubuntu/Debian | boots, core plugins verified (browser or headless `IGOOR_HEADLESS=true`) | `sudo apt install ffmpeg libportaudio2 portaudio19-dev python3-gi gir1.2-webkit2-4.1` (+ optional `xprintidle`) |
+| Ubuntu/Debian | boots, core plugins + native window verified | `sudo apt install ffmpeg libportaudio2 portaudio19-dev gir1.2-webkit2-4.1 libgirepository1.0-dev libcairo2-dev` (+ optional `xprintidle`); PyGObject itself installs from `requirements.txt` |
 | macOS | experimental .dmg build (Apple Silicon) — see [MACOS_TEST.md](MACOS_TEST.md) | `brew install portaudio ffmpeg` (bundled .app needs none) |
 
 Verified results and known limitations on Linux: [COMPAT_UBUNTU.md](COMPAT_UBUNTU.md).

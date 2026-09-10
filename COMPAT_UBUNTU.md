@@ -71,11 +71,8 @@ python main.py
 
 Windowed-mode requirements on Linux:
 
-1. System packages: `gir1.2-webkit2-4.1` + `libgirepository1.0-dev libcairo2-dev` (the latter two only to build PyGObject), then in the venv:
-   ```bash
-   uv pip install "PyGObject==3.50.0"
-   ```
-   ⚠️ **Pin PyGObject to 3.50.x**: PyGObject ≥3.53 requires the new `girepository-2.0` API, which Ubuntu 24.04's `libgirepository1.0-dev` does not provide — the build fails with `Dependency 'girepository-2.0' is required but not found`.
+1. System packages: `gir1.2-webkit2-4.1` + `libgirepository1.0-dev libcairo2-dev` (the latter two only to build PyGObject). PyGObject itself now comes from `requirements.txt` (`PyGObject==3.50.0 ; sys_platform == 'linux'`), so a plain `pip install -r requirements.txt` (or `uv pip install -r requirements.txt`) covers it.
+   ⚠️ **Pinned to 3.50.x**: PyGObject ≥3.53 requires the new `girepository-2.0` API, which Ubuntu 24.04's `libgirepository1.0-dev` does not provide — the build fails with `Dependency 'girepository-2.0' is required but not found`.
 2. Nothing else — `main.py` auto-sets `TCL_LIBRARY`/`TK_LIBRARY` on Linux (uv/pyenv Pythons bundle tcl8.6/tk8.6 but `_tkinter` can't find them; the splash previously died with `Can't find a usable init.tcl`).
 3. The splash uses `ttk.Label` (classic `tk.Label` aborts Xlib on creation with some tk builds — `xcb_io.c` assertion, crash before the window opens).
 
@@ -102,7 +99,7 @@ Pass criteria (Phase-1 equivalent): uvicorn logs `Uvicorn running on http://127.
 | App exits during plugin load with `EXIT BECAUSE OF ERROR LOADING PLUGIN` | `IGOOR_DEBUG` is set to a non-empty string that isn't `true`/`false`; the plugin manager now only hard-exits on `IGOOR_DEBUG=true` (fixed on this branch — previously ANY plugin import error killed the app because the flag check was always-truthy) |
 | Data written to `~/igoor` instead of `~/.igoor` | old baseplugin `dirname()` idiom; fixed on this branch. Delete the stray `~/igoor` folder |
 | Blank UI in browser | check `~/.igoor/logs/`; the web-assets copy step writes to `~/.igoor/web/` — verify it exists and is fresh |
-| Native window fails to open | `ModuleNotFoundError: No module named 'gi'` → PyGObject missing from the venv (`uv pip install "PyGObject==3.50.0"`, see §3). `Can't find a usable init.tcl` → fixed: main.py auto-sets TCL/TK_LIBRARY on Linux |
+| Native window fails to open | `ModuleNotFoundError: No module named 'gi'` → PyGObject missing from the venv (it is in `requirements.txt`; install it with `pip install -r requirements.txt`, see §3). `Can't find a usable init.tcl` → fixed: main.py auto-sets TCL/TK_LIBRARY on Linux |
 
 ## 6. The "no Windows regression" argument
 

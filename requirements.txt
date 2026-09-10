@@ -135,6 +135,10 @@ pydantic==2.9.2
 pydot==3.0.2
 pydub==0.25.1
 pygments==2.19.1
+# Linux native window (pywebview/WebKit2GTK). No manylinux wheels: builds from
+# source, needs libgirepository1.0-dev + libcairo2-dev. Pinned 3.50.x because
+# >=3.53 requires girepository-2.0, which Ubuntu 24.04 does not ship.
+PyGObject==3.50.0 ; sys_platform == 'linux'
 pyinstaller-hooks-contrib==2025.5
 pyinstaller==6.14.1
 # PyInstaller 6.x (altgraph) still imports pkg_resources, removed in setuptools 81+
