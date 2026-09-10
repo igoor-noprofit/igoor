@@ -152,7 +152,9 @@ These are fine to ignore — they're Phase 2/3 work, already documented in `.fac
 
 ## 7. What to capture afterwards
 
-If the boot works, grab these so the remaining work (macOS TTS port, `.dmg` packaging) has a baseline:
+If the boot works, grab these so the remaining work (macOS TTS port) has a baseline:
+(`.dmg` packaging now exists: `installer/dmg/build_dmg.sh` — see
+[docs/distribution.md](docs/distribution.md#macos-distribution-strategy).)
 
 1. The **full startup log** from the terminal
 2. A **screenshot** of the open window

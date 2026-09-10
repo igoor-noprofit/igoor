@@ -51,16 +51,16 @@ the app. The shortcut keeps working across automatic updates.
 
 Microsoft Edge WebView2 Runtime is © Microsoft Corporation.
 
-### OTHER PLATFORMS (EXPERIMENTAL — RUN FROM SOURCE)
+### OTHER PLATFORMS (EXPERIMENTAL)
 
-IGOOR is being ported to Linux and macOS. There is no installer yet for these
-platforms — run from source on the `feature/v1-multiplatform` branch:
+IGOOR is being ported to Linux and macOS. Linux runs from source; macOS has an
+experimental .dmg build (Apple Silicon):
 
 | OS | Status | System dependencies |
 |---|---|---|
 | Windows 10/11 | production (installers) | WebView2 Runtime (bundled in installers); FFmpeg in PATH for some TTS plugins |
 | Ubuntu/Debian | boots, core plugins verified (browser or headless `IGOOR_HEADLESS=true`) | `sudo apt install ffmpeg libportaudio2 portaudio19-dev python3-gi gir1.2-webkit2-4.1` (+ optional `xprintidle`) |
-| macOS | port in progress — see [MACOS_TEST.md](MACOS_TEST.md) | `brew install portaudio ffmpeg` |
+| macOS | experimental .dmg build (Apple Silicon) — see [MACOS_TEST.md](MACOS_TEST.md) | `brew install portaudio ffmpeg` (bundled .app needs none) |
 
 Verified results and known limitations on Linux: [COMPAT_UBUNTU.md](COMPAT_UBUNTU.md).
 
@@ -181,7 +181,7 @@ PLEASE NOTE: Opening inside both pywebview AND external browser will yield unwan
 # PYWEBVIEW: cache invalidation after updating version
 IGOOR auto-invalidates the JS/Vue/HTML cache on upgrade: every frontend asset is requested with a `?v=<IGOOR_VERSION>` query string (the version comes from `version.py`) and `index.html` is served with `Cache-Control: no-store`. When you bump the version, Edge WebView2 fetches the new files automatically — no manual steps required.
 
-If, in an edge case, you still see stale assets in the Pywebview window only (not at `localhost:9714`), you can force-clear the WebView2 cache by deleting this folder:
+If, in an edge case, you still see stale assets in the Pywebview window only (not at `localhost:9714`), you can force-clear the WebView2 cache by deleting this folder (on Windows):
 
 ```
 C:\Users\<user_name>\AppData\Roaming\pywebview\EBWebView
@@ -223,6 +223,29 @@ It will ask you if you want to:
 
 In a CMD window, launch /dist/igoor/igoor.exe 
 (so you can see the logs if there's any error)
+
+### CREATE THE MACOS .DMG (Apple Silicon)
+
+On a Mac with the repo set up ([setup_mac.sh](setup_mac.sh) or manual venv):
+
+```
+installer/dmg/build_dmg.sh
+```
+
+It builds `dist/IGOOR.app`, ad-hoc signs it and packages
+`dist/IGOOR-<version>-mac-arm64.dmg`. Testers open it with right-click → Open
+(ad-hoc signature). To produce a fully notarized DMG (no Gatekeeper warning —
+requires an Apple Developer account):
+
+```
+xcrun notarytool store-credentials igoor-notary --apple-id <id> --team-id <team> --password <app-specific-pwd>
+IGOOR_CODESIGN_IDENTITY="Developer ID Application: <name> (<team>)" \
+IGOOR_NOTARY_PROFILE=igoor-notary \
+installer/dmg/build_dmg.sh
+```
+
+Add `--upload-release` to also upload the DMG to the GitHub release (needs
+`.github_token.txt`). Details: [docs/distribution.md](docs/distribution.md).
 
 ## IGOOR LOGS
 Daily logs are in:
