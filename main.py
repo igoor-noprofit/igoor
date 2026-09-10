@@ -154,7 +154,10 @@ def show_splash_screen(image_path):
     _style.configure('Splash.TLabel', background='white')
     _style.configure('Splash.Title.TLabel', background='white', foreground='#444', font=("Arial", 14, "bold"))
     _style.configure('Splash.Status.TLabel', background='white', foreground='#666', font=("Arial", 11))
-    splash_label = _ttk.Label(splash_root, image=splash_image, style='Splash.TLabel')
+    # anchor is load-bearing: ttk TLabel draws images anchored west (vista/
+    # aqua themes) inside a stretched cell; classic tk.Label centered by
+    # default. Without it the logo hugs the left edge of the splash.
+    splash_label = _ttk.Label(splash_root, image=splash_image, style='Splash.TLabel', anchor='center')
     splash_label.grid(row=0, column=0, sticky='nsew')  # Use grid with sticky to center
 
     # Add version and codename below the logo
