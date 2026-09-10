@@ -8,6 +8,7 @@ from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
 IS_WINDOWS = sys.platform == 'win32'
 IS_MACOS = sys.platform == 'darwin'
+IS_LINUX = sys.platform == 'linux'
 
 # App version from version.py (single source of truth; read via regex to keep
 # the spec free of import side effects).
@@ -100,6 +101,12 @@ if IS_MACOS:
         'webview.platforms.cocoa',
     ]
 
+if IS_LINUX:
+    hiddenimports += [
+        # Same as macOS: the GTK/WebKit2GTK backend is dynamically imported.
+        'webview.platforms.gtk',
+    ]
+
 a = Analysis(
     ['main.py'],
     pathex=[],
@@ -113,6 +120,17 @@ a = Analysis(
     noarchive=False,
     optimize=0,
 )
+
+if IS_LINUX:
+    # CPU-only build: torch pulls the full NVIDIA CUDA runtime (4+ GB) into
+    # _internal/nvidia via its Linux wheels. IGOOR ships CPU-only on Linux
+    # (sherpa-onnx / speechbrain / embeddings all run on CPU), so drop the
+    # CUDA + Triton blobs. Filter matches both 'nvidia/...'-style dest names
+    # and the top-level 'triton' dir (its entries carry no leading slash).
+    a.binaries = TOC(
+        [b for b in a.binaries
+         if '/nvidia/' not in b[1] and not b[1].startswith('triton/')]
+    )
 
 # SpeechBrain walks its own package dirs at import time (find_imports in
 # speechbrain/utils/importutils.py) to register lazy submodule attributes —
