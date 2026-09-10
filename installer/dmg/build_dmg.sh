@@ -48,9 +48,12 @@ NOTARY_PROFILE="${IGOOR_NOTARY_PROFILE:-}"
 # (headless/external access/debug). Stash it, bundle env.production, restore.
 # The repo may legitimately have no .env at all (it is gitignored) - then just
 # ship env.production and remove the copy afterwards.
-ENV_STASHED=0
+# Keyed on the stash file's existence so the trap is idempotent and safe on
+# every exit path: stash present -> the user had a dev .env (put it back);
+# absent -> we created the production copy (remove it). The restore happens
+# only in the EXIT trap - no early call, so there is no flag to reset.
 restore_env() {
-  if [[ "$ENV_STASHED" == 1 ]]; then
+  if [[ -f "$ROOT/.env.stashed" ]]; then
     mv "$ROOT/.env.stashed" "$ROOT/.env"
   else
     rm -f "$ROOT/.env"
@@ -59,9 +62,6 @@ restore_env() {
 trap restore_env EXIT
 if [[ -f "$ROOT/.env" ]]; then
   mv "$ROOT/.env" "$ROOT/.env.stashed"
-  ENV_STASHED=1
-else
-  ENV_STASHED=0
 fi
 cp "$HERE/../msix/env.production" "$ROOT/.env"
 log "shipping production .env"
@@ -71,7 +71,6 @@ cp "$ROOT/igoor.spec.txt" "$ROOT/igoor.spec"
 log "running PyInstaller (several minutes for ~1.2 GB)..."
 "$VENV_PY" -m PyInstaller igoor.spec --noconfirm
 rm -f "$ROOT/igoor.spec"
-restore_env && ENV_STASHED=0
 [[ -d "$DIST_APP" ]] || die "dist/IGOOR.app not produced"
 
 # --- 4. codesign --------------------------------------------------------------
@@ -129,7 +128,7 @@ if [[ "$UPLOAD_RELEASE" == 1 ]]; then
   curl -s -X POST \
     -H "Authorization: token $TOKEN" \
     -H "Content-Type: application/octet-stream" \
-    --data-binary "@$DMG" \
+    -T "$DMG" \
     "https://uploads.github.com/repos/$REPO/releases/$RELEASE_ID/assets?name=$ASSET_NAME" > /dev/null
   log "uploaded to release $TAG (id $RELEASE_ID)"
 fi
