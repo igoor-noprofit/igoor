@@ -36,6 +36,14 @@ die() { echo "[build_deb] ERROR: $*" >&2; exit 1; }
 "$VENV_PY" -c "import PyInstaller" 2>/dev/null || die "PyInstaller not installed in venv (pip install -r requirements.txt)"
 command -v dpkg-deb >/dev/null || die "dpkg-deb not found (apt install dpkg-dev)"
 
+# CPU-only torch guard: igoor.spec.txt strips nvidia/ and triton/ binaries from
+# the bundle, so a CUDA-flavored torch in the venv would freeze a broken import
+# (libtorch_cuda.so links against the stripped libs). The venv must use the
+# +cpu wheels; verify before wasting a multi-minute PyInstaller run.
+"$VENV_PY" -c "import torch, importlib.util as u; assert torch.version.cuda is None and u.find_spec('triton') is None"   || die "build venv torch is CUDA-flavored (or broken) - install the +cpu wheels first:
+     pip install torch==2.8.0 torchaudio==2.8.0 --index-url https://download.pytorch.org/whl/cpu"
+log "torch: CPU-only build confirmed"
+
 VERSION="$("$VENV_PY" -c "import re; print(re.search(r\"__version__\s*=\s*['\\\"]([^'\\\"]+)\", open('version.py').read()).group(1))")"
 [[ -n "$VERSION" ]] || die "could not parse __version__ from version.py"
 DEB="$ROOT/dist/igoor_$VERSION-1_amd64.deb"
