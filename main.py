@@ -4,16 +4,26 @@ import os
 import time
 from dotenv import load_dotenv
 load_dotenv()
-from plugin_manager import PluginManager
-from context_manager import ContextManager
-from js_api import Api
-from settings_manager import SettingsManager
-from websocket_server import websocket_server
 import signal
 import sys
 import asyncio
 import threading
 from typing import Optional
+# Linux + uv-managed Python: _tkinter can't locate its Tcl/Tk script libraries
+# unless TCL_LIBRARY/TK_LIBRARY point at the interpreter's bundled copies.
+# Set them BEFORE tkinter is first imported; respect pre-existing values.
+if sys.platform == 'linux' and not os.environ.get('TCL_LIBRARY'):
+    _tcl = os.path.join(sys.base_prefix, 'lib', 'tcl8.6')
+    _tk = os.path.join(sys.base_prefix, 'lib', 'tk8.6')
+    if os.path.isfile(os.path.join(_tcl, 'init.tcl')):
+        os.environ['TCL_LIBRARY'] = _tcl
+        if os.path.isfile(os.path.join(_tk, 'tk.tcl')):
+            os.environ['TK_LIBRARY'] = _tk
+from plugin_manager import PluginManager
+from context_manager import ContextManager
+from js_api import Api
+from settings_manager import SettingsManager
+from websocket_server import websocket_server
 from utils import (
     resource_path,
     setup_logger,
@@ -133,22 +143,26 @@ def show_splash_screen(image_path):
 
     # Load your logo/image
     splash_image = tk.PhotoImage(file=resource_path(image_path))
-    splash_label = tk.Label(splash_root, image=splash_image, bg='white')
+    # ttk.Label, not tk.Label: classic tk widgets abort Xlib on creation with
+    # some Linux tk builds (xcb_io.c assertion, see COMPAT_UBUNTU.md); ttk
+    # widgets are unaffected. Same look, same API for what the splash needs.
+    from tkinter import ttk as _ttk
+    _style = _ttk.Style(splash_root)
+    _style.configure('Splash.TLabel', background='white')
+    splash_label = _ttk.Label(splash_root, image=splash_image, style='Splash.TLabel')
     splash_label.grid(row=0, column=0, sticky='nsew')  # Use grid with sticky to center
 
     # Add version and codename below the logo
     version_text = f"IGOOR {IGOOR_VERSION} — {IGOOR_VERSION_CODENAME}"
-    version_label = tk.Label(splash_root, text=version_text, bg='white', fg='#444', font=("Arial", 14, "bold"))
+    version_label = _ttk.Label(splash_root, text=version_text, style='Splash.TLabel')
     version_label.grid(row=1, column=0, pady=(10, 0))
 
     # Add single-line status label under the version
-    status_label = tk.Label(
+    status_label = _ttk.Label(
         splash_root,
         text="",
-        bg='white',
-        fg='#666',
-        font=("Arial", 11),
-        anchor='center'
+        style='Splash.TLabel',
+        anchor='center',
     )
     status_label.grid(row=2, column=0, pady=(6, 10), sticky='ew')
 
