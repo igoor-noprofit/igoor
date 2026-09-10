@@ -148,20 +148,25 @@ def show_splash_screen(image_path):
     # widgets are unaffected. Same look, same API for what the splash needs.
     from tkinter import ttk as _ttk
     _style = _ttk.Style(splash_root)
+    # Text styling lives in the styles (some ttk themes ignore direct
+    # foreground=/font= on the widget); the dotted names inherit the
+    # white background from Splash.TLabel.
     _style.configure('Splash.TLabel', background='white')
+    _style.configure('Splash.Title.TLabel', background='white', foreground='#444', font=("Arial", 14, "bold"))
+    _style.configure('Splash.Status.TLabel', background='white', foreground='#666', font=("Arial", 11))
     splash_label = _ttk.Label(splash_root, image=splash_image, style='Splash.TLabel')
     splash_label.grid(row=0, column=0, sticky='nsew')  # Use grid with sticky to center
 
     # Add version and codename below the logo
     version_text = f"IGOOR {IGOOR_VERSION} — {IGOOR_VERSION_CODENAME}"
-    version_label = _ttk.Label(splash_root, text=version_text, style='Splash.TLabel')
+    version_label = _ttk.Label(splash_root, text=version_text, style='Splash.Title.TLabel')
     version_label.grid(row=1, column=0, pady=(10, 0))
 
     # Add single-line status label under the version
     status_label = _ttk.Label(
         splash_root,
         text="",
-        style='Splash.TLabel',
+        style='Splash.Status.TLabel',
         anchor='center',
     )
     status_label.grid(row=2, column=0, pady=(6, 10), sticky='ew')
