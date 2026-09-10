@@ -22,7 +22,7 @@ Model: `MACOS_TEST.md`. This document is the Linux counterpart: setup copy-paste
 | RAG: document upload → FAISS ingest → chunk export | ✅ verified via REST |
 | REST API: 50 endpoints incl. `/api/app/change-view`, `/api/plugins/<name>/settings` | ✅ verified |
 | `~/.igoor/` data dir (settings.json, database/, plugins/, logs/, web/) | ✅ verified |
-| Native pywebview window | ⏳ untested on this box — needs `python3-gi`/PyGObject visible to the venv (see §3) |
+| Native pywebview window | ✅ verified — splash + WebKit2GTK window open, UI renders inside, `gui_ready` fires (see §3 for the PyGObject pin and details) |
 | Audio capture/ASR (asrjs, speakerid, recorder) | ✅ verified — PyAudio + sounddevice + sherpa-onnx local inference all working (null-sink used as the audio device on a headless box) |
 
 ## 2. Setup (copy-paste)
@@ -65,13 +65,21 @@ grep -rn "getenv('APPDATA')" --include="*.py" .   # only utils.py:224, inside th
 # add IGOOR_ACCESS_FROM_OUTSIDE=true to also accept remote browsers (Tailscale/LAN)
 IGOOR_HEADLESS=true python main.py
 
-# native window (WebKit2GTK backend; NOT yet verified on this box)
+# native window (WebKit2GTK backend; VERIFIED on this box 2026-09-10)
 python main.py
-# if PyGObject is painful inside a venv:
-sudo apt install python3-gi gir1.2-webkit2-4.1
-python3 -m venv venv --system-site-packages
 ```
 
+Windowed-mode requirements on Linux:
+
+1. System packages: `gir1.2-webkit2-4.1` + `libgirepository1.0-dev libcairo2-dev` (the latter two only to build PyGObject), then in the venv:
+   ```bash
+   uv pip install "PyGObject==3.50.0"
+   ```
+   ⚠️ **Pin PyGObject to 3.50.x**: PyGObject ≥3.53 requires the new `girepository-2.0` API, which Ubuntu 24.04's `libgirepository1.0-dev` does not provide — the build fails with `Dependency 'girepository-2.0' is required but not found`.
+2. Nothing else — `main.py` auto-sets `TCL_LIBRARY`/`TK_LIBRARY` on Linux (uv/pyenv Pythons bundle tcl8.6/tk8.6 but `_tkinter` can't find them; the splash previously died with `Can't find a usable init.tcl`).
+3. The splash uses `ttk.Label` (classic `tk.Label` aborts Xlib on creation with some tk builds — `xcb_io.c` assertion, crash before the window opens).
+
+Pass criteria (windowed): splash appears → pywebview window opens → the IGOOR UI renders inside it → log shows `✓ Window created successfully`, `readypy dispatched`, `gui_ready` fired, no xcb/traceback lines.
 Pass criteria (Phase-1 equivalent): uvicorn logs `Uvicorn running on http://127.0.0.1:9714`, the browser shows the IGOOR UI, `~/.igoor/` is populated, no traceback.
 
 ## 4. Expected failures (NOT porting bugs)
@@ -94,7 +102,7 @@ Pass criteria (Phase-1 equivalent): uvicorn logs `Uvicorn running on http://127.
 | App exits during plugin load with `EXIT BECAUSE OF ERROR LOADING PLUGIN` | `IGOOR_DEBUG` is set to a non-empty string that isn't `true`/`false`; the plugin manager now only hard-exits on `IGOOR_DEBUG=true` (fixed on this branch — previously ANY plugin import error killed the app because the flag check was always-truthy) |
 | Data written to `~/igoor` instead of `~/.igoor` | old baseplugin `dirname()` idiom; fixed on this branch. Delete the stray `~/igoor` folder |
 | Blank UI in browser | check `~/.igoor/logs/`; the web-assets copy step writes to `~/.igoor/web/` — verify it exists and is fresh |
-| Native window fails to open | WebKit2GTK/PyGObject missing from the venv — see §3; the browser on :9714 covers UI testing meanwhile |
+| Native window fails to open | `ModuleNotFoundError: No module named 'gi'` → PyGObject missing from the venv (`uv pip install "PyGObject==3.50.0"`, see §3). `Can't find a usable init.tcl` → fixed: main.py auto-sets TCL/TK_LIBRARY on Linux |
 
 ## 6. The "no Windows regression" argument
 
