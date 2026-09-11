@@ -36,6 +36,7 @@
     "onboarding": true,
     "shortcuts": true,
     "ttsdefault": true,
+    "ttsmac": true,
     "speechifytts": false,
     "rag": true,
     "memory": true,
