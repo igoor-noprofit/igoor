@@ -69,6 +69,14 @@ IGOOR_HEADLESS=true python main.py
 python main.py
 ```
 
+With `IGOOR_ACCESS_FROM_OUTSIDE=true` and the Tailscale CLI installed, IGOOR
+auto-enables `tailscale serve --bg localhost:9714` at startup (HTTPS for
+remote browsers/mic). On Linux this talks to tailscaled over its socket —
+if the invoking user lacks permission the attempt fails with a logged
+warning and the one-shot manual fallback is `sudo tailscale serve --bg
+localhost:9714` (config then persists; MagicDNS + HTTPS certificates must
+be enabled in the Tailscale admin console either way).
+
 Windowed-mode requirements on Linux:
 
 1. System packages: `gir1.2-webkit2-4.1` + `libgirepository1.0-dev libcairo2-dev` (the latter two only to build PyGObject). PyGObject itself now comes from `requirements.txt` (`PyGObject==3.50.0 ; sys_platform == 'linux'`), so a plain `pip install -r requirements.txt` (or `uv pip install -r requirements.txt`) covers it.

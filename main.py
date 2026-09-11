@@ -35,6 +35,7 @@ from fastapi_app import app as fastapi_app
 import uvicorn
 from idle_detector import IdleDetector
 from tray_icon import start_tray_icon, stop_tray_icon
+from tailscale_serve import auto_enable_tailscale_serve
 
 if sys.stdout.encoding != 'utf-8':
     sys.stdout.reconfigure(encoding='utf-8')
@@ -478,6 +479,11 @@ if __name__ == "__main__":
         # Only visible presence in this mode: a tray icon with live status,
         # an "Open interface" shortcut and a clean Quit (no-op if no tray).
         tray_icon = start_tray_icon(shutdown_event)
+        # Optional HTTPS exposure via tailscale serve when IGOOR accepts
+        # external access: one UAC prompt on Windows the first time, then
+        # the config persists in Tailscale. Runs in the background so a
+        # pending UAC prompt never blocks startup.
+        auto_enable_tailscale_serve(tray_icon)
         # No pywebview window exists in this mode: fire gui_ready when the
         # first browser connects to the app websocket (see _fire_gui_ready_once).
         _start_headless_gui_ready_watch()
@@ -491,6 +497,9 @@ if __name__ == "__main__":
             stop_fastapi_server()
     else:
         start_fastapi_server()
+        # GUI mode with external access (window + remote browsers) gets the
+        # same optional tailscale serve HTTPS exposure; no-op otherwise.
+        auto_enable_tailscale_serve()
         splash_root, status_label = show_splash_screen('img/igoor_logo.png')
 
         # Wire StatusManager to update splash status line

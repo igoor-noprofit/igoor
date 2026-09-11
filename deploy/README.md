@@ -21,10 +21,10 @@ for good.
 
 1. Install IGOOR normally — a per-user location is preferable to
    `Program Files` (see note below).
-2. Edit `<install dir>\_internal\.env`: `IGOOR_HEADLESS=False` → `True`,
+2. Edit `<install dir>\.env` (single file at the install root — InnoSetup
+   moves it there at the end of the setup): `IGOOR_HEADLESS=False` → `True`,
    `IGOOR_ACCESS_FROM_OUTSIDE=False` → `True`.
-   The file that counts is the one **inside `_internal\`** — that is the one
-   the app reads. Under `Program Files`, editing it needs an elevated editor.
+   Under `Program Files`, editing it needs an elevated editor.
 3. Start IGOOR, then check the latest log in `%APPDATA%\igoor\logs\` for the
    line `IGOOR_HEADLESS active` — that confirms the right `.env` was edited.
 4. Install Tailscale on the PC and on the remote device(s), same tailnet.
@@ -34,6 +34,16 @@ for good.
    cannot connect while `http://127.0.0.1:9714` works on the PC itself,
    the firewall is the first suspect.
 6. Browse `http://<tailscale-ip>:9714` from the remote device.
+7. **HTTPS (recommended, unlocks the microphone)**: IGOOR enables
+   `tailscale serve --bg localhost:9714` automatically when it finds the
+   Tailscale CLI on the machine — one UAC prompt on Windows the first time,
+   then the config persists across reboots. Browsers then get the UI at
+   `https://<machine>.<tailnet>.ts.net`, which is the secure origin the
+   microphone requires. Prerequisite: MagicDNS + HTTPS certificates enabled
+   in the [admin console](https://login.tailscale.com/admin/dns) (DNS page).
+   Manual fallback: `tailscale serve --bg localhost:9714` in an admin
+   terminal; retry from the tray menu (**Enable HTTPS access**) if the UAC
+   prompt was dismissed.
 
 What this path does **not** give you:
 

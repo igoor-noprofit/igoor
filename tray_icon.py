@@ -2,13 +2,15 @@
 
 Gives the headless server (IGOOR_HEADLESS=true) a visible presence in the
 notification area: a status tooltip fed by StatusManager, an "Open interface"
-shortcut and a clean Quit. Everything degrades gracefully: if pystray or a
+shortcut, an "Enable HTTPS access" action (tailscale serve) and a clean
+Quit. Everything degrades gracefully: if pystray or a
 notification area is unavailable (minimal install, SSH session without a
 desktop), headless keeps running without it — same contract as the tkinter
 splash screen in GUI mode.
 """
 
 import logging
+import threading
 import webbrowser
 
 from utils import get_appdata_dir, resource_path, setup_logger
@@ -40,6 +42,12 @@ def start_tray_icon(shutdown_event):
         def on_open_interface(icon, item):
             webbrowser.open(TRAY_URL)
 
+        def on_enable_https(icon, item):
+            # Explicit user request: bypass the external-access gate.
+            threading.Thread(
+                target=_enable_https_task, args=(icon,),
+                daemon=True, name='tray-tailscale').start()
+
         def on_quit(icon, item):
             shutdown_event.set()
 
@@ -49,6 +57,7 @@ def start_tray_icon(shutdown_event):
             title="IGOOR — starting…",
             menu=pystray.Menu(
                 pystray.MenuItem('Open interface', on_open_interface, default=True),
+                pystray.MenuItem('Enable HTTPS access', on_enable_https),
                 pystray.Menu.SEPARATOR,
                 pystray.MenuItem('Quit', on_quit),
             ),
@@ -77,6 +86,24 @@ def start_tray_icon(shutdown_event):
 
     logger.info("Tray icon started")
     return icon
+
+
+def _enable_https_task(icon):
+    """Menu action body: enable tailscale serve and report via notification
+    (runs off the menu thread so a pending UAC prompt blocks nothing)."""
+    try:
+        import tailscale_serve
+        ok, url = tailscale_serve.enable_tailscale_serve(force=True)
+    except Exception as e:
+        logger.warning(f"Tailscale HTTPS setup failed: {e}")
+        ok, url = False, None
+    try:
+        if ok:
+            icon.notify(f"Secure access active: {url}" if url else "Secure access active", "IGOOR")
+        else:
+            icon.notify("Could not enable Tailscale HTTPS - see logs", "IGOOR")
+    except Exception:
+        pass
 
 
 def stop_tray_icon(icon):
