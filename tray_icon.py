@@ -11,7 +11,7 @@ splash screen in GUI mode.
 import logging
 import webbrowser
 
-from utils import get_appdata_dir, setup_logger
+from utils import get_appdata_dir, resource_path, setup_logger
 
 logger = setup_logger('tray', get_appdata_dir())
 
@@ -33,7 +33,7 @@ def start_tray_icon(shutdown_event):
         return None
 
     try:
-        icon_image = Image.open('img/logo_ig_lxL_icon.ico').convert('RGBA')
+        icon_image = Image.open(resource_path('img/logo_ig_lxL_icon.ico')).convert('RGBA')
         if icon_image.size[0] > 64:
             icon_image = icon_image.resize((64, 64), Image.LANCZOS)
 
