@@ -10,7 +10,12 @@ Two paths, depending on what is installed on the server PC:
 
 Both need `IGOOR_HEADLESS=true` + `IGOOR_ACCESS_FROM_OUTSIDE=true` and a
 trusted network (external access is unauthenticated). The UI is then any
-browser that can reach the machine (e.g. its Tailscale IP).
+browser that can reach the machine (e.g. its Tailscale IP). Headless mode
+shows a **tray icon** with live status and an *Open interface* / *Quit* menu
+(on Windows 11 it starts hidden in the taskbar-corner overflow `^` — drag it
+out once); since the watchdog restarts IGOOR ~5 s after any exit, *Quit*
+brings the server straight back — stop the watchdog/Startup task to stop it
+for good.
 
 ## Quick path: the installed app as a server (no git, no Python)
 

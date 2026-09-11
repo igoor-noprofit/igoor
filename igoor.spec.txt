@@ -67,6 +67,9 @@ hiddenimports = [
     'pocket_tts',
     'gdown',
     'yaml',
+    # tray_icon.py (headless mode): pystray imports its platform backend
+    # dynamically, so it must be listed explicitly.
+    'pystray',
 
     # === CORE SENTENCE TRANSFORMERS (Required) ===
     'sentence_transformers',
@@ -92,6 +95,7 @@ if IS_WINDOWS:
         'win32gui',
         'win32con',
         'pywinauto',
+        'pystray._win32',
     ]
 
 if IS_MACOS:
@@ -99,12 +103,14 @@ if IS_MACOS:
         # pywebview picks its GUI backend at runtime; the cocoa backend module
         # is only reached through a dynamic import.
         'webview.platforms.cocoa',
+        'pystray._darwin',
     ]
 
 if IS_LINUX:
     hiddenimports += [
         # Same as macOS: the GTK/WebKit2GTK backend is dynamically imported.
         'webview.platforms.gtk',
+        'pystray._appindicator',
     ]
 
 a = Analysis(

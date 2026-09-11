@@ -34,6 +34,7 @@ from utils import (
 from fastapi_app import app as fastapi_app
 import uvicorn
 from idle_detector import IdleDetector
+from tray_icon import start_tray_icon, stop_tray_icon
 
 if sys.stdout.encoding != 'utf-8':
     sys.stdout.reconfigure(encoding='utf-8')
@@ -474,6 +475,9 @@ if __name__ == "__main__":
         logger.info("IGOOR_HEADLESS active: running headless API/WebSocket server only (no native window)")
         load_frontend_components(lang=lang)
         start_fastapi_server()
+        # Only visible presence in this mode: a tray icon with live status,
+        # an "Open interface" shortcut and a clean Quit (no-op if no tray).
+        tray_icon = start_tray_icon(shutdown_event)
         # No pywebview window exists in this mode: fire gui_ready when the
         # first browser connects to the app websocket (see _fire_gui_ready_once).
         _start_headless_gui_ready_watch()
@@ -483,6 +487,7 @@ if __name__ == "__main__":
         except KeyboardInterrupt:
             logger.info("Shutdown requested (headless mode)")
         finally:
+            stop_tray_icon(tray_icon)
             stop_fastapi_server()
     else:
         start_fastapi_server()

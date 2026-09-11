@@ -168,6 +168,8 @@ Two environment variables (in `.env`) define how IGOOR runs:
 
 (`IGOOR_HEADLESS` was formerly named `IGOOR_CLI`; the old name still works.)
 
+**Headless tray icon**: since there is no window in headless mode, IGOOR shows a tray icon (notification area, near the clock) with a live status tooltip, an **Open interface** shortcut and a **Quit** entry. On Windows 11 new tray icons land in the hidden overflow area (`^` in the taskbar corner) — drag it onto the visible corner once to keep it at a glance. If no tray is available (SSH session, minimal Linux install), the app just runs without it. Note that under the deploy watchdog, **Quit** triggers a restart ~5 s later; stop the watchdog/startup task to shut the server down for good (see `deploy/README.md`).
+
 Remote-testing recipe: on the test box run
 `IGOOR_HEADLESS=true IGOOR_ACCESS_FROM_OUTSIDE=true python main.py`,
 then open `http://<machine-ip>:9714` from any device that can reach it (e.g. its Tailscale IP).
