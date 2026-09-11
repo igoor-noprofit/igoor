@@ -1,0 +1,15 @@
+{
+    "active": true,
+    "platforms": ["macos"],
+    "category": "TTS",
+    "title": "Default Text-to-speech",
+    "description": "Fallback TTS using macOS system voices. Please note: if you use IGOOR on a remote device, the audio is streamed to the LOCAL device for playback.",
+    "layout": {
+        "part": "topbar",
+        "order": 0
+    },
+    "is_free": true,
+    "requires_subscription": false,
+    "requires_internet": false,
+    "has_settings": true
+}
