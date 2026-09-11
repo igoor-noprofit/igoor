@@ -1,0 +1,6 @@
+{
+    "If checked, this voice will only be used for fallback from your main TTS plugin voice": "Se selezionato, questa voce verrà utilizzata solo come fallback della voce del tuo plugin TTS principale",
+    "Select the voice to be used for speech synthesis": "Seleziona la voce da utilizzare per la sintesi vocale",
+    "Speech rate (words per minute)": "Velocità della voce (parole al minuto)",
+    "Save plugin settings": "Salva le impostazioni del plugin"
+}

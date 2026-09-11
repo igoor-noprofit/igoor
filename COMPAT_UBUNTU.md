@@ -30,7 +30,7 @@ Model: `MACOS_TEST.md`. This document is the Linux counterpart: setup copy-paste
 ```bash
 # system deps (sudo)
 sudo apt update && sudo apt install -y \
-    ffmpeg libportaudio2 portaudio19-dev pulseaudio-utils xprintidle \
+    ffmpeg espeak-ng libportaudio2 portaudio19-dev pulseaudio-utils xprintidle \
     libgtk-3-0 libgirepository1.0-dev libcairo2-dev pkg-config python3-dev \
     gir1.2-webkit2-4.1 xvfb-run
 
@@ -93,7 +93,7 @@ Pass criteria (Phase-1 equivalent): uvicorn logs `Uvicorn running on http://127.
 |---|---|---|
 | `Error loading plugin 'asrjs': No module named 'pyaudio'` | PyAudio is a requirements.txt package; its wheel builds from source and needs `portaudio19-dev` | RESOLVED on test box: `sudo apt install portaudio19-dev` then reinstall. asrjs loads and transcribes locally |
 | elevenlabstts / speechifytts `OSError: PortAudio library not found` | sounddevice needs system `libportaudio2` | RESOLVED on test box: `sudo apt install libportaudio2` — both import cleanly now |
-| `ttsdefault: Windows SAPI TTS not available on this platform` (warning) | deliberate platform gate (win32com) | expected; native Linux TTS (espeak-ng/speech-dispatcher) = future work |
+| `ttsdefault: Windows SAPI TTS not available on this platform` (warning) | deliberate platform gate (win32com) | expected; native Linux TTS is provided by the `ttslinux` plugin (espeak-ng, active by default) |
 | extkeyb "disabled" warning if activated | deliberate platform gate (win32gui/win32con) | expected; GNOME OSK port = future work |
 | Cloud TTS / LLM features error without API keys | expected by design | not porting bugs |
 | `clock.py:35 Failed to set locale to 'en_EN.UTF-8'` | locale name doesn't exist on typical Linux | harmless fallback to system locale; flagged for maintainer |
@@ -149,11 +149,12 @@ After merging `feature/v1-for-linux` with the Windows-side 1.1.0 work, the full 
 ## 8. Future work (explicitly out of scope here)
 
 - **Linux packaging — the ".exe equivalent" (recommended next step).** Nothing in IGOOR's architecture blocks a one-step Linux install; it's packaging work, not porting work. Recommended order:
-  1. **.deb** (least effort, most Ubuntu-idiomatic): `sudo apt install ./igoor.deb` or double-click in the Software app; system deps declared as `Depends: gir1.2-webkit2-4.1, libportaudio2, portaudio19-dev (unneeded at runtime), ffmpeg, xprintidle` and pulled in automatically by apt.
+  1. **.deb** (least effort, most Ubuntu-idiomatic): `sudo apt install ./igoor.deb` or double-click in the Software app; system deps declared as `Depends: gir1.2-webkit2-4.1, libportaudio2, portaudio19-dev (unneeded at runtime), ffmpeg, espeak-ng, xprintidle` and pulled in automatically by apt.
   2. **AppImage** (closest to the Windows .exe experience): one file, `chmod +x`, run — bundles Python + WebKit2GTK + PortAudio + FFmpeg at the cost of a ~150–250 MB artifact.
   - Note the one real platform asymmetry: WebView2 auto-installs on Windows, while Linux convention is the system's WebKit2GTK — the .deb handles this cleanly via Depends; an AppImage must bundle it.
   - PyInstaller Linux builds must run on the **oldest** target distro (glibc rule): build on Ubuntu 22.04 to support 22.04+.
 - Native-window (GTK/WebKit) verification on a real display session
 - asrjs/sherpa-onnx wakeword live-loop test (transcription pipeline itself is verified; the wake-word gate uses openwakeword on the same stack)
-- extkeyb Linux port (GNOME on-screen keyboard via AT-SPI/geb ideas), ttsdefault Linux port (espeak-ng / speech-dispatcher)
+- extkeyb Linux port (GNOME on-screen keyboard via AT-SPI/geb ideas)
+- ttslinux (espeak-ng TTS, active by default on Linux) — not yet exercised on the test box: live speak + browser streaming test still pending
 - `localtts` / `pockettts` live on `feature/pocket-tts-new` etc. — merge before any Linux audio-TTS work
