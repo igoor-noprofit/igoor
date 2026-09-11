@@ -9,6 +9,9 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# macOS Finder metadata
+.DS_Store
+
 
 .v2c 
 .playwright-mcp
