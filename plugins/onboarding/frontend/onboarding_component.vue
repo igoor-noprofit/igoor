@@ -435,11 +435,10 @@ export default {
                     { label: "Configure Pocket TTS", plugin: "pockettts", icon: "" },
                     { label: "Configure ElevenLabs", plugin: "elevenlabstts", icon: "" },
                     { label: "Configure Speechify", plugin: "speechifytts", icon: "" },
-                    { label: "Configure Windows Voice", plugin: "ttsdefault", icon: "" },
-                    // macOS counterpart of ttsdefault; the shared label keeps
-                    // all locale files untouched (only one of the two is ever
-                    // active on a given OS).
-                    { label: "Configure Windows Voice", plugin: "ttsmac", icon: "" },
+                    { label: "Configure OS Voice", plugin: "ttsdefault", icon: "" },
+                    // macOS counterpart of ttsdefault; only one of the two is
+                    // ever active on a given OS, so both share one label.
+                    { label: "Configure OS Voice", plugin: "ttsmac", icon: "" },
                     { label: "Configure translation", plugin: "translator", icon: "" }
                 ]
             }
