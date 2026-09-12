@@ -2,9 +2,9 @@
 
 Goal: confirm the app **launches a window and boots** on macOS. This validates the `os.getenv('APPDATA')` → `get_appdata_dir()` migration (originally done on `feature/v1-for-mac`, now carried by the unified branch) **and** the plugin platform gating (`"platforms"` in plugin.json). It is *not* a full-feature test — expect audio plugins to fail on a remote Mac (no mic/speaker hardware).
 
-> Branch: **`feature/v1-multiplatform`** (unified multiplatform branch; supersedes `feature/v1-for-mac`) · Target: **macOS, Apple Silicon (M-series) only** · Python **3.10.6**
+> Branch: **`feature/v1-multiplatform`** (unified multiplatform branch; supersedes `feature/v1-for-mac`) · Target: **macOS — Apple Silicon (M-series) and Intel** · Python **3.10.6**
 
-⚠️ **Apple Silicon is required.** `torch==2.8.0` / `torchaudio==2.8.0` publish no Intel (x86_64) macOS wheels — `pip install` fails on Intel Macs with "no matching distribution". If you rent a remote Mac, it **must** be M-series.
+**Both Mac architectures work.** Apple Silicon uses the main dependency set (torch 2.8.0). Intel macs get the Intel set automatically via `requirements.txt` markers: torch/torchaudio **2.2.2**, numpy < 2 (torch publishes no x86_64 macOS wheels after 2.2.2), and **no pocket-tts local neural TTS** — use `ttsmac` (macOS system voices) or cloud TTS there. Expect local AI features (ASR, embeddings) to run slower on Intel; for usable speed prefer cloud ASR (Whisper via Groq) and ttsmac/cloud TTS.
 
 ---
 
@@ -14,7 +14,7 @@ A remote macOS desktop is fine. Note that Apple licensing forces most providers 
 
 - **Scaleway M1 as-a-Service** — ~€0.10/hr, macOS desktop ready in ~5 min. ⚠️ **24-hour minimum lease** (Apple licensing), so even a quick test costs the ~€2.40 day floor: https://scaleway.com/en/hello-m1/
 - **RentAMac.io** — flat ~$3.30/day (M4 Macs): https://rentamac.io/
-- **MacinCloud** — hourly/daily pay-as-you-go: https://www.macincloud.com/ — ⚠️ they rent **both Intel and Apple Silicon** machines; pick an **M-series** plan (see the torch warning above)
+- **MacinCloud** — hourly/daily pay-as-you-go: https://www.macincloud.com/ — ⚠️ they rent **both Intel and Apple Silicon** machines; both work now (M-series is faster — pick it when in doubt)
 
 ⚠️ Browser-only services (BrowserStack, Browserling) **do not work** — IGOOR is a desktop app, not a website.
 
@@ -97,6 +97,23 @@ python -c "from utils import get_appdata_dir; print(get_appdata_dir())"
 # expected: ~/Library/Application Support/igoor
 ```
 
+### Intel Macs — what differs
+
+Setup is identical (`setup_mac.sh` now accepts both architectures). Verify the
+Intel dependency set resolved:
+
+```bash
+python -c "import platform, torch, numpy; print(platform.machine(), torch.__version__, numpy.__version__)"
+# expected on Intel: x86_64 2.2.2 1.26.x   (Apple Silicon: arm64 2.8.0 2.2.x)
+pip show pocket-tts                 # expect: NOT installed on Intel
+```
+
+Feature expectations on Intel:
+
+- `ttsmac` (macOS system voices) and cloud TTS (`elevenlabstts` / `speechifytts`) work; the `pockettts` plugin loads but reports **not ready** ("pocket-tts is not installed") — that is the designed degradation, not a bug
+- local ASR (sherpa-onnx) works but runs slower; prefer cloud ASR for responsiveness
+- building the Intel .dmg for distribution is a build-machine task on Apple Silicon: `installer/dmg/build_dmg.sh --bootstrap-intel-venv` then `--arch x86_64` (see README)
+
 ---
 
 ## 3. Launch
@@ -138,8 +155,8 @@ These are fine to ignore — they're Phase 2/3 work, already documented in `.fac
 
 | Error | Meaning / Fix |
 |---|---|
-| pip fails building **PyAudio** | missing compiler — run `xcode-select --install`, then retry |
-| pip: **no matching distribution for torch/torchaudio** | you're on an **Intel Mac** — torch 2.8.0 has no x86_64 macOS wheels; switch to an Apple Silicon machine |
+| pip fails building **PyAudio** | missing compiler — run `xcode-select --install`, then retry (Intel macs also need `brew install portaudio`, which is x86_64 there) |
+| pip: **no matching distribution for torch/torchaudio** | the arch markers were ignored or an old requirements.txt is in use — Intel macs must resolve torch 2.2.2; confirm with the Intel check above |
 | app hard-exits (`os._exit`) on a plugin error | `IGOOR_DEBUG=true` makes any plugin load failure fatal — keep it unset for this test |
 | `ModuleNotFoundError: win32com` / `win32gui` / `pywinauto` | should NOT happen anymore (gate + guarded imports) — if it does, note which plugin; it should be caught |
 | `OSError: ... portaudio` | run `brew install portaudio` again |

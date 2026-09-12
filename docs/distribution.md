@@ -194,8 +194,16 @@ Gatekeeper "unidentified developer" dialog for a DMG download.
   `NSMicrophoneUsageDescription` — required or a notarized app crashes on
   first mic access) → codesign → `hdiutil` DMG → optional notarize/staple →
   optional GitHub release upload.
-- Apple Silicon only: torch 2.8.0 ships no macOS x86_64 wheels. Documented in
-  the README platform table.
+- **Dual-arch**: `--arch arm64` (default, from `venv`) and `--arch x86_64`
+  (from `venv-intel`, bootstrapped once with `--bootstrap-intel-venv` under
+  Rosetta 2). DMG names carry the arch: `IGOOR-<version>-mac-arm64.dmg` /
+  `IGOOR-<version>-mac-x86_64.dmg` — a release ships both assets. The Intel
+  set is chosen by requirements.txt markers (torch/torchaudio 2.2.2, numpy<2;
+  2.3.0+ publishes no x86_64 macOS wheels and never will — macOS Tahoe is the
+  last Intel macOS, so Apple-side EOL bounds this channel anyway). pocket-tts
+  is Intel-excluded: no local neural TTS there (ttsmac / cloud TTS cover it).
+  GitHub's last x86_64 Actions runner (`macos-15-intel`) retires August 2027;
+  this repo builds locally, but the same clock applies to Intel hardware.
 
 Environment variables:
 - `IGOOR_CODESIGN_IDENTITY` — "Developer ID Application: NAME (TEAMID)".

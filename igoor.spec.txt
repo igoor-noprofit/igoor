@@ -189,7 +189,9 @@ coll = COLLECT(
 if IS_MACOS:
     # macOS .app bundle. codesign_identity/entitlements are applied by
     # installer/dmg/build_dmg.sh (env: IGOOR_CODESIGN_IDENTITY); PyInstaller
-    # itself ad-hoc signs (arm64 requirement) when the identity is None here.
+    # itself ad-hoc signs the bundle (an unsigned arm64 binary is killed by
+    # the kernel) when the identity is None here. Both arches go through this
+    # branch: Intel builds (venv-intel, torch 2.2.2) and Apple Silicon ones.
     bundle = BUNDLE(
         coll,
         name='IGOOR.app',
@@ -201,7 +203,9 @@ if IS_MACOS:
             # key a signed/notarized app crashes on first microphone access.
             'NSMicrophoneUsageDescription': 'IGOOR uses the microphone for speech recognition and voice control.',
             'NSHighResolutionCapable': True,
-            # Apple Silicon only: torch 2.8.0 ships no macOS x86_64 wheels.
+            # 11.0 covers both arches. torch 2.8.0 ships no macOS x86_64
+            # wheels — Intel builds bundle torch 2.2.2 instead (see the
+            # requirements.txt markers); onnxruntime 1.19.2 needs macOS 11.
             'LSMinimumSystemVersion': '11.0',
             'CFBundleShortVersionString': VERSION,
             'CFBundleVersion': VERSION,

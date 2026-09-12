@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from typing import Optional
 from contextlib import contextmanager
 import asyncio
+import importlib.util
 import os
 import sys
 import threading
@@ -492,6 +493,20 @@ class Pockettts(Baseplugin):
         """Load the pocket-tts model (runs in a background thread; callers go
         through _request_model_reload, which owns the _model_loading flag)."""
         try:
+            if importlib.util.find_spec("pocket_tts") is None:
+                # pocket-tts is deliberately absent on some machines — Intel
+                # macs: its torch>=2.5 / numpy>=2 floors have no macOS x86_64
+                # wheels (requirements.txt markers exclude it). Stay
+                # not-ready so speak falls back, with a log that says why.
+                self.is_loaded = False
+                self.mark_not_ready()
+                self.logger.error(
+                    "pocket-tts is not installed — local neural TTS unavailable. "
+                    "This is expected on Intel macs (torch>=2.5 publishes no macOS "
+                    "x86_64 wheels); use macOS system voices (ttsmac) or cloud TTS "
+                    "(elevenlabstts / speechifytts) instead."
+                )
+                return
             if "speechbrain" in sys.modules:
                 self._defuse_speechbrain_lazy_import()
             try:

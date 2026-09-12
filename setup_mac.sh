@@ -17,8 +17,9 @@
 #   IGOOR_DIR      target folder  (default: ./igoor — ignored if run inside a checkout)
 #
 # Expected duration: ~15-30 min total, almost all of it pip (see step 6/7).
-# Requirements: Apple Silicon Mac (M1/M2/M3/M4). Intel Macs cannot work:
-# torch/torchaudio publish no x86_64 macOS wheels.
+# Requirements: Apple Silicon (M-series) or Intel Mac. Intel macs get the
+# Intel dependency set via requirements.txt markers (torch/torchaudio 2.2.2,
+# numpy<2) and no pocket-tts local TTS — use ttsmac or cloud TTS there.
 
 set -euo pipefail
 
@@ -36,8 +37,11 @@ die()   { printf '    \033[31mERROR:\033[0m %s\n' "$1" >&2; exit 1; }
 # ------------------------------------------------------------------ 1. hardware
 step "1/7 · Hardware check"
 ARCH="$(uname -m)"
-[ "$ARCH" = "arm64" ] || die "Intel Mac ($ARCH) detected — IGOOR needs Apple Silicon (M-series)."
-ok "Apple Silicon ($ARCH)"
+case "$ARCH" in
+    arm64)  ok "Apple Silicon ($ARCH)" ;;
+    x86_64) ok "Intel Mac ($ARCH) — Intel dependency set (torch 2.2.2, numpy<2, no pocket-tts local TTS)" ;;
+    *) die "unsupported architecture ($ARCH)" ;;
+esac
 
 # ------------------------------------------------------------------ 2. Homebrew
 step "2/7 · Homebrew (checked first, installed only if missing)"
@@ -47,10 +51,18 @@ else
     info "brew not found — installing (will ask for your macOS password, ~2-5 min)"
     /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 fi
-# make brew reachable for this script even on a fresh shell, and for future shells
+# make brew reachable for this script even on a fresh shell, and for future
+# shells. Prefix differs per arch: /opt/homebrew (Apple Silicon, and Rosetta
+# brew on a build Mac) vs /usr/local (native Intel macs).
+BREW_PREFIX=""
 if [ -x /opt/homebrew/bin/brew ]; then
-    eval "$(/opt/homebrew/bin/brew shellenv)"
-    grep -qs 'brew shellenv' ~/.zprofile || echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> ~/.zprofile
+    BREW_PREFIX=/opt/homebrew
+elif [ -x /usr/local/bin/brew ]; then
+    BREW_PREFIX=/usr/local
+fi
+if [ -n "$BREW_PREFIX" ]; then
+    eval "$($BREW_PREFIX/bin/brew shellenv)"
+    grep -qs "brew shellenv" ~/.zprofile || echo "eval \"\$($BREW_PREFIX/bin/brew shellenv)\"" >> ~/.zprofile
 fi
 command -v brew >/dev/null 2>&1 || die "brew is still not available — install it from https://brew.sh, then re-run."
 ok "brew on PATH: $(command -v brew)"
@@ -96,7 +108,9 @@ fi
 # ------------------------------------------------------------------ 6. venv
 step "6/7 · Python 3.10 venv + dependencies — THE LONG STEP (~10-15 min, ~2 GB download)"
 PY310="$(command -v python3.10 || true)"
-[ -n "$PY310" ] || PY310=/opt/homebrew/bin/python3.10
+if [ -z "$PY310" ] && command -v brew >/dev/null 2>&1; then
+    PY310="$(brew --prefix python@3.10)/bin/python3.10"
+fi
 [ -x "$PY310" ] || die "python3.10 not found — did 'brew install python@3.10' succeed?"
 if [ ! -x "$TARGET_DIR/venv/bin/python" ]; then
     "$PY310" -m venv "$TARGET_DIR/venv"

@@ -53,14 +53,14 @@ Microsoft Edge WebView2 Runtime is © Microsoft Corporation.
 
 ### OTHER PLATFORMS (EXPERIMENTAL)
 
-IGOOR is being ported to Linux and macOS. Linux runs from source; macOS has an
-experimental .dmg build (Apple Silicon):
+IGOOR is being ported to Linux and macOS. Linux runs from source; macOS has
+experimental .dmg builds for both Apple Silicon and Intel:
 
 | OS | Status | System dependencies |
 |---|---|---|
 | Windows 10/11 | production (installers) | WebView2 Runtime (bundled in installers); FFmpeg in PATH for some TTS plugins |
 | Ubuntu/Debian | boots, core plugins + native window verified | `sudo apt install ffmpeg espeak-ng libportaudio2 portaudio19-dev gir1.2-webkit2-4.1 libgirepository1.0-dev libcairo2-dev` (+ optional `xprintidle`); PyGObject itself installs from `requirements.txt` |
-| macOS | experimental .dmg build (Apple Silicon) — see [MACOS_TEST.md](MACOS_TEST.md) | `brew install portaudio ffmpeg` (bundled .app needs none) |
+| macOS | experimental .dmg build (Apple Silicon + Intel) — see [MACOS_TEST.md](MACOS_TEST.md) | `brew install portaudio ffmpeg` (bundled .app needs none) |
 
 Verified results and known limitations on Linux: [COMPAT_UBUNTU.md](COMPAT_UBUNTU.md).
 
@@ -228,16 +228,31 @@ It will ask you if you want to:
 In a CMD window, launch /dist/igoor/igoor.exe 
 (so you can see the logs if there's any error)
 
-### CREATE THE MACOS .DMG (Apple Silicon)
+### CREATE THE MACOS .DMG (Apple Silicon and Intel)
 
 On a Mac with the repo set up ([setup_mac.sh](setup_mac.sh) or manual venv):
 
 ```
-installer/dmg/build_dmg.sh
+installer/dmg/build_dmg.sh                # Apple Silicon (.dmg for M-series)
+installer/dmg/build_dmg.sh --arch x86_64  # Intel (.dmg for Intel Macs)
 ```
 
-It builds `dist/IGOOR.app`, ad-hoc signs it and packages
-`dist/IGOOR-<version>-mac-arm64.dmg`. Testers open it with right-click → Open
+The Apple Silicon build uses the `venv`; the Intel build uses `venv-intel`,
+built once under Rosetta 2 by:
+
+```
+installer/dmg/build_dmg.sh --bootstrap-intel-venv
+```
+
+That one-time bootstrap installs Rosetta 2 and a Rosetta Homebrew
+(`/usr/local`, for x86_64 portaudio — PyAudio builds from source), then
+creates `venv-intel` and installs `requirements.txt` into it, whose markers
+select torch/torchaudio 2.2.2 and numpy<2 for x86_64 (2.3.0+ has no Intel
+macOS wheels). pocket-tts is not installable on Intel, so the Intel build has
+no local neural TTS — ttsmac (macOS system voices) and cloud TTS cover it.
+
+Each run ad-hoc signs `dist/IGOOR.app` and packages
+`dist/IGOOR-<version>-mac-<arch>.dmg`. Testers open it with right-click → Open
 (ad-hoc signature). To produce a fully notarized DMG (no Gatekeeper warning —
 requires an Apple Developer account):
 
@@ -249,7 +264,9 @@ installer/dmg/build_dmg.sh
 ```
 
 Add `--upload-release` to also upload the DMG to the GitHub release (needs
-`.github_token.txt`). Details: [docs/distribution.md](docs/distribution.md).
+`.github_token.txt`); releases carry both `-mac-arm64` and `-mac-x86_64`
+assets — the script reuses an existing release for the tag. Details:
+[docs/distribution.md](docs/distribution.md).
 
 ## IGOOR LOGS
 Daily logs are in:
