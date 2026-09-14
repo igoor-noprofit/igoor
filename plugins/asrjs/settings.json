@@ -1,6 +1,7 @@
 {
   "wakeword": "Igor",
   "continuous": false,
+  "hold_to_talk": false,
   "always_generate": true,
   "positiveSpeechThreshold": 0.5,
   "redemptionFrames": 15,

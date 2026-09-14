@@ -21,6 +21,8 @@
     "Click the box and press a key or combination (e.g., Ctrl+R) to set the shortcut.": "Cliquez à l'intérieur du champ et appuyez sur une touche ou une combinaison (par exemple, Ctrl+K) pour définir le raccourci.",
     "Microphone Activation Shortcut": "Raccourci d'activation du microphone",
     "This keyboard combination STARTS / STOPS the speech detection process": "Cette combinaison de touches DÉMARRE / ARRÊTE le processus de reconnaissance vocale",
+    "Push-to-talk (hold the shortcut)": "Push-to-talk (maintenir le raccourci)",
+    "When enabled, hold the shortcut (or the external button) to talk: recording starts on press and stops when you release it.": "Lorsque cette option est activée, maintenez appuyé le raccourci (ou le bouton externe) pour parler : l'enregistrement démarre à l'appui et s'arrête au relâchement.",
     "Mistral API Key is required for Voxtral models": "La clé API Mistral est requise pour les modèles Voxtral",
     "Mistral API Key is required": "La clé API Mistral est obligatoire",
     "Groq API Key is required for Whisper models": "La clé API Groq est requise pour les modèles Whisper",

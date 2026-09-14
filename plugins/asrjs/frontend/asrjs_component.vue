@@ -21,6 +21,8 @@ export default {
             audio: {},
             continuous: false,
             keyboardShortcut: null,
+            holdToTalk: false, // Hold the shortcut to talk (release to stop) instead of click-to-toggle
+            pttActive: false, // True while the shortcut is being held in push-to-talk mode
             vad: null, // Store VAD instance
             vadInitialized: false,
             accumulatedAudioBuffer: null, // Float32Array for audio accumulation on semantic VAD "nok"
@@ -81,6 +83,7 @@ export default {
             this.settings = settings;
             this.continuous = settings.continuous || false;
             this.wakewordEnabled = settings.wakeword_enabled || false;
+            this.holdToTalk = settings.hold_to_talk || false;
             if (settings.shortcut) {
                 console.log('ASRJS SHORTCUT:', settings.shortcut);
                 this.keyboardShortcut = settings.shortcut;
@@ -90,6 +93,8 @@ export default {
         }
 
         window.addEventListener('keydown', this.$_handleKeyPress);
+        window.addEventListener('keyup', this.$_handleKeyRelease);
+        window.addEventListener('blur', this.$_handlePttBlur);
 
         // If continuous mode, load VAD library for automatic speech detection
         if (this.continuous) {
@@ -111,6 +116,8 @@ export default {
     },
     beforeDestroy() {
         window.removeEventListener('keydown', this.$_handleKeyPress);
+        window.removeEventListener('keyup', this.$_handleKeyRelease);
+        window.removeEventListener('blur', this.$_handlePttBlur);
 
         if (this.voiceProfilesRefreshInterval) {
             clearInterval(this.voiceProfilesRefreshInterval);
@@ -1046,7 +1053,7 @@ export default {
                 console.error('Error sending audio to transcribe:', error);
             }
         },
-        $_handleKeyPress(event) {
+        async $_handleKeyPress(event) {
             if (event.ctrlKey && event.key.toLowerCase() === "v") {
                 return; // allow paste
             }
@@ -1068,7 +1075,43 @@ export default {
             // console.log("Pressed combination:", pressedCombo + ", looking for:", this.keyboardShortcut);
             if (this.keyboardShortcut && pressedCombo === this.keyboardShortcut) {
                 event.preventDefault();
-                this.$_handleMicClick();
+                if (this.holdToTalk && !this.continuous) {
+                    // Push-to-talk: keydown starts, keyup (or window blur) stops.
+                    // event.repeat guards the auto-repeat keydowns fired while the key is held.
+                    if (!event.repeat && !this.pttActive &&
+                        (this.status === 'listening' || this.status === 'ready')) {
+                        this.pttActive = true;
+                        this.status = 'recording';
+                        await this.$_startRecording();
+                    }
+                } else {
+                    this.$_handleMicClick();
+                }
+            }
+        },
+        $_handleKeyRelease(event) {
+            if (!this.pttActive || !this.keyboardShortcut) return;
+            // Releasing ANY key of the combination ends the push-to-talk session
+            // (covers both release orders, e.g. K before Ctrl or Ctrl before K).
+            const keyName = event.key === 'Control' ? 'Ctrl' : event.key;
+            const released = keyName.length === 1 ? keyName.toUpperCase() : keyName;
+            if (this.keyboardShortcut.split('+').includes(released)) {
+                event.preventDefault();
+                this.$_endPushToTalk();
+            }
+        },
+        $_handlePttBlur() {
+            // If the window loses focus mid-hold the keyup never arrives: stop here
+            // so the microphone cannot stay open indefinitely.
+            if (this.pttActive) {
+                this.$_endPushToTalk();
+            }
+        },
+        async $_endPushToTalk() {
+            this.pttActive = false;
+            if (this.status === 'recording') {
+                // The non-continuous stop branch of the mic click does stop + transcribe + cleanup
+                await this.$_handleMicClick();
             }
         },
 
@@ -1108,6 +1151,7 @@ export default {
                     // Handle shortcut (always update, even if empty)
                     console.log('ASRJS SHORTCUT:', this.settings.shortcut);
                     this.keyboardShortcut = this.settings.shortcut || null;
+                    this.holdToTalk = this.settings.hold_to_talk || false;
 
                     // If wakeword was just enabled and continuous mode is on, notify AudioWorklet
                     if (wakewordChanged && this.wakewordEnabled && this.continuous && this.processor) {

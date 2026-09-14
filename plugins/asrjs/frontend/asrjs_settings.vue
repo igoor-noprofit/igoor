@@ -107,6 +107,18 @@
             </div>
             <div class="form-note"></div>
 
+            <!-- Push-to-Talk (only in non-continuous mode) -->
+            <template v-if="!formData.continuous">
+                <div class="form-label">
+                    <label class="toggle-switch">
+                        <input type="checkbox" v-model="formData.hold_to_talk" />
+                        <span class="toggle-slider"></span>
+                    </label>
+                    {{t('Push-to-talk (hold the shortcut)')}}
+                    <HelpPopover :text="t('When enabled, hold the shortcut (or the external button) to talk: recording starts on press and stops when you release it.')" :t="t" :lang="lang"/>
+                </div>
+            </template>
+
             <!-- Microphone -->
             <div class="form-input" style="display: flex; align-items: center; gap: 8px;">
                 <button type="button" @click="openMicSettings">{{t('Open OS microphone settings')}}</button>
@@ -309,6 +321,7 @@ export default {
                 positiveSpeechThreshold: 0.5,
                 redemptionFrames: 15,
                 shortcut: '',
+                hold_to_talk: false,
                 sherpa_model_size: 'small'
             },
             defaultSettings: {

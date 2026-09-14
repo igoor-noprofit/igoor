@@ -21,6 +21,8 @@
     "Click the box and press a key or combination (e.g., Ctrl+R) to set the shortcut.": "Clique no campo e pressione uma tecla ou uma combinação (por exemplo, Ctrl+R) para definir o atalho.",
     "Microphone Activation Shortcut": "Atalho de ativação do microfone",
     "This keyboard combination STARTS / STOPS the speech detection process": "Esta combinação de teclas INICIA / PARA o processo de detecção de fala",
+    "Push-to-talk (hold the shortcut)": "Push-to-talk (segure o atalho)",
+    "When enabled, hold the shortcut (or the external button) to talk: recording starts on press and stops when you release it.": "Quando ativado, segure o atalho (ou o botão externo) para falar: a gravação começa ao pressionar e para ao soltar.",
     "Mistral API Key is required for Voxtral models": "A chave de API da Mistral é necessária para os modelos Voxtral",
     "Mistral API Key is required": "A chave de API da Mistral é obrigatória",
     "Groq API Key is required for Whisper models": "A chave de API da Groq é necessária para os modelos Whisper",
