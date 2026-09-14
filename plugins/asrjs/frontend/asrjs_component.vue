@@ -447,7 +447,7 @@ export default {
 
                 // Get settings with defaults
                 const positiveThreshold = this.settings?.positiveSpeechThreshold || 0.5;
-                const redemptionFrames = this.settings?.redemptionFrames || 24;
+                const redemptionFrames = this.settings?.redemptionFrames || 15;
 
                 this.vad = await window.vad.MicVAD.new({
                     // Use v5 model for better accuracy (fewer false positives)

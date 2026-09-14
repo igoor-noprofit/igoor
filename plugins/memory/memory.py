@@ -102,11 +102,11 @@ class Memory(Baseplugin):
 
         # SYSTEM PROMPT (pre-built with bio_name)
         system_prompt = self._memory_system_prompt
-        print(f"Memory system prompt: {system_prompt}")
-        
+        self.logger.debug(f"Memory system prompt: {system_prompt}")
+
         # HUMAN PROMPT
         conversation = last_conversation.get("txt")
-        print(f"Conversation text: {conversation}")
+        self.logger.debug(f"Conversation text: {conversation}")
         pm = PromptManager(template=self.prompts.get("memory", {}).get("usr"))
         prompt = pm.create_prompt(conversation=conversation)       
 

@@ -994,7 +994,7 @@ class Pockettts(Baseplugin):
     async def run_speak_func(self, message, voice_state=None, skip_asr=False,
                              fallback_on_failure=True):
         await self.pm.trigger_hook(hook_name="pause_asr")
-        await asyncio.sleep(0.1)  # Ensure pause message reaches frontend
+        await asyncio.sleep(0.03)  # Ensure pause message reaches frontend
         success = await self.speak_func(message, voice_state=voice_state)
         if not success and fallback_on_failure:
             self.logger.warning("speak_func failed, triggering speak_fallback")

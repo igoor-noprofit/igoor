@@ -167,7 +167,7 @@ class Ttsdefault(Baseplugin):
 
     async def run_speak_func(self, message, skip_asr=False):
         await self.pm.trigger_hook(hook_name="pause_asr")
-        await asyncio.sleep(0.1)  # Ensure pause message reaches frontend
+        await asyncio.sleep(0.03)  # Ensure pause message reaches frontend
         success = await self.speak_func(message)
         await self.pm.trigger_hook(hook_name="restart_asr", force_ready=skip_asr)
 

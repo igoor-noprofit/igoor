@@ -347,13 +347,13 @@ class PluginManager:
         # Load plugins dynamically from the plugins/ directory based on activation state
 
     async def trigger_hook(self, hook_name, **kwargs):
-        self.logger.info(f"Hook triggered: {hook_name}")
+        self.logger.debug(f"Hook triggered: {hook_name}")
         """Generic method to trigger any hook by name."""
         hook = getattr(self.plugin_manager.hook, hook_name, None)
         if hook:
             try:
                 # Log the kwargs that will be passed to the hook
-                self.logger.info(f"Executing hook {hook_name} with kwargs: {str(kwargs)[:50]} ...")                
+                self.logger.debug(f"Executing hook {hook_name} with kwargs: {str(kwargs)[:50]} ...")
                 # Call the hook with unpacked kwargs
                 results = hook(**kwargs)
 

@@ -207,36 +207,45 @@ class Flow(Baseplugin):
             # If preflow disabled or failed, query all store types
             store_types = [0, 1, 2]
                 
-        # Make a single call to query_rag_async with all needed store types
-        chunk_ids = await self.pm.trigger_hook(
-            hook_name="query_rag", 
-            query_text=conversation, 
-            store_types=store_types, 
-            return_chunk_ids=True
+        # RAG retrieval and the conversation/speaker lookups are independent —
+        # run them concurrently instead of sequentially
+        async def rag_chain():
+            chunk_ids = await self.pm.trigger_hook(
+                hook_name="query_rag",
+                query_text=conversation,
+                store_types=store_types,
+                return_chunk_ids=True
+            )
+            # self.logger.info(f"Chunk IDs: {chunk_ids}")
+            filtered_results = await self.pm.trigger_hook(
+                hook_name="filter_by_timeframe",
+                preflow_dict=preflow_dict,
+                docstore_ids_by_type=chunk_ids
+            )
+            # self.logger.info(f"FILTERED RESULTS: {filtered_results}")
+            return normalize_filter_by_timeframe_result(filtered_results)
+
+        async def history_contexts():
+            # Get last conversations for additional context
+            last_conversations_result = await self.pm.trigger_hook(hook_name="get_last_conversations")
+            last_conversations = last_conversations_result[0] if last_conversations_result and last_conversations_result[0] else ""
+
+            # Per-speaker history injection: past conversations with the current speaker.
+            speaker_conversations = ""
+            try:
+                spk = next((r for r in (await self.pm.trigger_hook(hook_name="get_context_speaker") or []) if r and r.get("speakers_id")), None)
+                if spk:
+                    speaker_conversations = next((r for r in (await self.pm.trigger_hook(hook_name="get_speaker_conversations", speakers_id=spk["speakers_id"]) or []) if r), "")
+            except Exception as e:
+                self.logger.warning(f"speaker_conversations lookup failed: {e}")
+            return last_conversations, speaker_conversations
+
+        actual_filtered_results, (last_conversations, speaker_conversations) = await asyncio.gather(
+            rag_chain(),
+            history_contexts()
         )
-        # self.logger.info(f"Chunk IDs: {chunk_ids}") 
-        filtered_results = await self.pm.trigger_hook(
-            hook_name="filter_by_timeframe", 
-            preflow_dict=preflow_dict,
-            docstore_ids_by_type=chunk_ids
-        )
-        # self.logger.info(f"FILTERED RESULTS: {filtered_results}")
-        actual_filtered_results = normalize_filter_by_timeframe_result(filtered_results)
 
         del dynamic_context["conversation"]
-        
-        # Get last conversations for additional context
-        last_conversations_result = await self.pm.trigger_hook(hook_name="get_last_conversations")
-        last_conversations = last_conversations_result[0] if last_conversations_result and last_conversations_result[0] else ""
-
-        # Per-speaker history injection: past conversations with the current speaker.
-        speaker_conversations = ""
-        try:
-            spk = next((r for r in (await self.pm.trigger_hook(hook_name="get_context_speaker") or []) if r and r.get("speakers_id")), None)
-            if spk:
-                speaker_conversations = next((r for r in (await self.pm.trigger_hook(hook_name="get_speaker_conversations", speakers_id=spk["speakers_id"]) or []) if r), "")
-        except Exception as e:
-            self.logger.warning(f"speaker_conversations lookup failed: {e}")
 
         system_prompt = self._flow_system_prompt
 
@@ -251,24 +260,24 @@ class Flow(Baseplugin):
             speaker_conversations=speaker_conversations
         )
         
-        print(f"FINAL PROMPT : {prompt}")
+        self.logger.debug(f"FINAL PROMPT : {prompt}")
         try:
             # Fall back to global onboarding settings
             ai = self.global_settings.get_nested(["plugins", "onboarding", "ai"], default={})
-            
+
             # Use global provider and api_key (flow settings are empty by default)
             provider = ai.get("provider")
             api_key = ai.get("api_key")
-            
+
             # Use global model_name (flow settings are empty by default)
             model_name = ai.get("model_name")
-            
+
             # Use global temperature (or default if not set)
             temperature = self.settings.get("temperature") if self.settings.get("temperature") is not None else ai.get("temperature", 1)
-            
+
             llm = LLMManager(provider, api_key, model_name, temperature=temperature)
             llm.set_json_schema(Answers)
-            answers = llm.invoke(system_prompt,prompt)
+            answers = await llm.ainvoke(system_prompt, prompt)
             has_error, answers = self.handle_llm_error(answers)
             if has_error:
                 return answers
@@ -292,8 +301,8 @@ class Flow(Baseplugin):
         pm = PromptManager(template="Jour et heure actuelle: {datetime} Conversation : {conversation}")
         now = datetime.now()
         formatted_datetime = now.strftime("%A %d %B %Y %H:%M")  # e.g., "Monday 22 April 2025"
-        prompt = pm.create_prompt(datetime=formatted_datetime, conversation=conversation)       
-        print(f"FINAL PROMPT : {prompt}")
+        prompt = pm.create_prompt(datetime=formatted_datetime, conversation=conversation)
+        self.logger.debug(f"PREFLOW FINAL PROMPT : {prompt}")
         try:
             # Fall back to global onboarding settings
             ai = self.global_settings.get_nested(["plugins", "onboarding", "ai"], default={})
@@ -315,7 +324,7 @@ class Flow(Baseplugin):
             
             llm = LLMManager(provider, api_key, model_name, temperature=model_temperature)
             llm.set_json_schema(ConversationModel)
-            preflow = llm.invoke(system_prompt,prompt)
+            preflow = await llm.ainvoke(system_prompt, prompt)
             has_error, preflow = self.handle_llm_error(preflow)
             if has_error:
                 return preflow
@@ -366,7 +375,7 @@ class Flow(Baseplugin):
             print(f"Semantic VAD: Calling LLM with model '{model_name}' for conversation: {conversation[:100]}...")
             llm = LLMManager(provider, api_key, model_name, temperature=0)
             llm.set_json_schema(SemanticVADResponse)
-            result = llm.invoke(system_prompt, f"Conversation:\n{conversation}")
+            result = await llm.ainvoke(system_prompt, f"Conversation:\n{conversation}")
             
             has_error, result = self.handle_llm_error(result)
             if has_error:

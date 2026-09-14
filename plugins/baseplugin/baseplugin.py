@@ -3,7 +3,7 @@ from settings_manager import SettingsManager
 from status_manager import StatusManager
 from plugin_manager import hookimpl, PluginManager
 from websocket_server import websocket_server
-import os,json,asyncio,base64,uuid,time
+import os,json,asyncio,base64,uuid,time,threading
 from pathlib import Path
 from datetime import datetime
 from utils import resource_path
@@ -396,45 +396,51 @@ class Baseplugin:
             
     def send_message_to_frontend(self, message, plugin_name=None):
         """
-        Sends a message to the designated plugin's frontend channel with retry mechanism.
-        
+        Sends a message to the designated plugin's frontend channel.
+        Tries to send immediately; if the frontend socket is not open yet (or the
+        send fails), retries continue in a background thread so the caller —
+        often an async hook chain — is never blocked waiting for the frontend.
+
         :param message: The message to be sent.
         :param plugin_name: (Optional) The plugin name to send the message to. If not provided, uses self.plugin_name.
         """
-        import time
-        
         # Use the provided plugin_name or default to self.plugin_name
         target_plugin_name = plugin_name or self.plugin_name
-        
-        # Retry configuration
-        max_retries = 5
-        retry_delay = 1  # seconds
-        
+
         # Ensure the message is a JSON string
         if isinstance(message, dict):
             message = json.dumps(message)
-            
-        # Attempt to send the message with retries
-        for attempt in range(max_retries + 1):
+
+        if websocket_server.is_socket_open(target_plugin_name):
+            try:
+                if websocket_server.send_message(target_plugin_name, message):
+                    return True
+            except Exception as e:
+                self.logger.warning(f"Failed to send message to {target_plugin_name} frontend: {e}")
+
+        self.logger.warning(f"{target_plugin_name} frontend is not ready, deferring send to background retries")
+        threading.Thread(
+            target=self._retry_send_to_frontend,
+            args=(target_plugin_name, message),
+            daemon=True
+        ).start()
+        return False
+
+    def _retry_send_to_frontend(self, target_plugin_name, message):
+        """Background retry loop for send_message_to_frontend; never blocks the caller."""
+        max_retries = 5
+        retry_delay = 1  # seconds
+        for attempt in range(1, max_retries + 1):
+            time.sleep(retry_delay)
             if websocket_server.is_socket_open(target_plugin_name):
                 try:
-                    return websocket_server.send_message(target_plugin_name, message)
+                    if websocket_server.send_message(target_plugin_name, message):
+                        return
                 except Exception as e:
-                    if attempt < max_retries:
-                        self.logger.warning(f"Failed to send message to {target_plugin_name} frontend (attempt {attempt + 1}/{max_retries + 1}): {e}")
-                        time.sleep(retry_delay)
-                    else:
-                        self.logger.error(f"Error while sending message to {target_plugin_name} frontend after {max_retries + 1} attempts: {e}")
-                        return False
+                    self.logger.warning(f"Failed to send message to {target_plugin_name} frontend (retry {attempt}/{max_retries}): {e}")
             else:
-                if attempt < max_retries:
-                    self.logger.warning(f"{target_plugin_name} frontend is not ready (attempt {attempt + 1}/{max_retries + 1})")
-                    time.sleep(retry_delay)
-                else:
-                    self.logger.error(f"{target_plugin_name} frontend is not ready after {max_retries + 1} attempts")
-                    return False
-        
-        return False
+                self.logger.warning(f"{target_plugin_name} frontend is not ready (retry {attempt}/{max_retries})")
+        self.logger.error(f"Could not send message to {target_plugin_name} frontend after {max_retries} retries")
     
     def send_action_to_frontend(self, action, plugin_name=None):
         target_plugin_name = plugin_name or self.plugin_name

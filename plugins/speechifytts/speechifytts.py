@@ -485,7 +485,9 @@ class Speechifytts(Baseplugin):
         return ssml.strip()
 
     async def call_speechify(self,input,voice_id,language,model="simba-multilingual",skip_asr=False):
-        response = self.client.tts.audio.speech(
+        # Blocking HTTP call — run it off the event loop
+        response = await asyncio.to_thread(
+            self.client.tts.audio.speech,
             input=input,  # Use SSML instead of plain text
             voice_id=voice_id,
             language=language,
@@ -528,7 +530,7 @@ class Speechifytts(Baseplugin):
 
             # 3. Play the audio
             await self.pm.trigger_hook(hook_name="pause_asr")
-            await asyncio.sleep(0.1)  # Ensure pause message reaches frontend
+            await asyncio.sleep(0.03)  # Ensure pause message reaches frontend
 
             if self.is_remote_ui():
                 # Speechify returns the complete audio only: single-chunk stream

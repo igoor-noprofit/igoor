@@ -172,6 +172,14 @@ class Rag(Baseplugin):
         for store_type in [INGESTED, LONG_TERM, SHORT_TERM]:
             if self.index_loaded.get(store_type):
                 await self.fix_docstore_id_inconsistencies(store_type)
+
+        # Warm the embedding model so the first real query doesn't pay cold-start
+        try:
+            loop = asyncio.get_event_loop()
+            await loop.run_in_executor(None, lambda: self.embedding_function.embed_query("warmup"))
+            self.logger.info("Embedding model warmed up")
+        except Exception as e:
+            self.logger.warning(f"Embedding warmup skipped: {e}")
         
         # await self.clear_memory(memory_type=LONG_TERM) 
         # await self.import_long_term_memories_from_json(os.path.join(self.plugin_folder,"chunks_new.json"))
@@ -542,8 +550,8 @@ class Rag(Baseplugin):
             else:
                 end_dt_str = None
                 
-            self.logger.warning(f"Calculated start_dt_str: {start_dt_str}")
-            self.logger.warning(f"Calculated end_dt_str: {end_dt_str}")
+            self.logger.debug(f"Calculated start_dt_str: {start_dt_str}")
+            self.logger.debug(f"Calculated end_dt_str: {end_dt_str}")
             return start_dt_str, end_dt_str
             
         except Exception as e:
@@ -1140,23 +1148,43 @@ class Rag(Baseplugin):
                     chunk_ids_by_store[INGESTED].append(docstore_id)
                     already_sent_docstore_ids.add(docstore_id)
 
+            # Embed the query once and share the vector across all store searches;
+            # similarity_search_with_score would re-embed the same text per store
+            try:
+                loop = asyncio.get_event_loop()
+                query_vector = await loop.run_in_executor(
+                    None, lambda: self.embedding_function.embed_query(query_text)
+                )
+            except Exception as e:
+                self.logger.warning(f"Shared query embedding failed, falling back to per-store embedding: {e}")
+                query_vector = None
+
+            async def _search_store(store_type):
+                start_time = time.time()
+                if store_type == SHORT_TERM:
+                    return await self.search_short_term_memory(query_text=query_text, query_vector=query_vector)
+                # For INGESTED and LONG_TERM, use the regular chunk_num approach
+                results = await self.search_in_FAISS(query_text=query_text, store_type=store_type, k=chunk_num, score_threshold=self.score_threshold, query_vector=query_vector)
+                search_end_time = time.time()
+                self.logger.debug(f"Store type {store_type} search time: {search_end_time - start_time:.2f} seconds")
+                return results
+
+            searchable = []
             for store_type in store_types:
                 if not self.index_loaded[store_type]:
                     self.logger.warning(f"Index type {store_type} not loaded yet, skipping")
-                    continue
-                    
-                start_time = time.time()
-            
-                if store_type == SHORT_TERM:
-                    results = await self.search_short_term_memory(query_text=query_text)
                 else:
-                    # For INGESTED and LONG_TERM, use the regular chunk_num approach
-                    results = await self.search_in_FAISS(query_text=query_text,store_type=store_type,k=chunk_num,score_threshold=self.score_threshold)
-                    search_end_time = time.time()
-                    self.logger.debug(f"Store type {store_type} search time: {search_end_time - start_time:.2f} seconds")
-                
+                    searchable.append(store_type)
+
+            # Store searches are independent — run them concurrently
+            store_results = dict(zip(
+                searchable,
+                await asyncio.gather(*(_search_store(st) for st in searchable))
+            ))
+
+            for store_type in store_types:
                 # Process results which now include (doc, score, index)
-                for doc, score, index in results:
+                for doc, score, index in store_results.get(store_type, []):
                     # DEDUPLICATION: Skip if this chunk is already in always-send list
                     if store_type == INGESTED and index in already_sent_docstore_ids:
                         self.logger.debug(f"Skipping duplicate chunk {index} (already in always-send list)")
@@ -1404,28 +1432,26 @@ class Rag(Baseplugin):
                         all_chunks.append((faiss_doc, docstore_id))
         return all_chunks
 
-    async def search_short_term_memory(self, query_text: str):
+    async def search_short_term_memory(self, query_text: str, query_vector=None):
         self.logger.debug("SEARCHING SHORT TERM MEMORY")
         try:
             # Get more candidates for filtering by score
             max_candidates = min(50, len(self.vector_stores[SHORT_TERM].index_to_docstore_id))
-            
+
             # Skip if only the initial empty document exists
             if max_candidates <= 1:
                 self.logger.info(f"SHORT_TERM store has only the initial document, skipping")
                 return []
-                
+
             # Get more candidates to filter by score
-            results = await self.search_in_FAISS(query_text=query_text,store_type=SHORT_TERM,k=max_candidates,score_threshold=self.score_threshold)
-            print(f"------ {max_candidates} RESULTS: {results} --------")
-            print(f"------ UP TO {max_candidates} RESULTS: {results} --------")
+            results = await self.search_in_FAISS(query_text=query_text,store_type=SHORT_TERM,k=max_candidates,score_threshold=self.score_threshold, query_vector=query_vector)
                 
         except Exception as e:
             self.logger.error(f"Error querying SHORT_TERM store: {e}")
             results = []
         return results
     
-    async def search_in_FAISS(self, query_text: str, store_type: str, k: int, score_threshold: float) -> list:
+    async def search_in_FAISS(self, query_text: str, store_type: str, k: int, score_threshold: float, query_vector=None) -> list:
         """
         Search in specific FAISS vector store and return results with scores and docstore_ids.
         """
@@ -1451,18 +1477,43 @@ class Rag(Baseplugin):
                 return []
 
             loop = asyncio.get_event_loop()
-            # Run the synchronous FAISS search in a thread pool executor
-            try:
-                results = await loop.run_in_executor(
-                    None,
-                    lambda: self.vector_stores[store_type].similarity_search_with_score(
-                        query_text,
-                        k=fetch_k # Fetch more candidates
+            if query_vector is not None:
+                # Search directly with the pre-computed query vector — same index and
+                # scoring as similarity_search_with_score, minus the re-embedding
+                vector_store = self.vector_stores[store_type]
+
+                def _direct_search():
+                    vector = np.array([query_vector], dtype=np.float32)
+                    scores, indices = vector_store.index.search(vector, fetch_k)
+                    out = []
+                    for j, i in enumerate(indices[0]):
+                        if i == -1:
+                            continue
+                        docstore_id = vector_store.index_to_docstore_id[int(i)]
+                        doc = vector_store.docstore.search(docstore_id)
+                        if doc is not None:
+                            out.append((doc, float(scores[0][j])))
+                    return out
+
+                try:
+                    results = await loop.run_in_executor(None, _direct_search)
+                except Exception as e:
+                    self.logger.warning(f"Direct FAISS search failed in '{store_type}' store ({e}); falling back to text search")
+                    query_vector = None
+
+            if query_vector is None:
+                # Run the synchronous FAISS search in a thread pool executor
+                try:
+                    results = await loop.run_in_executor(
+                        None,
+                        lambda: self.vector_stores[store_type].similarity_search_with_score(
+                            query_text,
+                            k=fetch_k # Fetch more candidates
+                        )
                     )
-                )
-            except Exception as e:
-                self.logger.error(f"Error during FAISS search in '{store_type}' store: {e}")
-                return []
+                except Exception as e:
+                    self.logger.error(f"Error during FAISS search in '{store_type}' store: {e}")
+                    return []
 
             # --- Correction: Use store_type consistently ---
             current_docstore = self.vector_stores[store_type].docstore._dict

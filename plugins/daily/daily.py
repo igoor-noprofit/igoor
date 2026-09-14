@@ -198,22 +198,22 @@ class Daily(Baseplugin):
         actual_filtered_results = normalize_filter_by_timeframe_result(filtered_results)
         # del dynamic_context["conversation"]
         system_prompt = self._daily_system_prompt
-        print(f"SYSTEM PROMPT IS : {system_prompt}")   
+        self.logger.debug(f"SYSTEM PROMPT IS : {system_prompt}")
         # Only pass dynamic vars (static ones are pre-filled via partial)
         prompt = self._daily_usr_pm.create_prompt(
             static_context='\n'.join(actual_filtered_results.get(0, [])),
             long_term='\n'.join(actual_filtered_results.get(1, [])),
             short_term='\n'.join(actual_filtered_results.get(2, [])),
-            dynamic_context=dynamic_context, 
+            dynamic_context=dynamic_context,
             category=category,
-            theme=theme, 
-            tags="")       
-        print(f"FINAL PROMPT : {prompt}")
+            theme=theme,
+            tags="")
+        self.logger.debug(f"FINAL PROMPT : {prompt}")
         try:
             llm = LLMManager(self.settings.get("provider"), self.settings.get("api_key"), self.settings.get("model_name"))
             llm.set_json_schema(Answers)
-            answers = llm.invoke(system_prompt, prompt)
-            print(f"RAW LLM OUTPUT: {answers}")
+            answers = await llm.ainvoke(system_prompt, prompt)
+            self.logger.debug(f"RAW LLM OUTPUT: {answers}")
             if isinstance(answers, str):
                 try:
                     answers = Answers.model_validate_json(answers)

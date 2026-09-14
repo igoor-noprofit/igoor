@@ -307,13 +307,13 @@ export default {
                 continuous: false,
                 always_generate: false,
                 positiveSpeechThreshold: 0.5,
-                redemptionFrames: 24,
+                redemptionFrames: 15,
                 shortcut: '',
                 sherpa_model_size: 'small'
             },
             defaultSettings: {
                 positiveSpeechThreshold: 0.5,
-                redemptionFrames: 24,
+                redemptionFrames: 15,
                 continuous: false,
                 always_generate: false
             },

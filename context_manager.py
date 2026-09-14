@@ -1,3 +1,7 @@
+from utils import setup_logger, get_appdata_dir
+
+logger = setup_logger('context_manager', get_appdata_dir())
+
 class ContextManager:
     """
     A Singleton class to manage a shared context across the application.
@@ -14,13 +18,13 @@ class ContextManager:
             cls._context = {
             }
         return cls._instance
-    
+
     def update_context(self, key, value):
         """Update context with key-value pairs."""
         if value:
-            print(f"Updating CONTEXT for {key} = {value}")
+            logger.debug(f"Updating CONTEXT for {key} = {value}")
         else:
-            print(f"Clearing {key} from CONTEXT")
+            logger.debug(f"Clearing {key} from CONTEXT")
         self._context[key] = value
 
     def get_context(self):

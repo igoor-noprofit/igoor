@@ -1,7 +1,8 @@
 from version import __appname__, __version__, __codename__
+import asyncio, os, time
 import langchain
-langchain.debug = True  # Enable debug mode for LangChain
-import os, time
+# Verbose LangChain tracing dumps full prompts/responses per call; debug only
+langchain.debug = os.getenv("IGOOR_DEBUG", "").strip().lower() in ("1", "true", "yes")
 from settings_manager import SettingsManager
 from utils import setup_logger, setup_jsonl_logger, get_appdata_dir
 from langchain_openai import ChatOpenAI
@@ -66,15 +67,30 @@ class LLMManager:
         # Setup dedicated logger for LLM invocations
         self.invocation_logger = setup_jsonl_logger('llm_invocations', get_appdata_dir())
 
+    @staticmethod
+    def _supports_reasoning_effort(model_name):
+        """Reasoning-effort is only accepted by reasoning-capable model families;
+        other models make the provider reject the request with a 400."""
+        if not model_name:
+            return False
+        m = model_name.lower()
+        return "gpt-oss" in m or m.startswith(("o1", "o3", "o4")) or "qwen3" in m
+
     def _create_chat(self):
         """Create a chat instance using OpenAI SDK with configurable base_url."""
         self.logger.info(f"Creating chat instance - provider: {self.provider}, model: {self.model_name}, base_url: {self.base_url}")
+
+        kwargs = {}
+        if self.reasoning_effort and self._supports_reasoning_effort(self.model_name):
+            kwargs["reasoning_effort"] = self.reasoning_effort
+            self.logger.info(f"Reasoning effort set to '{self.reasoning_effort}' for {self.model_name}")
 
         return ChatOpenAI(
             temperature=self.temperature,
             openai_api_key=self.api_key,
             model_name=self.model_name,
-            base_url=self.base_url  # None uses default OpenAI endpoint
+            base_url=self.base_url,  # None uses default OpenAI endpoint
+            **kwargs
         )
 
     def set_json_schema(self, schema):
@@ -138,10 +154,19 @@ class LLMManager:
                         }
         return reasoning_log_content, cache_log
 
+    async def ainvoke(self, system_prompt, prompt, retries=3, reasoning_effort=None):
+        """Async wrapper around invoke(): runs the blocking LLM call off the event loop."""
+        return await asyncio.to_thread(self.invoke, system_prompt, prompt, retries, reasoning_effort)
+
     def invoke(self, system_prompt, prompt, retries=3, reasoning_effort=None):
         import json
         attempt = 0
         last_exception = None
+        # Per-call reasoning-effort override, bound as a request param so it
+        # reaches the provider without rebuilding the chat instance
+        chat_instance = self.chat_instance
+        if reasoning_effort and self._supports_reasoning_effort(self.model_name) and reasoning_effort != self.reasoning_effort:
+            chat_instance = self.chat_instance.bind(reasoning_effort=reasoning_effort)
         while attempt < retries:
             try:
                 reasoning_log_content = ""
@@ -154,7 +179,7 @@ class LLMManager:
                         schema_json = self.schema_model.model_json_schema()
                         json_instruction = f"\n\nIMPORTANT: Respond ONLY with valid JSON matching this schema:\n{json.dumps(schema_json, indent=2)}\n\nDo not include any text outside the JSON object."
 
-                        response = self.chat_instance.invoke([
+                        response = chat_instance.invoke([
                             ("system", system_prompt + json_instruction),
                             ("human", prompt)
                         ])
@@ -182,7 +207,7 @@ class LLMManager:
                         response_log_content = result.model_dump() if hasattr(result, "model_dump") else str(result)
                 else:
                     # Unstructured output
-                    response = self.chat_instance.invoke([
+                    response = chat_instance.invoke([
                         ("system", system_prompt),
                         ("human", prompt)
                     ])

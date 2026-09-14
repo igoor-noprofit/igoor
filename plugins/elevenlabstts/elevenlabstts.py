@@ -554,7 +554,7 @@ class Elevenlabstts(Baseplugin):
                 audio = self.client.text_to_speech.convert(**request_params)
                 # Pause ASR before playback and give WebSocket time to deliver the message
                 await self.pm.trigger_hook(hook_name="pause_asr")
-                await asyncio.sleep(0.1)  # Ensure pause message reaches frontend
+                await asyncio.sleep(0.03)  # Ensure pause message reaches frontend
 
                 if self.is_remote_ui():
                     # Stream the chunks to the browser as they are generated
