@@ -193,3 +193,4 @@ installer/msix/layout/
 installer/msix/*.msix
 installer/msix/*.cer
 installer/msix/*.pfx
+/venv-intel
