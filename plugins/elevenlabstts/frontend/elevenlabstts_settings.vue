@@ -538,6 +538,14 @@ export default {
                 this.apiKeyError = true;
                 this.apiKeyValid = false;
 
+                // 404 = the plugin's REST router is not registered (extension
+                // active in settings but not loaded in this session): the key
+                // itself was never checked, so don't report it as invalid
+                if (err && err.status === 404) {
+                    this.apiKeyErrorMessage = this.t('Extension not running. Restart IGOOR, then reopen these settings.');
+                    return;
+                }
+
                 // Extract error message from response
                 if (err.response && err.response.data) {
                     const errorData = err.response.data;

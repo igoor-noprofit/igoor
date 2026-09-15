@@ -224,7 +224,8 @@ def create_app() -> FastAPI:
                     "success": True,
                     "message": result.get("message"),
                     "warnings": result.get("warnings", []),
-                    "version_info": result.get("version_info")
+                    "version_info": result.get("version_info"),
+                    "activation_changes": result.get("activation_changes", {})
                 }
             finally:
                 # Clean up temp file

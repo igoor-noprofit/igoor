@@ -260,7 +260,9 @@ const BasePluginComponent = {
       try {
         const response = await fetch(url, fetchOptions);
         if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          const error = new Error(`HTTP ${response.status}: ${response.statusText}`);
+          error.status = response.status;
+          throw error;
         }
         return await response.json();
       } catch (error) {

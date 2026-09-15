@@ -800,11 +800,21 @@ export default {
                 }
                 
                 if (data.version_info) {
-                    const versionText = this.t('Imported from version') + `: ${data.version_info.igoor_version}\n` + 
+                    const versionText = this.t('Imported from version') + `: ${data.version_info.igoor_version}\n` +
                                       this.t('Export date') + `: ${data.version_info.export_timestamp}`;
                     message += '\n\n' + versionText;
                 }
-                
+
+                // Plugins are only loaded at app start: if the import changed any
+                // activation state, the change is not live in this session
+                const changedPlugins = Object.keys(data.activation_changes || {});
+                if (changedPlugins.length > 0) {
+                    message += '\n\n⚠ ' + this.t('Restart required: extension activation changed. Please quit and relaunch IGOOR.');
+                    // No auto-dismiss (unlike the toggle alert): the banner must
+                    // stay visible while configuring plugins that are not loaded yet
+                    this.showRestartAlert = true;
+                }
+
                 alert(message);
                 
                 // Reset the file input

@@ -39,6 +39,7 @@
     "Hello, how are you doing? I feel better today!": "Ciao, come stai? Oggi mi sento meglio!",
     "Enable Logging": "Abilita log",
     "Failed to validate API key. Please check your key and try again.": "Impossibile validare la chiave API. Controlla la tua chiave e riprova.",
+    "Extension not running. Restart IGOOR, then reopen these settings.": "Estensione non attiva. Riavvia IGOOR, quindi riapri queste impostazioni.",
     "Use recorded voice": "Usa voce registrata",
     "Upload audio": "Carica audio",
     "Voice cloning": "Clonazione vocale",

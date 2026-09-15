@@ -1,6 +1,7 @@
 {
   "Plugins": "Estensioni",
   "Please restart the app for changes to take effect.": "Riavvia l'applicazione affinché le modifiche alle estensioni abbiano effetto.",
+  "Restart required: extension activation changed. Please quit and relaunch IGOOR.": "Riavvio necessario: l'attivazione delle estensioni è cambiata. Chiudi e riavvia IGOOR.",
   "Bio": "Bio",
   "Preferences": "Preferenze",
   "AI": "IA",

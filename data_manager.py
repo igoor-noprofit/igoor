@@ -316,7 +316,17 @@ class DataManager:
                         self.logger.info(f"Backed up plugins/{plugin_name}/{rel_path}")
 
                 warnings = []
-                
+
+                # Snapshot activation states before touching settings, so the
+                # caller can be told which plugins only (de)activate on restart
+                previous_activation = {}
+                if os.path.exists(current_settings):
+                    try:
+                        with open(current_settings, 'r', encoding='utf-8') as f:
+                            previous_activation = json.load(f).get("plugins_activation", {})
+                    except Exception as e:
+                        self.logger.warning(f"Could not read current activation states: {e}")
+
                 # Handle settings.json
                 if overwrite_settings:
                     shutil.copy2(settings_path, current_settings)
@@ -363,6 +373,23 @@ class DataManager:
                     if obsolete_keys:
                         warnings.extend([f"Obsolete setting: {key}" for key in obsolete_keys])
                         self.logger.warning(f"Found obsolete settings: {obsolete_keys}")
+
+                # Compare activation states written to disk against the snapshot:
+                # plugins are instantiated at boot only, so any change here only
+                # takes effect after a restart
+                activation_changes = {}
+                try:
+                    with open(current_settings, 'r', encoding='utf-8') as f:
+                        final_activation = json.load(f).get("plugins_activation", {})
+                    for plugin_name in set(previous_activation) | set(final_activation):
+                        before = bool(previous_activation.get(plugin_name, False))
+                        after = bool(final_activation.get(plugin_name, False))
+                        if before != after:
+                            activation_changes[plugin_name] = after
+                except Exception as e:
+                    self.logger.warning(f"Could not compute activation changes: {e}")
+                if activation_changes:
+                    self.logger.info(f"Plugin activation changed by import (effective after restart): {activation_changes}")
                 
                 # Restore database folder
                 import_db_path = temp_path / "database"
@@ -497,7 +524,8 @@ class DataManager:
                     "backup_path": backup_path,
                     "backup_items": backup_items,
                     "warnings": warnings,
-                    "version_info": metadata
+                    "version_info": metadata,
+                    "activation_changes": activation_changes
                 }
                 
         except Exception as e:
