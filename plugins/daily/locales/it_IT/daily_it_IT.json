@@ -13,5 +13,11 @@
     "Back": "Indietro",
     "Reorder item": "Riordina elemento",
     "Categories": "Categorie",
-    "Delete category": "Elimina categoria"
+    "Delete category": "Elimina categoria",
+    "AI suggestions are off": "I suggerimenti IA sono disattivati",
+    "The suggestions on this screen need an AI connection. Typing and voice work without it.": "I suggerimenti di questa schermata richiedono una connessione a un'IA. Digitazione e voce funzionano senza.",
+    "Connect an AI": "Collega un'IA",
+    "Edit phrase": "Modifica la frase",
+    "Speak edited phrase": "Pronuncia la frase modificata",
+    "OK": "OK"
 }

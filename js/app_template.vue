@@ -17,6 +17,18 @@
     <!-- HIDDEN_COMPONENTS -->
 </div>
 <div class="app-shell">
+    <!-- First-run onboarding: shown the instant the app enters the onboarding
+         view, while the onboarding SFC (async component) is still loading.
+         Visually identical to the wizard's loading step, so the handoff to
+         the real overlay is seamless and the daily UI never flashes through.
+         Sits under the wizard overlay (z-index 10000). -->
+    <div v-if="appview === 'onboarding'" style="position:fixed;inset:0;z-index:9990;background:linear-gradient(to bottom, var(--color-bgpage-0), var(--color-bgpage-1));display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;">
+        <img src="/img/igoor_logo.png" alt="IGOOR" style="width:190px;height:auto;margin-bottom:4px;filter:brightness(0) invert(1);">
+        <div style="width:min(420px,70vw);height:10px;background:var(--basecolor-darkest);border:1px solid var(--color-gray700);border-radius:6px;overflow:hidden;">
+            <div :style="{ width: bootProgressPercent + '%', height: '100%', background: 'var(--basecolor-accent-100)', transition: 'width 0.5s ease' }"></div>
+        </div>
+        <p style="margin:0;font-size:0.95rem;color:var(--color-gray100);">{{ wizardLoadingMessage }}</p>
+    </div>
     <div id="topbar">
         <div class="topbar-left">
             <!-- BEFORE_LOGO_COMPONENTS -->
@@ -60,7 +72,7 @@
             <!-- MAIN_COMPONENTS -->
         </main>
     </div>
-    <footer :class="[appview, { 'shrink': footerShrink }]" @footer-shrink="handleFooterShrink">
+    <footer v-show="appview !== 'onboarding'" :class="[appview, { 'shrink': footerShrink }]" @footer-shrink="handleFooterShrink">
         <!-- FOOTER_COMPONENTS -->
     </footer>
 </div>

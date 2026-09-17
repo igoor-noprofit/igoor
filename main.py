@@ -75,21 +75,41 @@ def start_fastapi_server() -> None:
     # interfaces (remote browsers on the LAN / Tailscale / tablets).
     host = "0.0.0.0" if os.getenv('IGOOR_ACCESS_FROM_OUTSIDE', 'False').lower() == 'true' else "127.0.0.1"
 
-    config = uvicorn.Config(
-        fastapi_app,
-        host=host,
-        port=9714,
-        log_level="info",
-    )
-    fastapi_server = uvicorn.Server(config)
+    def _run_with_bind_retry():
+        """A restart spawns the new process before the old one's teardown has
+        released port 9714, so the first bind attempt can legitimately lose
+        that race (Errno 10048) and uvicorn then exits. Retry with a fresh
+        server instead of dying silently - the detached child has no console
+        to show the error, and the new window would load an error page."""
+        global fastapi_server
+        for attempt in range(60):
+            server = uvicorn.Server(uvicorn.Config(
+                fastapi_app,
+                host=host,
+                port=9714,
+                log_level="info",
+            ))
+            fastapi_server = server
+            server.run()
+            if getattr(server, "started", False):
+                return
+            logger.warning(f"Port 9714 not free yet (attempt {attempt + 1}/60) - retrying in 0.5s")
+            time.sleep(0.5)
 
-    fastapi_thread = threading.Thread(target=fastapi_server.run, daemon=True)
+    fastapi_thread = threading.Thread(target=_run_with_bind_retry, daemon=True)
     fastapi_thread.start()
 
-    # Wait briefly for the server to signal readiness
-    if hasattr(fastapi_server, "started"):
-        while fastapi_thread.is_alive() and fastapi_server.started is False:
-            time.sleep(0.05)
+    # Wait for the server to signal readiness (bind retries can add a few
+    # seconds right after a restart; give up after 60s rather than hanging).
+    waited = 0.0
+    while waited < 60.0:
+        srv = fastapi_server
+        if srv is not None and getattr(srv, "started", False):
+            break
+        if not fastapi_thread.is_alive():
+            break
+        time.sleep(0.05)
+        waited += 0.05
 
 
 def stop_fastapi_server() -> None:

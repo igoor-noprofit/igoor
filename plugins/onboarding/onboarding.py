@@ -17,9 +17,19 @@ class Onboarding(Baseplugin):
         self.pm = pm
         self.sm = SettingsManager()
         self.onboarding_completed = False
+        self.current_app_view = None
         self.router = None
         super().__init__(plugin_name,pm)
-    
+
+    @hookimpl
+    def change_view(self, lastview, currentview):
+        """Track the view the frontend is actually in. gui_ready re-fires on
+        every app-websocket reconnect and must re-send the CURRENT view for
+        completed onboarding - not always 'daily' - otherwise any reconnect
+        mid-wizard (or a refresh while browsing other views) yanks the user
+        back to the daily interface."""
+        self.current_app_view = currentview
+
     @hookimpl
     async def force_onboarding(self):
         print("ONBOARDING PLUGIN is forcing onboard")
@@ -112,6 +122,33 @@ class Onboarding(Baseplugin):
             except Exception as e:
                 return {"status": "error", "message": str(e)}
 
+        @self.router.get("/boot-status")
+        async def boot_status_endpoint():
+            """Plugin boot readiness for the first-run wizard's loading step
+            (same data as the app's boot_progress messages, via REST)."""
+            try:
+                total = len(getattr(self.pm, "activated_plugins", []) or [])
+                plugins = getattr(self.pm, "plugins", []) or []
+                ready = sum(1 for p in plugins if getattr(p, "ready", False))
+                not_ready = [
+                    getattr(p, "plugin_name", p.__class__.__name__)
+                    for p in plugins if not getattr(p, "ready", False)
+                ]
+                return {"ready": ready, "total": total, "not_ready": not_ready,
+                        "booted": bool(total and ready >= total)}
+            except Exception as e:
+                return {"ready": 0, "total": 0, "not_ready": [], "booted": False,
+                        "error": str(e)}
+
+        @self.router.post("/open-settings")
+        async def open_settings_endpoint(tab: str = "bio"):
+            """Open this plugin's settings modal on the given tab, without
+            switching views. Other plugins' 'Connect an AI' empty states use
+            it (tab=ai) so the user lands straight on the provider form."""
+            allowed = ("home", "bio", "prefs", "ai", "plugins", "about")
+            self.send_message_to_frontend({"action": "show_modal", "tab": tab if tab in allowed else "bio"})
+            return {"status": "ok"}
+
     @hookimpl
     def startup(self):
         self._ensure_router()
@@ -122,9 +159,11 @@ class Onboarding(Baseplugin):
         self.settings = self.get_my_settings()
         ''' check all mandatory settings are not empty
         if it's the case, send message to frontend to hide '''
+        # Keyless onboarding: only the patient's name and the language are
+        # mandatory. Health state and the AI provider are optional and can be
+        # filled later (wizard steps or the settings modal).
         self.mandatory_fields = {
-            "bio": ["name", "health_state"],
-            "ai": ["api_key","model_name","provider"],
+            "bio": ["name"],
             "prefs": ["lang"]
         }
         mandatory_check, missing_info = self.check_mandatory_fields(self.settings)
@@ -165,19 +204,164 @@ class Onboarding(Baseplugin):
         try:
             if isinstance(message, str):
                 message = json.loads(message)
-                
+
             # Handle structured messages with actions
             if isinstance(message, dict):
                 if message.get('action') == 'save_settings':
                     return self.handle_save_settings(message.get('data', {}))
-                
+                if message.get('action') == 'save_step':
+                    return self.handle_save_step(message.get('data', {}))
+                if message.get('action') == 'finish_wizard':
+                    return self.handle_finish_wizard()
+                if message.get('action') == 'set_provider':
+                    return self.handle_set_provider(message.get('data', {}))
+
         except json.JSONDecodeError as e:
             print(f"Error processing message: {e}")
             self.send_message_to_frontend({
                 'type': 'error',
                 'message': 'Invalid message format'
             })
+
+    def handle_save_step(self, step_settings):
+        """Persist one wizard step (partial settings) without mandatory-field
+        validation and without switching views. Used by the first-run wizard so
+        progress survives a crash between steps. Replies with a step_saved
+        message carrying the new completion state."""
+        try:
+            current = self.pm.settings_manager.get_plugin_settings('onboarding') or {}
+            for section in ['bio', 'prefs', 'ai']:
+                if section in step_settings:
+                    if section not in current:
+                        current[section] = {}
+                    current[section].update(step_settings[section])
+
+            if not self.mass_update_my_settings(current):
+                self.send_message_to_frontend({'type': 'error', 'message': 'Failed to save wizard step'})
+                return
+
+            self.settings = current
+            completed, _missing = self.check_mandatory_fields(current)
+            if completed and not self.onboarding_completed:
+                self.onboarding_completed = True
+                self.logger.info("Onboarding completed via wizard step save")
+
+            self.send_message_to_frontend({
+                'type': 'step_saved',
+                'completed': self.onboarding_completed
+            })
+        except Exception as e:
+            self.logger.error(f"Error saving wizard step: {e}")
+            self.send_message_to_frontend({'type': 'error', 'message': f'Failed to save step: {str(e)}'})
     
+    def handle_finish_wizard(self):
+        """Wizard done: make sure completion is persisted, then hand control to
+        the daily view. Sync by design: process_incoming_message is a sync
+        handler, so an async method here would never be awaited."""
+        completed, _missing = self.check_mandatory_fields(self.settings)
+        self.onboarding_completed = completed or self.onboarding_completed
+        asyncio.create_task(self.send_switch_view_to_app('daily'))
+        self.send_message_to_frontend({'type': 'wizard_finished'})
+
+    # Default OpenAI-compatible endpoints for the providers the wizard offers
+    PROVIDER_BASE_URLS = {
+        "groq": "https://api.groq.com/openai/v1",
+        "mistral": "https://api.mistral.ai/v1",
+        "cerebras": "https://api.cerebras.ai/v1",
+    }
+    # Default chat models so presets/validation work without a model picker
+    PROVIDER_DEFAULT_MODELS = {
+        "groq": "openai/gpt-oss-20b",
+        "mistral": "mistral-small-latest",
+        "cerebras": "gpt-oss-120b",
+    }
+
+    def handle_set_provider(self, data):
+        """Wizard AI step: persist provider (+key/URL), then wire everything the
+        provider drives - presets for the text plugins and the ASR default per
+        the provider matrix:
+            Groq    -> asrjs groq (Whisper), key synced
+            Mistral -> asrjs mistral (Voxtral), key synced
+            Cerebras/Other -> asrjs sherpa (offline local; no cloud ASR)
+        Skipped when the user took manual control of asrjs
+        (asr_managed_by_onboarding === False)."""
+        try:
+            provider = (data.get('provider') or '').strip().lower()
+            api_key = (data.get('api_key') or '').strip()
+            if provider not in (list(self.PROVIDER_BASE_URLS) + ['other']):
+                self.send_message_to_frontend({'type': 'error', 'message': 'Unknown provider'})
+                return
+
+            current = self.pm.settings_manager.get_plugin_settings('onboarding') or {}
+            ai = current.get('ai', {})
+            ai['provider'] = provider
+            ai['api_key'] = api_key
+            if provider == 'other':
+                if data.get('base_url'):
+                    ai['base_url'] = data.get('base_url').strip()
+            else:
+                ai['base_url'] = self.PROVIDER_BASE_URLS[provider]
+                if data.get('model_name'):
+                    ai['model_name'] = data.get('model_name')
+                elif provider in self.PROVIDER_DEFAULT_MODELS:
+                    ai['model_name'] = self.PROVIDER_DEFAULT_MODELS[provider]
+            current['ai'] = ai
+
+            # ASR first: mass_update below triggers global_settings_updated, and
+            # asrjs must reload already seeing its new settings.
+            self._apply_asr_provider_matrix(provider, api_key)
+
+            if provider in self.PROVIDER_BASE_URLS:
+                self._apply_provider_presets(provider)
+
+            if not self.mass_update_my_settings(current):
+                self.send_message_to_frontend({'type': 'error', 'message': 'Failed to save provider'})
+                return
+            self.settings = current
+            self._notify_ai_connection_state(current.get('ai', {}))
+            self.send_message_to_frontend({'type': 'provider_saved', 'provider': provider})
+        except Exception as e:
+            self.logger.error(f"Error saving provider: {e}")
+            self.send_message_to_frontend({'type': 'error', 'message': f'Failed to save provider: {str(e)}'})
+
+    def _apply_asr_provider_matrix(self, provider, api_key):
+        """Set the asrjs default engine for the chosen AI provider (see
+        handle_set_provider). Respects the manual-override marker: once the
+        user saves asrjs settings by hand, onboarding stops managing them."""
+        try:
+            asr_settings = self.pm.settings_manager.get_plugin_settings('asrjs') or {}
+            if asr_settings.get('asr_managed_by_onboarding') is False:
+                self.logger.info("ASR managed manually by the user - skipping provider matrix")
+                return
+
+            update = {'asr_managed_by_onboarding': True}
+            if provider == 'groq':
+                update['model_provider'] = 'groq'
+                if not asr_settings.get('api_key') and api_key:
+                    update['api_key'] = api_key
+            elif provider == 'mistral':
+                update['model_provider'] = 'mistral'
+                if not asr_settings.get('voxtral_api_key') and api_key:
+                    update['voxtral_api_key'] = api_key
+            else:  # cerebras, other, skipped (no key) -> offline local model
+                update['model_provider'] = 'sherpa'
+
+            self.pm.settings_manager.update_plugin_settings('asrjs', update, self.pm)
+            self.logger.info(f"ASR provider matrix applied for '{provider}': {update.get('model_provider')}")
+        except Exception as e:
+            self.logger.error(f"Could not apply ASR provider matrix: {e}")
+
+    def _notify_ai_connection_state(self, ai_settings):
+        """Tell the flow/daily frontends whether an AI key is configured, so
+        their keyless grey-out states react the moment the user saves one -
+        they only fetch the onboarding settings once, at creation."""
+        try:
+            connected = bool((ai_settings or {}).get('api_key'))
+            for plugin in ('flow', 'daily'):
+                self.send_message_to_frontend({'type': 'ai_connected', 'value': connected}, plugin)
+        except Exception as e:
+            self.logger.error(f"Could not notify the AI connection state: {e}")
+
     def handle_save_settings(self, new_settings):
         self.logger.info("NEW SETTINGS: %s", json.dumps(new_settings, indent=2))
         """
@@ -217,6 +401,10 @@ class Onboarding(Baseplugin):
 
                         # Sync API key to asrjs plugin if needed
                         self._sync_api_key_to_asrjs(new_settings.get('ai', {}))
+
+                        # Unblock the flow/daily keyless grey-out states the
+                        # moment a key is saved (they only fetch on creation)
+                        self._notify_ai_connection_state(current_settings.get('ai', {}))
 
                         # Check if provider changed and apply presets to other plugins
                         new_provider = new_settings.get('ai', {}).get('provider')
@@ -337,7 +525,15 @@ class Onboarding(Baseplugin):
     @hookimpl
     async def gui_ready(self):
         print("GUI READY!")
-        view = 'daily' if self.onboarding_completed else 'onboarding'
+        # Incomplete onboarding always lands in the wizard. Completed
+        # onboarding returns to the view the user was actually in (tracked
+        # via the change_view hook): a websocket reconnect mid-wizard must
+        # not yank them to daily, and a refreshed browser must not lose its
+        # view. No tracked view (first fire) -> daily as before.
+        if not self.onboarding_completed:
+            view = 'onboarding'
+        else:
+            view = self.current_app_view if self.current_app_view else 'daily'
         await self.send_switch_view_to_app(view)
         await self.wait_for_socket_and_send(self.settings)
     

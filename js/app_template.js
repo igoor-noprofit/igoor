@@ -237,13 +237,22 @@ async function initializeApp() {
           lost: {
             en_EN: "Connection lost — reconnecting…",
             fr_FR: "Connexion perdue — reconnexion…",
-            it_IT: "Connessione persa — riconnessione…",
+            it_IT: "Connessione persa — riconnetting…",
             pt_BR: "Conexão perdida — reconectando…",
           },
         };
         const lang =
           this.lang && messages.connecting[this.lang] ? this.lang : "en_EN";
         return this.everConnected ? messages.lost[lang] : messages.connecting[lang];
+      },
+      wizardLoadingMessage() {
+        const messages = {
+          en_EN: "This can take a few minutes the first time. Please wait.",
+          fr_FR: "Cela peut prendre quelques minutes au premier lancement. Merci de patienter.",
+          it_IT: "La prima volta può richiedere qualche minuto. Attendere prego.",
+          pt_BR: "Na primeira vez, isso pode levar alguns minutos. Aguarde, por favor.",
+        };
+        return this.lang && messages[this.lang] ? messages[this.lang] : messages.en_EN;
       },
     },
     async mounted() {
@@ -647,14 +656,14 @@ async function initializeApp() {
         this.lastview = this.appview;
         this.appview = view;
 
-        if (view === "onboarding") {
-          console.warn("Forcing onboarding");
-          const backendApi = await backendApiPromise;
-          await backendApi.forceOnboarding();
-        } else {
-          const backendApi = await backendApiPromise;
-          await backendApi.changeView(this.lastview, view);
-        }
+        // Notify the backend (change_view hooks: asrjs pauses ASR on the
+        // onboarding view, ...). No force_onboarding here: it used to reset
+        // backend onboarding_completed and open the settings modal on every
+        // entry into the onboarding view. The first-run wizard is driven by
+        // the view switch alone, and other plugins' 'Connect an AI' buttons
+        // go through onboarding's open-settings endpoint instead.
+        const backendApi = await backendApiPromise;
+        await backendApi.changeView(this.lastview, view);
       },
       maximize() {
         console.log("MAXIMIZE WINDOW");
