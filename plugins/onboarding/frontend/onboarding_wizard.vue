@@ -99,7 +99,9 @@
                 <button class="btn wiz-quiet" @click="wizardGoBack">{{ t("Back") }}</button>
                 <span class="wiz-spacer"></span>
                 <button class="btn wiz-quiet" @click="wizardHealthDone(true)">{{ t("Skip for now") }}</button>
-                <button class="btn btn-form" @click="wizardHealthDone(false)">{{ t("Continue") }}</button>
+                <!-- Same rule as the name and AI steps: Continue needs input,
+                     Skip for now is the sole way past an empty optional step. -->
+                <button class="btn btn-form" :disabled="!wizardHealthOk" @click="wizardHealthDone(false)">{{ t("Continue") }}</button>
             </div>
         </div>
 
@@ -148,7 +150,6 @@
         <!-- Step 4: speech recognition — provider-aware, mic test -->
         <div v-else-if="wizardStep === 'speech'" class="wiz-center wiz-narrow">
             <h1 class="wiz-title">{{ t("Speech recognition is ready") }}</h1>
-            <p class="wiz-sub">{{ wizardSpeechLead }}</p>
             <!-- Why IGOOR's ASR listens to everyone: classic AAC only captures
                  the user's intent to speak; IGOOR transcribes the people
                  around them too, so conversations build context. -->
@@ -207,7 +208,7 @@
             </div>
             <p v-if="wizardClosing" class="wiz-sub wiz-dim">{{ wizardClosingMsg }}</p>
             <button v-if="!wizardClosing" class="btn btn-form wiz-go" @click="wizardFinish">{{ t("Start using IGOOR") }}</button>
-            <button v-else class="btn btn-form wiz-go" @click="wizardQuitNow" :disabled="wizardClosingMsg">{{ t("Close IGOOR now") }}</button>
+            <button v-else class="btn btn-form wiz-go" :disabled="wizardQuitSent" @click="wizardQuitNow">{{ t("Close IGOOR now") }}</button>
         </div>
         </div>
     </Teleport>
@@ -274,6 +275,7 @@ export default {
             // child can lose the port-bind race against the old teardown).
             wizardClosing: false,
             wizardClosingMsg: '',
+            wizardQuitSent: false,          // quit request fired: ignore further clicks
             wizardCountdown: 30,
             wizardCountdownTimer: null,
             wizardMicActive: false,
@@ -285,6 +287,9 @@ export default {
     computed: {
         wizardNameOk() {
             return Boolean(this.bio.name && this.bio.name.trim());
+        },
+        wizardHealthOk() {
+            return Boolean(this.bio.health_state && this.bio.health_state.trim());
         },
         wizardAiContinueOk() {
             // Known providers: real-time key validation must pass. "Other":
@@ -306,15 +311,6 @@ export default {
                 cerebras: { key: 'https://cloud.cerebras.ai', keyText: 'Get your key at Cerebras Cloud', privacy: 'https://www.cerebras.ai/privacy-policy' }
             };
             return links[this.wizardAiProvider] || null;
-        },
-        wizardSpeechLead() {
-            if (this.wizardProvider === 'groq' || this.wizardProvider === 'mistral') {
-                return this.t('Your voice is recognised in the cloud via {provider} — fast and accurate. The local model stays installed as offline backup.', { provider: this.wizardProvider.charAt(0).toUpperCase() + this.wizardProvider.slice(1) });
-            }
-            if (this.wizardProvider === 'cerebras' || this.wizardProvider === 'other') {
-                return this.t('{provider} does not include speech recognition — IGOOR uses the offline local model.', { provider: this.wizardProvider === 'other' ? this.t('This provider') : this.wizardProvider.charAt(0).toUpperCase() + this.wizardProvider.slice(1) });
-            }
-            return this.t('Your voice works on this computer — offline, nothing is sent anywhere.');
         },
         wizardSpeechChips() {
             if (this.wizardProvider === 'groq' || this.wizardProvider === 'mistral') {
@@ -537,7 +533,13 @@ export default {
                         .then(data => {
                             this.wizardMicActive = false;
                             if (data.status === 'loading') {
-                                this.wizardMicError = this.t('Speech engine still loading - try again in a moment.');
+                                // After a language change at the choice step the
+                                // ASR model for the NEW language downloads in
+                                // the background - explain that specific wait.
+                                const langChanged = this.bootLang && this.prefs.lang && this.prefs.lang !== this.bootLang;
+                                this.wizardMicError = langChanged
+                                    ? this.t('Since you changed the language, the new model for your language is still loading. You can wait a minute or test this later.')
+                                    : this.t('Speech engine still loading - try again in a moment.');
                             } else if (data.text) {
                                 this.wizardMicResult = data.text;
                             } else {
@@ -618,6 +620,8 @@ export default {
             }, 1000);
         },
         wizardQuitNow() {
+            if (this.wizardQuitSent) return;
+            this.wizardQuitSent = true;
             if (this.wizardCountdownTimer) {
                 clearInterval(this.wizardCountdownTimer);
                 this.wizardCountdownTimer = null;

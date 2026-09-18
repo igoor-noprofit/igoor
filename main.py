@@ -78,11 +78,12 @@ def start_fastapi_server() -> None:
     def _run_with_bind_retry():
         """A restart spawns the new process before the old one's teardown has
         released port 9714, so the first bind attempt can legitimately lose
-        that race (Errno 10048) and uvicorn then exits. Retry with a fresh
-        server instead of dying silently - the detached child has no console
-        to show the error, and the new window would load an error page."""
+        that race (Errno 10048). uvicorn handles that failure by calling
+        sys.exit(1) inside run() - swallow it and retry with a fresh server,
+        otherwise the (console-less, detached) child would die silently and
+        its window would load an error page."""
         global fastapi_server
-        for attempt in range(60):
+        for attempt in range(120):
             server = uvicorn.Server(uvicorn.Config(
                 fastapi_app,
                 host=host,
@@ -90,10 +91,13 @@ def start_fastapi_server() -> None:
                 log_level="info",
             ))
             fastapi_server = server
-            server.run()
+            try:
+                server.run()
+            except SystemExit:
+                pass  # uvicorn's bind-failure exit - retry below
             if getattr(server, "started", False):
                 return
-            logger.warning(f"Port 9714 not free yet (attempt {attempt + 1}/60) - retrying in 0.5s")
+            logger.warning(f"Port 9714 not free yet (attempt {attempt + 1}/120) - retrying in 0.5s")
             time.sleep(0.5)
 
     fastapi_thread = threading.Thread(target=_run_with_bind_retry, daemon=True)

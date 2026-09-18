@@ -160,10 +160,6 @@
     "Get your key at Mistral Console": "Obtenha sua chave no Mistral Console",
     "Get your key at Cerebras Cloud": "Obtenha sua chave no Cerebras Cloud",
     "Speech recognition is ready": "O reconhecimento de fala está pronto",
-    "Your voice is recognised in the cloud via {provider} — fast and accurate. The local model stays installed as offline backup.": "Sua voz é reconhecida na nuvem via {provider} — rápido e preciso. O modelo local permanece instalado como reserva offline.",
-    "{provider} does not include speech recognition — IGOOR uses the offline local model.": "{provider} não inclui reconhecimento de fala — o IGOOR usa o modelo local offline.",
-    "This provider": "Este provedor",
-    "Your voice works on this computer — offline, nothing is sent anywhere.": "Sua voz funciona neste computador — offline, nada é enviado.",
     "Cloud accuracy": "Precisão na nuvem",
     "Local backup installed": "Modelo local instalado como reserva",
     "Works offline": "Funciona offline",
@@ -217,5 +213,6 @@
     "Enter model name": "Insira o nome do modelo",
     "Export date": "Data de exportação",
     "Imported from version": "Importado da versão",
-    "Ex.: Diagnosis, upper/lower limb mobility, fatigue, assistance needs for transfers or daily activities.\\nAssistive devices: power wheelchair, eye-tracking device, orthoses, etc.\\nCare team: physiotherapist (1x/week), nurse, etc.\\nCurrent treatments: Riluzole (2x/day), vitamin D, etc.": "Ex.: Diagnóstico, mobilidade de membros superiores/inferiores, fadiga, necessidades de assistência para transferências ou atividades diárias.\nDispositivos de assistência: cadeira de rodas elétrica, dispositivo de rastreamento ocular, órteses, etc.\nEquipe de cuidado: fisioterapeuta (1x/semana), enfermeiro, etc.\nTratamentos atuais: Riluzole (2x/dia), vitamina D, etc."
+    "Ex.: Diagnosis, upper/lower limb mobility, fatigue, assistance needs for transfers or daily activities.\\nAssistive devices: power wheelchair, eye-tracking device, orthoses, etc.\\nCare team: physiotherapist (1x/week), nurse, etc.\\nCurrent treatments: Riluzole (2x/day), vitamin D, etc.": "Ex.: Diagnóstico, mobilidade de membros superiores/inferiores, fadiga, necessidades de assistência para transferências ou atividades diárias.\nDispositivos de assistência: cadeira de rodas elétrica, dispositivo de rastreamento ocular, órteses, etc.\nEquipe de cuidado: fisioterapeuta (1x/semana), enfermeiro, etc.\nTratamentos atuais: Riluzole (2x/dia), vitamina D, etc.",
+    "Since you changed the language, the new model for your language is still loading. You can wait a minute or test this later.": "Como você mudou o idioma, o novo modelo para o seu idioma ainda está carregando. Aguarde um minuto ou teste mais tarde."
 }
