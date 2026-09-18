@@ -50,6 +50,10 @@ class Ttsmac(Baseplugin):
             self.voice_id = self._sanitize_voice_id(self.voice_id)
             self.is_loaded = True
             self.update_my_settings("voice_list", self.available_voices)
+            # Follow the app language unless the user picked a voice manually:
+            # the system default voice is not necessarily the right language.
+            if self.settings.get("voice_auto", True):
+                self._auto_pick_voice()
         except Exception as e:
             self.logger.error(f"ERROR: No available voices for TTS MAC: {e}")
             self.is_loaded = False
@@ -88,6 +92,21 @@ class Ttsmac(Baseplugin):
         if self.available_voices and 0 <= voice_id < len(self.available_voices):
             return voice_id
         return 0
+
+    def _auto_pick_voice(self):
+        """Pick the first system voice matching the current app language
+        (voice_list is app-language-first, so that is simply the first match).
+        No-op (keeps the current voice) when none matches - e.g. a French
+        profile on a Mac with only English voices installed."""
+        lang_prefix = str(self.lang or "en_EN").split("_")[0].lower()
+        for voice in self.available_voices:
+            if str(voice.get("lang", "")).split("_")[0].lower() == lang_prefix:
+                if voice["voice_id"] != self.voice_id:
+                    self.voice_id = voice["voice_id"]
+                    self.update_my_settings("voice_id", self.voice_id)
+                    self.logger.info(f"Auto-picked voice for '{self.lang}': {voice['voice_label']}")
+                return
+        self.logger.warning(f"No {lang_prefix} voice available - keeping voice {self.voice_id}")
 
     def _get_synth(self):
         if self._synth is None:
@@ -138,6 +157,10 @@ class Ttsmac(Baseplugin):
                 self.voice_id = self._sanitize_voice_id(payload.voice_id)
                 self.rate = max(80, min(600, payload.rate))
                 self.fallback_only = payload.fallback_only
+
+                # Explicit user choice: stop auto-following the app language
+                self.update_my_settings("voice_auto", False)
+
                 self.update_my_settings("voice_id", self.voice_id)
                 self.update_my_settings("rate", self.rate)
                 self.update_my_settings("fallback_only", self.fallback_only)
@@ -158,10 +181,17 @@ class Ttsmac(Baseplugin):
     @hookimpl
     def global_settings_updated(self):
         self.logger.info("Global settings updated, refreshing ttsmac settings")
+        old_lang = self.lang
+        self.lang = self.settings_manager.get_lang()
         self.settings = self.get_my_settings()
         self.fallback_only = self.settings.get("fallback_only", False)
         self.voice_id = self._sanitize_voice_id(self.settings.get("voice_id", 0))
         self.rate = max(80, min(600, self.settings.get("rate", 175)))
+        # In auto mode a language change (first-run wizard, settings) switches
+        # to a voice of the new language; a manually chosen voice is never
+        # overridden.
+        if self.settings.get("voice_auto", True) and old_lang != self.lang and self.is_loaded:
+            self._auto_pick_voice()
 
     @hookimpl
     def startup(self):
