@@ -347,9 +347,21 @@ class Elevenlabstts(Baseplugin):
                 request_params["enable_logging"] = self.settings["enable_logging"]
             
             audio_data = client.text_to_speech.convert(**request_params)
-            
-            # Use the helper method to play audio (handles both PCM and encoded formats)
-            self._play_audio(audio_data, request_params.get("output_format", "mp3_44100_128"))
+            output_format = request_params.get("output_format", "mp3_44100_128")
+
+            if self.is_remote_ui():
+                if output_format.startswith("pcm_"):
+                    request_params["output_format"] = "mp3_44100_128"
+                    audio_data = client.text_to_speech.convert(**request_params)
+                # Settings preview must play in the browser too (background task:
+                # this method is synchronous and has no ASR to coordinate)
+                audio_bytes = b"".join(audio_data)
+                asyncio.get_running_loop().create_task(
+                    self.stream_audio_to_frontend([audio_bytes], "audio/mpeg")
+                )
+            else:
+                # Use the helper method to play audio (handles both PCM and encoded formats)
+                self._play_audio(audio_data, output_format)
             
         except Exception as e:
             print(f"Error in test speak: {e}")
@@ -389,10 +401,53 @@ class Elevenlabstts(Baseplugin):
         except HTTPException:
             raise
         except Exception as e:
-            self.logger.error(f"Error cloning voice: {e}")
-            raise HTTPException(status_code=500, detail=f"Failed to clone voice: {str(e)}")
-    
+            self.logger.error(f"Error cloning voice: {e}", exc_info=True)
+            raise HTTPException(status_code=500, detail=self._extract_clone_error_message(e))
 
+    def _extract_clone_error_message(self, e: Exception) -> str:
+        """Return a human-readable message from an ElevenLabs clone error.
+
+        The ElevenLabs SDK wraps API errors as ApiError whose ``body`` is the
+        JSON envelope {"detail": {"message": ..., "status": ...}} (sometimes a
+        bare {"detail": "..."} string). Using str(e) directly surfaces that raw
+        JSON to the user (e.g. the "voice_limit_reached" quota error). This
+        pulls out the clean message instead. The full error is logged above.
+        """
+        import json as _json
+
+        def _from(obj):
+            if isinstance(obj, dict):
+                inner = obj.get("detail")
+                if isinstance(inner, dict):
+                    return inner.get("message") or inner.get("detail") or inner.get("status")
+                if isinstance(inner, str) and inner:
+                    return inner
+                return obj.get("message") or obj.get("detail")
+            if isinstance(obj, str) and obj:
+                return obj
+            # Typed/pydantic object: fall back to attribute access
+            inner = getattr(obj, "detail", None)
+            if isinstance(inner, dict):
+                return inner.get("message") or inner.get("status")
+            if isinstance(inner, str) and inner:
+                return inner
+            return getattr(obj, "message", None)
+
+        # SDK ApiError exposes .body (parsed); FastAPI HTTPException exposes .detail
+        for attr in ("body", "detail"):
+            msg = _from(getattr(e, attr, None))
+            if msg:
+                return str(msg)
+
+        # Last resort: try parsing the string form as JSON
+        try:
+            msg = _from(_json.loads(str(e)))
+            if msg:
+                return str(msg)
+        except (ValueError, TypeError):
+            pass
+
+        return "Failed to clone voice"
         
     @hookimpl
     def speak(self, message, skip_asr):
@@ -400,6 +455,11 @@ class Elevenlabstts(Baseplugin):
         # Schedule the speak_func to run in the background (with translation)
         asyncio.create_task(self.run_speak_func_with_translation(message, skip_asr=skip_asr))
         asyncio.create_task(self.pm.trigger_hook(hook_name="reset_conversation_timeout"))
+
+    @hookimpl
+    def tts_playback_finished(self):
+        # Browser acknowledged end of streamed audio playback
+        self._on_playback_finished()
 
     def run_restart_asr(self, force_ready=False):
         asyncio.create_task(self.restart_asr(force_ready))
@@ -485,24 +545,31 @@ class Elevenlabstts(Baseplugin):
                 if "enable_logging" in self.settings:
                     request_params["enable_logging"] = self.settings["enable_logging"]
 
+                # Browser playback (CLI mode) requires a compressed format MSE can play
+                if self.is_remote_ui() and request_params.get("output_format", "mp3_44100_128").startswith("pcm_"):
+                    self.logger.info("Remote UI: requesting MP3 instead of PCM for browser playback")
+                    request_params["output_format"] = "mp3_44100_128"
+
                 # Generate audio
                 audio = self.client.text_to_speech.convert(**request_params)
                 # Pause ASR before playback and give WebSocket time to deliver the message
                 await self.pm.trigger_hook(hook_name="pause_asr")
-                await asyncio.sleep(0.1)  # Ensure pause message reaches frontend
-                # Play audio in a thread to avoid blocking the event loop
-                output_format = request_params.get("output_format", "mp3_44100_128")
-                await asyncio.to_thread(self._play_audio, audio, output_format)
-                await asyncio.to_thread(self._play_audio, audio, request_params.get("output_format", "mp3_44100_128"))
+                await asyncio.sleep(0.03)  # Ensure pause message reaches frontend
+
+                if self.is_remote_ui():
+                    # Stream the chunks to the browser as they are generated
+                    streamed = await self.stream_audio_to_frontend(audio, "audio/mpeg")
+                    if not streamed:
+                        # No browser connected - fall back to local playback
+                        await asyncio.to_thread(self._play_audio, audio, request_params.get("output_format", "mp3_44100_128"))
+                else:
+                    # Play audio in a thread to avoid blocking the event loop
+                    await asyncio.to_thread(self._play_audio, audio, request_params.get("output_format", "mp3_44100_128"))
                 self.run_restart_asr(force_ready=skip_asr)
                 return True
             except Exception as inner_e:
                 print(f"Error generating audio data: {inner_e}")
                 return False
-
-            # Restart ASR after playback finishes
-            self.run_restart_asr()
-            return True
 
         except Exception as e:
             print(f"Error occurred while speaking: {e}")

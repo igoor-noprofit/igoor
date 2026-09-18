@@ -47,13 +47,12 @@ class Memory(Baseplugin):
     
     @hookimpl
     def startup(self):
-        loop = asyncio.get_event_loop()
         try:
-            loop = asyncio.get_event_loop()
-            self.mark_ready()
+            asyncio.get_event_loop()
         except RuntimeError:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
+            # No event loop in this thread (e.g. uvloop policy): create one
+            asyncio.set_event_loop(asyncio.new_event_loop())
+        self.mark_ready()
         # self.test_plugin()
     
     async def _startup_async(self):
@@ -103,11 +102,11 @@ class Memory(Baseplugin):
 
         # SYSTEM PROMPT (pre-built with bio_name)
         system_prompt = self._memory_system_prompt
-        print(f"Memory system prompt: {system_prompt}")
-        
+        self.logger.debug(f"Memory system prompt: {system_prompt}")
+
         # HUMAN PROMPT
         conversation = last_conversation.get("txt")
-        print(f"Conversation text: {conversation}")
+        self.logger.debug(f"Conversation text: {conversation}")
         pm = PromptManager(template=self.prompts.get("memory", {}).get("usr"))
         prompt = pm.create_prompt(conversation=conversation)       
 

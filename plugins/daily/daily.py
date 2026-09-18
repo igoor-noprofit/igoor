@@ -111,16 +111,49 @@ class Daily(Baseplugin):
     @hookimpl
     def global_settings_updated(self):
         print("RELOADING DAILY SETTINGS")
+        # Capture the previous language BEFORE reloading: the first-run wizard
+        # can change it, and the default needs must follow (they were seeded
+        # in the boot language and persisted at first start).
+        old_lang = self.lang
         self.load_settings()
+        self.lang = self.settings_manager.get_lang()
+        self._reseed_daily_for_language(old_lang, self.lang)
         self.startup()
         # Reload all cached values from updated onboarding settings
         bio = self.settings_manager.get_bio()
         self.bio_name = bio.get("name")
         self.health_state = self.settings_manager.get_health_state()
-        # Reload language and prompts in case language was changed
-        self.lang = self.settings_manager.get_lang()
         self.prompts = self.get_my_prompts()
         self._build_prompt_templates()
+
+    def _reseed_daily_for_language(self, old_lang, new_lang):
+        """Language changed (e.g. at the wizard's choice step): if the stored
+        needs are still the UNTOUCHED default seed of the old language, re-seed
+        them in the new language. Needs the user customized (daily settings UI)
+        are left exactly as they are."""
+        if not old_lang or not new_lang or old_lang == new_lang:
+            return
+        if not self.settings:
+            return
+        daily_file = os.path.join(os.path.dirname(__file__), 'daily.json')
+        try:
+            with open(daily_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError) as e:
+            self.logger.warning(f"Could not read daily.json for re-seeding: {e}")
+            return
+        old_seed = data.get(old_lang)
+        new_seed = data.get(new_lang)
+        if not old_seed or not new_seed:
+            return
+        if self.settings == old_seed:
+            self.settings_manager.update_plugin_settings('daily', new_seed)
+            self.daily_data = new_seed
+            self.settings = new_seed
+            self.logger.info(f"Daily needs re-seeded from '{old_lang}' to '{new_lang}' defaults")
+            # Push to the frontend too (the daily component is mounted during
+            # the wizard, its websocket is connected).
+            self.send_message_to_frontend({'dailyData': self.daily_data})
 
     @hookimpl
     def bio_context_updated(self):
@@ -198,22 +231,22 @@ class Daily(Baseplugin):
         actual_filtered_results = normalize_filter_by_timeframe_result(filtered_results)
         # del dynamic_context["conversation"]
         system_prompt = self._daily_system_prompt
-        print(f"SYSTEM PROMPT IS : {system_prompt}")   
+        self.logger.debug(f"SYSTEM PROMPT IS : {system_prompt}")
         # Only pass dynamic vars (static ones are pre-filled via partial)
         prompt = self._daily_usr_pm.create_prompt(
             static_context='\n'.join(actual_filtered_results.get(0, [])),
             long_term='\n'.join(actual_filtered_results.get(1, [])),
             short_term='\n'.join(actual_filtered_results.get(2, [])),
-            dynamic_context=dynamic_context, 
+            dynamic_context=dynamic_context,
             category=category,
-            theme=theme, 
-            tags="")       
-        print(f"FINAL PROMPT : {prompt}")
+            theme=theme,
+            tags="")
+        self.logger.debug(f"FINAL PROMPT : {prompt}")
         try:
             llm = LLMManager(self.settings.get("provider"), self.settings.get("api_key"), self.settings.get("model_name"))
             llm.set_json_schema(Answers)
-            answers = llm.invoke(system_prompt, prompt)
-            print(f"RAW LLM OUTPUT: {answers}")
+            answers = await llm.ainvoke(system_prompt, prompt)
+            self.logger.debug(f"RAW LLM OUTPUT: {answers}")
             if isinstance(answers, str):
                 try:
                     answers = Answers.model_validate_json(answers)

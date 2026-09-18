@@ -1,9 +1,10 @@
 {
   "wakeword": "Igor",
   "continuous": false,
+  "hold_to_talk": false,
   "always_generate": true,
   "positiveSpeechThreshold": 0.5,
-  "redemptionFrames": 24,
+  "redemptionFrames": 15,
   "chunk_duration_ms": 30,
   "sample_rate": 48000,
   "audio_format": "PCM_16",

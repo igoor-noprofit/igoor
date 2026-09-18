@@ -796,12 +796,17 @@ module.exports = {
 
 <style scoped>
 .daily-settings {
-  /* border:1px solid #0f0; */
+  /* fill the plugin settings area: root is a flex item of
+     .plugin-settings-scroll; column layout lets .options stretch */
+  display: flex;
+  flex-direction: column;
 }
 
 
 .options {
   display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
   margin: 0;
   padding: 0;
 }
@@ -1215,7 +1220,11 @@ input.add-item-input {
 }
 
 .settings-actions .btn-secondary {
-  background-color: #ccc;
+  background-color: var(--basecolor-gray-700, #556265);
+}
+
+.settings-actions .btn-primary {
+  background-color: #407d1c;
 }
 
 button.settings-delete-category-btn {
@@ -1326,7 +1335,7 @@ button.btn-side {
 }
 
 .btn-secondary {
-  background-color: #ccc;
+  background-color: var(--basecolor-gray-700, #556265);
 }
 
 .dialog-backdrop {

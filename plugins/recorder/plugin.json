@@ -15,5 +15,11 @@
             "schema": "CREATE TABLE IF NOT EXISTS records (id INTEGER PRIMARY KEY, plugin TEXT NOT NULL, created_at TEXT NOT NULL, filename TEXT NOT NULL)",
             "version": "1.0"
         }
-    }
+    },
+    "user_data": [
+        {
+            "path": "audio",
+            "mode": "replace"
+        }
+    ]
 }

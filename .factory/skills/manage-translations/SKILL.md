@@ -85,11 +85,12 @@ Determine:
 ### 5. Special Files
 
 **AI Prompts (YAML files)**:
-Some plugins have `prompts.yaml` files in `locales/fr_FR/`:
-- Check if these need translation for the target language
-- If needed, create `locales/{lang}/prompts.yaml` with translated prompts
-- Maintain the same YAML structure and key format
-- FRENCH is the source of truth for prompts: NEVER update the french file from other languages
+Prompts live at plugin roots (`plugins/{plugin}/prompts.yaml`) — they were migrated out of `locales/` folders, so there are NO per-locale prompt files to translate.
+- Prompts are language-parameterized via `{reply_language}` / `{reply_language_style}` placeholders, filled at runtime from `LANG_TO_NAME` and `LANG_STYLE_NOTES` in `settings_manager.py`
+- Adding a language therefore only needs those two dict entries (see the `add-language` skill) — never duplicate a prompts.yaml per locale
+
+**Nested-structure files (not flat key→value)**:
+- `plugins/biorecorder/locales/{lang}/questions_{lang}.json`: categories → array of `{text, mandatory, instructions}`. Translate category keys and `text`/`instructions`; preserve `mandatory` booleans and the exact structure. The `en_EN` file is canonical. The base-code → locale-folder mapping is hardcoded in `biorecorder.py` (`locale_map`) and must list the language.
 
 ### 6. Validation
 

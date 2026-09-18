@@ -217,6 +217,82 @@ def get_platform():
     return platform.system()
 
 
+_PLATFORM_KEYS = {"Windows": "windows", "Darwin": "macos", "Linux": "linux"}
+
+
+def get_platform_key():
+    """Return the normalized platform key ("windows"/"macos"/"linux") used by
+    the plugin.json "platforms" compatibility flags."""
+    system = get_platform()
+    return _PLATFORM_KEYS.get(system, system.lower())
+
+
+def open_os_sound_settings():
+    """Open the OS sound/microphone settings so the user can pick or verify
+    the default input device. Returns (success: bool, message: str)."""
+    import subprocess
+
+    key = get_platform_key()
+    try:
+        if key == "windows":
+            os.startfile("ms-settings:sound")  # noqa: attribute exists on Windows only
+            return True, "ok"
+        if key == "macos":
+            # macOS Ventura (13) renamed System Preferences to System Settings
+            # and moved panes to extension ids; fall back to the legacy pane.
+            major = int(platform.mac_ver()[0].split(".")[0] or 0)
+            target = (
+                "x-apple.systempreferences:com.apple.Sound-Settings.extension"
+                if major >= 13
+                else "x-apple.systempreferences:com.apple.preference.sound?input"
+            )
+            if subprocess.run(["open", target], timeout=5).returncode != 0:
+                subprocess.run(["open", "x-apple.systempreferences:com.apple.preference.sound?input"], timeout=5)
+            return True, "ok"
+        if key == "linux":
+            for cmd in (["pavucontrol"], ["gnome-control-center", "sound"], ["kcmshell5", "kcm_pulseaudio"]):
+                try:
+                    subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    return True, "ok"
+                except FileNotFoundError:
+                    continue
+            return False, "No supported sound settings tool found"
+    except Exception as e:
+        return False, str(e)
+    return False, f"Not supported on this platform ({key})"
+
+
+def get_ideal_torch_threads():
+    """Suggest a torch CPU thread count for small-model inference; 0 = keep
+    torch's default.
+
+    torch's default (one thread per physical core) is a poor fit for hybrid
+    CPUs (Intel 12th gen+): small per-op parallel regions lose more to thread
+    sync and to slow E-cores than they gain. On such chips the P-core count is
+    the sweet spot (measured on an i7-1360P with pocket-tts: RTF 0.77 with 4
+    threads vs 0.93 with the default 12).
+
+    Topology is inferred from psutil counts alone: E-cores have no
+    hyperthreading, so on a hybrid chip logical - physical == P-cores
+    (e.g. 4P+8E: 16 logical, 12 physical -> 4). Uniform topologies (no HT, or
+    exactly 2x logical) keep torch's default.
+    """
+    try:
+        import psutil
+
+        physical = psutil.cpu_count(logical=False) or 0
+        logical = psutil.cpu_count(logical=True) or 0
+    except Exception:
+        return 0
+    if not physical or not logical:
+        return 0
+    if logical <= physical or logical == 2 * physical:
+        # Uniform topology (no HT, or homogeneous HT): default is fine
+        return 0
+    p_cores = logical - physical
+    return p_cores if p_cores >= 1 else 0
+
+
 def get_appdata_dir(create: bool = True) -> str:
     """Return the platform-specific application data directory for IGOOR."""
     system = get_platform()
@@ -249,3 +325,49 @@ def get_appdata_web_js_dir(create: bool = True) -> str:
     if create:
         os.makedirs(path, exist_ok=True)
     return path
+
+
+def create_desktop_shortcut(logger=None) -> bool:
+    """MSIX installs get no desktop icon by default; create a desktop
+    shortcut targeting the app's AUMID once (idempotent). For the
+    eye-tracking audience this must not require hunting through the Start
+    menu. The shortcut survives Store updates: the package family name in
+    the AUMID is version-independent."""
+    import re
+
+    try:
+        import win32com.client
+
+        exe_path = os.path.realpath(sys.executable)
+        package_dir = os.path.basename(os.path.dirname(exe_path))
+        # PackageFullName = Name_Version_Arch__PublisherHash
+        parts = package_dir.split('_')
+        if len(parts) < 5 or not parts[-1]:
+            return False
+        family = parts[0] + '_' + parts[-1]
+
+        app_id = 'IGOOR'
+        manifest_path = os.path.join(os.path.dirname(exe_path), 'AppxManifest.xml')
+        if os.path.exists(manifest_path):
+            with open(manifest_path, 'r', encoding='utf-8') as f:
+                match = re.search(r'<Application Id="([^"]+)"', f.read())
+            if match:
+                app_id = match.group(1)
+
+        wsh = win32com.client.Dispatch('WScript.Shell')
+        desktop = wsh.SpecialFolders('Desktop')
+        target = os.path.join(desktop, 'IGOOR.lnk')
+        if os.path.exists(target):
+            return False
+
+        shortcut = wsh.CreateShortcut(target)
+        shortcut.TargetPath = f'shell:AppsFolder\\{family}!{app_id}'
+        shortcut.Description = 'IGOOR'
+        shortcut.Save()
+        if logger:
+            logger.info(f'Created desktop shortcut: {target}')
+        return True
+    except Exception as e:
+        if logger:
+            logger.warning(f'create_desktop_shortcut failed: {e}')
+        return False

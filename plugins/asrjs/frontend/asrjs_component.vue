@@ -21,6 +21,8 @@ export default {
             audio: {},
             continuous: false,
             keyboardShortcut: null,
+            holdToTalk: false, // Hold the shortcut to talk (release to stop) instead of click-to-toggle
+            pttActive: false, // True while the shortcut is being held in push-to-talk mode
             vad: null, // Store VAD instance
             vadInitialized: false,
             accumulatedAudioBuffer: null, // Float32Array for audio accumulation on semantic VAD "nok"
@@ -65,8 +67,8 @@ export default {
     },
     created() {
         this.audio = {
-            on: new Audio('/plugins/asrvosk/samples/on.wav'),
-            off: new Audio('/plugins/asrvosk/samples/off.wav')
+            on: new Audio('/plugins/asrjs/samples/mic_on.wav'),
+            off: new Audio('/plugins/asrjs/samples/mic_off.wav')
         };
         // Wakeword detection sound
         this.wakewordSound = new Audio('/plugins/asrjs/samples/on.wav');
@@ -81,6 +83,7 @@ export default {
             this.settings = settings;
             this.continuous = settings.continuous || false;
             this.wakewordEnabled = settings.wakeword_enabled || false;
+            this.holdToTalk = settings.hold_to_talk || false;
             if (settings.shortcut) {
                 console.log('ASRJS SHORTCUT:', settings.shortcut);
                 this.keyboardShortcut = settings.shortcut;
@@ -90,6 +93,8 @@ export default {
         }
 
         window.addEventListener('keydown', this.$_handleKeyPress);
+        window.addEventListener('keyup', this.$_handleKeyRelease);
+        window.addEventListener('blur', this.$_handlePttBlur);
 
         // If continuous mode, load VAD library for automatic speech detection
         if (this.continuous) {
@@ -111,6 +116,8 @@ export default {
     },
     beforeDestroy() {
         window.removeEventListener('keydown', this.$_handleKeyPress);
+        window.removeEventListener('keyup', this.$_handleKeyRelease);
+        window.removeEventListener('blur', this.$_handlePttBlur);
 
         if (this.voiceProfilesRefreshInterval) {
             clearInterval(this.voiceProfilesRefreshInterval);
@@ -447,15 +454,15 @@ export default {
 
                 // Get settings with defaults
                 const positiveThreshold = this.settings?.positiveSpeechThreshold || 0.5;
-                const redemptionFrames = this.settings?.redemptionFrames || 24;
+                const redemptionFrames = this.settings?.redemptionFrames || 15;
 
                 this.vad = await window.vad.MicVAD.new({
                     // Use v5 model for better accuracy (fewer false positives)
                     model: "v5",
                     // Model files are in /plugins/asrjs/static/vad/
                     baseAssetPath: "/plugins/asrjs/static/vad/",
-                    // ONNX Runtime WASM binaries served from CDN (matching ort.js v1.22.0)
-                    onnxWASMBasePath: "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/",
+                    // ONNX Runtime WASM binaries served locally (mirrors onnxruntime-web@1.22.0 dist)
+                    onnxWASMBasePath: "/plugins/asrjs/static/vad/ort-wasm/",
 
                     // Don't start listening until user clicks mic
                     startOnLoad: false,
@@ -514,6 +521,26 @@ export default {
                 // Don't set ready here - wait for backend to confirm all models loaded
                 // Backend will send 'ready' status when ASR + wakeword models are ready
                 console.log('VAD initialized successfully with Silero v5 model, waiting for backend ready...');
+
+                // A (re)connecting browser never receives the backend's one-shot
+                // status/settings pushes (each was delivered to the first frontend
+                // only): catch up by fetching the current state. Settings go through
+                // handleIncomingMessage so they are applied exactly like a push.
+                try {
+                    const response = await fetch('/api/plugins/asrjs/status');
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.status && this.status === 'loading') {
+                            this.status = data.status;
+                            console.log('Fetched current ASR status:', data.status);
+                        }
+                        if (data.settings) {
+                            await this.handleIncomingMessage({ data: JSON.stringify({ settings: data.settings }) });
+                        }
+                    }
+                } catch (fetchError) {
+                    console.warn('Failed to fetch current ASR status:', fetchError);
+                }
 
             } catch (error) {
                 console.error('Failed to initialize VAD:', error);
@@ -615,11 +642,9 @@ export default {
             this.$_writeString(view, 36, 'data');
             view.setUint32(40, int16Array.length * 2, true);
 
-            // Write audio data
-            const offset = 44;
-            for (let i = 0; i < int16Array.length; i++) {
-                view.setInt16(offset + i * 2, int16Array[i], true);
-            }
+            // Write audio data (typed-array copy — per-sample DataView calls are
+            // slow at chunk size)
+            new Int16Array(buffer, 44).set(int16Array);
 
             return new Blob([buffer], { type: 'audio/wav' });
         },
@@ -688,16 +713,6 @@ export default {
 
 
 
-        $_float32ToInt16(float32Array) {
-            // Convert Float32Array to Int16Array (16-bit signed PCM)
-            const int16Array = new Int16Array(float32Array.length);
-            for (let i = 0; i < float32Array.length; i++) {
-                const s = Math.max(-1, Math.min(1, float32Array[i]));
-                int16Array[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
-            }
-            return int16Array;
-        },
-
         async $_sendFixedChunkToSpeakerID(float32Chunk) {
             // Send fixed chunk to speakerid for identification
             if (!this.speakerIdAvailable || !this.voiceProfilesEnabled) {
@@ -710,32 +725,35 @@ export default {
                 return;
             }
 
-            try {
-                // Convert float32 to int16
-                const int16Data = this.$_float32ToInt16(float32Chunk);
+            const send = async () => {
+                try {
+                    // Convert to WAV format
+                    const wavBlob = this.$_createWAVChunk(float32Chunk, 16000);
 
-                // Convert to WAV format
-                const wavBlob = this.$_createWAVChunk(float32Chunk, 16000);
+                    // Send to speakerid endpoint
+                    const formData = new FormData();
+                    formData.append('audio_file', wavBlob, 'chunk.wav');
+                    formData.append('sample_rate', '16000');
 
-                // Send to speakerid endpoint
-                const formData = new FormData();
-                formData.append('audio_file', wavBlob, 'chunk.wav');
-                formData.append('sample_rate', '16000');
+                    const response = await fetch('/api/plugins/speakerid/process_audio_chunk', {
+                        method: 'POST',
+                        body: formData
+                    });
 
-                const response = await fetch('http://127.0.0.1:9714/api/plugins/speakerid/process_audio_chunk', {
-                    method: 'POST',
-                    body: formData
-                });
-
-                if (response.ok) {
-                    const result = await response.json();
-                    console.log('Fixed chunk sent to speakerid:', result);
-                } else {
-                    console.error('Error sending fixed chunk to speakerid:', response.status);
+                    if (response.ok) {
+                        const result = await response.json();
+                        console.log('Fixed chunk sent to speakerid:', result);
+                    } else {
+                        console.error('Error sending fixed chunk to speakerid:', response.status);
+                    }
+                } catch (error) {
+                    console.error('Error sending fixed chunk to speakerid:', error);
                 }
-            } catch (error) {
-                console.error('Error sending fixed chunk to speakerid:', error);
-            }
+            };
+            // Serialize: chunks must reach the backend in capture order — on a slow
+            // machine overlapping fetches could interleave them into the rolling buffer.
+            this._speakerIdChain = (this._speakerIdChain || Promise.resolve()).then(send, send);
+            return this._speakerIdChain;
         },
 
         async $_sendWakewordChunk(int16Chunk) {
@@ -758,7 +776,7 @@ export default {
                 const formData = new FormData();
                 formData.append('audio_chunk', wavBlob, 'wakeword_chunk.wav');
 
-                const response = await fetch('http://127.0.0.1:9714/api/plugins/asrjs/wakeword_chunk', {
+                const response = await fetch('/api/plugins/asrjs/wakeword_chunk', {
                     method: 'POST',
                     body: formData
                 });
@@ -902,7 +920,7 @@ export default {
                 formData.append('audio_file', audioBlob, 'chunk.wav');
                 formData.append('sample_rate', this.nativeSampleRate.toString());  // Use native sample rate
 
-                const response = await fetch('http://127.0.0.1:9714/api/plugins/speakerid/process_audio_chunk', {
+                const response = await fetch('/api/plugins/speakerid/process_audio_chunk', {
                     method: 'POST',
                     body: formData
                 });
@@ -935,7 +953,7 @@ export default {
 
             // Also notify backend via FastAPI endpoint
             try {
-                const response = await fetch('http://127.0.0.1:9714/api/plugins/asrjs/start_recording', {
+                const response = await fetch('/api/plugins/asrjs/start_recording', {
                     method: 'POST'
                 });
 
@@ -991,7 +1009,7 @@ export default {
 
             // Also notify backend via FastAPI endpoint
             try {
-                const response = await fetch('http://127.0.0.1:9714/api/plugins/asrjs/stop_recording', {
+                const response = await fetch('/api/plugins/asrjs/stop_recording', {
                     method: 'POST'
                 });
 
@@ -1020,7 +1038,7 @@ export default {
                 const formData = new FormData();
                 formData.append('audio_file', audioBlob, 'recording.wav');
 
-                const response = await fetch('http://127.0.0.1:9714/api/plugins/asrjs/transcribe', {
+                const response = await fetch('/api/plugins/asrjs/transcribe', {
                     method: 'POST',
                     body: formData
                 });
@@ -1035,7 +1053,7 @@ export default {
                 console.error('Error sending audio to transcribe:', error);
             }
         },
-        $_handleKeyPress(event) {
+        async $_handleKeyPress(event) {
             if (event.ctrlKey && event.key.toLowerCase() === "v") {
                 return; // allow paste
             }
@@ -1057,7 +1075,43 @@ export default {
             // console.log("Pressed combination:", pressedCombo + ", looking for:", this.keyboardShortcut);
             if (this.keyboardShortcut && pressedCombo === this.keyboardShortcut) {
                 event.preventDefault();
-                this.$_handleMicClick();
+                if (this.holdToTalk && !this.continuous) {
+                    // Push-to-talk: keydown starts, keyup (or window blur) stops.
+                    // event.repeat guards the auto-repeat keydowns fired while the key is held.
+                    if (!event.repeat && !this.pttActive &&
+                        (this.status === 'listening' || this.status === 'ready')) {
+                        this.pttActive = true;
+                        this.status = 'recording';
+                        await this.$_startRecording();
+                    }
+                } else {
+                    this.$_handleMicClick();
+                }
+            }
+        },
+        $_handleKeyRelease(event) {
+            if (!this.pttActive || !this.keyboardShortcut) return;
+            // Releasing ANY key of the combination ends the push-to-talk session
+            // (covers both release orders, e.g. K before Ctrl or Ctrl before K).
+            const keyName = event.key === 'Control' ? 'Ctrl' : event.key;
+            const released = keyName.length === 1 ? keyName.toUpperCase() : keyName;
+            if (this.keyboardShortcut.split('+').includes(released)) {
+                event.preventDefault();
+                this.$_endPushToTalk();
+            }
+        },
+        $_handlePttBlur() {
+            // If the window loses focus mid-hold the keyup never arrives: stop here
+            // so the microphone cannot stay open indefinitely.
+            if (this.pttActive) {
+                this.$_endPushToTalk();
+            }
+        },
+        async $_endPushToTalk() {
+            this.pttActive = false;
+            if (this.status === 'recording') {
+                // The non-continuous stop branch of the mic click does stop + transcribe + cleanup
+                await this.$_handleMicClick();
             }
         },
 
@@ -1097,6 +1151,7 @@ export default {
                     // Handle shortcut (always update, even if empty)
                     console.log('ASRJS SHORTCUT:', this.settings.shortcut);
                     this.keyboardShortcut = this.settings.shortcut || null;
+                    this.holdToTalk = this.settings.hold_to_talk || false;
 
                     // If wakeword was just enabled and continuous mode is on, notify AudioWorklet
                     if (wakewordChanged && this.wakewordEnabled && this.continuous && this.processor) {

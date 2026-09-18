@@ -11,7 +11,7 @@ body {
 } 
 #apploading,
 #minimized {
-  background: @darkest;  
+  background: @darkest;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -21,6 +21,35 @@ body {
   position: absolute;
   top: 0;
   left: 0;
+}
+
+/* Connection-lost overlay (remote-browser sessions): the frozen UI stays
+   faintly visible beneath while the websocket keeps retrying. */
+#connection-lost {
+  background: fade(@darkest, 92%);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 24px;
+  height: 100vh;
+  width: 100vw;
+  z-index: 9999998;
+  position: absolute;
+  top: 0;
+  left: 0;
+
+  img {
+    width: 200px;
+  }
+
+  h1 {
+    color: @bg_page_light;
+    font-size: 2.2em;
+    font-weight: bold;
+    text-align: center;
+    padding: 0 20px;
+  }
 }
 
 #minimized {
@@ -480,6 +509,23 @@ footer {
   .answers .msg {
     margin-bottom: 2.2vh !important;
   }
+}
+/* Themed scrollbars app-wide: dark track, light rounded thumb, easy to target
+   by gaze. More specific rules (e.g. the hidden conversation scrollbar below)
+   keep winning over these. */
+::-webkit-scrollbar {
+  width: 14px;
+  height: 14px;
+}
+::-webkit-scrollbar-track {
+  background: var(--basecolor-darkest);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--basecolor-gray-700);
+  border-radius: 7px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--basecolor-accent-500);
 }
 .conversation-plugin {
   .scrollableConv {

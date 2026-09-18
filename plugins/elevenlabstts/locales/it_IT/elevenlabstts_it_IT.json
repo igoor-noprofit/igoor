@@ -39,6 +39,7 @@
     "Hello, how are you doing? I feel better today!": "Ciao, come stai? Oggi mi sento meglio!",
     "Enable Logging": "Abilita log",
     "Failed to validate API key. Please check your key and try again.": "Impossibile validare la chiave API. Controlla la tua chiave e riprova.",
+    "Extension not running. Restart IGOOR, then reopen these settings.": "Estensione non attiva. Riavvia IGOOR, quindi riapri queste impostazioni.",
     "Use recorded voice": "Usa voce registrata",
     "Upload audio": "Carica audio",
     "Voice cloning": "Clonazione vocale",
@@ -46,5 +47,6 @@
     "Voice cloned successfully": "Voce clonata con successo",
     "Failed to clone voice": "Impossibile clonare la voce",
     "No recorded voice available": "Nessuna voce registrata disponibile",
-    "Use your biorecorder voice samples to clone your voice": "Usa i tuoi campioni vocali del biorecorder per clonare la tua voce"
+    "Use your biorecorder voice samples to clone your voice": "Usa i tuoi campioni vocali del biorecorder per clonare la tua voce",
+    "Recorded voice: {current}s recorded, at least {min}s needed for a good clone": "Voce registrata: {current}s registrati, servono almeno {min}s per un clone di qualità"
 }

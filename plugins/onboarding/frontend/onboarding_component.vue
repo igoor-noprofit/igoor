@@ -1,7 +1,21 @@
 <template>
     <div>
+        <!-- First-run wizard (own component): full-window overlay for users
+             whose onboarding is still incomplete. Keyless by design: name +
+             language are enough to reach the daily view. The wizard shares
+             this component's bio/prefs/ai objects and key-validation state
+             via props; backend replies are forwarded from
+             handleIncomingMessage via $refs. -->
+        <onboarding-wizard ref="wizard" v-if="wizardActive"
+            :bio="bio" :prefs="prefs" :ai="ai" :boot-lang="lang"
+            :t="wizardT" :send="wizardSend" :rest="wizardRest" :open-mic-settings="openMicSettings"
+            :api-key-valid="apiKeyValid" :api-key-error="apiKeyError"
+            :api-key-error-message="apiKeyErrorMessage" :is-validating="isValidating"
+            @finish="onWizardFinish" @validate-key="onWizardValidateKey" @reset-validation="resetKeyValidation">
+        </onboarding-wizard>
+
         <!-- Settings Gear Icon -->
-        <div @click="toggleModal" class="settings-gear">
+        <div @click="toggleModal" class="settings-gear" v-show="appview !== 'onboarding'">
             <img src="/img/icons/src/settings.svg" width="30">
         </div>
         <!-- Modal Window for Plugin Settings -->
@@ -56,8 +70,8 @@
                                     </button>
                                     <button v-if="categoryItem.category === 'Speech Recognition'"
                                             class="shortcut-item btn btn-primary"
-                                            @click="openWindowsMicSettings">
-                                        <span class="shortcut-label">{{ t("Open Windows microphone settings") }}</span>
+                                            @click="openMicSettings">
+                                        <span class="shortcut-label">{{ t("Open OS microphone settings") }}</span>
                                     </button>
                                 </div>
                             </div>
@@ -83,6 +97,9 @@
                                     <input type="file" ref="importFileInput" accept=".zip" @change="importUserData" style="display: none;">
                                     <button class="shortcut-item btn btn-primary warning" @click="$refs.importFileInput.click()" :disabled="isImporting">
                                         <span class="shortcut-label">{{ isImporting ? t('Importing...') : t('Import Data') }}</span>
+                                    </button>
+                                    <button v-if="isBridge !== false" class="shortcut-item btn btn-primary" @click="openDataFolder">
+                                        <span class="shortcut-label">{{ t('Open Data Folder') }}</span>
                                     </button>
                                 </div>
                             </div>
@@ -116,6 +133,7 @@
                                     <option value="fr_FR">{{ t("French") }}</option>
                                     <option value="en_EN">{{ t("English") }}</option>
                                     <option value="it_IT">{{ t("Italian") }}</option>
+                                    <option value="pt_BR">{{ t("Portuguese") }}</option>
                                 </select>
                             </div>
                             <!--div>
@@ -164,13 +182,16 @@
                                             :class="{'input-error': apiKeyError, 'input-success': apiKeyValid}"
                                             :disabled="isValidating"
                                         />
+                                        <button type="button" @click="$_pasteApiKey" :disabled="isValidating" :title="t('Paste')" style="display: flex; align-items: center; padding: 6px 10px;">
+                                            <i class="ph-light ph-clipboard-text"></i>
+                                        </button>
                                         <span v-if="isValidating">{{ t('Validating...') }}</span>
                                         <span v-if="apiKeyValid" class="valid-icon">✓</span>
                                     </div>
                                     <p v-if="apiKeyError" class="error-message">{{ apiKeyErrorMessage }}</p>
                                     <p v-if="ai.provider === 'groq'">
                                         {{ t("Groq is our default provider:") }}<br>
-                                        <a class="extlink" href="https://console.groq.com/login" target="_blank">{{ t("To obtain a FREE api key sign up here") }}</a><br>
+                                        <a class="extlink" href="https://console.groq.com/keys" target="_blank">{{ t("To obtain a FREE api key sign up here") }}</a><br>
                                         <a class="extlink" href="https://groq.com/privacy-policy/" target="_blank">{{ t("Provider privacy policy") }}</a>
                                     </p>
                                     <p v-else-if="ai.provider === 'cerebras'">
@@ -216,7 +237,9 @@
                                     </select>
                                 </div>
                                 <div>
-                                    <label>{{ t("Temperature") }}</label>
+                                    <label>{{ t("Temperature") }}
+                                        <HelpPopover :text="t('Controls how predictable the suggested phrases are. Lower: safer, more predictable suggestions. Higher: more varied suggestions, but sometimes less relevant.')" :t="t" :lang="lang"/>
+                                    </label>
                                     <div style="display: flex; align-items: center; gap: 12px;">
                                         <input type="range" v-model.number="ai.temperature" min="0" max="1" step="0.01"
                                             style="flex: 1 1 60%;">
@@ -252,9 +275,11 @@
                         <h3 class="pluginContainerTitle">
                             <a @click="goToHome" class="breadcrumb-home">{{ t("Home") }}</a> > <a @click="backToPlugins" class="breadcrumb-plugins">{{ t("Plugins") }}</a> > {{ selectedPluginForSettings.title }}
                         </h3>
-                        <component ref="pluginSettingsComponent" :is="selectedPluginComponent" :initial-settings="currentPluginInitialSettings"
-                            :plugin-name="selectedPluginForSettings.name" :lang="lang" :onboarding-open="showModal"
-                            @save-settings="handlePluginSettingsSave" class="plugin-settings-component"></component>
+                        <div class="plugin-settings-scroll">
+                            <component ref="pluginSettingsComponent" :is="selectedPluginComponent" :initial-settings="currentPluginInitialSettings"
+                                :plugin-name="selectedPluginForSettings.name" :lang="lang" :onboarding-open="showModal"
+                                @save-settings="handlePluginSettingsSave" class="plugin-settings-component"></component>
+                        </div>
                     </div>
 
                     <div v-if="currentTab === 'plugins' && !viewingPluginSettings" class="pluginsContainer">
@@ -271,7 +296,7 @@
                             <!-- Plugins Grid for Active Tab -->
                             <div v-if="activeTab" class="plugins-grid">
                                 <div v-for="plugin in pluginsByCategory[activeTab]" :key="plugin.name"
-                                    class="plugin-card" :class="{ 'core-plugin': plugin.is_core }">
+                                    class="plugin-card" :class="{ 'core-plugin': plugin.is_core, 'incompatible-plugin': plugin.compatible === false }">
                                     <div class="plugin-header">
                                         <h3 class="plugin-title">
                                             {{ plugin.title }}
@@ -279,7 +304,7 @@
                                         </h3>
                                         <div class="plugin-actions">
                                             <label class="switch"><input type="checkbox" :checked="plugin.active"
-                                                    :disabled="plugin.is_core"
+                                                    :disabled="plugin.is_core || plugin.compatible === false"
                                                     @change="togglePlugin(activeTab, plugin.name, $event.target.checked)"><span
                                                     class="slider round"></span></label>
                                             <!-- Settings Icon for non-core plugins -->
@@ -293,6 +318,9 @@
                                     <div class="plugin-requirements">
                                         <span v-if="plugin.is_core" class="requirement core">
                                             🔒 {{ t("Core Plugin") }}
+                                        </span>
+                                        <span v-if="plugin.compatible === false" class="requirement incompatible">
+                                            ⛔ {{ t("Not available on this platform") }}
                                         </span>
                                         <span v-if="plugin.requires_internet" class="requirement">
                                             🌐 {{ t("Requires Internet") }}
@@ -351,17 +379,20 @@
 import BasePluginComponent from '/js/BasePluginComponent.js';
 import { ensureBackendApi } from '/js/ensureBackendApi.js';
 import HelpPopover from '/js/HelpPopover.vue';
+import OnboardingWizard from '/plugins/onboarding/frontend/onboarding_wizard.vue';
 
 export default {
     name: "onboarding",
     mixins: [BasePluginComponent], // Use the mixin
     components: {
-        HelpPopover
+        HelpPopover,
+        OnboardingWizard
     },
     data() {
         return {
             activeTab: 'core', // Initialize with a default category to prevent empty state
             pluginData: {},
+            isBridge: null,  // null until ensureBackendApi resolves; false in a plain (remote) browser
             currentTab: 'bio', // For main tabs (bio, prefs, ai, plugins, about)
             showModal: false,
             bio: {
@@ -396,6 +427,8 @@ export default {
             viewingPluginSettings: false,     // Controls visibility of plugin-specific settings view
             showUnsavedChangesModal: false,  // Controls visibility of unsaved changes confirmation modal
             pendingNavigation: null,            // Stores the pending navigation action to execute after confirmation
+            wizardActive: false,             // First-run wizard overlay (latched on entering the onboarding view)
+            backendOnboardingComplete: false, // Completion as CONFIRMED by backend settings (never local edits)
             // API key validation properties
             apiKeyError: false,
             apiKeyErrorMessage: '',
@@ -415,14 +448,18 @@ export default {
                 ],
                 "Speech Recognition": [
                     { label: "Configure recognition", plugin: "asrwhisper", icon: "" },
-                    { label: "Configure recognition", plugin: "asrvosk", icon: "" },
                     { label: "Configure recognition", plugin: "asrjs", icon: "" },
                     { label: "Configure translation", plugin: "translator", icon: "" }
                 ],
                 "Vocal Synthesis": [
+                    { label: "Configure Pocket TTS", plugin: "pockettts", icon: "" },
                     { label: "Configure ElevenLabs", plugin: "elevenlabstts", icon: "" },
                     { label: "Configure Speechify", plugin: "speechifytts", icon: "" },
-                    { label: "Configure Windows Voice", plugin: "ttsdefault", icon: "" },
+                    { label: "Configure OS Voice", plugin: "ttsdefault", icon: "" },
+                    // macOS and Linux counterparts of ttsdefault; only one of
+                    // the three is ever active on a given OS, so all share one label.
+                    { label: "Configure OS Voice", plugin: "ttsmac", icon: "" },
+                    { label: "Configure OS Voice", plugin: "ttslinux", icon: "" },
                     { label: "Configure translation", plugin: "translator", icon: "" }
                 ]
             }
@@ -431,6 +468,9 @@ export default {
     async mounted() {
         // Wait for backend API or pywebview bridge
         const api = await ensureBackendApi();
+        // pywebview (desktop window) vs plain browser (remote device) - hides the
+        // "Open Data Folder" button in browsers (it opens Explorer on the host).
+        this.isBridge = Boolean(api.isBridgeAvailable);
         if (api.isBridgeAvailable) {
             await api.waitUntilReady();
         }
@@ -445,6 +485,7 @@ export default {
                 if (settings.bio) this.bio = { ...this.bio, ...settings.bio };
                 if (settings.prefs) this.prefs = { ...this.prefs, ...settings.prefs };
                 if (settings.ai) this.ai = { ...this.ai, ...settings.ai };
+                this.backendOnboardingComplete = Boolean(this.bio.name && this.bio.name.trim() && this.prefs.lang);
             }
         } catch (error) {
             console.error("Failed to load onboarding settings via REST", error);
@@ -470,6 +511,24 @@ export default {
     computed: {
         categories() {
             return Object.keys(this.pluginData)
+        },
+        onboardingComplete() {
+            // Mirrors the backend's mandatory-field check (name + language):
+            // completed users entering the onboarding view get the settings
+            // modal, never the first-run wizard.
+            return Boolean(this.bio.name && this.bio.name.trim() && this.prefs.lang);
+        },
+        // Parent-bound helpers handed to the wizard child (arrow wrappers so
+        // the child calls them with THIS component as `this`: the websocket
+        // and the translations live here, the child has no BasePluginComponent).
+        wizardT() {
+            return (key, params) => this.t(key, params);
+        },
+        wizardSend() {
+            return (data) => this.sendMsgToBackend(data);
+        },
+        wizardRest() {
+            return (pluginName, endpoint, options) => this.callPluginRestEndpoint(pluginName, endpoint, options);
         },
         supportsReasoning() {
             // Groq reasoning models (with openai/ prefix)
@@ -582,10 +641,55 @@ export default {
         },
     },
     watch: {
+        appview: {
+            // immediate: the async SFC loader can create this component AFTER
+            // the view already switched to onboarding - the prop then starts
+            // at 'onboarding' and would never "change", missing the latch.
+            immediate: true,
+            handler(val) {
+                // Only first-run users get the wizard: once onboarding is
+                // complete (name saved), entering the onboarding view opens
+                // the settings modal instead (the root's changeView used to
+                // trigger force_onboarding for this). wizardActive is latched
+                // on entry so saving the name mid-wizard (which completes
+                // onboarding backend-side) never unmounts it.
+                if (val === 'onboarding') {
+                    if (!this.onboardingComplete) {
+                        this.wizardActive = true;
+                    }
+                } else {
+                    this.wizardActive = false;
+                }
+            }
+        },
+        backendOnboardingComplete(done) {
+            // A completed profile must never keep the wizard up - but only
+            // when the BACKEND says so (settings arrival), never on local
+            // edits: typing the very first letter of the name in the choice
+            // screen flips the onboardingComplete computed locally, and
+            // tearing the wizard down there strands the user on the logo
+            // splash. backendOnboardingComplete is only ever assigned from
+            // websocket/REST settings merges. Only pre-interaction steps are
+            // torn down. NEVER tear down while an import runs or shows its
+            // recap: the imported settings (complete profile) are broadcast
+            // right before the import response.
+            if (done && this.appview === 'onboarding' && this.wizardActive) {
+                const wiz = this.$refs.wizard;
+                const importInProgress = wiz && (wiz.wizardImporting || wiz.wizardStep === 'importDone');
+                const preInteraction = !wiz || wiz.wizardStep === 'loading' || wiz.wizardStep === 'choice';
+                if (preInteraction && !importInProgress) {
+                    this.wizardActive = false;
+                }
+            }
+        },
         'prefs.lang'(newLang, oldLang) {
             // Only update locale if lang is set and not empty
             if (newLang) {
                 this.prefs.locale = `${newLang}.UTF-8`;
+                // Live language switch (wizard): t() reads this.translations
+                // reactively, so refetching the locale file retranslates the
+                // wizard immediately — no restart needed while onboarding.
+                this.reloadTranslations(newLang);
             }
             // Show restart alert if language has changed and it's not the initial set
             if (oldLang && newLang !== oldLang) {
@@ -596,7 +700,8 @@ export default {
             }
         },
         'ai.api_key'(newValue) {
-            // Debounce API key validation
+            // Debounce API key validation (fires for the wizard child too: it
+            // v-models the same shared ai object)
             if (this.validationDebounce) {
                 clearTimeout(this.validationDebounce);
             }
@@ -605,9 +710,7 @@ export default {
                     this.validateApiKey(newValue);
                 }, 500);
             } else {
-                this.apiKeyError = false;
-                this.apiKeyErrorMessage = '';
-                this.apiKeyValid = false;
+                this.resetKeyValidation();
             }
         },
         'ai.model_name'(newModel) {
@@ -618,12 +721,71 @@ export default {
         }
     },
     methods: {
-        async openWindowsMicSettings() {
-            // IGOOR captures from the Windows default mic; let the user manage it in the OS.
+        // ---------- First-run wizard (child component) ----------
+        onWizardFinish() {
+            // force_onboarding may have opened the settings modal when the
+            // view was entered; close it so the daily view isn't covered by
+            // it, then hand control to the daily view.
+            this.showModal = false;
+            this.sendMsgToBackend({ action: 'finish_wizard' });
+        },
+        onWizardValidateKey() {
+            // The wizard re-selected a provider; validate the current key now.
+            this.validateApiKey(this.ai.api_key);
+        },
+        resetKeyValidation() {
+            this.apiKeyError = false;
+            this.apiKeyErrorMessage = '';
+            this.apiKeyValid = false;
+        },
+        async reloadTranslations(lang) {
+            // Fetch this plugin's locale file for an EXPLICIT language — the
+            // BasePluginComponent.loadTranslations() from created() always
+            // re-reads the boot-time lang prop baked into app.js. Swapping
+            // this.translations retranslates everything t() renders (the
+            // wizard's t prop included) without any restart.
+            try {
+                if (!lang || lang === 'en_EN') {
+                    this.translations = {};
+                    return;
+                }
+                const url = `/plugins/onboarding/locales/${lang}/onboarding_${lang}.json${window.IGOOR_VERSION ? "?v=" + encodeURIComponent(window.IGOOR_VERSION) : ""}`;
+                const response = await fetch(url);
+                if (!response.ok) throw new Error(`Could not load ${url}`);
+                this.translations = await response.json();
+            } catch (e) {
+                console.warn('Translation reload failed:', e);
+                this.translations = {};
+            }
+        },
+        // ---------- End first-run wizard ----------
+        async $_pasteApiKey() {
+            // The desktop shell has no working paste shortcut (and eye-tracking
+            // users benefit from a single click): read the clipboard on the backend.
+            try {
+                const backendApi = await window.ensureBackendApi();
+                const text = await backendApi.getClipboard();
+                if (text && text.trim()) {
+                    this.ai.api_key = text.trim();
+                }
+            } catch (e) {
+                console.error('Could not read the clipboard:', e);
+            }
+        },
+        async openMicSettings() {
+            // IGOOR captures from the OS default mic; let the user manage it in the OS.
             try {
                 await fetch('/api/plugins/onboarding/open_sound_settings', { method: 'POST' });
             } catch (e) {
-                console.error('Could not open Windows microphone settings:', e);
+                console.error('Could not open the OS microphone settings:', e);
+            }
+        },
+        async openDataFolder() {
+            // Opens %APPDATA%/igoor (all user data lives there) in the OS file explorer.
+            try {
+                await fetch('/api/plugins/onboarding/open_data_folder', { method: 'POST' });
+            } catch (e) {
+                console.error('Could not open the data folder:', e);
             }
         },
         onProviderChange() {
@@ -716,11 +878,9 @@ export default {
         async exportUserData() {
             this.isExporting = true;
             try {
-                const api = await window.ensureBackendApi();
-                
                 // In pywebview, programmatic downloads don't work.
                 // Use window.open() to let pywebview handle the download.
-                const baseUrl = api.isBridgeAvailable ? window.location.origin : 'http://localhost:9714';
+                const baseUrl = window.location.origin;
                 const exportUrl = `${baseUrl}/api/data/export?include_rag=true`;
                 
                 window.open(exportUrl, '_blank');
@@ -761,11 +921,21 @@ export default {
                 }
                 
                 if (data.version_info) {
-                    const versionText = this.t('Imported from version') + `: ${data.version_info.igoor_version}\n` + 
+                    const versionText = this.t('Imported from version') + `: ${data.version_info.igoor_version}\n` +
                                       this.t('Export date') + `: ${data.version_info.export_timestamp}`;
                     message += '\n\n' + versionText;
                 }
-                
+
+                // Plugins are only loaded at app start: if the import changed any
+                // activation state, the change is not live in this session
+                const changedPlugins = Object.keys(data.activation_changes || {});
+                if (changedPlugins.length > 0) {
+                    message += '\n\n⚠ ' + this.t('Restart required: extension activation changed. Please quit and relaunch IGOOR.');
+                    // No auto-dismiss (unlike the toggle alert): the banner must
+                    // stay visible while configuring plugins that are not loaded yet
+                    this.showRestartAlert = true;
+                }
+
                 alert(message);
                 
                 // Reset the file input
@@ -907,7 +1077,18 @@ export default {
                 }
                 if (data.action && data.action == "show_modal"){
                     console.warn("ONBOARDING FORCED");
+                    // Other plugins' 'Connect an AI' buttons request a specific
+                    // tab (open_settings?tab=ai) so the user lands on the
+                    // provider form instead of the default Bio tab.
+                    if (data.tab) {
+                        this.currentTab = data.tab;
+                    }
                     this.showModal = true;
+                }
+                if (this.$refs.wizard) {
+                    // Wizard replies (provider_saved, errors while saving): the
+                    // wizard child owns no websocket, so forward from here.
+                    this.$refs.wizard.onBackendMessage(data);
                 }
                 // Handle settings updates (both initial load and global settings update)
                 if (data.bio) {
@@ -918,6 +1099,18 @@ export default {
                 }
                 if (data.ai) {
                     this.ai = { ...this.ai, ...data.ai };
+                }
+                // Backend-confirmed completion (drives the wizard un-latch):
+                // set ONLY from arrived settings, so a local edit (typing the
+                // name) can never tear the wizard down.
+                if (data.bio || data.prefs) {
+                    this.backendOnboardingComplete = Boolean(this.bio.name && this.bio.name.trim() && this.prefs.lang);
+                }
+                // Settings can arrive after the view switch: (re)latch the
+                // wizard here too, the appview watcher alone can miss it.
+                // (Un-latching lives in the onboardingComplete watcher.)
+                if (this.appview === 'onboarding' && !this.onboardingComplete && !this.wizardActive) {
+                    this.wizardActive = true;
                 }
                 // Reload plugins list when settings are updated
                 if (data.bio || data.prefs || data.ai) {
@@ -952,6 +1145,10 @@ export default {
             const plugin = this.pluginsByCategory[category].find(p => p.name === pluginName);
             if (plugin && plugin.is_core) {
                 console.log("Cannot toggle core plugin:", pluginName);
+                return;
+            }
+            if (plugin && plugin.compatible === false) {
+                console.log("Plugin not available on this platform:", pluginName);
                 return;
             }
 
@@ -1120,10 +1317,47 @@ export default {
 
 .pluginsContainer{
     /* border:1px solid #0ff; */
-    width: 100vw;
+    /* 100% (not 100vw): the modal has horizontal padding, so 100vw overflows
+       it and the last grid column gets clipped by overflow-x:hidden */
+    width: 100%;
+}
+/* Fixed-height modal: the tab bar and the save bar stay visible, each tab's
+   content scrolls on its own and only when it actually overflows.
+   Zero flex-bases keep every level a DEFINITE height, so percentage heights
+   used inside plugins (height:100%) resolve correctly */
+.tabsandpluginscontainer{
+    flex: 1 1 0%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+.tabsandpluginscontainer > *:not(ul.tabs){
+    flex: 1 1 0%;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
 }
 .pct_container{
-    /* border: 1px solid #f00; */
+    display: flex;
+    flex-direction: column;
+}
+.plugin-settings-scroll{
+    /* zero flex-basis (not auto) makes this box a DEFINITE height, so plugin
+       roots using height:100% resolve instead of falling back to content size;
+       scrollbar look comes from the app-wide rule in css/app.less */
+    flex: 1 1 0%;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
+}
+/* plugin roots stretch to fill the available height (keeps layouts like
+   daily/biorecorder that rely on height:100% working) but never compress;
+   align-content:start stops grid roots from spreading their rows apart */
+.plugin-settings-component{
+    flex: 1 0 auto;
+    align-content: start;
 }
 .about-tab {
     background: #000;
@@ -1261,6 +1495,7 @@ input:checked+.slider:before {
     display: flex;
     align-items: center;
     gap: 10px;
+    flex: 0 0 auto;
 }
 
 .save-status {
@@ -1338,13 +1573,29 @@ button:disabled {
 /* Modal content styles */
 .modal-content {
     background: #fff;
-    padding: 0 20px;
+    /* keep content (pinned save bar, scrollbars) clear of the app footer,
+       which paints on top of the modal; while settings are open the footer
+       is shrunk to max-height: 70px (footer.shrink in app.less) */
+    box-sizing: border-box;
+    padding: 0 20px 70px;
     border-radius: 8px;
     position: relative;
     color: #000;
     height: 100%;
     font-size: 18px;
     width: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+/* The native focus ring is drawn just OUTSIDE the element box, and the left
+   columns (Bio, Préférences) start exactly on the edge of the scroll
+   containers, which clip with overflow-x:hidden — the ring loses its left
+   edge. Draw it inside the field instead. */
+.modal-content input:focus-visible,
+.modal-content textarea:focus-visible,
+.modal-content select:focus-visible {
+    outline-offset: -2px;
 }
 
 /* PLUGINS */
@@ -1369,12 +1620,24 @@ button:disabled {
     color: white;
 }
 
+.incompatible-plugin {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    opacity: 0.7;
+}
+
+.requirement.incompatible {
+    background: #6c757d;
+    color: white;
+}
+
 .restart-alert {
     background: #ffecb3;
     color: #795548;
     border: 1px solid #ffe082;
     padding: 12px 20px;
     border-radius: 6px;
+    flex: 0 0 auto;
     margin-bottom: 18px;
     font-size: 1em;
     text-align: center;
@@ -1389,7 +1652,8 @@ button:disabled {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
     gap: 20px;
-    padding: 20px 0;
+    /* gutter before the scrollbar of the scroll container (.pluginsContainer) */
+    padding: 20px 20px 20px 0;
 }
 
 .plugin-card {
@@ -1416,6 +1680,7 @@ button:disabled {
     margin: 0;
     font-size: 1.1em;
     font-weight: 600;
+    line-height: 1.2rem;
     max-width: 80%;
 }
 
@@ -1495,6 +1760,7 @@ button:disabled {
     display: flex;
     align-items: center;
     gap: 10px;
+    flex: 0 0 auto;
 }
 
 a.extlink {
@@ -1606,8 +1872,11 @@ a.extlink {
 
 /* Dashboard Styles */
 .dashboard-container {
-    padding: 20px 0;
-    height: 100%;
+    /* right padding keeps a gutter between the cards and the scrollbar
+       that appears on this scroll container when the cards overflow */
+    padding: 20px 20px 20px 0;
+    /* height comes from the flex chain (.tabsandpluginscontainer > *):
+       fills the modal when cards fit, scrolls when they overflow */
     display: flex;
     flex-direction: column;
 }
@@ -1617,7 +1886,8 @@ a.extlink {
     grid-template-columns: repeat(4, 1fr);
     grid-template-rows: repeat(auto-fill, 1fr);
     gap: 15px;
-    height: 100%;
+    /* grow to fill the available height, never shrink below card content */
+    flex: 1 0 auto;
 }
 
 .dashboard-category {

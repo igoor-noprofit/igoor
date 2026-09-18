@@ -84,6 +84,8 @@ Copy `locales/en_EN/default_settings.json` as the base template. Change exactly 
 
 Do NOT change any other fields (api keys, provider, model_name, plugins_activation, etc.).
 
+**Note**: creating `locales/{LANG_CODE}/` also changes first-run OS detection. `_detect_start_lang()` in `settings_manager.py` prefix-matches the OS locale, so every `{lang}_*` OS locale (e.g. `pt_PT`, `pt_AO` once `pt_BR` exists) now resolves to the new folder — users of the same language's other regional variants get THIS locale on first run.
+
 ---
 
 ## Step 2 — Create Plugin Translation Files
@@ -118,6 +120,7 @@ For EACH plugin that has a `fr_FR` locale file, create the corresponding new lan
 | memory | `plugins/memory/locales/{LANG_CODE}/memory_{LANG_CODE}.json` |
 | meteo | `plugins/meteo/locales/{LANG_CODE}/meteo_{LANG_CODE}.json` |
 | onboarding | `plugins/onboarding/locales/{LANG_CODE}/onboarding_{LANG_CODE}.json` |
+| pockettts | `plugins/pockettts/locales/{LANG_CODE}/pockettts_{LANG_CODE}.json` |
 | rag | `plugins/rag/locales/{LANG_CODE}/rag_{LANG_CODE}.json` |
 | shortcuts | `plugins/shortcuts/locales/{LANG_CODE}/shortcuts_{LANG_CODE}.json` |
 | speakerid | `plugins/speakerid/locales/{LANG_CODE}/speakerid_{LANG_CODE}.json` |
@@ -125,10 +128,15 @@ For EACH plugin that has a `fr_FR` locale file, create the corresponding new lan
 | translator | `plugins/translator/locales/{LANG_CODE}/translator_{LANG_CODE}.json` |
 | ttsdefault | `plugins/ttsdefault/locales/{LANG_CODE}/ttsdefault_{LANG_CODE}.json` |
 
+> NOTE: keep this table in sync with the codebase — the authoritative list is
+> `glob: plugins/*/locales/fr_FR/*.json` from the pre-flight inventory above.
+> (pockettts and speakerid were added after the first languages and were
+> initially missing from this table.)
+
 **Plugins with NO locale files (skip these)**: baseplugin, extkeyb, ramcpu, recorder, survey
 
 **Important notes**:
-- `clock` and `conversation` may have empty `{}` fr_FR files. Create matching empty objects.
+- `clock` and `conversation` may have empty `{}` fr_FR files. `conversation`'s is genuinely empty — create a matching empty object. `clock`'s fr_FR file is empty but its `it_IT` file has keys: when a plugin's fr_FR file is empty (or has fewer keys than a sibling locale), use the locale file with the MOST keys as the reference. Keys come from `t()` usage in the component source; extra keys in a locale file are harmless, missing ones silently fall back to English.
 - `onboarding` is the largest file (~120 keys). Take extra care with this translation.
 - `biorecorder` also has a separate questions file — see Step 3.
 
@@ -187,13 +195,33 @@ Examples:
 
 If the language has no T-V distinction (like English), use an empty string `""`.
 
+Regional variants may invert the convention: `pt_PT`'s note uses "tu", but `pt_BR`'s uses "Sempre usar 'você', nunca 'tu'". Write the note for the variant being added, and give `LANG_TO_NAME` a distinct name for it (e.g. `"pt_BR": "Brazilian Portuguese"` alongside `"pt_PT": "Portuguese"`) so the LLM's `{reply_language}` is unambiguous.
+
+### 4c. Frontend connection-lost messages
+
+`js/app_template.js` has an inline per-language dict inside the `connectionLostMessage` computed property ("Connecting to IGOOR…" / "Connection lost — reconnecting…"). Add `{LANG_CODE}` entries for both keys — any unknown language silently falls back to en_EN there.
+
+### 4d. Backend per-language data
+
+These are NOT `t()`-based; each needs its own language entry or the feature silently falls back to English:
+
+| File | What to add |
+|------|-------------|
+| `plugins/meteo/meteo.py` | a `"{LANG_CODE}"` entry in `WMO_DESCRIPTIONS` for **every** weather code (lookup falls back to `en_EN` per code) |
+| `plugins/daily/daily.json` | a top-level `"{LANG_CODE}"` section: translate the category/item **keys** from the `en_EN` section (see the `fr_FR` section for the pattern), preserve `freq`/`fixed`/`pref` values exactly |
+| `plugins/biorecorder/biorecorder.py` | the hardcoded `locale_map` in `_load_questions` needs `"{base_code}": "{LANG_CODE}"` (e.g. `"pt": "pt_BR"`) — without it the questions always load in English even though the translated file exists |
+
+### 4e. ASRJS Whisper silence-hallucination filter
+
+`clean_whisper_silence` in `plugins/asrjs/asrjs.py` strips known Whisper hallucination strings emitted on silence/music (caption artifacts like the French "Sous-titrage…" entries). Research the new language's commonly reported Whisper artifacts and add them to `SILENCE_STRINGS`.
+
 ---
 
 ## Step 5 — Update Onboarding Language Dropdown
 
 Edit `plugins/onboarding/frontend/onboarding_component.vue`.
 
-Find the language `<select>` block (around lines 115-118):
+Find the language `<select>` block (around lines 109-114):
 ```html
 <select v-model="prefs.lang">
     <option value="fr_FR">{{ t("French") }}</option>
@@ -220,61 +248,22 @@ The onboarding translation file (`plugins/onboarding/locales/{LANG_CODE}/onboard
 
 Also verify these exist in `locales/{LANG_CODE}/common_{LANG_CODE}.json`.
 
+**Also update the EXISTING languages' files**: add the new language's name key to every other shipped locale — `plugins/onboarding/locales/fr_FR/onboarding_fr_FR.json` (e.g. `"Portuguese": "Portugais"`), the `it_IT` counterpart (`"Portoghese"`), and `locales/fr_FR/common_fr_FR.json` + `locales/it_IT/common_it_IT.json` — placed next to the existing language-name keys. Without this, French/Italian users see the raw English name ("Portuguese") in their own dropdown.
+
 ---
 
-## Step 7 — ASR / TTS / Voice / Translation Support Check
+## Step 7 — ASR / TTS Model Support Check
 
-Adding a new language requires verifying that ASR (speech recognition), TTS (text-to-speech), and voice models support it. Without these checks, the user could select a new language but have broken voice input/output.
+Adding a new language requires verifying that ASR (speech recognition) and TTS (text-to-speech) models support it. Without these checks, the user could select a new language but have broken voice input/output.
 
-> **Note**: `asrvosk` and its `vosk_models.json` no longer exist. Local ASR is now unified under the `asrjs` plugin (Sherpa-ONNX), so there is **no Vosk step**. Do not look for `vosk_models.json`.
+### 7a. ASR — ASRJS Sherpa local model availability
 
-### 7a. ASR — ASRJS Sherpa local model availability (ONNX)
+Read `plugins/asrjs/sherpa_models.json`. This maps base language codes (e.g. `"it"`, `"fr"`) to Sherpa-ONNX model info.
 
-This is the **local, offline** ASR engine. Sherpa-ONNX models are real ONNX files (`.onnx`) shipped inside a `.tar.bz2` archive that the app downloads on first use into the user-data folder (`plugins/asrjs/models/sherpa/<name>/`). The registry mapping each language to its archive is `plugins/asrjs/sherpa_models.json`.
-
-**How the app picks a model** (see `_get_sherpa_model_info` in `plugins/asrjs/asrjs.py`):
-- `BASE_LANG` = first two chars of `LANG_CODE` (`es_ES` → `es`).
-- It looks up `catalog[BASE_LANG][<small|big>]` (size comes from the `sherpa_model_size` setting, default `small`).
-- If `BASE_LANG` is **not a key**, it silently uses the `_fallback` entry (`sherpa-onnx-whisper-tiny`, multilingual). So an unsupported language is **not broken** — it still transcribes — but accuracy drops and it runs as offline Whisper instead of a streaming zipformer.
-
-**Step 1 — Check the registry.** Read `plugins/asrjs/sherpa_models.json`.
-- If `BASE_LANG` is already a top-level key → ✅ a native model exists; nothing to add. Skip to the URL check below to confirm it still resolves.
-- If `BASE_LANG` is **missing** → decide whether a dedicated model is worth adding (Step 2). If you add nothing, add a **warning** to the summary report: local Sherpa ASR will run on the multilingual `_fallback` (whisper-tiny) — functional but less accurate.
-
-**Step 2 — If adding an entry, use the correct schema.** There are two model families; `_load_sherpa_model` branches on `model_info.get("type") == "whisper"`. Pick the wrong shape and the model fails to load **silently**:
-
-- **Streaming zipformer transducer** (preferred — real-time; the `en`/`fr`/`ko`/`zh` entries). **No `"type"` field**; third file is `"joiner"`:
-  ```json
-  "es": {
-    "small": {
-      "name": "sherpa-onnx-streaming-zipformer-es-<date>",
-      "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-zipformer-es-<date>.tar.bz2",
-      "size": "<approx>",
-      "encoder": "encoder-...int8.onnx",
-      "decoder": "decoder-...onnx",
-      "joiner": "joiner-...int8.onnx"
-    },
-    "big": { "..." : "..." }
-  }
-  ```
-- **Whisper (offline, multilingual)** (the `it` entry and `_fallback`). **Must include `"type": "whisper"`**; third file is `"tokens"` (a `.txt`), not `joiner`:
-  ```json
-  "es": {
-    "small": {
-      "name": "sherpa-onnx-whisper-tiny", "url": "...", "size": "75M",
-      "type": "whisper",
-      "encoder": "tiny-encoder.int8.onnx", "decoder": "tiny-decoder.int8.onnx", "tokens": "tiny-tokens.txt"
-    }
-  }
-  ```
-
-Find a real model on the sherpa-onnx releases page (https://github.com/k2-fsa/sherpa-onnx/releases, `asr-models` assets) or the k2-fsa sherpa pretrained-models docs. Prefer a **streaming zipformer** for the language if one exists; otherwise reuse the multilingual `sherpa-onnx-whisper-tiny`/`-base` (already covered by `_fallback`, so adding explicitly is optional). Copy the `encoder`/`decoder`/`joiner`(or `tokens`) filenames **exactly** from the archive's contents — they vary per model.
-
-**Step 3 — Verify the archive URL resolves before committing the entry.** The `.tar.bz2` at `url` is what gets downloaded at runtime (`_ensure_sherpa_model_downloaded`); a 404 fails the download silently. HEAD-check every `url` (small and big) you add or rely on:
-```bash
-curl -sILo /dev/null -w "%{http_code}\n" "<url>"
-```
-Expect `200` (302 redirects to the GitHub object-storage CDN are fine — `-L` follows them). If it returns `404`, the model name/date is wrong: do **not** add the entry, and note the failed URL in the summary report.
+- Compute `BASE_LANG` = first two characters of `LANG_CODE` (e.g. `es_ES` → `es`).
+- If `BASE_LANG` already has an entry → OK.
+- If `BASE_LANG` is **missing** → add an entry if Sherpa models exist for the language at https://github.com/k2-fsa/sherpa-onnx/releases . Follow the existing pattern (encoder/decoder/joiner/tokenizer filenames + URLs for small and big). If no Sherpa model exists, note a **warning**: Sherpa will fall back to the multilingual Whisper tiny model (less accurate).
+- If the chosen model already emits punctuation + capitalization (whisper-type, NeMo `*_pc` names), add `"punctuated": true` to its catalog entry (see the `it`, `pt` and `_fallback` entries): `_transcribe_with_sherpa` then keeps the transcript's raw casing instead of lowercasing it, which would otherwise destroy proper-noun capitalization ("João" → "joão").
 
 ### 7b. ASR — ASRJS Groq/Mistral (cloud)
 
@@ -289,7 +278,7 @@ Check if `plugins/asrjs/locales/{LANG_CODE}/hey_igoor_{LANG_CODE}.onnx` exists.
 
 ### 7d. TTS — Speechify language support
 
-Read `plugins/speechifytts/speechifytts.py`. Find the `supported_lang` list in the `startup()` method (around line 88, search for `supported_lang`).
+Read `plugins/speechifytts/speechifytts.py`. Find the `supported_lang` list in the `startup()` method (search for `supported_lang`).
 
 - Compute `SPEECHIFY_LANG`: convert `LANG_CODE` to Speechify format — use `fr-FR` style (hyphen, proper casing). For example: `es_ES` → `es-ES`, `pt_PT` → `pt-PT`, `en_EN` → `en`.
 - If `SPEECHIFY_LANG` is in the list → OK.
@@ -303,47 +292,57 @@ No code change needed. All ElevenLabs models (`eleven_multilingual_v2`, `eleven_
 
 No code change needed. Uses Windows system voices. Add a **note** to the summary report that the user must have a TTS voice installed for the new language in Windows Settings → Speech → Manage voices.
 
-### 7g. Voice — Speaker ID
+### 7g. TTS — PocketTTS (kyutai)
 
-No model change needed. Speaker recognition (the `speakerid` plugin) is **language-independent** — it compares voice biometrics, not speech content, and the underlying speechbrain model works for any language. Only the plugin's UI strings (Step 2) need translation.
+Read `plugins/pockettts/pockettts.py` and check two things:
 
-### 7h. Translation — Translator interlocutor-language dropdown
+1. The language map `IGOOR_LANG_TO_POCKETTTS` — if the new locale (and its base code) is **missing**, add entries mapping it to the pocket-tts language name (e.g. `"pt_BR": "portuguese", "pt": "portuguese"`).
+2. `plugins/pockettts/models.csv` — verify a row exists for that pocket-tts language variant. If not, the model weights are not mirrored and local synthesis for that language cannot work; add a **warning** to the summary report.
 
-The translation **engine** needs no change: the `translator` plugin is just a settings container, and the actual translation runs through `Baseplugin.translate_for_interlocutor()` via the multilingual LLM (`plugins/baseplugin/baseplugin.py`). It works for any language.
+Also check `BUILTIN_VOICES` in the same file: some languages intentionally have an empty preset-voice list (voices excluded for license incompatibility with AGPLv3). If the list is empty for the new language, note that "auto" falls back to a cross-language default voice and users should clone a voice for native quality.
 
-The gap is **UI selectability only**. The "Interlocutor's Language" picker in `plugins/translator/frontend/translator_settings.vue` is a **hardcoded `<select>`** (French/English/Italian/Spanish/German/Portuguese, plus commented-out entries marked "not yet directly testable"). A new language cannot be chosen as the interlocutor's language unless an `<option>` is added there. This list is **hand-curated by testability — do NOT edit it automatically.**
-
-**Check and flag (do not edit):**
-1. Open `plugins/translator/frontend/translator_settings.vue` and search for `value="{LANG_NAME}"`.
-   - The `value` is the **English language name** (e.g. `Spanish`), NOT the locale code — it is passed straight to the LLM as `target_lang` (`translator_settings.get("interlocutor_language")`).
-2. If the option **already exists** → OK.
-3. If it is **missing** → add a line to the summary report (under a "Manual follow-up" note):
-   > To enable interlocutor translation for **{LANG_NAME}**, add to `plugins/translator/frontend/translator_settings.vue`:
-   > `<option value="{LANG_NAME}">{{ t("{LANG_NAME}") }}</option>`
-   > (and add the `"{LANG_NAME}"` key to `plugins/translator/locales/*/*.json` locale files so the label displays translated; English fallback applies otherwise.)
-
-Leave the enable/curate decision to the human.
-
-### Summary of ASR/TTS/voice/translation actions
+### Summary of ASR/TTS actions
 
 | Component | Action needed | Breaking? |
 |-----------|--------------|-----------|
-| ASRJS Sherpa | Add entry to `sherpa_models.json` + verify `.tar.bz2` URL resolves (HEAD 200) | No — falls back to multilingual |
+| ASRJS Sherpa | Add entry to `sherpa_models.json` | No — falls back to multilingual |
 | ASRJS Groq/Mistral | None | No |
 | Wakeword model | Provide `.onnx` file | Only if wakeword enabled |
 | Speechify TTS | Add to `supported_lang` list | No — warns but continues |
 | ElevenLabs TTS | None (user picks voice) | No |
+| PocketTTS | Check `IGOOR_LANG_TO_POCKETTTS` + `models.csv` | No — warns but continues |
 | Default TTS (SAPI) | None (system voices) | No |
-| Speaker ID | None (language-independent voice biometrics) | No |
-| Translator (interlocutor lang) | Flag missing `<option>` in `translator_settings.vue` for manual add (do not auto-edit) | No — LLM engine is multilingual; only UI selectability |
 
 ---
 
-## Step 8 — Validate Completeness
+## Step 8 — Update the MSIX Package Manifest
+
+The MSIX package declares its supported languages to Windows/the Store in
+`installer/msix/AppxManifest.xml`, inside the `<Resources>` block:
+
+```xml
+<Resources>
+    <Resource Language="en-US" />
+    <Resource Language="fr-FR" />
+    ...
+</Resources>
+```
+
+Add one line for the new language:
+
+- Convert the locale code to a **BCP-47 hyphenated tag**: `{ll}_{CC}` → `{ll}-{CC}` (e.g. `pt_BR` → `pt-BR`, `es_ES` → `es-ES`).
+- **Special case**: `en_EN` is declared as `en-US` (there is no `en-EN` in BCP-47).
+- Keep the block sorted consistently with the existing entries.
+
+**Never edit `installer/msix/layout/AppxManifest.xml`** — the `layout/` folder is build output regenerated by `build_msix.bat`, which copies the repo manifest in at packaging time (line ~51).
+
+If an Inno Setup channel ever ships a language list too (no `.iss` is in the repo today), update it in the same step.
+
+## Step 9 — Validate Completeness
 
 After all files are created, run these validation checks:
 
-### 8a. Key count comparison
+### 7a. Key count comparison
 
 For EACH plugin translation file, compare key counts:
 ```bash
@@ -358,7 +357,11 @@ if len(fr) != len(new): print(f'  MISMATCH!')
 
 Every file must have the SAME number of keys as its `fr_FR` counterpart.
 
-### 8b. Key match verification
+Two caveats:
+- Compare against the reference you actually translated from — e.g. `clock` has an empty fr_FR file, so compare against its `it_IT` file instead.
+- If the fr_FR and it_IT files for a plugin disagree on key count (drift — e.g. onboarding historically differed by a few keys), translate from the file with the SUPERSET of keys; extra keys are harmless, missing keys fall back to English.
+
+### 7b. Key match verification
 
 Verify no missing or extra keys:
 ```bash
@@ -374,7 +377,7 @@ if not missing and not extra: print(f'  OK')
 "
 ```
 
-### 8c. JSON syntax validation
+### 7c. JSON syntax validation
 
 Validate ALL created JSON files parse correctly:
 ```bash
@@ -390,14 +393,14 @@ for f in sorted(files):
 "
 ```
 
-### 8d. Python syntax check
+### 7d. Python syntax check
 
 Verify `settings_manager.py` is still valid:
 ```bash
 python -m py_compile settings_manager.py
 ```
 
-### 8e. Biorecorder questions structure validation
+### 7e. Biorecorder questions structure validation
 
 Verify the questions file matches the English source structure:
 ```bash
@@ -416,21 +419,20 @@ for cat in en:
 
 ---
 
-## Step 9 — Summary Report
+## Step 10 — Summary Report
 
 After all files are created and validated, report:
 
 1. **Files created**: list every new file with its full path
-2. **Files modified**: list `settings_manager.py`, `onboarding_component.vue`, and any ASR/TTS config files changed
+2. **Files modified**: list `settings_manager.py`, `onboarding_component.vue`, `installer/msix/AppxManifest.xml` (new `<Resource Language>`), and any ASR/TTS config files changed
 3. **Key counts**: table comparing key counts per plugin between `fr_FR` and the new language
 4. **Total translations**: sum of all individual string translations made
-5. **ASR/TTS/voice/translation compatibility report**:
-   - ASRJS Sherpa: native model available? entry added to `sherpa_models.json`? `.tar.bz2` URL verified to resolve (HEAD 200)?
+5. **ASR/TTS compatibility report**:
+   - ASRJS Sherpa: model available? entry added to `sherpa_models.json`?
    - Wakeword: `.onnx` file available?
    - Speechify: language added to `supported_lang`?
    - ElevenLabs: reminder to pick a compatible voice
    - Default TTS (SAPI): reminder to install a system voice
-   - Translator (interlocutor lang): present in `translator_settings.vue` dropdown? if missing → flag the exact `<option value="{LANG_NAME}">` line for manual add
 6. **Any warnings**: missing models, empty locale files, potential issues, validation failures
 
 ---

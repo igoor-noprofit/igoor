@@ -33,7 +33,7 @@
             <div class="form-input">
                 <div class="voice-clone-section">
                     <button class="clone-btn" type="button" @click="useRecordedVoice"
-                        :disabled="!voiceSampleExists || isCloning" :title="!voiceSampleExists ? t('No recorded voice available') : t('Use your biorecorder voice samples to clone your voice')">
+                        :disabled="!voiceSampleReady || isCloning" :title="cloneButtonTitle">
                         <span v-if="isCloning">{{ t('Cloning...') }}</span>
                         <span v-else>{{ t('Use recorded voice') }}</span>
                     </button>
@@ -44,7 +44,11 @@
                         accept=".wav,.mp3,.ogg,.webm" @change="onCloneFileSelected" />
                 </div>
             </div>
-            <div class="form-note"></div>
+            <div class="form-note" :style="{ color: (voiceSampleExists && !voiceSampleReady) ? '#ff9b9b' : undefined }">
+                <span v-if="voiceSampleExists && !voiceSampleReady">
+                    {{ t('Recorded voice: {current}s recorded, at least {min}s needed for a good clone', { current: Math.round(voiceSampleDuration), min: minVoiceSampleSeconds }) }}
+                </span>
+            </div>
 
             <!-- Model Selection -->
             <div class="form-label">{{ t('Model selection') }}</div>
@@ -96,10 +100,10 @@
                     </div>
                 </div>
             </div>
-            <div class="form-note"></div>
+            <!-- no empty spacer divs here: each one adds ~12px of dead height
+                 (global .right div margin) that spilled into a useless scrollbar -->
 
             <!-- Advanced controls card -->
-            <div class="form-label"></div>
             <div class="form-input" style="grid-column: 2 / span 2; padding: 10px 0;">
                 <div class="ssml-card">
                     <!-- Card header with reset button -->
@@ -207,7 +211,6 @@
 
                 </div>
             </div>
-            <div class="form-note"></div>
         </div>
     </div>
 </template>
@@ -215,6 +218,9 @@
 <script>
 import BasePluginComponent from '/js/BasePluginComponent.js';
 import SaveSettingsButton from '/js/SaveSettingsButton.vue';
+
+// ElevenLabs Instant Voice Cloning recommends >=60s of clean audio for a good clone
+const MIN_VOICE_SAMPLE_SECONDS = 60;
 
 export default {
     name: 'elevenlabsttsSettings',
@@ -259,6 +265,7 @@ export default {
             outputFormatValue: 'mp3_44100_128',
             enableLoggingValue: true,
             voiceSampleExists: false,
+            voiceSampleDuration: 0,
             isCloning: false
         };
     },
@@ -278,6 +285,24 @@ export default {
         isV3Model() {
             // eleven_v3 does not support optimize_streaming_latency
             return this.formData.model_id === 'eleven_v3';
+        },
+        minVoiceSampleSeconds() {
+            return MIN_VOICE_SAMPLE_SECONDS;
+        },
+        voiceSampleReady() {
+            return this.voiceSampleExists && this.voiceSampleDuration >= MIN_VOICE_SAMPLE_SECONDS;
+        },
+        cloneButtonTitle() {
+            if (!this.voiceSampleExists) {
+                return this.t('No recorded voice available');
+            }
+            if (!this.voiceSampleReady) {
+                return this.t('Recorded voice: {current}s recorded, at least {min}s needed for a good clone', {
+                    current: Math.round(this.voiceSampleDuration),
+                    min: this.minVoiceSampleSeconds
+                });
+            }
+            return this.t('Use your biorecorder voice samples to clone your voice');
         }
     },
     watch: {
@@ -404,9 +429,11 @@ export default {
                 if (response.ok) {
                     const data = await response.json();
                     this.voiceSampleExists = data.exists;
+                    this.voiceSampleDuration = data.duration_seconds || 0;
                 }
             } catch (e) {
                 this.voiceSampleExists = false;
+                this.voiceSampleDuration = 0;
             }
         },
         async useRecordedVoice() {
@@ -424,7 +451,7 @@ export default {
                 });
                 if (!response.ok) {
                     const err = await response.json();
-                    throw new Error(err.detail || 'Clone failed');
+                    throw new Error(err.detail || this.t('Failed to clone voice'));
                 }
                 const data = await response.json();
                 this.formData.voice_id = data.voice_id;
@@ -456,7 +483,7 @@ export default {
                 });
                 if (!response.ok) {
                     const err = await response.json();
-                    throw new Error(err.detail || 'Clone failed');
+                    throw new Error(err.detail || this.t('Failed to clone voice'));
                 }
                 const data = await response.json();
                 this.formData.voice_id = data.voice_id;
@@ -510,6 +537,14 @@ export default {
                 this.voiceList = [];
                 this.apiKeyError = true;
                 this.apiKeyValid = false;
+
+                // 404 = the plugin's REST router is not registered (extension
+                // active in settings but not loaded in this session): the key
+                // itself was never checked, so don't report it as invalid
+                if (err && err.status === 404) {
+                    this.apiKeyErrorMessage = this.t('Extension not running. Restart IGOOR, then reopen these settings.');
+                    return;
+                }
 
                 // Extract error message from response
                 if (err.response && err.response.data) {
@@ -647,6 +682,13 @@ export default {
     align-items: start;
     background: none;
     padding: 10px;
+}
+
+/* the global onboarding theme gives every div in .left/.right columns a 10px
+   bottom margin; on the last element it only adds dead height that spilled
+   into a useless scrollbar */
+.bio > div:last-child {
+    margin-bottom: 0;
 }
 
 .form-input {

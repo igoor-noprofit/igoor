@@ -1,9 +1,15 @@
 <template>
     <div class="shortcuts shortcuts-plugin" v-show="appview != 'onboarding'" :class="{ 'shrink': shrink }">
-        <button class="btn btn-shortcut minimize" @click="$_minimise()">
+        <button v-if="isBridge !== false" class="btn btn-shortcut minimize" @click="$_minimise()">
             <img src="img/minimize.svg">
             <h3 v-show="!shrink">{{ t('Minimize window') }}</h3>
             <h3 v-show="shrink">{{ t('Minimize') }}</h3>
+        </button>
+        <!-- In a plain (remote) browser there is no window to minimize: offer
+             browser fullscreen instead (tablets / remote devices). -->
+        <button v-else class="btn btn-shortcut fullscreen" @click="$_toggleFullscreen()">
+            <i class="ph-light ph-arrows-out"></i>
+            <h3>{{ t('Fullscreen') }}</h3>
         </button>
         <button
             v-for="button in visibleButtons"
@@ -29,6 +35,7 @@ export default {
             websocket: null,  // Store WebSocket instance
             status: 'loading',
             shrink: false,
+            isBridge: null,  // null until ensureBackendApi resolves; false in a plain browser
             isAlertPlaying: false,
             alertTimeout: null,
             alertAudio: null,
@@ -244,7 +251,22 @@ export default {
             }
         },
         $_minimise() {
-            window.ensureBackendApi().then((api) => api.winMinimize());
+            // Use the app-level minimize (window shrinks to a small always-on-top
+            // corner window with a restore button), the same flow as the topbar
+            // logo click — winMinimize() only does an OS taskbar/dock minimize,
+            // which resizes nothing and is dead on some platforms.
+            if (window.app && typeof window.app.minimize === 'function') {
+                window.app.minimize();
+                return;
+            }
+            window.ensureBackendApi().then((api) => api.minimize());
+        },
+        $_toggleFullscreen() {
+            if (document.fullscreenElement) {
+                document.exitFullscreen().catch((e) => console.warn('Failed to exit fullscreen:', e));
+            } else {
+                document.documentElement.requestFullscreen().catch((e) => console.warn('Failed to enter fullscreen:', e));
+            }
         },
         $_parole(bid) {
             const randomIndex = Math.floor(Math.random() * this.paroles.length);
@@ -340,6 +362,11 @@ export default {
         if (window.app) {
             console.log('Window.app available in shortcuts mounted');
         }
+        // Detect pywebview (desktop window) vs plain browser (remote device):
+        // decides between the minimize and the fullscreen footer button.
+        window.ensureBackendApi().then((api) => {
+            this.isBridge = Boolean(api && api.isBridgeAvailable);
+        });
         // Load settings
         this.loadSettings();
         // Listen for settings updates
@@ -348,7 +375,7 @@ export default {
     beforeDestroy() {
         // Stop any playing alert when component is destroyed
         this.stopAlertPlayback();
-        // Remove settings update listener
+        // Remove listeners
         window.removeEventListener('settings-updated', this.loadSettings);
     }
 };
@@ -368,7 +395,7 @@ export default {
     max-height: 70px;
 }
 
-.shrink svg.icon, .shrink img {
+.shrink svg.icon, .shrink img, .shrink i.ph-light {
     display: none;
 }
 
@@ -413,7 +440,9 @@ export default {
 .btn-shortcut .icon,
 .btn-shortcut img {
     width: 100%;
-    height: auto;
+    /* Explicit height: the sprite's viewBox lives on the <symbol>, so the svg
+       has no intrinsic ratio and height:auto collapses to 0 in WebKit. */
+    height: 64px;
     max-width: 64px;
     max-height: 64px;
     object-fit: contain;
@@ -427,5 +456,19 @@ export default {
 }
 .minimize{
     background: #3e5e65;
+}
+
+.fullscreen{
+    background: #3e5e65;
+}
+
+.btn-shortcut i.ph-light {
+    /* Match the neighboring svg/img icons: 64px box with the glyph drawing
+       ~75% of it; phosphor glyphs occupy ~0.84em of the font-size. */
+    width: 100%;
+    max-width: 64px;
+    font-size: 55px;
+    line-height: 64px;
+    text-align: center;
 }
 </style>

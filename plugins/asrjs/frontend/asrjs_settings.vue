@@ -107,10 +107,22 @@
             </div>
             <div class="form-note"></div>
 
+            <!-- Push-to-Talk (only in non-continuous mode) -->
+            <template v-if="!formData.continuous">
+                <div class="form-label">
+                    <label class="toggle-switch">
+                        <input type="checkbox" v-model="formData.hold_to_talk" />
+                        <span class="toggle-slider"></span>
+                    </label>
+                    {{t('Push-to-talk (hold the shortcut)')}}
+                    <HelpPopover :text="t('When enabled, hold the shortcut (or the external button) to talk: recording starts on press and stops when you release it.')" :t="t" :lang="lang"/>
+                </div>
+            </template>
+
             <!-- Microphone -->
             <div class="form-input" style="display: flex; align-items: center; gap: 8px;">
-                <button type="button" @click="openWindowsMicSettings">{{t('Open Windows microphone settings')}}</button>
-                <HelpPopover :text="t('IGOOR uses your Windows default microphone.')" :t="t" :lang="lang"/>
+                <button type="button" @click="openMicSettings">{{t('Open OS microphone settings')}}</button>
+                <HelpPopover :text="t('IGOOR uses your system default microphone.')" :t="t" :lang="lang"/>
             </div>
 
             <!-- Microphone Volume Indicator -->
@@ -307,13 +319,14 @@ export default {
                 continuous: false,
                 always_generate: false,
                 positiveSpeechThreshold: 0.5,
-                redemptionFrames: 24,
+                redemptionFrames: 15,
                 shortcut: '',
+                hold_to_talk: false,
                 sherpa_model_size: 'small'
             },
             defaultSettings: {
                 positiveSpeechThreshold: 0.5,
-                redemptionFrames: 24,
+                redemptionFrames: 15,
                 continuous: false,
                 always_generate: false
             },
@@ -397,12 +410,12 @@ export default {
         clearShortcut() {
             this.formData.shortcut = '';
         },
-        async openWindowsMicSettings() {
-            // IGOOR captures from the Windows default mic; let the user manage it in the OS.
+        async openMicSettings() {
+            // IGOOR captures from the OS default mic; let the user manage it in the OS.
             try {
                 await this.callPluginRestEndpoint('asrjs', 'open_sound_settings', { method: 'POST' });
             } catch (e) {
-                console.error('Could not open Windows microphone settings:', e);
+                console.error('Could not open the OS microphone settings:', e);
             }
         },
         onProviderChange() {
@@ -489,7 +502,7 @@ export default {
         },
         async fetchCustomModels() {
             try {
-                const response = await fetch('http://127.0.0.1:9714/api/plugins/asrjs/list_custom_wakeword_models');
+                const response = await fetch('/api/plugins/asrjs/list_custom_wakeword_models');
                 const result = await response.json();
                 if (result.models) {
                     this.customModels = result.models;
@@ -506,7 +519,7 @@ export default {
             formData.append('file', file);
 
             try {
-                const response = await fetch('http://127.0.0.1:9714/api/plugins/asrjs/upload_wakeword_model', {
+                const response = await fetch('/api/plugins/asrjs/upload_wakeword_model', {
                     method: 'POST',
                     body: formData
                 });

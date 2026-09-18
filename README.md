@@ -43,15 +43,39 @@ Download latest executable from:
 
 https://github.com/igoor-noprofit/igoor/releases/download/latest/IGOOR.exe
 
+**Microsoft Store edition:** when installed from the Microsoft Store, IGOOR
+creates a desktop shortcut by itself on first run (Store apps only get a
+Start-menu entry by default) - no need to open the Store again or hunt for
+the app. The shortcut keeps working across automatic updates.
+
 
 Microsoft Edge WebView2 Runtime is © Microsoft Corporation.
+
+### OTHER PLATFORMS (EXPERIMENTAL)
+
+IGOOR is being ported to Linux and macOS. Linux runs from source; macOS has an
+experimental .dmg build (Apple Silicon):
+
+| OS | Status | System dependencies |
+|---|---|---|
+| Windows 10/11 | production (installers) | WebView2 Runtime (bundled in installers); FFmpeg in PATH for some TTS plugins |
+| Ubuntu/Debian | boots, core plugins + native window verified | `sudo apt install ffmpeg espeak-ng libportaudio2 portaudio19-dev gir1.2-webkit2-4.1 libgirepository1.0-dev libcairo2-dev` (+ optional `xprintidle`); PyGObject itself installs from `requirements.txt` |
+| macOS | experimental .dmg build (Apple Silicon) — see [MACOS_TEST.md](MACOS_TEST.md) | `brew install portaudio ffmpeg` (bundled .app needs none) |
+
+Verified results and known limitations on Linux: [COMPAT_UBUNTU.md](COMPAT_UBUNTU.md).
+
+Plugins declare the OSes they support through an optional `"platforms"` key in
+their `plugin.json` (e.g. `"platforms": ["windows"]` for a Windows-only plugin).
+On an incompatible OS the plugin appears as unavailable in the Extensions list
+and is never loaded, while its activation state in `settings.json` is left
+untouched — so a user's settings and data stay portable across OSes.
 
 ### AI INFERENCE PROVIDER
 
 The only AI inference provider currently meeting our requirements of speed, privacy, quality, support of opensource models and availability of both ASR/LLM inference is Groq.
 Signup for a FREE-tier access to Groq's API here:
 
-https://console.groq.com/login
+https://console.groq.com/keys
 
 For production use, you will need a developer tier self-serve (Pay per Token) access, 
 or you'll rapidly incur in rate limits errors.
@@ -131,16 +155,37 @@ Other models can be saved in this folder.
 
 ## LAUNCH
 
-*EXPERIMENTAL*: You can now launch IGOOR in CLI mode (IGOOR_CLI=True in .env), which is a headless mode you can access with the browser at http://127.0.0.1:9714/ (via FastAPI). As of now this is mostly for easier debug with VueDevTools, agents etc.
+Default mode is the pywebview window (Edge WebView2) on the machine; the same UI is also reachable locally at http://127.0.0.1:9714/ in any browser.
 
-Default mode is inside pywebview webedge window (IGOOR_CLI=False).
+Two environment variables (in `.env`) define how IGOOR runs:
+
+| `IGOOR_HEADLESS` | `IGOOR_ACCESS_FROM_OUTSIDE` | Runtime mode |
+|---|---|---|
+| false | false | **Default**: native window + local browser |
+| true | false | Local browser only (no window) — debugging, agents, smoke tests |
+| false | true | Native window + **remote browsers** — tablet/caregiver access on the LAN or a Tailscale network |
+| true | true | **Headless server**: no window, remote + local browsers — Linux/macOS test boxes, remote testing |
+
+(`IGOOR_HEADLESS` was formerly named `IGOOR_CLI`; the old name still works.)
+
+**Headless tray icon**: since there is no window in headless mode, IGOOR shows a tray icon (notification area, near the clock) with a live status tooltip, an **Open interface** shortcut, an **Enable HTTPS access** action and a **Quit** entry. On Windows 11 new tray icons land in the hidden overflow area (`^` in the taskbar corner) — drag it onto the visible corner once to keep it at a glance. If no tray is available (SSH session, minimal Linux install), the app just runs without it. Note that under the deploy watchdog, **Quit** triggers a restart ~5 s later; stop the watchdog/startup task to shut the server down for good (see `deploy/README.md`).
+
+**Automatic HTTPS via Tailscale Serve**: with `IGOOR_ACCESS_FROM_OUTSIDE=true`, IGOOR enables `tailscale serve --bg localhost:9714` on its own whenever the Tailscale CLI is installed and running — remote browsers then get the UI over HTTPS at `https://<machine>.<tailnet>.ts.net`, which is also what unlocks microphone access (browsers only offer the mic on secure origins). The serve config persists inside Tailscale, so only the first run does work: on Windows it asks **one UAC elevation** (`tailscale serve` talks to tailscaled through an admin-only pipe), later startups just detect that port 9714 is already served. Prerequisite: MagicDNS + HTTPS certificates enabled in the [Tailscale admin console](https://login.tailscale.com/admin/dns) (DNS page). If Tailscale is absent, not running, or already serving something else on 443, IGOOR leaves everything untouched (tray menu → **Enable HTTPS access** retries on demand); a stale serve entry under an old machine name is reported in the logs. Manual fallback: `tailscale serve --bg localhost:9714` in an admin terminal.
+
+Remote-testing recipe: on the test box run
+`IGOOR_HEADLESS=true IGOOR_ACCESS_FROM_OUTSIDE=true python main.py`,
+then open `http://<machine-ip>:9714` from any device that can reach it (e.g. its Tailscale IP).
+When external access is enabled, TTS audio is streamed to the connected browsers (the Windows-voices/SAPI plugin cannot stream and plays on the machine's speakers instead).
+
+⚠️ External access is unauthenticated: enable it only on trusted or private networks (e.g. a Tailscale tailnet).
+
 PLEASE NOTE: Opening inside both pywebview AND external browser will yield unwanted sync between the two clients.
 
 
 # PYWEBVIEW: cache invalidation after updating version
 IGOOR auto-invalidates the JS/Vue/HTML cache on upgrade: every frontend asset is requested with a `?v=<IGOOR_VERSION>` query string (the version comes from `version.py`) and `index.html` is served with `Cache-Control: no-store`. When you bump the version, Edge WebView2 fetches the new files automatically — no manual steps required.
 
-If, in an edge case, you still see stale assets in the Pywebview window only (not at `localhost:9714`), you can force-clear the WebView2 cache by deleting this folder:
+If, in an edge case, you still see stale assets in the Pywebview window only (not at `localhost:9714`), you can force-clear the WebView2 cache by deleting this folder (on Windows):
 
 ```
 C:\Users\<user_name>\AppData\Roaming\pywebview\EBWebView
@@ -182,6 +227,29 @@ It will ask you if you want to:
 
 In a CMD window, launch /dist/igoor/igoor.exe 
 (so you can see the logs if there's any error)
+
+### CREATE THE MACOS .DMG (Apple Silicon)
+
+On a Mac with the repo set up ([setup_mac.sh](setup_mac.sh) or manual venv):
+
+```
+installer/dmg/build_dmg.sh
+```
+
+It builds `dist/IGOOR.app`, ad-hoc signs it and packages
+`dist/IGOOR-<version>-mac-arm64.dmg`. Testers open it with right-click → Open
+(ad-hoc signature). To produce a fully notarized DMG (no Gatekeeper warning —
+requires an Apple Developer account):
+
+```
+xcrun notarytool store-credentials igoor-notary --apple-id <id> --team-id <team> --password <app-specific-pwd>
+IGOOR_CODESIGN_IDENTITY="Developer ID Application: <name> (<team>)" \
+IGOOR_NOTARY_PROFILE=igoor-notary \
+installer/dmg/build_dmg.sh
+```
+
+Add `--upload-release` to also upload the DMG to the GitHub release (needs
+`.github_token.txt`). Details: [docs/distribution.md](docs/distribution.md).
 
 ## IGOOR LOGS
 Daily logs are in:

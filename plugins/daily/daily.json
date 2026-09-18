@@ -175,7 +175,7 @@
             "fixed": false,
             "freq": 0
           },
-          "\u00e9crire un message": {
+          "écrire un message": {
             "fixed": false,
             "freq": 0
           },
@@ -183,7 +183,7 @@
             "fixed": false,
             "freq": 0
           },
-          "raconter une an\u00e9cdote de ma vie": {
+          "raconter une anécdote de ma vie": {
             "fixed": false,
             "freq": 0
           }
@@ -430,6 +430,211 @@
             "freq": 0
           },
           "viaggio": {
+            "pref": "",
+            "freq": 0
+          }
+        }
+      }
+    ]
+  },
+  "pt_BR": {
+    "needs": [
+      {
+        "desconfortos": {
+          "coçar o nariz": {
+            "freq": 0,
+            "fixed": true
+          },
+          "coçar a cabeça": {
+            "freq": 0,
+            "fixed": true
+          },
+          "cabelo no rosto": {
+            "freq": 0,
+            "fixed": true
+          },
+          "almofada para as mãos": {
+            "fixed": true
+          },
+          "aliviar o cotovelo": {
+            "freq": 0
+          },
+          "reposicionar na cadeira": {
+            "freq": 0
+          },
+          "asar o nariz": {
+            "freq": 0
+          },
+          "coçar o corpo": {
+            "freq": 0
+          }
+        },
+        "higiene": {
+          "banho": {
+            "freq": 10,
+            "fixed": true
+          },
+          "dentes": {
+            "freq": 10,
+            "fixed": true
+          },
+          "cabelo": {
+            "freq": 10,
+            "fixed": true
+          },
+          "pele": {
+            "freq": 0
+          },
+          "unhas": {
+            "freq": 0
+          },
+          "higiene íntima": {
+            "freq": 0
+          },
+          "óculos": {
+            "freq": 0
+          }
+        },
+        "alimentação": {
+          "refeição": {
+            "freq": 0,
+            "fixed": true
+          },
+          "beber": {
+            "freq": 0,
+            "fixed": true
+          },
+          "compras": {
+            "freq": 0
+          },
+          "ajuda para comer": {
+            "freq": 0
+          }
+        },
+        "cuidados de saúde": {
+          "dormir": {
+            "freq": 0,
+            "fixed": true
+          },
+          "dor": {
+            "freq": 0,
+            "fixed": true
+          },
+          "massagem": {
+            "freq": 0
+          },
+          "médico": {
+            "freq": 0
+          },
+          "medicamentos": {
+            "freq": 0
+          },
+          "estado de saúde": {
+            "freq": 0
+          },
+          "avisar cuidadores": {
+            "freq": 0
+          }
+        },
+        "técnico": {
+          "calibrar controle ocular": {
+            "fixed": true,
+            "freq": 0
+          },
+          "reiniciar o sistema": {
+            "freq": 0
+          },
+          "reiniciar TD Control": {
+            "freq": 0
+          },
+          "bateria do tablet": {
+            "freq": 0
+          }
+        },
+        "ambiente": {
+          "aquecimento": {
+            "freq": 0
+          },
+          "ventilador / ar-condicionado": {
+            "freq": 0
+          },
+          "cobertor": {
+            "freq": 0
+          },
+          "televisão": {
+            "freq": 0
+          },
+          "janela": {
+            "freq": 0
+          },
+          "persianas": {
+            "freq": 0
+          }
+        }
+      },
+      {
+        "vestuário": {
+          "pijama": {
+            "fixed": true
+          },
+          "roupas": {
+            "freq": 0
+          },
+          "casaco": {
+            "freq": 0
+          },
+          "sapatos": {
+            "freq": 0
+          }
+        },
+        "comunicação": {
+          "ligar para alguém": {
+            "freq": 0
+          },
+          "escrever mensagem": {
+            "freq": 0
+          },
+          "convidar amigos / família": {
+            "freq": 0
+          }
+        },
+        "entretenimento": {
+          "filme": {
+            "freq": 0
+          },
+          "programas": {
+            "freq": 0
+          },
+          "arte": {
+            "freq": 0
+          },
+          "livros": {
+            "freq": 0
+          },
+          "jogos": {
+            "freq": 0
+          },
+          "música": {
+            "freq": 0
+          },
+          "rádio": {
+            "freq": 0
+          },
+          "natureza / jardim": {
+            "freq": 0
+          }
+        },
+        "locomoção": {
+          "carro": {
+            "freq": 0
+          },
+          "táxi": {
+            "freq": 0
+          },
+          "trem": {
+            "freq": 0
+          },
+          "viagem": {
             "pref": "",
             "freq": 0
           }

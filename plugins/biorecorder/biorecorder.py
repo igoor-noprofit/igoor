@@ -16,7 +16,7 @@ from pydantic import BaseModel
 from version import __appname__
 from plugins.baseplugin.baseplugin import Baseplugin
 from plugin_manager import hookimpl
-from utils import setup_logger, get_base_language_code
+from utils import setup_logger, get_base_language_code, get_appdata_dir
 
 
 class GenerateBioRequest(BaseModel):
@@ -37,7 +37,7 @@ class Biorecorder(Baseplugin):
     @hookimpl
     def startup(self):
         """Initialize plugin: load questions, setup storage, register routes"""
-        self.logger = setup_logger(f'plugins.biorecorder', os.path.join(os.getenv('APPDATA'), __appname__), separate_plugin_log=False)
+        self.logger = setup_logger(f'plugins.biorecorder', get_appdata_dir(), separate_plugin_log=False)
 
 
         # Load questions based on user language
@@ -84,7 +84,8 @@ class Biorecorder(Baseplugin):
         locale_map = {
             "en": "en_EN",
             "fr": "fr_FR",
-            "it": "it_IT"
+            "it": "it_IT",
+            "pt": "pt_BR"
         }
         locale_folder = locale_map.get(lang_code, "en_EN")
 

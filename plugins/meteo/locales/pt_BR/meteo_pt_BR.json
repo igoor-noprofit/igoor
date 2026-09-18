@@ -1,0 +1,16 @@
+{
+    "Weather data by Open-Meteo": "Dados meteorológicos por Open-Meteo",
+    "Home Latitude": "Latitude de casa",
+    "Home Longitude": "Longitude de casa",
+    "ex. 13.12292393": "ex. 13.12292393",
+    "ex. 1.848349": "ex. 1.848349",
+    "Home address": "Endereço de casa",
+    "ex. 1600 Amphitheatre Parkway, Mountain View, CA": "ex. 1600 Amphitheatre Parkway, Mountain View, CA",
+    "Geocoding...": "Geocodificando...",
+    "Geocoded location": "Localização geocodificada",
+    "Address not found": "Endereço não encontrado",
+    "Could not connect to geocoding service": "Não foi possível conectar ao serviço de geocodificação",
+    "Geocoding failed": "Falha na geocodificação",
+    "Latitude": "Latitude",
+    "Longitude": "Longitude"
+}

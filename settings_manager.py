@@ -4,8 +4,42 @@ import os
 import asyncio
 import shutil
 import glob
+import sys
 from datetime import datetime
-from utils import resource_path, setup_logger
+from utils import resource_path, setup_logger, get_appdata_dir
+
+
+def _detect_start_lang():
+    """Pick the first-run language: explicit IGOOR_START_LANG override (dev
+    .env or Inno Setup install-time rewrite), else the OS UI language when a
+    matching locales/ folder exists, else en_EN."""
+    env_lang = os.getenv('IGOOR_START_LANG')
+    if env_lang:
+        return env_lang
+
+    detected = None
+    try:
+        import locale
+        if sys.platform == 'win32':
+            import ctypes
+            langid = ctypes.windll.kernel32.GetUserDefaultUILanguage()
+            detected = locale.windows_locale.get(langid)
+        else:
+            detected = locale.getdefaultlocale()[0]
+    except Exception:
+        detected = None
+
+    if detected:
+        # Exact folder match first, then language prefix (fr_CA -> fr_FR,
+        # en_US/en_GB -> en_EN)
+        if os.path.isdir(resource_path(os.path.join('locales', detected))):
+            return detected
+        lang_part = detected.split('_')[0]
+        matches = glob.glob(resource_path(os.path.join('locales', lang_part + '_*')))
+        if matches:
+            return os.path.basename(matches[0])
+    return 'en_EN'
+
 
 class SettingsManager:
     _instance = None
@@ -24,9 +58,9 @@ class SettingsManager:
             return
         self._initialized = True
         
-        self.logger = setup_logger('sm', os.path.join(os.getenv('APPDATA'), __appname__))
-        self.settings_file = os.path.join(os.getenv('APPDATA'), __appname__, 'settings.json')
-        start_lang = os.getenv('IGOOR_START_LANG', 'en_EN')
+        self.logger = setup_logger('sm', get_appdata_dir())
+        self.settings_file = os.path.join(get_appdata_dir(), 'settings.json')
+        start_lang = _detect_start_lang()
         locale_settings_path = os.path.join('locales', start_lang, 'default_settings.json')
         default_settings_path = resource_path(locale_settings_path)
         if not os.path.exists(default_settings_path):
@@ -77,6 +111,7 @@ class SettingsManager:
         "es_ES": "Spanish",
         "de_DE": "German",
         "pt_PT": "Portuguese",
+        "pt_BR": "Brazilian Portuguese",
     }
 
     def get_lang(self):
@@ -90,6 +125,7 @@ class SettingsManager:
         "it_IT": "Usare sempre il 'tu', mai il 'Lei'. Tono informale e caloroso.",
         "es_ES": "Usar siempre 'tú', nunca 'usted'. Tono informal y cercano.",
         "pt_PT": "Usar sempre 'tu', nunca 'você' formal. Tom informal e próximo.",
+        "pt_BR": "Sempre usar 'você', nunca 'tu'. Tom informal e caloroso. Usar vocabulário e construção do português do Brasil, nunca do português europeu.",
         "en_EN": "",  # English has no T-V distinction
     }
 

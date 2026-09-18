@@ -21,6 +21,7 @@ class Conversation(Baseplugin):
         # Cache for last N conversations (formatted as XML string)
         self.last_conversations_cache = ""
         self.last_conversations_count = self.settings.get("last_conversations_count", 20)
+        self.speaker_conversations_count = self.settings.get("speaker_conversations_count", 20)
         self.current_start_time = None  # Track start time of current conversation
 
     def _ensure_router(self):
@@ -490,10 +491,14 @@ class Conversation(Baseplugin):
         return self.last_conversations_cache
 
     @hookimpl
-    async def get_speaker_conversations(self, speakers_id, limit=5):
+    async def get_speaker_conversations(self, speakers_id, limit=None):
         """Return the last N past conversations for a specific speaker, formatted as XML
         (mirrors get_last_conversations but filtered by speakers_id). Powers per-speaker
-        history injection (Phase 5a)."""
+        history injection (Phase 5a).
+
+        limit defaults to the `speaker_conversations_count` setting (plugins/conversation/settings.json)."""
+        if limit is None:
+            limit = self.speaker_conversations_count
         try:
             results = await self.db_execute(
                 "SELECT start_time, content FROM threads "

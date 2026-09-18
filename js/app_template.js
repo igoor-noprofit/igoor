@@ -80,8 +80,108 @@ const options = {
 };
 const backendApiPromise = window.ensureBackendApi();
 const { loadModule, version } = window["vue3-sfc-loader"];
+
+// WKWebView (the desktop shell on macOS) does not resolve external SVG
+// references — <use xlink:href="img/svgdefs.svg#icon-x"> renders nothing —
+// so every sprite-based icon would vanish in the pywebview window while
+// working in a browser. Fetch the sprite once, inline it into the document
+// and rewrite all sprite references (present and future) to same-document
+// fragments, which every engine supports.
+async function installSvgSpriteShim() {
+  if (window.__igoorSvgSpriteShim) {
+    return;
+  }
+  window.__igoorSvgSpriteShim = true;
+  const SPRITE_RE = /^(?:.*\/)?svgdefs\.svg#(.+)$/;
+  const rewriteUse = (use) => {
+    for (const attr of ["xlink:href", "href"]) {
+      const value = use.getAttribute(attr);
+      if (!value) {
+        continue;
+      }
+      const match = value.match(SPRITE_RE);
+      if (match) {
+        use.setAttribute(attr, "#" + match[1]);
+      }
+    }
+  };
+  const rewriteTree = (root) => {
+    if (root instanceof SVGUseElement) {
+      rewriteUse(root);
+    }
+    if (root.querySelectorAll) {
+      root.querySelectorAll("use").forEach(rewriteUse);
+    }
+  };
+  try {
+    const response = await fetch("/img/svgdefs.svg");
+    if (!response.ok) {
+      return;
+    }
+    const container = document.createElement("div");
+    // WebKit does not render <use> targets inside a display:none subtree:
+    // hide the sprite with a zero-size clip instead, and drop the
+    // display="none" attribute the sprite file puts on its <svg> root.
+    container.style.cssText = "position:absolute;width:0;height:0;overflow:hidden";
+    container.setAttribute("aria-hidden", "true");
+    container.innerHTML = await response.text();
+    const svgRoot = container.querySelector("svg");
+    if (svgRoot) {
+      svgRoot.removeAttribute("display");
+    }
+    document.body.insertBefore(container, document.body.firstChild);
+    document.querySelectorAll("use").forEach(rewriteUse);
+    new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        mutation.addedNodes.forEach(rewriteTree);
+      }
+    }).observe(document.documentElement, { childList: true, subtree: true });
+  } catch (error) {
+    console.warn("SVG sprite shim failed:", error);
+  }
+}
+
+// The WKWebView desktop shell has no Edit menu, so the Cmd+V shortcut never
+// reaches web inputs (paste silently does nothing — in a browser it works).
+// On macOS, route Cmd+V in text fields through the backend clipboard reader.
+function installPasteShim() {
+  if (window.__igoorPasteShim || !/Mac/i.test(navigator.platform)) {
+    return;
+  }
+  window.__igoorPasteShim = true;
+  document.addEventListener("keydown", async (event) => {
+    if (!(event.metaKey || event.ctrlKey) || event.key !== "v") {
+      return;
+    }
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement)) {
+      return;
+    }
+    event.preventDefault();
+    try {
+      const backendApi = await backendApiPromise;
+      const text = (await backendApi.getClipboard()) || "";
+      if (!text) {
+        return;
+      }
+      try {
+        const start = target.selectionStart ?? target.value.length;
+        const end = target.selectionEnd ?? target.value.length;
+        target.setRangeText(text, start, end, "end");
+      } catch (e) {
+        // Password fields may refuse selection access: replace wholesale
+        target.value = (target.value || "") + text;
+      }
+      target.dispatchEvent(new Event("input", { bubbles: true }));
+    } catch (e) {
+      console.warn("Paste shim failed:", e);
+    }
+  });
+}
 async function initializeApp() {
   console.log("initializing app");
+  installSvgSpriteShim();
+  installPasteShim();
   const appTemplate = await options.getFile("/js/app.vue?v={{VERSION}}");
   app = Vue.createApp({
     data() {
@@ -89,6 +189,7 @@ async function initializeApp() {
         appview: "loading",
         lastview: "daily",
         websocketUtil: null,
+        audioStream: null,
         minimized: false,
         headerExpanded: false,
         pywebviewready: false,
@@ -101,6 +202,10 @@ async function initializeApp() {
         bootProgressHideTimer: null,
         bootNotReady: [],
         bootNotReadyVisible: false,
+        backendConnected: false,
+        everConnected: false,
+        connectionLost: false,
+        connectionLostTimer: null,
       };
     },
     components: {
@@ -120,6 +225,34 @@ async function initializeApp() {
           return [];
         }
         return this.bootNotReady.slice().sort();
+      },
+      connectionLostMessage() {
+        const messages = {
+          connecting: {
+            en_EN: "Connecting to IGOOR…",
+            fr_FR: "Connexion à IGOOR…",
+            it_IT: "Connessione a IGOOR…",
+            pt_BR: "Conectando ao IGOOR…",
+          },
+          lost: {
+            en_EN: "Connection lost — reconnecting…",
+            fr_FR: "Connexion perdue — reconnexion…",
+            it_IT: "Connessione persa — riconnetting…",
+            pt_BR: "Conexão perdida — reconectando…",
+          },
+        };
+        const lang =
+          this.lang && messages.connecting[this.lang] ? this.lang : "en_EN";
+        return this.everConnected ? messages.lost[lang] : messages.connecting[lang];
+      },
+      wizardLoadingMessage() {
+        const messages = {
+          en_EN: "This can take a few minutes the first time. Please wait.",
+          fr_FR: "Cela peut prendre quelques minutes au premier lancement. Merci de patienter.",
+          it_IT: "La prima volta può richiedere qualche minuto. Attendere prego.",
+          pt_BR: "Na primeira vez, isso pode levar alguns minutos. Aguarde, por favor.",
+        };
+        return this.lang && messages[this.lang] ? messages[this.lang] : messages.en_EN;
       },
     },
     async mounted() {
@@ -146,19 +279,47 @@ async function initializeApp() {
         this.connectAppWebSocket();
       },
       connectAppWebSocket() {
-        const socketUrl = "ws://127.0.0.1:9714/ws/app";
+        const socketUrl = `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}/ws/app`;
         this.websocketUtil = new WebSocket(socketUrl);
+        // Binary frames carry streamed TTS audio chunks
+        this.websocketUtil.binaryType = "arraybuffer";
 
         this.websocketUtil.onopen = () => {
           console.log("APP WebSocket connection opened");
+          // Self-heal after a real disconnection (>2s, overlay was showing):
+          // every plugin websocket died with the connection and the page
+          // state is stale - reload to re-establish everything cleanly.
+          if (this.connectionLost) {
+            location.reload();
+            return;
+          }
+          this.backendConnected = true;
+          this.everConnected = true;
+          this.connectionLost = false;
+          if (this.connectionLostTimer) {
+            clearTimeout(this.connectionLostTimer);
+            this.connectionLostTimer = null;
+          }
         };
 
         this.websocketUtil.onmessage = (event) => {
+          if (event.data instanceof ArrayBuffer) {
+            this.$_onAudioStreamChunk(event.data);
+            return;
+          }
           console.log("APP received message on websocket:", event.data);
           try {
             const message = JSON.parse(event.data);
             if (message.type === "boot_progress") {
               this.updateBootProgress(message);
+              return;
+            }
+            if (message.play_stream) {
+              this.$_startAudioStream(message.play_stream);
+              return;
+            }
+            if (message.play_stream_end) {
+              this.$_endAudioStream(message.play_stream_end);
               return;
             }
             if (message.backend === "addmsg") {
@@ -177,12 +338,303 @@ async function initializeApp() {
 
         this.websocketUtil.onclose = () => {
           console.log("WebSocket connection closed");
+          this.backendConnected = false;
+          // Grace period: the 1s reconnect attempts during a server restart
+          // must not flash the overlay at the user.
+          if (!this.connectionLostTimer) {
+            this.connectionLostTimer = setTimeout(() => {
+              this.connectionLostTimer = null;
+              this.connectionLost = true;
+            }, 2000);
+          }
           setTimeout(() => this.connectAppWebSocket(), 1000);
         };
 
         this.websocketUtil.onerror = (error) => {
           console.error("WebSocket error:", error);
         };
+      },
+      $_stopAudioStream() {
+        const stream = this.audioStream;
+        if (!stream) return;
+        this.audioStream = null;
+        try {
+          if (stream.audio) {
+            stream.audio.onended = null;
+            stream.audio.onerror = null;
+            stream.audio.pause();
+          }
+        } catch (e) {
+          // audio element already torn down
+        }
+        try {
+          if (stream.sourceBuffer && stream.sourceBuffer.updating) stream.sourceBuffer.abort();
+        } catch (e) {
+          // source buffer already detached
+        }
+        try {
+          if (stream.mediaSource && stream.mediaSource.readyState === "open") stream.mediaSource.endOfStream();
+        } catch (e) {
+          // media source already closed
+        }
+        if (stream.objectUrl) URL.revokeObjectURL(stream.objectUrl);
+        if (stream.completionTimer) clearTimeout(stream.completionTimer);
+        try {
+          if (stream.pcm && stream.pcm.ctx) stream.pcm.ctx.close();
+        } catch (e) {
+          // audio context already closed
+        }
+      },
+      $_startAudioStream(spec) {
+        this.$_stopAudioStream();
+        const stream = {
+          id: spec.id,
+          mime: spec.mime,
+          queue: [],
+          ended: false,
+          started: false,
+          confirmedPlaying: false,
+          completionTimer: null,
+          mediaSource: null,
+          sourceBuffer: null,
+          audio: null,
+          objectUrl: null,
+          chunks: null,
+          pcm: null,
+        };
+        this.audioStream = stream;
+        const pcmRate = this.$_pcmRate(spec.mime);
+        if (pcmRate) {
+          // Raw PCM chunks play through WebAudio: MediaSource has no PCM/WAV
+          // support, and waiting for the whole clip would forfeit the point
+          // of streaming generation.
+          stream.pcm = { rate: pcmRate, ctx: null, nextTime: 0 };
+        } else if (window.MediaSource && MediaSource.isTypeSupported(spec.mime)) {
+          stream.mediaSource = new MediaSource();
+          stream.objectUrl = URL.createObjectURL(stream.mediaSource);
+          stream.mediaSource.addEventListener("sourceopen", () => {
+            try {
+              stream.sourceBuffer = stream.mediaSource.addSourceBuffer(spec.mime);
+              stream.sourceBuffer.addEventListener("updateend", () => this.$_pumpAudioQueue(stream));
+              this.$_pumpAudioQueue(stream);
+            } catch (e) {
+              // e.g. SourceBuffer quota exhausted by leaked MediaSources:
+              // degrade to whole-clip blob playback instead of dead air
+              console.error("MSE SourceBuffer error:", e);
+              try {
+                if (stream.mediaSource.readyState === "open") stream.mediaSource.endOfStream();
+              } catch (e2) {
+                // media source already closed
+              }
+              stream.chunks = stream.queue.splice(0);
+            }
+          });
+          stream.audio = new Audio(stream.objectUrl);
+          this.$_attachAudioHandlers(stream);
+        } else {
+          // Fallback: accumulate all chunks and play the complete Blob at the end
+          console.warn("MediaSource does not support " + spec.mime + " - falling back to whole-clip playback");
+          stream.chunks = [];
+        }
+      },
+      $_onAudioStreamChunk(data) {
+        const stream = this.audioStream;
+        if (!stream) return;
+        if (stream.pcm) {
+          this.$_schedulePcmChunk(stream, data);
+          return;
+        }
+        if (stream.chunks) {
+          stream.chunks.push(data);
+          return;
+        }
+        stream.queue.push(data);
+        this.$_pumpAudioQueue(stream);
+      },
+      $_pcmRate(mime) {
+        if (!mime || !mime.startsWith("audio/pcm")) return 0;
+        const match = /rate=(\d+)/.exec(mime);
+        return match ? parseInt(match[1], 10) : 44100;
+      },
+      $_schedulePcmChunk(stream, data) {
+        const pcm = stream.pcm;
+        try {
+          if (!pcm.ctx) {
+            const Ctx = window.AudioContext || window.webkitAudioContext;
+            pcm.ctx = new Ctx({ sampleRate: pcm.rate });
+          }
+          const ctx = pcm.ctx;
+          if (ctx.state === "suspended") ctx.resume().catch(() => {});
+          const samples = new Int16Array(data);
+          if (!samples.length) return;
+          const buffer = ctx.createBuffer(1, samples.length, pcm.rate);
+          const channel = buffer.getChannelData(0);
+          for (let i = 0; i < samples.length; i++) channel[i] = samples[i] / 32768;
+          const source = ctx.createBufferSource();
+          source.buffer = buffer;
+          source.connect(ctx.destination);
+          // The preroll keeps a safety margin; clamping to currentTime heals
+          // underruns when chunks arrive slower than playback (RTF > 1).
+          const startAt = Math.max(ctx.currentTime + 0.12, pcm.nextTime);
+          source.start(startAt);
+          pcm.nextTime = startAt + buffer.duration;
+          if (!stream.started) {
+            stream.started = true;
+            const ensureCompletion = () => {
+              if (this.audioStream !== stream || stream.confirmedPlaying) return;
+              stream.confirmedPlaying = true;
+              this.$_scheduleStreamCompletion(stream);
+            };
+            if (ctx.state === "running") {
+              ensureCompletion();
+            } else {
+              // Autoplay blocked: retry the resume on the next user gesture
+              document.addEventListener("pointerdown", () => {
+                if (this.audioStream === stream && stream.pcm && stream.pcm.ctx) {
+                  stream.pcm.ctx.resume().then(ensureCompletion).catch(() => {});
+                }
+              }, { once: true });
+            }
+          }
+        } catch (e) {
+          console.error("PCM scheduling error:", e);
+        }
+      },
+      $_pumpAudioQueue(stream) {
+        if (!stream.sourceBuffer || stream.sourceBuffer.updating) return;
+        if (stream.queue.length > 0) {
+          try {
+            stream.sourceBuffer.appendBuffer(stream.queue.shift());
+          } catch (e) {
+            console.error("appendBuffer error:", e);
+            return;
+          }
+          if (!stream.started) {
+            stream.started = true;
+            this.$_playAudioElement(stream);
+          }
+        } else if (stream.ended) {
+          try {
+            // An explicit finite duration makes the element fire 'ended' reliably
+            if (stream.sourceBuffer.buffered.length > 0) {
+              stream.mediaSource.duration = stream.sourceBuffer.buffered.end(stream.sourceBuffer.buffered.length - 1);
+            }
+            if (stream.mediaSource.readyState === "open") stream.mediaSource.endOfStream();
+          } catch (e) {
+            // media source already closed
+          }
+        }
+      },
+      $_endAudioStream(spec) {
+        const stream = this.audioStream;
+        if (!stream || stream.id !== spec.id) return;
+        if (spec.aborted) {
+          this.$_stopAudioStream();
+          return;
+        }
+        stream.ended = true;
+        if (stream.pcm) {
+          this.$_scheduleStreamCompletion(stream);
+          return;
+        }
+        if (stream.chunks) {
+          const blob = new Blob(stream.chunks, { type: stream.mime });
+          stream.objectUrl = URL.createObjectURL(blob);
+          stream.audio = new Audio(stream.objectUrl);
+          this.$_attachAudioHandlers(stream);
+          this.$_playAudioElement(stream);
+          return;
+        }
+        this.$_pumpAudioQueue(stream);
+      },
+      $_playAudioElement(stream) {
+        if (!stream.audio) return;
+        stream.audio.play().then(() => {
+          stream.confirmedPlaying = true;
+          this.$_scheduleStreamCompletion(stream);
+        }).catch(() => {
+          console.warn("Audio autoplay blocked - will retry on next user interaction");
+          const retry = () => {
+            if (this.audioStream === stream && stream.audio) {
+              stream.audio.play().then(() => {
+                stream.confirmedPlaying = true;
+                this.$_scheduleStreamCompletion(stream);
+              }).catch(() => {});
+            }
+          };
+          document.addEventListener("pointerdown", retry, { once: true });
+        });
+      },
+      $_scheduleStreamCompletion(stream) {
+        // With MediaSource the 'ended' event is not always fired (duration stays
+        // Infinity while appending and the final timeupdate lands before the end),
+        // so guarantee the completion ack with a timer once duration is known.
+        // onended/onerror remain the instant fast paths when the browser fires them.
+        // The PCM path has no audio element: poll the AudioContext clock instead.
+        if (stream.completionTimer) return;
+        const check = () => {
+          stream.completionTimer = null;
+          if (this.audioStream !== stream) return;
+          if (stream.pcm) {
+            if (!stream.pcm.ctx) {
+              // no chunk ever arrived - nothing to play, ack immediately
+              this.$_notifyPlaybackFinished(stream);
+              return;
+            }
+            if (!stream.ended) {
+              // more audio may still arrive
+              stream.completionTimer = setTimeout(check, 250);
+              return;
+            }
+            const remaining = Math.max(0, stream.pcm.nextTime - stream.pcm.ctx.currentTime) * 1000 + 400;
+            stream.completionTimer = setTimeout(() => this.$_notifyPlaybackFinished(stream), remaining);
+            return;
+          }
+          if (!stream.audio) return;
+          const audio = stream.audio;
+          let end = isFinite(audio.duration) && audio.duration > 0 ? audio.duration : 0;
+          if (end === 0 && stream.sourceBuffer && stream.sourceBuffer.buffered.length > 0) {
+            end = stream.sourceBuffer.buffered.end(stream.sourceBuffer.buffered.length - 1);
+          }
+          if (end <= 0) {
+            // duration not known yet - retry shortly
+            stream.completionTimer = setTimeout(check, 250);
+            return;
+          }
+          const remaining = Math.max(0, end - audio.currentTime) * 1000 + 400;
+          stream.completionTimer = setTimeout(() => this.$_notifyPlaybackFinished(stream), remaining);
+        };
+        check();
+      },
+      $_attachAudioHandlers(stream) {
+        stream.audio.onended = () => this.$_notifyPlaybackFinished(stream);
+        stream.audio.onerror = () => this.$_notifyPlaybackFinished(stream);
+      },
+      $_notifyPlaybackFinished(stream) {
+        if (this.audioStream !== stream) return;
+        this.audioStream = null;
+        if (stream.objectUrl) URL.revokeObjectURL(stream.objectUrl);
+        if (stream.completionTimer) clearTimeout(stream.completionTimer);
+        // Close the MediaSource so its SourceBuffer is released; without
+        // this every completed MSE stream leaked an open MediaSource until
+        // GC caught up, and repeated streams exhausted the browser quota
+        try {
+          if (stream.mediaSource && stream.mediaSource.readyState === "open") {
+            stream.mediaSource.endOfStream();
+          }
+        } catch (e) {
+          // media source already closed
+        }
+        try {
+          if (stream.pcm && stream.pcm.ctx) stream.pcm.ctx.close();
+        } catch (e) {
+          // audio context already closed
+        }
+        fetch("/api/hooks/tts_playback_finished", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: "{}",
+        }).catch((e) => console.warn("playback ack failed:", e));
       },
       toggleHeaderExpansion(expanded) {
         console.log("Toggling header expansion:", expanded);
@@ -204,14 +656,14 @@ async function initializeApp() {
         this.lastview = this.appview;
         this.appview = view;
 
-        if (view === "onboarding") {
-          console.warn("Forcing onboarding");
-          const backendApi = await backendApiPromise;
-          await backendApi.forceOnboarding();
-        } else {
-          const backendApi = await backendApiPromise;
-          await backendApi.changeView(this.lastview, view);
-        }
+        // Notify the backend (change_view hooks: asrjs pauses ASR on the
+        // onboarding view, ...). No force_onboarding here: it used to reset
+        // backend onboarding_completed and open the settings modal on every
+        // entry into the onboarding view. The first-run wizard is driven by
+        // the view switch alone, and other plugins' 'Connect an AI' buttons
+        // go through onboarding's open-settings endpoint instead.
+        const backendApi = await backendApiPromise;
+        await backendApi.changeView(this.lastview, view);
       },
       maximize() {
         console.log("MAXIMIZE WINDOW");

@@ -4,26 +4,38 @@ import os
 import time
 from dotenv import load_dotenv
 load_dotenv()
+import signal
+import sys
+import asyncio
+import threading
+from typing import Optional
+# Linux + uv-managed Python: _tkinter can't locate its Tcl/Tk script libraries
+# unless TCL_LIBRARY/TK_LIBRARY point at the interpreter's bundled copies.
+# Set them BEFORE tkinter is first imported; respect pre-existing values.
+if sys.platform == 'linux' and not os.environ.get('TCL_LIBRARY'):
+    _tcl = os.path.join(sys.base_prefix, 'lib', 'tcl8.6')
+    _tk = os.path.join(sys.base_prefix, 'lib', 'tk8.6')
+    if os.path.isfile(os.path.join(_tcl, 'init.tcl')):
+        os.environ['TCL_LIBRARY'] = _tcl
+        if os.path.isfile(os.path.join(_tk, 'tk.tcl')):
+            os.environ['TK_LIBRARY'] = _tk
 from plugin_manager import PluginManager
 from context_manager import ContextManager
 from js_api import Api
 from settings_manager import SettingsManager
 from websocket_server import websocket_server
-import signal
-import sys
-import tkinter as tk
-import asyncio
-import threading
-from typing import Optional
 from utils import (
     resource_path,
     setup_logger,
     get_appdata_dir,
     get_appdata_web_js_dir,
+    create_desktop_shortcut,
 )
 from fastapi_app import app as fastapi_app
 import uvicorn
 from idle_detector import IdleDetector
+from tray_icon import start_tray_icon, stop_tray_icon
+from tailscale_serve import auto_enable_tailscale_serve
 
 if sys.stdout.encoding != 'utf-8':
     sys.stdout.reconfigure(encoding='utf-8')
@@ -32,6 +44,11 @@ if sys.stderr.encoding != 'utf-8':
 
 appdata_dir = get_appdata_dir(create=True)
 logger = setup_logger('main', appdata_dir)
+
+# MSIX (Store) builds: ensure a desktop icon exists on first run - Store
+# packages only get a Start-menu entry by default.
+if sys.platform == 'win32' and 'WindowsApps' in os.path.realpath(sys.executable):
+    create_desktop_shortcut(logger)
 context_manager = ContextManager()
 manager = PluginManager()
 fastapi_server: Optional[uvicorn.Server] = None
@@ -54,21 +71,49 @@ def start_fastapi_server() -> None:
     if fastapi_server and fastapi_thread and fastapi_thread.is_alive():
         return
 
-    config = uvicorn.Config(
-        fastapi_app,
-        host="127.0.0.1",
-        port=9714,
-        log_level="info",
-    )
-    fastapi_server = uvicorn.Server(config)
+    # Loopback by default; IGOOR_ACCESS_FROM_OUTSIDE=true opts into all
+    # interfaces (remote browsers on the LAN / Tailscale / tablets).
+    host = "0.0.0.0" if os.getenv('IGOOR_ACCESS_FROM_OUTSIDE', 'False').lower() == 'true' else "127.0.0.1"
 
-    fastapi_thread = threading.Thread(target=fastapi_server.run, daemon=True)
+    def _run_with_bind_retry():
+        """A restart spawns the new process before the old one's teardown has
+        released port 9714, so the first bind attempt can legitimately lose
+        that race (Errno 10048). uvicorn handles that failure by calling
+        sys.exit(1) inside run() - swallow it and retry with a fresh server,
+        otherwise the (console-less, detached) child would die silently and
+        its window would load an error page."""
+        global fastapi_server
+        for attempt in range(120):
+            server = uvicorn.Server(uvicorn.Config(
+                fastapi_app,
+                host=host,
+                port=9714,
+                log_level="info",
+            ))
+            fastapi_server = server
+            try:
+                server.run()
+            except SystemExit:
+                pass  # uvicorn's bind-failure exit - retry below
+            if getattr(server, "started", False):
+                return
+            logger.warning(f"Port 9714 not free yet (attempt {attempt + 1}/120) - retrying in 0.5s")
+            time.sleep(0.5)
+
+    fastapi_thread = threading.Thread(target=_run_with_bind_retry, daemon=True)
     fastapi_thread.start()
 
-    # Wait briefly for the server to signal readiness
-    if hasattr(fastapi_server, "started"):
-        while fastapi_thread.is_alive() and fastapi_server.started is False:
-            time.sleep(0.05)
+    # Wait for the server to signal readiness (bind retries can add a few
+    # seconds right after a restart; give up after 60s rather than hanging).
+    waited = 0.0
+    while waited < 60.0:
+        srv = fastapi_server
+        if srv is not None and getattr(srv, "started", False):
+            break
+        if not fastapi_thread.is_alive():
+            break
+        time.sleep(0.05)
+        waited += 0.05
 
 
 def stop_fastapi_server() -> None:
@@ -92,6 +137,13 @@ def on_idle_change(is_idle):
 
 def show_splash_screen(image_path):
     """Create a simple splash screen with a logo."""
+    try:
+        import tkinter as tk
+    except ImportError:
+        # Optional dependency: minimal/headless Python installs (e.g. Linux
+        # without python3-tk) must still be able to boot the app.
+        logger.warning("tkinter not available - skipping splash screen")
+        return None, None
     splash_root = tk.Tk()
     splash_root.overrideredirect(True)  # Remove window borders
 
@@ -117,22 +169,34 @@ def show_splash_screen(image_path):
 
     # Load your logo/image
     splash_image = tk.PhotoImage(file=resource_path(image_path))
-    splash_label = tk.Label(splash_root, image=splash_image, bg='white')
+    # ttk.Label, not tk.Label: classic tk widgets abort Xlib on creation with
+    # some Linux tk builds (xcb_io.c assertion, see COMPAT_UBUNTU.md); ttk
+    # widgets are unaffected. Same look, same API for what the splash needs.
+    from tkinter import ttk as _ttk
+    _style = _ttk.Style(splash_root)
+    # Text styling lives in the styles (some ttk themes ignore direct
+    # foreground=/font= on the widget); the dotted names inherit the
+    # white background from Splash.TLabel.
+    _style.configure('Splash.TLabel', background='white')
+    _style.configure('Splash.Title.TLabel', background='white', foreground='#444', font=("Arial", 14, "bold"))
+    _style.configure('Splash.Status.TLabel', background='white', foreground='#666', font=("Arial", 11))
+    # anchor is load-bearing: ttk TLabel draws images anchored west (vista/
+    # aqua themes) inside a stretched cell; classic tk.Label centered by
+    # default. Without it the logo hugs the left edge of the splash.
+    splash_label = _ttk.Label(splash_root, image=splash_image, style='Splash.TLabel', anchor='center')
     splash_label.grid(row=0, column=0, sticky='nsew')  # Use grid with sticky to center
 
     # Add version and codename below the logo
     version_text = f"IGOOR {IGOOR_VERSION} — {IGOOR_VERSION_CODENAME}"
-    version_label = tk.Label(splash_root, text=version_text, bg='white', fg='#444', font=("Arial", 14, "bold"))
+    version_label = _ttk.Label(splash_root, text=version_text, style='Splash.Title.TLabel')
     version_label.grid(row=1, column=0, pady=(10, 0))
 
     # Add single-line status label under the version
-    status_label = tk.Label(
+    status_label = _ttk.Label(
         splash_root,
         text="",
-        bg='white',
-        fg='#666',
-        font=("Arial", 11),
-        anchor='center'
+        style='Splash.Status.TLabel',
+        anchor='center',
     )
     status_label.grid(row=2, column=0, pady=(6, 10), sticky='ew')
 
@@ -154,9 +218,9 @@ def signal_handler(sig, frame):
 signal.signal(signal.SIGINT, signal_handler)
 
 # VARS HERE
-IGOOR_DEBUG = os.getenv('IGOOR_DEBUG', 'False') 
-IGOOR_CLI = os.getenv('IGOOR_CLI', 'False') 
-IGOOR_ONTOP = os.getenv('IGOOR_ONTOP', 'False') 
+IGOOR_DEBUG = os.getenv('IGOOR_DEBUG', 'False')
+IGOOR_HEADLESS = os.getenv('IGOOR_HEADLESS', os.getenv('IGOOR_CLI', 'False'))  # legacy IGOOR_CLI still honored
+IGOOR_ONTOP = os.getenv('IGOOR_ONTOP', 'False')
 IGOOR_VERSION_CODENAME = __codename__
 IGOOR_VERSION=__version__
 
@@ -192,8 +256,9 @@ def load_frontend_components(lang):
 
     # Iterate over plugins metadata
     for plugin_name, metadata in plugins_metadata.items():
-        # Check activation state from settings.json instead of metadata
-        if plugins_activation.get(plugin_name, False):
+        # Check activation state from settings.json instead of metadata,
+        # but never inject a plugin whose OS the plugin.json "platforms" flag excludes
+        if plugins_activation.get(plugin_name, False) and manager._plugin_is_compatible(plugin_name, metadata):
             logger.info(f"Plugin {plugin_name} is active")
             component_name = ''.join(word.capitalize() for word in plugin_name.split('_'))
             component_path = f"/plugins/{plugin_name}/frontend/{plugin_name}_component.vue?v={IGOOR_VERSION}"
@@ -273,31 +338,80 @@ def load_frontend_components(lang):
 
 def on_closing():
     stop_fastapi_server()
-    websocket_server.stop()  
+    websocket_server.stop()
     print("WebSocket server has been closed.")
 
-def on_loaded():
-    global window
-    logger.info("=== on_loaded function triggered ===")
-    
-    # Check if window object is available
-    if window is None:
-        logger.error("Window object is None! Cannot proceed with evaluate_js")
-        return False
-        
-    # Attempt to bootstrap front-end readiness
-    try:
-        window.evaluate_js("window.app?.readypy?.();")
-        logger.info("✓ readypy invocation dispatched")
-    except Exception as e:
-        logger.error(f"Failed to invoke readypy: {e}")
-    
+_gui_ready_fired = False
+
+def _fire_gui_ready_once(source: str) -> None:
+    """Trigger the gui_ready hook exactly once per app run.
+
+    Plugins (conversation above all) only mark themselves ready inside this
+    hook, so it must fire in every runtime mode: from on_loaded in GUI mode,
+    or from the first app-websocket connection in headless mode.
+    """
+    global _gui_ready_fired
+    if _gui_ready_fired:
+        return
+    _gui_ready_fired = True
+    logger.info(f"Firing gui_ready hook (source: {source})")
     try:
         asyncio.run(manager.trigger_hook("gui_ready"))
         logger.info("✓ gui_ready hook triggered successfully")
     except Exception as e:
         logger.error(f"Failed to trigger gui_ready hook: {e}")
-    
+
+def _start_headless_gui_ready_watch() -> None:
+    """Headless mode has no pywebview window, so on_loaded (and with it the
+    gui_ready hook) would never fire. Watch for the first browser connecting
+    to the app websocket — that is the 'a GUI now exists' signal — and fire
+    the hook from there."""
+    def watch():
+        while not shutdown_event.is_set():
+            try:
+                if websocket_server.is_socket_open('app'):
+                    _fire_gui_ready_once("first app websocket connection (headless)")
+                    return
+            except Exception:
+                pass
+            time.sleep(1)
+    threading.Thread(target=watch, daemon=True, name="headless-gui-ready").start()
+
+def on_loaded():
+    global window
+    logger.info("=== on_loaded function triggered ===")
+
+    # Check if window object is available
+    if window is None:
+        logger.error("Window object is None! Cannot proceed with evaluate_js")
+        return False
+
+    # Attempt to bootstrap front-end readiness. on_loaded fires on DOM load,
+    # which can precede the Vue app mounting when boot is slow (models loading,
+    # cold caches): the one-shot optional-chained call then silently no-ops,
+    # the app websocket never opens and the gui_ready hookimpls (including
+    # conversation's readiness) wait forever. Poll until the frontend has
+    # actually exposed readypy before dispatching.
+    try:
+        waited = 0
+        while waited < 60:
+            try:
+                mounted = bool(window.evaluate_js("typeof window.app?.readypy === 'function'"))
+            except Exception:
+                mounted = False
+            if mounted:
+                break
+            if waited == 0:
+                logger.info("Frontend not mounted yet, waiting for window.app.readypy ...")
+            time.sleep(1)
+            waited += 1
+        window.evaluate_js("window.app?.readypy?.();")
+        logger.info(f"✓ readypy invocation dispatched (waited {waited}s for frontend mount)")
+    except Exception as e:
+        logger.error(f"Failed to invoke readypy: {e}")
+
+    _fire_gui_ready_once("pywebview window loaded")
+
     try:
         prefs = settings.get_prefs()
         idle_threshold = prefs.get("idle_threshold", 10)
@@ -382,19 +496,34 @@ if __name__ == "__main__":
     prefs = settings.get_nested(["plugins", "onboarding", "prefs"], default={})
     lang = prefs.get("lang")
 
-    if IGOOR_CLI.lower() == 'true':
-        logger.info("IGOOR_CLI active: running headless API/WebSocket server only")
+    if IGOOR_HEADLESS.lower() == 'true':
+        logger.info("IGOOR_HEADLESS active: running headless API/WebSocket server only (no native window)")
         load_frontend_components(lang=lang)
         start_fastapi_server()
+        # Only visible presence in this mode: a tray icon with live status,
+        # an "Open interface" shortcut and a clean Quit (no-op if no tray).
+        tray_icon = start_tray_icon(shutdown_event)
+        # Optional HTTPS exposure via tailscale serve when IGOOR accepts
+        # external access: one UAC prompt on Windows the first time, then
+        # the config persists in Tailscale. Runs in the background so a
+        # pending UAC prompt never blocks startup.
+        auto_enable_tailscale_serve(tray_icon)
+        # No pywebview window exists in this mode: fire gui_ready when the
+        # first browser connects to the app websocket (see _fire_gui_ready_once).
+        _start_headless_gui_ready_watch()
         try:
             while not shutdown_event.is_set():
                 time.sleep(1)
         except KeyboardInterrupt:
-            logger.info("Shutdown requested (CLI mode)")
+            logger.info("Shutdown requested (headless mode)")
         finally:
+            stop_tray_icon(tray_icon)
             stop_fastapi_server()
     else:
         start_fastapi_server()
+        # GUI mode with external access (window + remote browsers) gets the
+        # same optional tailscale serve HTTPS exposure; no-op otherwise.
+        auto_enable_tailscale_serve()
         splash_root, status_label = show_splash_screen('img/igoor_logo.png')
 
         # Wire StatusManager to update splash status line
@@ -414,10 +543,11 @@ if __name__ == "__main__":
                     except Exception:
                         pass
 
-            _splash_observer = TkSplashObserver(splash_root, status_label)
-            StatusManager().register_observer(_splash_observer)
-            # Initial hint
-            StatusManager().set_status("Starting services…")
+            if splash_root is not None:
+                _splash_observer = TkSplashObserver(splash_root, status_label)
+                StatusManager().register_observer(_splash_observer)
+                # Initial hint
+                StatusManager().set_status("Starting services…")
         except Exception as e:
             logger.error(f"Failed wiring splash status observer: {e}")
 
@@ -434,6 +564,7 @@ if __name__ == "__main__":
             StatusManager().set_status("Launching window…")
         except Exception:
             pass
-        splash_root.destroy()
+        if splash_root is not None:
+            splash_root.destroy()
         start_webview()
 

@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IGOOR — Keyless Onboarding v2 (Design Mockup)</title>
+<style>
+  :root{
+    --darkest:#121617;
+    --topbar:#1d1d1d;
+    --bg-grad-a:#2a4a51;
+    --bg-grad-b:#1a2223;
+    --accent:#0095c0;
+    --accent-500:#216776;
+    --accent-700:#23515b;
+    --accent-900:#1f474f;
+    --gray-100:#a6bfbf;
+    --gray-900:#3e5e65;
+    --light-page:#edeee7;
+    --warning:#a8351b;
+    --ok:#407d1c;
+    --green:#396350;
+    --rounded:10px;
+    --ink:#e8f0f0;
+    --ink-dim:#9fb5b5;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:"Segoe UI", system-ui, -apple-system, sans-serif;
+    background:var(--darkest);
+    color:var(--ink);
+    padding:32px 24px 80px;
+    line-height:1.5;
+  }
+  .wrap{max-width:1200px;margin:0 auto}
+
+  /* ---------- page chrome ---------- */
+  .page-head h1{font-size:26px;font-weight:600;letter-spacing:.5px}
+  .page-head .sub{color:var(--ink-dim);margin:6px 0 4px;max-width:820px}
+  .page-head .meta{color:var(--gray-100);font-size:12.5px;margin-top:6px}
+  .badge{display:inline-block;background:var(--accent-700);color:#fff;border-radius:20px;
+    padding:2px 10px;font-size:11.5px;margin-right:6px;vertical-align:middle}
+  h2.sec{font-size:17px;margin:40px 0 14px;color:var(--gray-100);font-weight:600;
+    border-bottom:1px solid #2c3a3e;padding-bottom:8px;letter-spacing:.4px}
+
+  /* ---------- flow diagram ---------- */
+  .diagram{background:#161b1c;border:1px solid #2c3a3e;border-radius:var(--rounded);
+    padding:26px 20px;overflow-x:auto}
+  .lane{display:flex;align-items:stretch;gap:0;min-width:860px}
+  .node{
+    background:var(--accent-900);border:1.5px solid var(--accent-500);border-radius:var(--rounded);
+    padding:12px 14px;min-width:130px;max-width:180px;text-align:center;flex:0 0 auto;
+  }
+  .node .t{font-weight:600;font-size:13.5px}
+  .node .d{font-size:11.5px;color:var(--gray-100);margin-top:4px;line-height:1.35}
+  .node.start{border-color:var(--accent);background:#12333c}
+  .node.decision{background:#2b2320;border-color:#8a5a3b;border-radius:14px}
+  .node.done{border-color:var(--ok);background:#1d2c1a}
+  .node.small{min-width:110px;max-width:150px;padding:10px 10px}
+  .arrow{display:flex;align-items:center;color:var(--gray-900);font-size:20px;padding:0 4px;flex:0 0 auto}
+  .arrow.down{justify-content:center;padding:2px 0;transform:rotate(90deg);width:24px;margin:0 auto}
+  .branch-stack{display:flex;flex-direction:column;gap:10px;justify-content:center}
+  .branch{display:flex;align-items:center;gap:0}
+  .lbl{font-size:11px;color:var(--gray-100);background:#20282a;border-radius:6px;padding:2px 8px;margin:0 6px;white-space:nowrap}
+  .diagram .note{font-size:11.5px;color:var(--ink-dim);margin-top:16px;max-width:900px}
+  .diagram .note b{color:var(--gray-100)}
+
+  /* ---------- screen player ---------- */
+  .player{display:grid;grid-template-columns:230px 1fr;gap:22px;align-items:start}
+  @media(max-width:900px){.player{grid-template-columns:1fr}}
+  .rail{display:flex;flex-direction:column;gap:4px;position:sticky;top:16px}
+  .rail .group{font-size:11px;letter-spacing:1px;color:var(--gray-900);margin:10px 4px 4px;text-transform:uppercase}
+  .rail button{
+    text-align:left;background:#181f20;border:1px solid #2c3a3e;color:var(--ink-dim);
+    border-radius:8px;padding:9px 12px;font-size:13px;cursor:pointer;display:flex;gap:8px;align-items:center;
+  }
+  .rail button:hover{border-color:var(--accent-500);color:var(--ink)}
+  .rail button.active{background:var(--accent-900);border-color:var(--accent);color:#fff}
+  .rail .k{font-size:10.5px;color:var(--gray-900);margin-left:auto}
+
+  .stage{min-width:0}
+  /* the fake app window */
+  .window{border-radius:14px;overflow:hidden;border:1px solid #2c3a3e;
+    box-shadow:0 18px 50px rgba(0,0,0,.5);background:linear-gradient(to bottom,var(--bg-grad-a),var(--bg-grad-b));
+    aspect-ratio:16/9;position:relative;display:flex;flex-direction:column}
+  .win-top{background:var(--topbar);height:34px;display:flex;align-items:center;justify-content:center;gap:10px;flex:0 0 auto}
+  .win-logo{display:flex;align-items:center;gap:7px;font-weight:700;letter-spacing:1.5px;font-size:13px;color:#fff}
+  .win-logo .dot{width:14px;height:14px;border:2px solid var(--accent);border-radius:50%}
+  .win-body{flex:1;display:flex;flex-direction:column;min-height:0;position:relative}
+  .screen{position:absolute;inset:0;display:none;flex-direction:column;padding:22px 30px;overflow:auto}
+  .screen.active{display:flex}
+
+  /* boot progress (mirrors header component) */
+  .bootstrip{display:flex;align-items:center;gap:10px;justify-content:center;margin:2px 0 8px;min-height:22px}
+  .bootbar{width:220px;height:6px;background:#0e1112;border-radius:4px;overflow:hidden;border:1px solid #333}
+  .bootfill{height:100%;width:0%;background:var(--accent);transition:width .4s ease}
+  .boottxt{font-size:11.5px;color:var(--gray-100)}
+  .bootdone{color:var(--ok)}
+
+  /* loading screen */
+  .s-loading{align-items:center;justify-content:center;text-align:center;gap:18px}
+  .biglogo{width:84px;height:84px;border:3px solid var(--accent);border-radius:50%;display:flex;
+    align-items:center;justify-content:center;font-size:24px;font-weight:800;letter-spacing:1px;color:#fff}
+  .loadbar{width:340px;height:8px;background:#0e1112;border-radius:5px;overflow:hidden;border:1px solid #333}
+  .loadfill{height:100%;width:0%;background:var(--accent);transition:width .55s ease}
+  .notready{font-size:12px;color:var(--ink-dim);min-height:40px}
+  .notready span{display:inline-block;background:#20282a;border-radius:5px;padding:1px 8px;margin:2px}
+
+  /* choice screen */
+  .s-choice h1{font-size:26px;text-align:center;margin-top:6px}
+  .s-choice .tag{text-align:center;color:var(--ink-dim);font-size:13.5px;margin:6px 0 20px}
+  .split{display:grid;grid-template-columns:1fr 1fr;gap:22px;flex:1;min-height:0}
+  .choice-card{background:rgba(18,22,23,.55);border:1.5px solid #345059;border-radius:14px;
+    padding:22px;display:flex;flex-direction:column;gap:12px}
+  .choice-card.hot{border-color:var(--accent);box-shadow:0 0 0 1px rgba(0,149,192,.25) inset}
+  .cc-head{display:flex;align-items:center;gap:12px}
+  .cc-ic{width:46px;height:46px;border:2px solid var(--accent);border-radius:12px;display:flex;
+    align-items:center;justify-content:center;flex:0 0 auto}
+  .cc-title{font-size:18px;font-weight:600}
+  .cc-sub{font-size:12.5px;color:var(--ink-dim)}
+  .field label{display:block;font-size:12px;color:var(--gray-100);margin-bottom:5px}
+  .field input[type=text],.field select{
+    width:100%;background:#101415;border:1.5px solid #345059;color:var(--ink);
+    border-radius:8px;padding:12px 14px;font-size:16px;outline:none}
+  .field input:focus,.field select:focus{border-color:var(--accent)}
+  .field .hint{font-size:11px;color:var(--ink-dim);margin-top:4px}
+  .btn{
+    border:none;border-radius:9px;padding:14px 20px;font-size:15.5px;font-weight:600;cursor:pointer;
+    display:inline-flex;align-items:center;justify-content:center;gap:9px;color:#fff;
+    background:var(--accent-500);transition:background .15s}
+  .btn.primary{background:var(--accent);color:#06222b}
+  .btn.primary:hover{background:#22b1dc}
+  .btn.ghost{background:transparent;border:1.5px solid #345059;color:var(--gray-100)}
+  .btn.ghost:hover{border-color:var(--accent)}
+  .btn.warn{background:var(--warning)}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  .dropzone{
+    border:2px dashed #4a6b75;border-radius:12px;flex:1;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:10px;color:var(--ink-dim);font-size:13.5px;
+    text-align:center;padding:14px;min-height:120px}
+  .dropzone .mini{font-size:11px;color:var(--gray-900)}
+  .filebtns{display:flex;gap:10px;flex-wrap:wrap}
+
+  /* health */
+  .s-health h1,.s-asr h1,.s-ready h1,.s-imp h1{font-size:24px;margin:4px 0 4px}
+  .lead{color:var(--ink-dim);font-size:13.5px;max-width:640px}
+  .lead.center{margin:0 auto;text-align:center}
+  .centerwrap{margin:auto;max-width:720px;width:100%;display:flex;flex-direction:column;gap:14px}
+  textarea.big{
+    width:100%;min-height:130px;resize:none;background:#101415;border:1.5px solid #345059;color:var(--ink);
+    border-radius:10px;padding:14px;font-size:15px;font-family:inherit;outline:none}
+  textarea.big:focus{border-color:var(--accent)}
+  .row-end{display:flex;gap:12px;justify-content:flex-end;margin-top:4px}
+  .row-end .left{margin-right:auto}
+
+  /* asr download */
+  .opt-card{background:rgba(18,22,23,.55);border:1.5px solid #345059;border-radius:14px;padding:20px;display:flex;gap:18px;align-items:flex-start}
+  .opt-card .cc-ic{width:56px;height:56px}
+  .chips{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+  .chip{background:#20282a;border:1px solid #345059;border-radius:20px;padding:3px 12px;font-size:12px;color:var(--gray-100)}
+  .chip.ok{border-color:var(--ok);color:#9fd48a}
+  .dlbar{width:100%;height:9px;background:#0e1112;border-radius:5px;overflow:hidden;border:1px solid #333;margin-top:10px}
+  .dlfill{height:100%;width:0%;background:var(--accent);transition:width .3s ease}
+  .dlstate{font-size:12px;color:var(--ink-dim);margin-top:6px}
+  .infobox{background:#2b2320;border:1px solid #8a5a3b;border-radius:10px;padding:12px 14px;font-size:12.5px;color:#e8c9b5;display:flex;gap:10px;align-items:flex-start}
+
+  /* ready / checklist */
+  .checklist{display:flex;flex-direction:column;gap:9px;margin:6px 0}
+  .checkline{display:flex;gap:11px;align-items:center;font-size:14.5px}
+  .checkline .ok-ic{color:#8fce6b;flex:0 0 auto}
+  .checkline .dim-ic{color:var(--gray-900);flex:0 0 auto}
+  .checkline small{color:var(--ink-dim);display:block;font-size:12px}
+  .later-card{background:#20282a;border:1.5px dashed #4a6b75;border-radius:12px;padding:14px 16px;font-size:13px;color:var(--ink-dim)}
+
+  /* import screens */
+  .stepper{display:flex;flex-direction:column;gap:0;margin:8px 0}
+  .step{display:flex;gap:12px;align-items:flex-start;padding:7px 0}
+  .step .bullet{width:26px;height:26px;border-radius:50%;border:2px solid #345059;flex:0 0 auto;
+    display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--gray-100)}
+  .step.active .bullet{border-color:var(--accent);color:#fff;background:var(--accent-900)}
+  .step.done .bullet{border-color:var(--ok);color:#8fce6b}
+  .step .body{font-size:14px;padding-top:3px}
+  .step.done .body{color:var(--ink-dim)}
+  .step small{display:block;font-size:11.5px;color:var(--gray-900)}
+  .filechip{display:inline-flex;align-items:center;gap:9px;background:#101415;border:1px solid #345059;
+    border-radius:9px;padding:9px 14px;font-size:13.5px}
+  .filechip .sz{color:var(--gray-900);font-size:11.5px}
+  .errorcard{background:#2a1512;border:1.5px solid var(--warning);border-radius:12px;padding:16px 18px}
+  .errorcard h3{color:#f0a58e;font-size:15.5px;display:flex;gap:9px;align-items:center;margin-bottom:7px}
+  .errorcard ul{margin:6px 0 4px 20px;font-size:12.5px;color:#e8c9b5}
+
+  /* keyless home mini */
+  .minihome{display:flex;flex-direction:column;height:100%;gap:10px}
+  .mh-header{background:rgba(18,22,23,.6);border:1px solid #2c3a3e;border-radius:10px;padding:10px 14px;font-size:12px;color:var(--ink-dim)}
+  .mh-header b{color:var(--ink)}
+  .mh-flow{flex:1;background:rgba(18,22,23,.45);border:1.5px dashed #4a6b75;border-radius:10px;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center;padding:12px}
+  .mh-flow .t{font-size:14px;font-weight:600}
+  .mh-flow .d{font-size:12px;color:var(--ink-dim);max-width:380px}
+  .mh-flow .btn{font-size:13px;padding:10px 16px}
+  .mh-input{display:flex;gap:10px;align-items:center}
+  .mh-input input{flex:1;background:#101415;border:1.5px solid #345059;color:var(--ink);border-radius:10px;padding:13px 15px;font-size:15px}
+  .mh-input .btn{padding:13px 22px}
+
+  /* annotations under stage */
+  .anno{margin-top:14px;background:#161b1c;border:1px solid #2c3a3e;border-left:3px solid var(--accent);
+    border-radius:8px;padding:12px 16px;font-size:13px;color:var(--ink-dim)}
+  .anno b{color:var(--ink)}
+  .anno ul{margin:6px 0 0 18px;display:flex;flex-direction:column;gap:5px}
+  .anno .n{display:inline-block;background:var(--accent-700);color:#fff;border-radius:50%;
+    width:19px;height:19px;text-align:center;line-height:19px;font-size:11px;margin-right:6px;flex:0 0 auto}
+
+  /* nav under window */
+  .stagenav{display:flex;align-items:center;gap:10px;margin-top:12px}
+  .stagenav .pos{color:var(--gray-900);font-size:12px;margin-left:auto}
+  .titlebar{font-size:13px;color:var(--gray-100);margin-bottom:8px;display:flex;gap:9px;align-items:center;flex-wrap:wrap}
+
+  /* notes section */
+  .notes{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:14px}
+  .note-card{background:#161b1c;border:1px solid #2c3a3e;border-radius:10px;padding:14px 16px;font-size:13px;color:var(--ink-dim)}
+  .note-card h4{color:var(--ink);font-size:13.5px;margin-bottom:6px;display:flex;gap:8px;align-items:center}
+  .note-card .n{display:inline-block;background:var(--accent-700);color:#fff;border-radius:50%;
+    width:20px;height:20px;text-align:center;line-height:20px;font-size:11px;flex:0 0 auto}
+  svg.ic{width:22px;height:22px;stroke:var(--accent);fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+  svg.ic.sm{width:17px;height:17px}
+  svg.ic.ok{stroke:#8fce6b}
+  svg.ic.warn{stroke:#f0a58e}
+  svg.ic.dim{stroke:var(--gray-900)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ======================= PAGE HEADER ======================= -->
+  <div class="page-head">
+    <h1><span class="badge">DESIGN MOCKUP</span>IGOOR — Keyless First-Run Onboarding (v2)</h1>
+    <p class="sub">Interactive walkthrough of the proposed first-launch experience: a user can start using IGOOR
+      with <b>no API key and no account</b> — new profile (type &rarr; voice, optional offline speech recognition) or
+      full restore from an export ZIP. Colors are taken from <code>css/app.less</code> tokens; the boot progress bar
+      mirrors the existing header component.</p>
+    <p class="meta">For design review only — not wired to the app. Click the screens on the left (or use the arrows).</p>
+  </div>
+
+  <!-- ======================= FLOW DIAGRAM ======================= -->
+  <h2 class="sec">1 · Flow overview</h2>
+  <div class="diagram">
+    <div class="lane">
+      <div class="node start"><div class="t">First launch</div><div class="d">detected via onboarding flag<br>(existing users skip)</div></div>
+      <div class="arrow">&#10230;</div>
+      <div class="node"><div class="t">App boots</div><div class="d">plugins load, boot progress = same component as header</div></div>
+      <div class="arrow">&#10230;</div>
+      <div class="node decision"><div class="t">Choice screen</div><div class="d">shown as soon as backend is reachable — boot progress stays pinned on top</div></div>
+      <div class="arrow">&#10230;</div>
+      <div class="branch-stack">
+        <div class="branch">
+          <span class="lbl">NEW PROFILE</span>
+          <div class="arrow">&#10230;</div>
+          <div class="node small"><div class="t">Name + language</div><div class="d">both optional-looking, lang pre-filled from OS</div></div>
+          <div class="arrow">&#10230;</div>
+          <div class="node small"><div class="t">Health state</div><div class="d">skippable</div></div>
+          <div class="arrow">&#10230;</div>
+          <div class="node small"><div class="t">ASR download</div><div class="d">optional, offline-friendly<br>25–125 MB</div></div>
+          <div class="arrow">&#10230;</div>
+          <div class="node done"><div class="t">Keyless IGOOR</div><div class="d">keyboard → TTS · offline ASR · history. Flow panel shows "connect AI" empty state</div></div>
+        </div>
+        <div class="branch">
+          <span class="lbl">IMPORT</span>
+          <div class="arrow">&#10230;</div>
+          <div class="node small"><div class="t">Pick ZIP</div><div class="d">enabled once boot = 100%</div></div>
+          <div class="arrow">&#10230;</div>
+          <div class="node small"><div class="t">Validate + restore</div><div class="d">existing /api/data/import;<br>clear errors on bad archive</div></div>
+          <div class="arrow">&#10230;</div>
+          <div class="node done"><div class="t">Restart &rarr; full IGOOR</div><div class="d">data, keys &amp; plugins as exported</div></div>
+        </div>
+      </div>
+    </div>
+    <p class="note"><b>Key change vs. today:</b> onboarding no longer requires an AI provider. The API key moves from
+      "mandatory at the door" to "optional, connect anytime" (Settings &rarr; AI, or the empty-state card in the main view).
+      <b>Key dependency:</b> the offline ASR default is language-bound — a language must be known before the sherpa-onnx
+      small model can be selected/downloaded. Every shipped language has a local model (dedicated zipformer / Whisper /
+      NeMo models for en, fr, it, ko, pt, zh); any other language falls back to the multilingual Whisper-tiny model —
+      so ASR is never unavailable, only dedicated vs. generic.</p>
+  </div>
+
+  <!-- ======================= SCREENS ======================= -->
+  <h2 class="sec">2 · Interactive screens</h2>
+  <div class="player">
+    <div class="rail">
+      <div class="group">Common</div>
+      <button data-s="s-loading" class="active"><span>Boot / loading</span><span class="k">0</span></button>
+      <button data-s="s-choice"><span>Welcome &amp; choice</span><span class="k">1</span></button>
+      <div class="group">New profile</div>
+      <button data-s="s-health"><span>Health state</span><span class="k">2</span></button>
+      <button data-s="s-asr"><span>Speech recognition</span><span class="k">3</span></button>
+      <button data-s="s-ready"><span>All set</span><span class="k">4</span></button>
+      <div class="group">Import</div>
+      <button data-s="s-imp-run"><span>Validating &amp; restoring</span><span class="k">5</span></button>
+      <button data-s="s-imp-err"><span>Bad archive (error)</span><span class="k">6</span></button>
+      <button data-s="s-imp-done"><span>Done &rarr; restart</span><span class="k">7</span></button>
+      <div class="group">After onboarding</div>
+      <button data-s="s-home"><span>Keyless main view</span><span class="k">8</span></button>
+    </div>
+
+    <div class="stage">
+      <div class="titlebar" id="screenTitle"></div>
+      <div class="window">
+        <div class="win-top">
+          <div class="win-logo"><span class="dot"></span>IGOOR</div>
+        </div>
+        <div class="win-body">
+
+          <!-- ============ 0 · LOADING ============ -->
+          <div class="screen s-loading active" id="s-loading">
+            <div class="biglogo">IG</div>
+            <div style="font-size:20px;font-weight:700;letter-spacing:2px">IGOOR</div>
+            <div class="loadbar"><div class="loadfill" id="loadfill"></div></div>
+            <div class="boottxt" id="loadtxt">Loading plugins… 0 / 17</div>
+            <div class="notready" id="notready"></div>
+            <button class="btn primary" id="loadGo" style="visibility:hidden">Continue</button>
+          </div>
+
+          <!-- ============ 1 · CHOICE ============ -->
+          <div class="screen s-choice" id="s-choice">
+            <div class="bootstrip">
+              <div class="bootbar"><div class="bootfill" id="choiceBoot"></div></div>
+              <span class="boottxt" id="choiceBootTxt">Loading… 12 / 17</span>
+            </div>
+            <h1>Welcome to IGOOR</h1>
+            <div class="tag">No account, no API key — you can start talking in a minute.</div>
+            <div class="split">
+              <div class="choice-card hot">
+                <div class="cc-head">
+                  <div class="cc-ic">
+                    <svg class="ic" viewBox="0 0 24 24"><circle cx="10" cy="8" r="3.4"/><path d="M4 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M18 8v6M15 11h6"/></svg>
+                  </div>
+                  <div>
+                    <div class="cc-title">New profile</div>
+                    <div class="cc-sub">Fresh start on this computer</div>
+                  </div>
+                </div>
+                <div class="field">
+                  <label>Your name</label>
+                  <input type="text" placeholder="Type a name (you can skip this)">
+                  <div class="hint">Used to personalise the AI later — optional, editable anytime.</div>
+                </div>
+                <div class="field">
+                  <label>Language</label>
+                  <select>
+                    <option selected>Français (detected)</option>
+                    <option>English</option>
+                    <option>Italiano</option>
+                    <option>Português (BR)</option>
+                  </select>
+                  <div class="hint">Already known from the install (Inno Setup choice) or Windows language (MSIX) — shown for confirmation, change only if wrong. Also sets the offline speech-recognition model and the voice.</div>
+                </div>
+                <button class="btn primary" data-go="s-health" style="margin-top:auto">Continue
+                  <svg class="ic sm" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+              </div>
+              <div class="choice-card">
+                <div class="cc-head">
+                  <div class="cc-ic">
+                    <svg class="ic" viewBox="0 0 24 24"><path d="M12 16V4M6 10l6-6 6 6"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>
+                  </div>
+                  <div>
+                    <div class="cc-title">Import data</div>
+                    <div class="cc-sub">Restore from an IGOOR export (.zip)</div>
+                  </div>
+                </div>
+                <div class="dropzone">
+                  <svg class="ic" viewBox="0 0 24 24"><path d="M12 14V6M8.5 9.5 12 6l3.5 3.5"/><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M4 15v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+                  <div>Drop your <b>igoor_export_….zip</b> here</div>
+                  <div class="mini">Profile, conversations, memories, settings and keys come back exactly as they were.</div>
+                  <div class="filebtns">
+                    <button class="btn primary" data-go="s-imp-run" id="browseBtn">Browse files…</button>
+                  </div>
+                </div>
+                <div class="hint" style="font-size:11.5px;color:var(--gray-900)">Available once loading is complete — import rewrites app settings.</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ============ 2 · HEALTH ============ -->
+          <div class="screen s-health" id="s-health">
+            <div class="centerwrap">
+              <h1>Tell us about the health situation</h1>
+              <p class="lead">This helps the AI speak <b>with</b> the user, not just for them. It stays on this computer,
+                is only used in AI prompts, and can be edited anytime (Settings &rarr; Bio). You can also skip it now.</p>
+              <textarea class="big" placeholder="Diagnosis, mobility, fatigue, assistance needs…&#10;Assistive devices: power wheelchair, eye-tracking device…&#10;Care team &amp; treatments…"></textarea>
+              <div class="row-end">
+                <button class="btn ghost left" data-go="s-choice">&#8592; Back</button>
+                <button class="btn ghost" data-go="s-asr">Skip for now</button>
+                <button class="btn primary" data-go="s-asr">Continue</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- ============ 3 · ASR DOWNLOAD ============ -->
+          <div class="screen s-asr" id="s-asr">
+            <div class="centerwrap">
+              <h1>Speak with your voice — offline</h1>
+              <p class="lead">IGOOR can recognise speech <b>on this computer</b> with a small local model.
+                No cloud, no key, works offline. (You can add a cloud model later for better accuracy.)</p>
+              <div class="opt-card">
+                <div class="cc-ic">
+                  <svg class="ic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3M8.5 21h7"/></svg>
+                </div>
+                <div style="flex:1">
+                  <div style="font-size:16px;font-weight:600">Local speech recognition</div>
+                  <div class="chips">
+                    <span class="chip">Language: Français</span>
+                    <span class="chip">Model: sherpa-onnx small</span>
+                    <span class="chip">122 MB · one-time download</span>
+                  </div>
+                  <div class="dlbar"><div class="dlfill" id="dlfill"></div></div>
+                  <div class="dlstate" id="dlstate">Not started</div>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:10px">
+                  <button class="btn primary" id="dlBtn">Download</button>
+                  <button class="btn ghost" data-go="s-ready">Skip for now</button>
+                </div>
+              </div>
+              <div class="infobox" id="asrUnsupported" style="display:none">
+                <svg class="ic warn" viewBox="0 0 24 24"><path d="M12 8v5M12 16.5v.5"/><circle cx="12" cy="12" r="9"/></svg>
+                <div><b>Alternate state — language without a dedicated model</b> (e.g. Spanish, German):
+                "No dedicated offline model for this language yet — IGOOR will use the generic multilingual model
+                (Whisper tiny, works offline, lower accuracy). Connect an AI key later for cloud-grade recognition."</div>
+              </div>
+              <div class="row-end">
+                <button class="btn ghost left" data-go="s-health">&#8592; Back</button>
+                <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink-dim)">
+                  <input type="checkbox" id="toggleUnsupported"> show alternate state</label>
+              </div>
+            </div>
+          </div>
+
+          <!-- ============ 4 · READY ============ -->
+          <div class="screen s-ready" id="s-ready">
+            <div class="centerwrap" style="max-width:600px">
+              <div style="text-align:center">
+                <svg class="ic ok" viewBox="0 0 24 24" style="width:44px;height:44px"><circle cx="12" cy="12" r="9.5"/><path d="M7.5 12.5l3 3 6-6.5"/></svg>
+                <h1>You're all set, Marie</h1>
+                <p class="lead">Everything below works right now, with no key and no internet.</p>
+              </div>
+              <div class="checklist">
+                <div class="checkline">
+                  <svg class="ic ok" viewBox="0 0 24 24"><rect x="2.5" y="6.5" width="19" height="11" rx="2.5"/><path d="M6 12h.5M9.5 12h.5M13 12h.5M16.5 12h.5"/></svg>
+                  <div>Type &rarr; speak<small>Keyboard (physical or on-screen) straight to the voice — the core communication loop.</small></div>
+                </div>
+                <div class="checkline" id="readyAsr">
+                  <svg class="ic ok" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
+                  <div>Offline speech recognition<small> sherpa-onnx small · downloaded on this computer.</small></div>
+                </div>
+                <div class="checkline">
+                  <svg class="ic ok" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+                  <div>Conversations saved locally<small>History, topics and speakers — nothing leaves the computer.</small></div>
+                </div>
+                <div class="checkline">
+                  <svg class="ic dim" viewBox="0 0 24 24"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9zM19 16l.9 2.1L22 19l-2.1.9L19 22l-.9-2.1L16 19l2.1-.9z"/></svg>
+                  <div style="color:var(--ink-dim)">AI suggestions (Flow) — off for now<small>Add any AI key later to unlock predicted replies, memory and autocompletion.</small></div>
+                </div>
+              </div>
+              <button class="btn primary" data-go="s-home" style="align-self:center;padding:16px 34px;font-size:17px">Start using IGOOR</button>
+            </div>
+          </div>
+
+          <!-- ============ 5 · IMPORT RUN ============ -->
+          <div class="screen s-imp" id="s-imp-run">
+            <div class="centerwrap" style="max-width:560px">
+              <h1>Restoring your data</h1>
+              <span class="filechip">
+                <svg class="ic sm" viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/></svg>
+                igoor_export_2026-09-12.zip <span class="sz">· 412 MB</span>
+              </span>
+              <div class="dlbar"><div class="dlfill" id="impFill"></div></div>
+              <div class="stepper">
+                <div class="step done" id="st1"><div class="bullet">&#10003;</div><div class="body">Archive validated<small>IGOOR export v2 · created 12/09/2026 on Windows</small></div></div>
+                <div class="step active" id="st2"><div class="bullet">2</div><div class="body">Restoring profile &amp; settings<small>bio, language, AI keys, plugin setup</small></div></div>
+                <div class="step" id="st3"><div class="bullet">3</div><div class="body">Restoring conversations &amp; memories<small>SQLite + FAISS index (embedding model verified)</small></div></div>
+                <div class="step" id="st4"><div class="bullet">4</div><div class="body">Restoring documents &amp; voices<small>RAG library, recorded TTS voices</small></div></div>
+              </div>
+              <div class="hint" style="font-size:11.5px;color:var(--gray-900)">Demo: <button class="btn ghost" id="impErrBtn" style="font-size:12px;padding:7px 12px">simulate a bad archive</button></div>
+            </div>
+          </div>
+
+          <!-- ============ 6 · IMPORT ERROR ============ -->
+          <div class="screen s-imp" id="s-imp-err">
+            <div class="centerwrap" style="max-width:560px">
+              <h1>That didn't work</h1>
+              <div class="errorcard">
+                <h3><svg class="ic warn" viewBox="0 0 24 24"><path d="M12 8v5M12 16.5v.5"/><circle cx="12" cy="12" r="9"/></svg>
+                  This file is not a valid IGOOR export</h3>
+                The archive is damaged or was created by another application. Nothing has been changed on this computer.
+                <ul>
+                  <li>Corrupt ZIP — transfer it again (USB / network) and retry</li>
+                  <li>Created by a newer IGOOR version — update IGOOR first</li>
+                  <li>Memory model mismatch — will be rebuilt on first use</li>
+                </ul>
+              </div>
+              <div class="row-end">
+                <button class="btn ghost left" data-go="s-choice">Choose another file</button>
+                <button class="btn ghost" data-go="s-health">Start a new profile instead</button>
+                <button class="btn primary" data-go="s-imp-run">Retry import</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- ============ 7 · IMPORT DONE ============ -->
+          <div class="screen s-imp" id="s-imp-done">
+            <div class="centerwrap" style="max-width:560px">
+              <div style="text-align:center">
+                <svg class="ic ok" viewBox="0 0 24 24" style="width:44px;height:44px"><circle cx="12" cy="12" r="9.5"/><path d="M7.5 12.5l3 3 6-6.5"/></svg>
+                <h1>Welcome back, Marie</h1>
+                <p class="lead">Everything is back exactly as it was.</p>
+              </div>
+              <div class="checklist">
+                <div class="checkline"><svg class="ic ok" viewBox="0 0 24 24"><circle cx="10" cy="8" r="3.4"/><path d="M4 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/></svg>
+                  <div>Profile, language &amp; preferences</div></div>
+                <div class="checkline"><svg class="ic ok" viewBox="0 0 24 24"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 9 9 0 0 1-3.9-.9L3 20l1-4.9a8.4 8.4 0 1 1 17-3.6z"/></svg>
+                  <div>1 284 conversations · 312 memories</div></div>
+                <div class="checkline"><svg class="ic ok" viewBox="0 0 24 24"><path d="M5 4h9l5 5v11H5z"/><path d="M14 4v5h5M8 13h8M8 16.5h5"/></svg>
+                  <div>46 documents (RAG) · 2 custom voices</div></div>
+                <div class="checkline"><svg class="ic ok" viewBox="0 0 24 24"><path d="M13 2 4.5 13.5H11L9.5 22 19 9.5h-6.5z"/></svg>
+                  <div>AI provider connected (keys restored)<small>If the export had no key, the app starts in the same keyless mode.</small></div></div>
+              </div>
+              <div class="infobox">
+                <svg class="ic warn" viewBox="0 0 24 24"><path d="M12 8v5M12 16.5v.5"/><circle cx="12" cy="12" r="9"/></svg>
+                <div>IGOOR needs one quick restart to apply plugins and settings.</div>
+              </div>
+              <button class="btn primary" data-go="s-home" style="align-self:center">Restart now</button>
+            </div>
+          </div>
+
+          <!-- ============ 8 · KEYLESS HOME ============ -->
+          <div class="screen" id="s-home">
+            <div class="minihome">
+              <div class="mh-header">Conversation · <b>2:47 PM · home</b> &nbsp;·&nbsp; recognised: <b>Marie (voice)</b></div>
+              <div class="mh-flow">
+                <svg class="ic dim" viewBox="0 0 24 24"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9zM19 16l.9 2.1L22 19l-2.1.9L19 22l-.9-2.1L16 19l2.1-.9z"/></svg>
+                <div class="t">AI suggestions are off</div>
+                <div class="d">Connect any AI provider to unlock predicted replies, memory and autocompletion — the rest of IGOOR works without it.</div>
+                <button class="btn">Connect an AI…</button>
+              </div>
+              <div class="mh-input">
+                <input type="text" value="Can you pass me the blue blanket please">
+                <button class="btn primary">
+                  <svg class="ic sm" viewBox="0 0 24 24"><path d="M5 12v-1a7 7 0 0 1 14 0v1M5 12a2 2 0 0 0 2 2h1v-4H6a2 2 0 0 0-1 2zM19 12a2 2 0 0 1-2 2h-1v-4h1a2 2 0 0 1 2 2zM12 14v4M9 21h6"/></svg>
+                  Speak
+                </button>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /win-body -->
+      </div><!-- /window -->
+
+      <div class="stagenav">
+        <button class="btn ghost" id="navPrev">&#8592; Prev</button>
+        <button class="btn primary" id="navNext">Next &#8594;</button>
+        <span class="pos" id="navPos"></span>
+      </div>
+      <div class="anno" id="anno"></div>
+    </div>
+  </div>
+
+  <!-- ======================= DESIGNER NOTES ======================= -->
+  <h2 class="sec">3 · Design notes &amp; open questions</h2>
+  <div class="notes">
+    <div class="note-card"><h4><span class="n">1</span>Merge "loading" and "choice"</h4>
+      Don't dead-end on a progress screen. Show the choice screen as soon as the backend answers, with the boot bar
+      pinned at the top (same visual as the header). Only <b>Import</b> waits for 100% — new-profile fields can be
+      filled while plugins load.</div>
+    <div class="note-card"><h4><span class="n">2</span>Language picks the offline ASR model</h4>
+      Every shipped language has a local model — catalog: en/fr (zipformer), it (Whisper), pt (NeMo), plus ko/zh and a
+      multilingual Whisper-tiny fallback for anything else. What varies is model type, size (42–136 MB "small") and
+      accuracy: the ASR step should say "dedicated vs. generic model", never "unavailable".</div>
+    <div class="note-card"><h4><span class="n">3</span>Name &amp; health are skippable</h4>
+      The very first screens may be navigated by an uncalibrated eye-tracker or by a caregiver. Every field is
+      big-target, optional and editable later. Consider a calm "do this with a caregiver" sub-caption.</div>
+    <div class="note-card"><h4><span class="n">4</span>Model download is a first-class step</h4>
+      25–125 MB on first run: show size, allow skip, never block (offline / metered connections). The download can
+      also continue in the background after the user enters the app.</div>
+    <div class="note-card"><h4><span class="n">5</span>Import failure &amp; restart are part of the flow</h4>
+      Bad ZIP / version / embedding-model mismatch all need a designed state with a clear way out (retry, other file,
+      or start new). A successful import ends with an explicit restart step.</div>
+    <div class="note-card"><h4><span class="n">6</span>Keyless main view needs an explicit "AI off" state</h4>
+      Today the Flow panel would just fail silently. Replace with the empty-state card shown in screen 8 — one click
+      to Settings &rarr; AI. Free typing &rarr; TTS already works with no key.</div>
+    <div class="note-card"><h4><span class="n">7</span>Accessibility bar</h4>
+      IGOOR rules: big buttons, minimal clicks, outline icons only (Phosphor light). The choice screen is the single
+      most important screen of the product — two giant targets, nothing else competing.</div>
+    <div class="note-card"><h4><span class="n">8</span>Existing users never see this</h4>
+      First-run = a persisted flag; users upgrading from a completed setup are grandfathered in silently. The current
+      "force onboarding" action remains for support.</div>
+  </div>
+
+</div>
+
+<script>
+(function(){
+  // ---------- screen registry ----------
+  var SCREENS = [
+    {id:'s-loading', title:'0 · Boot / loading', anno:'<b>Proposal:</b> this screen exists only until the backend answers (usually 2–5 s). It reuses the header boot-progress component — same bar, same "not ready" plugin list, bigger. <ul><li><span class="n">1</span>Auto-advances to the choice screen; never a dead end, never blocks on a single failed plugin.</li></ul>'},
+    {id:'s-choice', title:'1 · Welcome & choice (split screen)', anno:'<b>The core screen.</b> Two giant halves — new profile left, import right. <ul><li><span class="n">1</span>Boot progress pinned on top; Import disabled until 100%.</li><li><span class="n">2</span>Language is already known before this screen: Inno Setup wrote it to .env at install time; MSIX has no install wizard, so the app detects the Windows UI language. Keep the selector as a confirmation/correction only — it silently configures the ASR model and the voice, and determines which offline model is used (dedicated vs. generic fallback).</li><li><span class="n">3</span>Name optional, big input; caregiver-friendly copy.</li></ul>'},
+    {id:'s-health', title:'2 · Health state (new profile)', anno:'Same content as today\'s Bio &rarr; Health state field, promoted to its own page. <ul><li><span class="n">3</span>Skippable — one primary "Continue" and a quiet "Skip for now".</li><li>Reassurance line: stays local, only used in AI prompts, editable later.</li></ul>'},
+    {id:'s-asr', title:'3 · Offline speech recognition (optional download)', anno:'<ul><li><span class="n">2</span>The model follows the language chosen on screen 1: dedicated zipformer (fr/en), Whisper (it) or NeMo (pt) models, and a multilingual Whisper-tiny fallback for other languages — ASR is never unavailable, only dedicated vs. generic.</li><li><span class="n">4</span>Show size (25–136 MB), allow skip, background-capable. Default when downloaded: sherpa-onnx small, already the planned default.</li><li>Use the checkbox to preview the "generic fallback model" alternate state.</li></ul>'},
+    {id:'s-ready', title:'4 · All set (new profile complete)', anno:'Sets expectations for keyless mode: what works now vs. what waits for an AI key. <ul><li><span class="n">6</span>The "AI suggestions — off" line plants the seed for the later upsell, without nagging.</li></ul>'},
+    {id:'s-imp-run', title:'5 · Import — validating & restoring', anno:'Backed by the existing <code>/api/data/import</code> endpoint (upload &rarr; validate &rarr; restore). <ul><li><span class="n">5</span>Steps mirror the real importer: settings, conversations/memories (FAISS + embedding-model check), documents & voices.</li></ul>'},
+    {id:'s-imp-err', title:'6 · Import — error recovery', anno:'<ul><li><span class="n">5</span>Every failure mode gets one designed card and three escapes: retry, pick another file, or fall through to new-profile (screen 2). Nothing is changed on disk until validation passes.</li></ul>'},
+    {id:'s-imp-done', title:'7 · Import — done & restart', anno:'<ul><li><span class="n">5</span>Import rewrites settings and plugin data, so it ends with an explicit, single-click restart. If the export contained AI keys the user lands in full IGOOR; if not, the keyless mode of screen 8.</li></ul>'},
+    {id:'s-home', title:'8 · After onboarding — keyless main view', anno:'How the daily view should read with no AI connected. <ul><li><span class="n">6</span>Flow area becomes an empty-state card with a one-click path to Settings &rarr; AI. The input bar (physical or on-screen keyboard) speaks through the default native TTS — this path needs no key today.</li></ul>'}
+  ];
+  var order = SCREENS.map(function(s){return s.id});
+  var cur = 0;
+
+  var railBtns = document.querySelectorAll('.rail button');
+  var screens = document.querySelectorAll('.screen');
+  var titleEl = document.getElementById('screenTitle');
+  var annoEl  = document.getElementById('anno');
+  var posEl   = document.getElementById('navPos');
+
+  function show(i){
+    cur = (i + order.length) % order.length;
+    screens.forEach(function(s){ s.classList.toggle('active', s.id === order[cur]); });
+    railBtns.forEach(function(b){ b.classList.toggle('active', b.dataset.s === order[cur]); });
+    var meta = SCREENS[cur];
+    titleEl.innerHTML = '<span class="badge">SCREEN</span>' + meta.title;
+    annoEl.innerHTML = meta.anno;
+    posEl.textContent = (cur+1) + ' / ' + order.length;
+    stopTimers();
+    if(order[cur]==='s-loading') runLoading();
+    if(order[cur]==='s-choice') runChoiceBoot();
+  }
+  railBtns.forEach(function(b){ b.addEventListener('click', function(){ show(order.indexOf(b.dataset.s)); }); });
+  document.getElementById('navPrev').addEventListener('click', function(){ show(cur-1); });
+  document.getElementById('navNext').addEventListener('click', function(){ show(cur+1); });
+  document.querySelectorAll('[data-go]').forEach(function(b){
+    b.addEventListener('click', function(){ show(order.indexOf(b.dataset.go)); });
+  });
+
+  // ---------- timers ----------
+  var timers = [];
+  function after(ms, fn){ timers.push(setTimeout(fn, ms)); }
+  function stopTimers(){ timers.forEach(clearTimeout); timers = []; }
+
+  // loading screen animation
+  function runLoading(){
+    var fill = document.getElementById('loadfill');
+    var txt  = document.getElementById('loadtxt');
+    var nr   = document.getElementById('notready');
+    var go   = document.getElementById('loadGo');
+    var plugins = ['memory','rag','asrjs','flow','conversation','speakerid','recorder'];
+    var total = 17, ready = 0, pi = 0;
+    go.style.visibility = 'hidden'; nr.innerHTML = ''; fill.style.width = '0%';
+    function tick(){
+      ready += 1 + (ready > 10 ? 1 : 0);
+      if(ready > total) ready = total;
+      fill.style.width = (ready/total*100) + '%';
+      txt.textContent = ready >= total ? 'All plugins ready' : 'Loading plugins… ' + ready + ' / ' + total;
+      if(pi < plugins.length && ready < total){
+        nr.innerHTML = 'still starting: ' + plugins.slice(pi, plugins.length).map(function(p){return '<span>'+p+'</span>'}).join(' ');
+        pi += (ready > 8 ? 2 : 1);
+      } else {
+        nr.innerHTML = '<span style="color:#8fce6b">ready</span>';
+        txt.className = 'boottxt bootdone';
+        go.style.visibility = 'visible';
+      }
+      if(ready < total) after(520, tick);
+    }
+    after(300, tick);
+    go.onclick = function(){ show(1); };
+  }
+
+  // choice screen: boot bar finishing in background
+  function runChoiceBoot(){
+    var fill = document.getElementById('choiceBoot');
+    var txt  = document.getElementById('choiceBootTxt');
+    var browse = document.getElementById('browseBtn');
+    var ready = 11, total = 17;
+    browse.disabled = true;
+    fill.style.width = (ready/total*100) + '%';
+    function tick(){
+      ready++;
+      fill.style.width = (ready/total*100) + '%';
+      txt.textContent = ready >= total ? 'Ready' : 'Loading… ' + ready + ' / ' + total;
+      if(ready >= total){
+        txt.className = 'boottxt bootdone';
+        browse.disabled = false;
+        return;
+      }
+      after(700, tick);
+    }
+    after(800, tick);
+  }
+
+  // ASR download simulation
+  var dlRunning = false;
+  document.getElementById('dlBtn').addEventListener('click', function(){
+    if(dlRunning) return;
+    dlRunning = true;
+    var fill = document.getElementById('dlfill');
+    var st   = document.getElementById('dlstate');
+    var btn  = this;
+    var p = 0;
+    btn.disabled = true;
+    function tick(){
+      p = Math.min(100, p + 4 + Math.random()*9);
+      fill.style.width = p + '%';
+      st.textContent = p >= 100 ? 'Downloaded · model ready on this computer'
+                                : 'Downloading… ' + Math.round(p) + '%  (122 MB)';
+      if(p < 100){ after(220, tick); }
+      else {
+        btn.disabled = false; btn.textContent = 'Continue';
+        btn.dataset.go = 's-ready';
+        dlRunning = false;
+      }
+    }
+    tick();
+  });
+  document.getElementById('toggleUnsupported').addEventListener('change', function(){
+    document.getElementById('asrUnsupported').style.display = this.checked ? 'flex' : 'none';
+    document.getElementById('readyAsr').style.opacity = this.checked ? '.45' : '1';
+  });
+
+  // import simulation
+  var impTimers = [];
+  document.getElementById('impErrBtn').addEventListener('click', function(){ show(order.indexOf('s-imp-err')); });
+  function runImport(){
+    var fill = document.getElementById('impFill');
+    var steps = ['st1','st2','st3','st4'].map(function(id){return document.getElementById(id)});
+    fill.style.width = '4%';
+    steps.forEach(function(s,i){ s.className = 'step' + (i===0?' done': i===1?' active':''); });
+    var p = 8;
+    function tick(){
+      p = Math.min(100, p + 5 + Math.random()*8);
+      fill.style.width = p + '%';
+      var idx = Math.min(3, Math.floor(p/25));
+      steps.forEach(function(s,i){
+        s.className = 'step' + (i < idx ? ' done' : i === idx ? ' active' : '');
+      });
+      if(p < 100){ impTimers.push(setTimeout(tick, 380)); }
+      else {
+        steps.forEach(function(s){ s.className = 'step done'; });
+        impTimers.push(setTimeout(function(){ show(order.indexOf('s-imp-done')); }, 700));
+      }
+    }
+    impTimers.push(setTimeout(tick, 500));
+  }
+  // hook import run whenever that screen is shown
+  var origShow = show;
+  show = function(i){
+    origShow(i);
+    if(order[cur] === 's-imp-run'){
+      impTimers.forEach(clearTimeout); impTimers = [];
+      runImport();
+    }
+  };
+  // rebind nav to wrapped show
+  document.getElementById('navPrev').onclick = function(){ show(cur-1); };
+  document.getElementById('navNext').onclick = function(){ show(cur+1); };
+  railBtns.forEach(function(b){ b.onclick = function(){ show(order.indexOf(b.dataset.s)); }; });
+  document.querySelectorAll('[data-go]').forEach(function(b){
+    b.onclick = function(){ show(order.indexOf(b.dataset.go)); };
+  });
+
+  show(0);
+})();
+</script>
+</body>
+</html>

@@ -12,20 +12,27 @@ from pathlib import Path
 from collections import deque
 from context_manager import context_manager
 
-from fastapi import APIRouter, HTTPException, File, UploadFile
+from fastapi import APIRouter, HTTPException, File, Form, UploadFile
 from plugin_manager import hookimpl
 from plugins.baseplugin.baseplugin import Baseplugin
-from .speechbrain import SpeakerIdentificationSystem
-import time  # For timestamp
 from types import SimpleNamespace
 
 
 class Speakerid(Baseplugin):
     # Deterministic-commit policy (Slice 2f). confidence_threshold_high (loaded from
-    # settings, 0.62) is the COMMIT bar; these tune how a speaker reaches it.
+    # settings, 0.51) is the COMMIT bar; these tune how a speaker reaches it.
     COMMIT_MARGIN = 0.08      # fast-path: min lead over the runner-up to commit at once
     COMMIT_VOTES = 3          # slow path: min agreeing detections (majority of the window)
     EVIDENCE_WINDOW = 5       # how many recent detections the evidence window keeps
+    SILENCE_RMS = 0.005       # buffers below this RMS are silence/noise — skip the forward pass
+
+    # Folder-name hardening: the speaker's name becomes the voices/<name>/ folder.
+    RESERVED_NAMES = frozenset(  # Windows device names — unusable as folders (with any extension)
+        {"CON", "PRN", "AUX", "NUL", "CONIN$", "CONOUT$"}
+        | {f"COM{i}" for i in range(1, 10)}
+        | {f"LPT{i}" for i in range(1, 10)}
+    )
+    MAX_NAME_LEN = 100        # the APPDATA path prefix + MAX_PATH leave ~190 chars; 100 is plenty for a person name
 
     def __init__(self, plugin_name, pm):
         self.pm = pm
@@ -39,30 +46,44 @@ class Speakerid(Baseplugin):
         self.speaker_system = None
         self.audio_buffer = None
         self.buffer_lock = threading.Lock()
-        
+
         # Processing state
         self.is_processing = False
         self.last_identification_time = 0
         self.current_utterance_start = 0
+        # One inference at a time: chunks can now be processed off the event loop,
+        # so a slow forward pass must not overlap the next chunk's pass.
+        self._infer_busy = False
+        # Last (name, status) pushed as TENTATIVE — used to dedup identical pushes.
+        self._last_tentative_push = None
         
         # Ready status tracking
         self.speaker_system_ready = False
         self.initialization_complete = False
+        self._init_thread_running = False
         self._current_status = {
             "status": "not_initialized",
             "message": "SpeakerID not yet initialized",
             "timestamp": time.time()
         }
         
-        # Settings (will be loaded in startup)
-        self.confidence_threshold_high = 0.7
-        self.confidence_threshold_low = 0.5
+        # Settings (will be loaded in startup) — defaults mirror settings.json
+        self.confidence_threshold_high = 0.51
+        self.confidence_threshold_low = 0.45
         self.buffer_duration = 2.0
         self.min_audio_duration = 1.0
         self.identification_cooldown = 3.0
-        
+        # Pre-warm staleness: a pre-warmed speaker must be re-confirmed by fresh
+        # detections within this many seconds, or it reverts to unknown. Without
+        # it, silence never clears a pre-warm (no-match results don't touch the
+        # context), so a name detected hours ago could be promoted+locked at the
+        # next conversation open.
+        self.prewarm_ttl = 30.0
+        self._last_prewarm_refresh = 0.0
+
         # Audio settings - will be updated based on actual input
-        self.sample_rate = 48000  # Default to actual browser rate
+        self.sample_rate = 16000  # chunks arrive pre-downsampled to 16kHz by the asrjs worklet
+        self._buffer_max_bytes = int(self.buffer_duration * self.sample_rate) * 2
         
         # Speaker ID status
         self.reset_state()
@@ -78,6 +99,9 @@ class Speakerid(Baseplugin):
         self.is_processing = False
         self.last_identification_time = 0
         self.current_utterance_start = 0
+        self._infer_busy = False
+        self._last_tentative_push = None
+        self._last_prewarm_refresh = 0.0
         # Deterministic-commit state: once a speaker is committed, detection LOCKS
         # for the rest of the conversation (cleared here on abandon/reset).
         self.committed_speaker = None
@@ -117,6 +141,11 @@ class Speakerid(Baseplugin):
         even while locked. Idempotent: only acts on the first message."""
         if self.conversation_active:
             return
+        # A stale pre-warm must not be promoted: expire it first. Silence never
+        # re-confirms anything, and chunks may have stopped entirely (mic off,
+        # asrjs down) while the room was quiet — so the promotion path can't rely
+        # on the chunk heartbeat having caught the expiry.
+        self._expire_stale_prewarm()
         self.conversation_active = True
         self.evidence_window = deque(maxlen=self.EVIDENCE_WINDOW)   # fresh voting
         with self.buffer_lock:
@@ -165,10 +194,16 @@ class Speakerid(Baseplugin):
         # Refresh the privacy gate if our own settings changed (e.g. via the standard
         # settings UI rather than the /voice_profiles endpoint).
         if plugin_name == self.plugin_name and isinstance(new_settings, dict):
+            was_enabled = self.voice_profiles_enabled
             self.voice_profiles_enabled = bool(new_settings.get("voice_profiles_enabled", False))
             self._current_status["voice_profiles_enabled"] = self.voice_profiles_enabled
             self.assignment_popup_enabled = bool(new_settings.get("assignment_popup_enabled", False))
             self._current_status["assignment_popup_enabled"] = self.assignment_popup_enabled
+            # Lazy enable: switched on at runtime → load SpeechBrain now in the
+            # background (no restart). Switching off just closes the gate; the
+            # model stays resident until the app restarts.
+            if self.voice_profiles_enabled and not was_enabled:
+                self._start_speaker_system_init()
 
     @hookimpl
     def get_current_speaker(self):
@@ -289,7 +324,7 @@ class Speakerid(Baseplugin):
         this makes it live). Guarded on the system being ready; if not, startup will
         load the restored voices/."""
         if not self.speaker_system or not self.speaker_system_ready:
-            self.logger.info("data_imported: speaker system not ready — startup will load the restored voices/")
+            self.logger.info("data_imported: speaker system not ready — restored voices/ load when the system initializes (startup or enabling voice profiles)")
             return
         try:
             await asyncio.to_thread(self.speaker_system.rebuild)
@@ -309,11 +344,12 @@ class Speakerid(Baseplugin):
             self.settings = self.get_my_settings()
             self.logger.info(f"Settings loaded successfully: {type(self.settings)}")
             
-            self.confidence_threshold_high = self.settings.get("confidence_threshold_high", 0.7)
-            self.confidence_threshold_low = self.settings.get("confidence_threshold_low", 0.4)  # Match frontend threshold
+            self.confidence_threshold_high = self.settings.get("confidence_threshold_high", 0.51)
+            self.confidence_threshold_low = self.settings.get("confidence_threshold_low", 0.45)
             self.buffer_duration = self.settings.get("buffer_duration", 2.0)
             self.min_audio_duration = self.settings.get("min_audio_duration", 1.0)
             self.identification_cooldown = self.settings.get("identification_cooldown", 3.0)
+            self.prewarm_ttl = self.settings.get("prewarm_ttl", 30.0)
             # Privacy gate: when off, NO mic audio is accepted for identification (asrjs
             # won't post, and the endpoints early-return). Default off — opt-in.
             self.voice_profiles_enabled = bool(self.settings.get("voice_profiles_enabled", False))
@@ -327,11 +363,13 @@ class Speakerid(Baseplugin):
             # speakers table, creates records if missing).
             self._migrate_schema()
 
-            # Initialize audio buffer AFTER settings
+            # Initialize audio buffer AFTER settings. Rolling int16 byte buffer:
+            # appends are memcpys and reads are np.frombuffer — no per-sample
+            # Python looping on the hot path.
             self.logger.info("Initializing audio buffer...")
-            buffer_size = int(self.buffer_duration * self.sample_rate)
-            self.audio_buffer = deque(maxlen=buffer_size)
-            self.logger.info(f"Audio buffer initialized: {buffer_size} samples ({self.buffer_duration}s duration) at {self.sample_rate} Hz")
+            self._buffer_max_bytes = int(self.buffer_duration * self.sample_rate) * 2
+            self.audio_buffer = bytearray()
+            self.logger.info(f"Audio buffer initialized: {self._buffer_max_bytes // 2} samples ({self.buffer_duration}s duration) at {self.sample_rate} Hz")
             
             # Initialize speaker identification system
             voices_dir = os.path.join(self.plugin_folder, "voices")
@@ -343,56 +381,21 @@ class Speakerid(Baseplugin):
                 os.makedirs(voices_dir, exist_ok=True)
                 self.logger.info(f"Created voices directory: {voices_dir}")
             
-            # Initialize speaker identification system in background thread
-            self.logger.info("Initializing SpeechBrain system...")
-            
-            def init_speaker_system():
-                try:
-                    self.speaker_system = SpeakerIdentificationSystem(
-                        voices_dir=voices_dir, 
-                        embeddings_file=embeddings_file,
-                        plugin_dir=self.plugin_folder  # Pass plugin folder for model storage
-                    )
-                    self.speaker_system_ready = True
-                    self.initialization_complete = True
-                    
-                    speaker_count = len(self.speaker_system.speaker_names) if self.speaker_system.speaker_names else 0
-                    self.logger.info(f"SpeakerID plugin initialized with {speaker_count} enrolled speakers")
-                    
-                    # Store status for frontend to fetch later
-                    self._current_status = {
-                        "status": "ready",
-                        "speaker_count": speaker_count,
-                        "message": f"Ready - {speaker_count} speakers enrolled",
-                        "timestamp": time.time()
-                    }
-                    # Reflect readiness in the app boot-progress lifecycle.
-                    self.mark_ready()
-                except Exception as e:
-                    self.logger.error(f"Failed to initialize speaker system: {e}")
-                    self.initialization_complete = True
-                    self.speaker_system_ready = False
-                    
-                    # Store error status for frontend to fetch later
-                    self._current_status = {
-                        "status": "error",
-                        "error": str(e),
-                        "message": "Failed to initialize speaker identification",
-                        "timestamp": time.time()
-                    }
-            
-            # Start initialization in background thread to avoid blocking
-            import threading
-            init_thread = threading.Thread(target=init_speaker_system, daemon=True)
-            init_thread.start()
-            self.logger.info("SpeechBrain initialization started in background thread")
-            
-            # Initialize default status
-            self._current_status = {
-                "status": "loading",
-                "message": "Initializing speaker identification system...",
-                "timestamp": time.time()
-            }
+            if self.voice_profiles_enabled:
+                self._start_speaker_system_init(voices_dir, embeddings_file)
+            else:
+                # SpeechBrain/torch stay unloaded unless voice profiles are enabled
+                # (default off): eager loading cost ~100-300 MB of RAM for a feature
+                # the privacy gate kept switched off anyway. Enabling them at runtime
+                # loads the model lazily — no restart needed.
+                self.initialization_complete = True
+                self._current_status = {
+                    "status": "disabled",
+                    "message": "Voice profiles are disabled - speaker recognition not loaded",
+                    "timestamp": time.time()
+                }
+                self.mark_ready()
+                self.logger.info("Voice profiles disabled: SpeechBrain not loaded")
             
             self._ensure_router()
             fastapi_app = getattr(self.pm, "fastapi_app", None)
@@ -414,11 +417,96 @@ class Speakerid(Baseplugin):
             self.is_loaded = False
             # Initialize minimal state to prevent crashes
             self.speaker_system = None
-            self.audio_buffer = deque(maxlen=32000)
+            self.audio_buffer = bytearray()
+            self._buffer_max_bytes = 64000
+
+    def _start_speaker_system_init(self, voices_dir=None, embeddings_file=None):
+        """Load the SpeechBrain identification system in a background thread.
+
+        Called from startup() when voice profiles are enabled, and lazily when
+        they are switched on at runtime (settings_updated hook or the
+        /voice_profiles endpoint) — no restart needed. No-op when a load is
+        already running or the system is already up."""
+        if self._init_thread_running:
+            return
+        if self.speaker_system is not None and self.speaker_system_ready:
+            return
+        if voices_dir is None:
+            voices_dir = os.path.join(self.plugin_folder, "voices")
+        if embeddings_file is None:
+            embeddings_file = os.path.join(self.plugin_folder, "speaker_embeddings.pkl")
+
+        self._init_thread_running = True
+        self.logger.info("Initializing SpeechBrain system...")
+        self._current_status = {
+            "status": "loading",
+            "message": "Initializing speaker identification system...",
+            "timestamp": time.time()
+        }
+
+        def init_speaker_system():
+            try:
+                # Deferred import keeps torch/speechbrain/faiss out of RAM unless
+                # the system is actually used (the module-top import used to pull
+                # them in at plugin import time).
+                from .speechbrain import SpeakerIdentificationSystem
+                self.speaker_system = SpeakerIdentificationSystem(
+                    voices_dir=voices_dir,
+                    embeddings_file=embeddings_file,
+                    plugin_dir=self.plugin_folder,  # Pass plugin folder for model storage
+                    logger=self.logger
+                )
+                self.speaker_system_ready = True
+                self.initialization_complete = True
+
+                speaker_count = len(self.speaker_system.speaker_names) if self.speaker_system.speaker_names else 0
+                self.logger.info(f"SpeakerID plugin initialized with {speaker_count} enrolled speakers")
+
+                # Warm-up pass: absorb torch's lazy init (kernel dispatch, allocator)
+                # here in the background so the first real chunk after speech starts
+                # doesn't pay it mid-conversation.
+                try:
+                    self.speaker_system.identify_speaker(
+                        np.zeros(16000, dtype=np.float32), sample_rate=16000
+                    )
+                except Exception as warm_exc:
+                    self.logger.warning(f"Warm-up pass failed (non-fatal): {warm_exc}")
+
+                # Store status for frontend to fetch later
+                self._current_status = {
+                    "status": "ready",
+                    "speaker_count": speaker_count,
+                    "message": f"Ready - {speaker_count} speakers enrolled",
+                    "timestamp": time.time()
+                }
+                # Reflect readiness in the app boot-progress lifecycle.
+                self.mark_ready()
+            except Exception as e:
+                self.logger.error(f"Failed to initialize speaker system: {e}")
+                self.initialization_complete = True
+                self.speaker_system_ready = False
+
+                # Store error status for frontend to fetch later
+                self._current_status = {
+                    "status": "error",
+                    "error": str(e),
+                    "message": "Failed to initialize speaker identification",
+                    "timestamp": time.time()
+                }
+            finally:
+                self._init_thread_running = False
+
+        # Start initialization in background thread to avoid blocking
+        init_thread = threading.Thread(target=init_speaker_system, daemon=True)
+        init_thread.start()
+        self.logger.info("SpeechBrain initialization started in background thread")
 
     @hookimpl
-    def process_audio_chunk(self, audio_data: bytes, sample_rate: int = 48000):
-        """Process incoming audio chunks for real-time speaker identification"""
+    def process_audio_chunk(self, audio_data: bytes, sample_rate: int = 16000):
+        """Process incoming audio chunks for real-time speaker identification.
+        audio_data is raw 16-bit little-endian mono PCM at sample_rate. Runs on the
+        caller's thread (the REST endpoint wraps it in asyncio.to_thread), so all
+        shared-state mutation happens under buffer_lock."""
         # Privacy gate: when voice profiles are disabled, accept no mic audio.
         if not self.voice_profiles_enabled:
             return {"status": "disabled", "message": "Voice profiles are disabled"}
@@ -426,13 +514,7 @@ class Speakerid(Baseplugin):
         # match an enrolled speaker — skip identification (and don't touch the buffer).
         if self.identification_paused:
             return {"status": "paused", "message": "Identification paused during TTS"}
-        # Update sample rate if different from current
-        if sample_rate != self.sample_rate:
-            self.sample_rate = sample_rate
-            buffer_size = int(self.buffer_duration * self.sample_rate)
-            self.audio_buffer = deque(maxlen=buffer_size)
-            self.logger.info(f"Updated audio buffer for new sample rate: {sample_rate} Hz ({buffer_size} samples)")
-        
+
         # Check if speaker system is ready
         if self.speaker_system is None or not self.speaker_system_ready:
             if not self.initialization_complete:
@@ -441,62 +523,126 @@ class Speakerid(Baseplugin):
             else:
                 # Initialization completed but failed
                 return {"status": "error", "message": "SpeakerID system failed to initialize"}
-        
+
         # Skip chunks too small to identify.
         if len(audio_data) < 100:
             return {"status": "small_chunk", "message": "Audio chunk too small to process"}
-        
-        # Convert bytes to numpy array (16-bit PCM)
-        audio_array = np.frombuffer(audio_data, dtype=np.int16).astype(np.float32) / 32768.0
-        
+
+        # Chunk heartbeat: with ~2s chunks this re-checks pre-warm staleness often
+        # enough that an aged-out name disappears from the context/topbar within a
+        # couple of seconds of the TTL lapsing (silence itself runs no detections).
+        self._expire_stale_prewarm()
+
         with self.buffer_lock:
-            # Add to buffer
-            chunk_samples = len(audio_array)
-            for sample in audio_array:
-                self.audio_buffer.append(sample)
-            
+            if self.audio_buffer is None:
+                self.audio_buffer = bytearray()
+
+            # Resize the rolling buffer if the incoming rate changed.
+            if sample_rate != self.sample_rate:
+                self.sample_rate = sample_rate
+                self._buffer_max_bytes = int(self.buffer_duration * sample_rate) * 2
+                del self.audio_buffer[:-self._buffer_max_bytes]
+                self.logger.info(
+                    f"Updated audio buffer for new sample rate: {sample_rate} Hz "
+                    f"({self._buffer_max_bytes // 2} samples)"
+                )
+
+            # Rolling int16 byte buffer: byte appends are memcpys, and reads below are
+            # np.frombuffer — the old per-sample Python deque loop boxed every sample.
+            self.audio_buffer.extend(audio_data)
+            if len(self.audio_buffer) % 2:
+                del self.audio_buffer[-1:]  # stray trailing byte from a truncated upload
+            if len(self.audio_buffer) > self._buffer_max_bytes:
+                del self.audio_buffer[:-self._buffer_max_bytes]
+
             # Check if we have enough audio and should process
-            buffer_duration = len(self.audio_buffer) / sample_rate
+            buffer_duration = (len(self.audio_buffer) // 2) / sample_rate
             current_time = time.time()
-            
+
             # Start new utterance if not processing
             if not self.is_processing and buffer_duration >= self.min_audio_duration:
                 self.current_utterance_start = current_time
                 self.is_processing = True
 
-            # Process if we're in an utterance and enough time has passed
-            if (self.is_processing and 
-                buffer_duration >= self.min_audio_duration and
-                current_time - self.last_identification_time >= self.identification_cooldown):
-                
-                self._process_buffer_for_identification(sample_rate)
-                return {"status": "processed", "message": "Audio chunk processed successfully"}
-            
-            return {"status": "buffering", "message": f"Buffering audio ({buffer_duration:.1f}s)", "buffer_duration": buffer_duration}
-    
-    def _process_buffer_for_identification(self, sample_rate: int):
-        """Process the current audio buffer for speaker identification"""
+            # Process if we're in an utterance and enough time has passed.
+            # Copy the audio out under the lock; the (slow) inference itself runs
+            # with the lock released so the next chunk can buffer meanwhile.
+            should_process = (
+                self.is_processing
+                and buffer_duration >= self.min_audio_duration
+                and current_time - self.last_identification_time >= self.identification_cooldown
+            )
+            audio_array = (
+                np.frombuffer(self.audio_buffer, dtype=np.int16).astype(np.float32) / 32768.0
+                if should_process
+                else None
+            )
+
+        if should_process:
+            self._process_buffer_for_identification(audio_array, sample_rate)
+            return {"status": "processed", "message": "Audio chunk processed successfully"}
+
+        return {"status": "buffering", "message": f"Buffering audio ({buffer_duration:.1f}s)", "buffer_duration": buffer_duration}
+
+    def _process_buffer_for_identification(self, audio_array: np.ndarray, sample_rate: int):
+        """Run speaker identification on one snapshot of the audio buffer (a private
+        copy — the buffer lock is NOT held here)."""
         try:
             # LOCKED: a speaker is committed for this conversation — skip the
             # (expensive) identification entirely until abandon/reset clears the lock.
             if self.committed_speaker is not None:
                 return
 
-            # Convert buffer to numpy array
-            audio_array = np.array(list(self.audio_buffer))
+            # One inference at a time: skip (don't queue) while a previous buffer is
+            # still being embedded — the next chunk arrives with fresher audio anyway.
+            if self._infer_busy:
+                self.logger.debug("Identification already in flight — skipping this buffer")
+                return
 
-            # Identify speaker
-            match, confidence, top_results = self.speaker_system.identify_speaker(
-                audio_array,
-                sample_rate=sample_rate,
-                threshold=self.confidence_threshold_low,  # low bar = "worth showing"
-                top_k=3
-            )
+            # Silence/noise gate: an ECAPA embedding of non-speech is meaningless and
+            # would burn a forward pass and pollute the evidence window.
+            rms = float(np.sqrt(np.mean(np.square(audio_array))))
+            if rms < self.SILENCE_RMS:
+                self.logger.debug(f"Skipping identification: buffer is silence/noise (RMS {rms:.4f})")
+                return
+
+            self._infer_busy = True
+            try:
+                match, confidence, top_results = self.speaker_system.identify_speaker(
+                    audio_array,
+                    sample_rate=sample_rate,
+                    threshold=self.confidence_threshold_low,  # low bar = "worth showing"
+                    top_k=3
+                )
+            finally:
+                self._infer_busy = False
 
             self.last_identification_time = time.time()
             self._handle_detection(match, confidence, top_results)
         except Exception as e:
             self.logger.error(f"Error during speaker identification: {e}")
+
+    def _expire_stale_prewarm(self):
+        """Revert a pre-warmed speaker to unknown when it hasn't been re-confirmed by
+        a fresh detection within prewarm_ttl seconds. No-match results and silence
+        never touch the context, so without this a pre-warm lingers forever and would
+        be promoted + locked at the next conversation open no matter how stale."""
+        if self._last_prewarm_refresh <= 0:
+            return
+        info = (context_manager.get_context() or {}).get("speaker_info") or {}
+        name = info.get("name")
+        if info.get("status") != "prewarmed" or not name or name == "unknown":
+            self._last_prewarm_refresh = 0.0   # pre-warm already gone — drop the timer
+            return
+        if time.time() - self._last_prewarm_refresh <= self.prewarm_ttl:
+            return
+        self._last_prewarm_refresh = 0.0
+        self.evidence_window.clear()           # stale votes must not seed the next commit
+        self.logger.info(
+            f"Pre-warmed speaker '{name}' expired — no re-confirming detection within "
+            f"{self.prewarm_ttl:.0f}s, reverting to unknown"
+        )
+        self._update_speaker_context("unknown", 0.0, "unknown")
     
 
     
@@ -512,6 +658,9 @@ class Speakerid(Baseplugin):
         it to the push is safe without a .vue change."""
         ts = time.time()
         name = speaker_name if speaker_name else "unknown"
+        # A confirmed/manual push changes the topbar — let the next identical-looking
+        # tentative push through even if it matches the last tentative we sent.
+        self._last_tentative_push = None
         context_manager.update_context("speaker_info", {
             "name": name,
             "status": status,
@@ -557,6 +706,9 @@ class Speakerid(Baseplugin):
             self.update_my_settings("voice_profiles_enabled", enabled)
             self.voice_profiles_enabled = enabled
             self._current_status["voice_profiles_enabled"] = enabled
+            # Lazy enable: load SpeechBrain now if it isn't loaded yet (no restart).
+            if enabled:
+                self._start_speaker_system_init()
             self.logger.info(f"voice_profiles_enabled set to {enabled}")
             return {"voice_profiles_enabled": enabled}
 
@@ -616,11 +768,10 @@ class Speakerid(Baseplugin):
             # Report per-speaker whether a voice profile exists. A name-only speaker
             # (added without recording) has no voices/<name>/ folder → has_voice=False,
             # so it is selectable for manual tagging but not auto-recognized.
-            voices_dir = os.path.join(self.plugin_folder, "voices")
             for row in rows:
-                speaker_dir = os.path.join(voices_dir, row.get("name", ""))
+                speaker_dir = self._safe_speaker_dir(row.get("name", ""))
                 wav_count = 0
-                if row.get("name") and os.path.isdir(speaker_dir):
+                if speaker_dir and os.path.isdir(speaker_dir):
                     wav_count = sum(1 for f in os.listdir(speaker_dir) if f.lower().endswith(".wav"))
                 row["has_voice"] = wav_count > 0
                 row["sample_count"] = wav_count
@@ -630,18 +781,35 @@ class Speakerid(Baseplugin):
         async def add_speaker(payload: Dict[str, Any]):
             name = self._sanitize_name(payload.get("name", ""))
             if not name:
-                raise HTTPException(status_code=400, detail="name is required")
+                raise HTTPException(
+                    status_code=400,
+                    detail="name is required, reserved, too long, or has no usable characters",
+                )
             # Name-only by design: no voices/ folder, no embedding. The UNIQUE
             # constraint is a safety net; check first to avoid exception-as-control-flow.
+            # NOCASE: Windows folders are case-insensitive but SQLite UNIQUE is not —
+            # "jessica" must reuse the "Jessica" row, not silently share her voice folder.
             existing = self.db_execute_sync(
-                "SELECT id, name, freq FROM speakers WHERE name = ?", (name,)
+                "SELECT id, name, freq FROM speakers WHERE name = ? COLLATE NOCASE", (name,)
             )
             if existing:
                 return existing[0]
+            # Same clash from the other side: a voices/<name>/ folder that arrived
+            # without a DB row (e.g. an import) — Windows compares folder names
+            # case-insensitively too.
+            voices_dir = os.path.join(self.plugin_folder, "voices")
+            if os.path.isdir(voices_dir) and any(
+                d != name and d.lower() == name.lower() for d in os.listdir(voices_dir)
+            ):
+                raise HTTPException(
+                    status_code=409, detail="a voices folder with a similar name already exists"
+                )
             self.db_execute_sync("INSERT INTO speakers (name) VALUES (?)", (name,))
             row = self.db_execute_sync(
                 "SELECT id, name, freq FROM speakers WHERE name = ?", (name,)
             )
+            # Roster changed — push it: the topbar component fetches speakers once at mount.
+            self.send_message_to_frontend({"type": "speakerid_speakers_changed"})
             return row[0] if row else {"id": None, "name": name, "freq": 0}
 
         @self.router.delete("/speakers/{speaker_id}")
@@ -655,12 +823,17 @@ class Speakerid(Baseplugin):
             self.db_execute_sync("DELETE FROM records WHERE speakers_id = ?", (speaker_id,))
             self.db_execute_sync("DELETE FROM speakers WHERE id = ?", (speaker_id,))
             # Remove the voice folder so recognition stops, then rebuild the index.
-            speaker_dir = os.path.join(self.plugin_folder, "voices", name)
-            if os.path.isdir(speaker_dir):
-                shutil.rmtree(speaker_dir, ignore_errors=True)
-            if self.speaker_system is not None and self.speaker_system_ready:
-                await asyncio.to_thread(self.speaker_system.rebuild_speaker, name)
-                self._current_status["speaker_count"] = len(self.speaker_system.speaker_names)
+            # Only when the name resolves safely inside voices/ (crafted-import guard).
+            speaker_dir = self._safe_speaker_dir(name)
+            if speaker_dir is None:
+                self.logger.warning(f"delete_speaker: unsafe stored name {name!r} — rows deleted, files left alone")
+            else:
+                if os.path.isdir(speaker_dir):
+                    shutil.rmtree(speaker_dir, ignore_errors=True)
+                if self.speaker_system is not None and self.speaker_system_ready:
+                    await asyncio.to_thread(self.speaker_system.rebuild_speaker, name)
+                    self._current_status["speaker_count"] = len(self.speaker_system.speaker_names)
+            self.send_message_to_frontend({"type": "speakerid_speakers_changed"})
             return {"id": speaker_id, "name": name, "deleted": True}
 
         @self.router.post("/reset_voice")
@@ -672,17 +845,21 @@ class Speakerid(Baseplugin):
             if not rows:
                 raise HTTPException(status_code=404, detail=f"No speaker with id {speaker_id}")
             name = rows[0]["name"]
-            speaker_dir = os.path.join(self.plugin_folder, "voices", name)
-            if os.path.isdir(speaker_dir):
-                for old in Path(speaker_dir).glob("*.wav"):
-                    try:
-                        old.unlink()
-                    except OSError:
-                        pass
-            if self.speaker_system is not None and self.speaker_system_ready:
-                await asyncio.to_thread(self.speaker_system.rebuild_speaker, name)
-                self._current_status["speaker_count"] = len(self.speaker_system.speaker_names)
+            speaker_dir = self._safe_speaker_dir(name)
+            if speaker_dir is None:
+                self.logger.warning(f"reset_voice: unsafe stored name {name!r} — no files touched")
+            else:
+                if os.path.isdir(speaker_dir):
+                    for old in Path(speaker_dir).glob("*.wav"):
+                        try:
+                            old.unlink()
+                        except OSError:
+                            pass
+                if self.speaker_system is not None and self.speaker_system_ready:
+                    await asyncio.to_thread(self.speaker_system.rebuild_speaker, name)
+                    self._current_status["speaker_count"] = len(self.speaker_system.speaker_names)
             self.logger.info(f"Voice reset for '{name}' — all samples deleted")
+            self.send_message_to_frontend({"type": "speakerid_speakers_changed"})
             return {"name": name, "reset": True}
 
         @self.router.post("/records")
@@ -691,6 +868,10 @@ class Speakerid(Baseplugin):
             speakers_id = payload.get("speakers_id")
             if recorder_id is None or speakers_id is None:
                 raise HTTPException(status_code=400, detail="recorder_id and speakers_id are required")
+            # Ints by contract (they feed DB lookups and the enrolled WAV filename) —
+            # a string id would only fail later at the lookup, so reject it here.
+            if not isinstance(recorder_id, int) or not isinstance(speakers_id, int):
+                raise HTTPException(status_code=400, detail="recorder_id and speakers_id must be integers")
 
             # Resolve the speaker's canonical name (= folder name = pkl key = display name).
             speaker_rows = self.db_execute_sync(
@@ -718,7 +899,12 @@ class Speakerid(Baseplugin):
             warning = None
             try:
                 wav_src = self._resolve_recorder_wav(recorder_id)
-                speaker_dir = os.path.join(self.plugin_folder, "voices", speaker_name)
+                speaker_dir = self._safe_speaker_dir(speaker_name)
+                if speaker_dir is None:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Speaker name {speaker_name!r} is not safe to use as a folder",
+                    )
                 os.makedirs(speaker_dir, exist_ok=True)
                 dest = os.path.join(speaker_dir, f"{recorder_id}_{int(time.time())}.wav")
                 shutil.copyfile(str(wav_src), dest)
@@ -736,7 +922,7 @@ class Speakerid(Baseplugin):
                     })
                     self.logger.info(f"Enrollment complete for '{speaker_name}' ({count} speaker(s) indexed)")
                 else:
-                    warning = "Speaker system not ready; WAV saved, will enroll on next startup"
+                    warning = "Speaker system not ready; WAV saved, will enroll when the speaker system loads"
                     self.logger.warning(warning)
             except HTTPException:
                 raise
@@ -755,7 +941,7 @@ class Speakerid(Baseplugin):
             return rows
 
         @self.router.post("/process_audio_chunk")
-        async def process_audio_chunk_endpoint(audio_file: UploadFile = File(...), sample_rate: Optional[int] = None):
+        async def process_audio_chunk_endpoint(audio_file: UploadFile = File(...), sample_rate: Optional[int] = Form(None)):
             """Receive audio chunk for real-time speaker identification"""
             # Privacy gate: accept no mic audio (and write no debug chunk) when disabled.
             if not self.voice_profiles_enabled:
@@ -763,10 +949,12 @@ class Speakerid(Baseplugin):
             try:
                 # Read audio data from uploaded file
                 audio_bytes = await audio_file.read()
-                
-                # Use provided sample rate or default to 48kHz (actual browser rate)
+
+                # sample_rate is a multipart FORM field (that's what the frontend
+                # sends) — without Form() FastAPI would look for a query parameter
+                # and silently ignore the value the client actually sent.
                 effective_sample_rate = sample_rate if sample_rate is not None else 48000
-                
+
                 # Convert WebM to PCM if needed
                 if audio_file.content_type and 'webm' in audio_file.content_type:
                     # Save the uploaded WebM file to plugin's recordings folder
@@ -774,18 +962,19 @@ class Speakerid(Baseplugin):
                     recordings_dir = os.path.join(self.plugin_folder, "recordings")
                     if not os.path.exists(recordings_dir):
                         os.makedirs(recordings_dir, exist_ok=True)
-                    
+
                     webm_file_path = os.path.join(recordings_dir, f"chunk_{timestamp}.webm")
                     with open(webm_file_path, 'wb') as f:
                         f.write(audio_bytes)
-                    
+
                     self.logger.debug(f"Saved WebM chunk file: {webm_file_path}")
-                    
+
                     # Convert WebM/Opus to raw PCM for speaker identification using FFmpeg
                     pcm_data = await self._convert_webm_to_pcm_ffmpeg(None, effective_sample_rate, webm_file_path)
                     if pcm_data is not None:
-                        # Process chunk using the existing hook method logic
-                        result = self.process_audio_chunk(pcm_data, effective_sample_rate)
+                        # Process chunk using the existing hook method logic — off the
+                        # event loop: the ECAPA forward pass must not block the server.
+                        result = await asyncio.to_thread(self.process_audio_chunk, pcm_data, 16000)
                         return {
                             "status": "success",
                             "chunk_result": result,
@@ -797,14 +986,19 @@ class Speakerid(Baseplugin):
                         self.logger.error("Failed to convert WebM chunk to PCM")
                         return {"status": "error", "message": "Audio conversion failed"}
                 else:
-                    # Handle non-WebM files (WAV, etc.) directly
-                    result = self.process_audio_chunk(audio_bytes, effective_sample_rate)
+                    # WAV upload: parse the RIFF header for the real sample rate (the
+                    # form value stays a fallback) and feed only the PCM payload to the
+                    # buffer — header bytes are not audio samples.
+                    pcm_bytes, wav_rate = self._parse_wav_pcm(audio_bytes, sample_rate)
+                    if wav_rate is not None:
+                        effective_sample_rate = wav_rate
+                    result = await asyncio.to_thread(self.process_audio_chunk, pcm_bytes, effective_sample_rate)
                     return {
                         "status": "success",
                         "chunk_result": result,
                         "sample_rate": effective_sample_rate
                     }
-                
+
             except Exception as e:
                 self.logger.error(f"Error processing audio chunk: {e}")
                 raise HTTPException(status_code=500, detail=str(e))
@@ -814,7 +1008,7 @@ class Speakerid(Baseplugin):
 
         - confidence_threshold_low  (0.45): a candidate is worth showing as TENTATIVE
           in the topbar — but is NEVER injected into the LLM context.
-        - confidence_threshold_high (0.62): the COMMIT bar. Once a speaker is the
+        - confidence_threshold_high (0.51): the COMMIT bar. Once a speaker is the
           stable majority of the evidence window AND its mean score clears it, COMMIT:
           inject the name into the LLM context and LOCK further detection until reset.
         - Fast path: a single detection ≥ _high with a clear runner-up margin commits
@@ -863,11 +1057,13 @@ class Speakerid(Baseplugin):
         detection for the rest of the conversation) only applies when a conversation is
         active — during the inter-conversation gap the same injection is a continuous
         PRE-WARM: it keeps the prompt ready but stays unlocked so the ambient speaker
-        can be revised. A conversation-scoped commit (or a manual set_speaker) is what
-        actually locks."""
+        can be revised (every re-detection refreshes the prewarm_ttl clock). A
+        conversation-scoped commit (or a manual set_speaker) is what actually locks."""
         status = "confirmed" if self.conversation_active else "prewarmed"
         if self.conversation_active:
             self.committed_speaker = name          # LOCK — conversations only
+        else:
+            self._last_prewarm_refresh = time.time()   # pre-warm: refresh the TTL
         self.last_speaker.id = name
         self.last_speaker.confidence = score
         self.last_phrase_speaker.id = name
@@ -884,9 +1080,15 @@ class Speakerid(Baseplugin):
 
     def _send_tentative(self, name, score):
         """Show a tentative (unconfirmed) candidate in the topbar WITHOUT injecting a
-        name into the LLM context. name=None ⇒ unknown/listening."""
+        name into the LLM context. name=None ⇒ unknown/listening. Identical consecutive
+        pushes (same name+status) are deduplicated — this fires every cooldown while
+        nobody recognizable is talking."""
         self.last_speaker.id = name
         self.last_speaker.confidence = score
+        push_key = (name or "unknown", "partial" if name else "unknown")
+        if push_key == self._last_tentative_push:
+            return
+        self._last_tentative_push = push_key
         self.send_message_to_frontend({
             "type": "speaker_identification",
             "speaker": {
@@ -955,16 +1157,41 @@ class Speakerid(Baseplugin):
     def _sanitize_name(self, raw) -> str:
         """Normalize a person name into the single canonical identity key: it becomes
         the speakers.name, the voices/<name>/ folder, the pkl key, and the displayed
-        name. Collapse whitespace, strip filesystem-illegal chars and leading dots;
-        return '' (→ rejected by callers) for empty/whitespace-only input.
+        name. Collapse whitespace; strip filesystem-illegal chars, control chars, and
+        leading/trailing dots/spaces (Win32 silently strips trailing dots/spaces at
+        folder creation, which would desync the DB name from the on-disk folder).
+        Return '' (→ rejected by callers) for empty input, Windows-reserved device
+        names (CON, COM1, … — reserved with any extension too), and names over
+        MAX_NAME_LEN chars.
         """
         if raw is None:
             return ""
         name = str(raw).strip()
         name = re.sub(r"\s+", " ", name)               # collapse internal whitespace
+        name = re.sub(r"[\x00-\x1f\x7f]", "", name)    # control chars — illegal in Windows filenames
         name = re.sub(r'[\\/:\*\?"<>\|]', "", name)    # filesystem-illegal / path separators
-        name = name.lstrip(".")                         # no hidden files / ../ tricks
-        return name.strip()
+        name = name.strip(". ")                        # no hidden files / ../ tricks / Win32 dot-stripping
+        stem = name.split(".", 1)[0].strip()           # reserved names stay reserved with an extension
+        if len(name) > self.MAX_NAME_LEN or stem.upper() in self.RESERVED_NAMES:
+            return ""
+        return name
+
+    def _safe_speaker_dir(self, name) -> Optional[str]:
+        """On-disk path for a speaker's voices/<name>/ folder, for every endpoint that
+        touches files (list/delete/reset/enroll). Re-sanitizes the DB value and
+        verifies the resolved path sits directly inside voices/: realpath also
+        resolves symlinks/junctions, so a crafted or corrupt data import can't
+        redirect a delete or an enrollment outside voices/. Returns None when the
+        name can't be used safely; callers skip the file work and log/4xx.
+        """
+        clean = self._sanitize_name(name)
+        if not clean:
+            return None
+        voices_dir = os.path.realpath(os.path.join(self.plugin_folder, "voices"))
+        speaker_dir = os.path.realpath(os.path.join(voices_dir, clean))
+        if os.path.dirname(speaker_dir) != voices_dir:
+            return None
+        return speaker_dir
 
     def _resolve_recorder_wav(self, recorder_id):
         """Resolve the on-disk WAV path for a recorder record, in-process (no HTTP).
@@ -1000,6 +1227,28 @@ class Speakerid(Baseplugin):
         """Get the current status of the speaker identification system"""
         return self._current_status.copy()
     
+    @staticmethod
+    def _parse_wav_pcm(data: bytes, sample_rate_hint: Optional[int]):
+        """Split a WAV blob into (pcm_bytes, sample_rate). Walks the RIFF chunks so
+        extended headers (LIST/etc.) don't leak non-audio bytes into the buffer.
+        Non-WAV input is returned unchanged with the hint (assumed raw PCM)."""
+        if len(data) > 44 and data[:4] == b"RIFF" and data[8:12] == b"WAVE":
+            try:
+                rate = None
+                pos = 12
+                while pos + 8 <= len(data):
+                    chunk_id = data[pos:pos + 4]
+                    chunk_size = int.from_bytes(data[pos + 4:pos + 8], "little")
+                    body = pos + 8
+                    if chunk_id == b"fmt " and chunk_size >= 16:
+                        rate = int.from_bytes(data[body + 4:body + 8], "little")
+                    elif chunk_id == b"data":
+                        return data[body:body + chunk_size], rate or sample_rate_hint
+                    pos = body + chunk_size + (chunk_size & 1)  # chunks are word-aligned
+            except Exception:
+                pass
+        return data, sample_rate_hint
+
     async def _convert_webm_to_pcm_ffmpeg(self, webm_data: bytes, input_sample_rate: int, webm_file_path: Optional[str] = None) -> Optional[bytes]:
         """
         Convert WebM/Opus audio data to raw PCM bytes using FFmpeg
@@ -1101,90 +1350,4 @@ class Speakerid(Baseplugin):
             return f"Error: {message}"
         else:
             return message
-    
-    async def _convert_webm_to_pcm(self, webm_data: bytes, input_sample_rate: int) -> Optional[bytes]:
-        """
-        Convert WebM/Opus audio data to raw PCM bytes for speaker identification
-        
-        Args:
-            webm_data: Raw WebM audio data
-            input_sample_rate: Input sample rate (usually 48000)
-            
-        Returns:
-            Raw PCM audio data as bytes (16-bit signed, mono, 16kHz)
-        """
-        import tempfile
-        import asyncio
-        import os
-        
-        try:
-            # Create temporary file
-            with tempfile.NamedTemporaryFile(suffix='.webm', delete=False) as webm_file:
-                webm_file.write(webm_data)
-                webm_path = webm_file.name
-            
-            # Use pydub for conversion (pure Python approach)
-            try:
-                from pydub import AudioSegment
-                
-                # Convert in asyncio executor to avoid blocking
-                def convert_with_pydub():
-                    # Read WebM file
-                    audio = AudioSegment.from_file(webm_path, format="webm")
-                    
-                    # Convert to mono and 16kHz
-                    audio = audio.set_channels(1)
-                    audio = audio.set_frame_rate(16000)
-                    
-                    # Export as raw PCM bytes directly
-                    raw_pcm = audio.raw_data
-                    return raw_pcm
-                
-                # Run conversion in executor
-                loop = asyncio.get_event_loop()
-                pcm_data = await loop.run_in_executor(None, convert_with_pydub)
-                
-                if pcm_data:
-                    self.logger.debug(f"Successfully converted WebM to PCM: {len(pcm_data)} bytes")
-                    return pcm_data
-                else:
-                    self.logger.warning("PyDub conversion returned empty data")
-                    
-            except ImportError:
-                self.logger.warning("pydub not available, using fallback method")
-                
-                # Fallback: Use basic audio processing with librosa
-                try:
-                    import librosa
-                    
-                    def convert_with_librosa():
-                        # Load WebM with librosa
-                        y, sr = librosa.load(webm_path, sr=16000, mono=True)
-                        
-                        # Convert float32 to int16 PCM
-                        pcm_int16 = (y * 32767).astype(np.int16)
-                        return pcm_int16.tobytes()
-                    
-                    # Run conversion in executor
-                    loop = asyncio.get_event_loop()
-                    pcm_data = await loop.run_in_executor(None, convert_with_librosa)
-                    
-                    if pcm_data:
-                        self.logger.debug(f"Successfully converted WebM to PCM using librosa: {len(pcm_data)} bytes")
-                        return pcm_data
-                        
-                except ImportError:
-                    self.logger.error("Neither pydub nor librosa available for audio conversion")
-                    
-        except Exception as e:
-            self.logger.error(f"WebM to PCM conversion failed: {e}")
-            
-        finally:
-            # Clean up temporary file
-            try:
-                if 'webm_path' in locals():
-                    os.unlink(webm_path)
-            except:
-                pass
-        
-        return None
+

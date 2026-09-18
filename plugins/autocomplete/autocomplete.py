@@ -450,7 +450,7 @@ class Autocomplete(Baseplugin):
         try:
             spk = next((r for r in (await self.pm.trigger_hook(hook_name="get_context_speaker") or []) if r and r.get("speakers_id")), None)
             if spk:
-                speaker_conversations = next((r for r in (await self.pm.trigger_hook(hook_name="get_speaker_conversations", speakers_id=spk["speakers_id"], limit=5) or []) if r), "")
+                speaker_conversations = next((r for r in (await self.pm.trigger_hook(hook_name="get_speaker_conversations", speakers_id=spk["speakers_id"]) or []) if r), "")
         except Exception as e:
             self.logger.warning(f"speaker_conversations lookup failed: {e}")
 

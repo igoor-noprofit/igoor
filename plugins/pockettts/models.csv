@@ -1,0 +1,23 @@
+model,url
+# Google Drive mirrors of the CC-BY-4.0 kyutai/pocket-tts weights (attribution
+# and mirrored revisions: see THIRD_PARTY_LICENSES.md, "AI Models"). Mirror
+# UNMODIFIED files only. The Google Drive gate is a contact/prohibited-use
+# covenant, not a redistribution restriction.
+# A mirror folder must contain exactly: model.safetensors, tokenizer.model,
+# embeddings/ (cleaned). No gdown *.metadata sidecars.
+# When (re)building a mirror folder, EXCLUDE these preset voice embeddings
+# from embeddings/ (license not AGPLv3-compatible or unverified):
+#   cosette.safetensors (Expresso, CC-BY-NC), jean.safetensors (EARS,
+#   CC-BY-NC), rafael.safetensors (unverified source)
+english,https://drive.google.com/drive/folders/1_kxgmPA9zLQR4yS7Wm5xGN2dHtEO7rvg?usp=drive_link
+english_2026-01,https://drive.google.com/drive/folders/1vTkjOk040ZD-w-LbQG9fwHHuIgCDIKYF?usp=drive_link
+english_2026-04,https://drive.google.com/drive/folders/15cdZuJSE7stzXMQ3R3C3p7y3EMScbtfI?usp=drive_link
+french_24l,https://drive.google.com/drive/folders/1drJ7uF2TUKqCKRvR7n2E9PCJTw5gxzxn?usp=drive_link
+german,https://drive.google.com/drive/folders/1XzWLSFx1l2F78MxaUJeVpqkmU-x4RxtC?usp=drive_link
+german_24l,https://drive.google.com/drive/folders/1OC0rrAS4kVRYNLJ-uzQscSv-oVdIJ19L?usp=drive_link
+italian,https://drive.google.com/drive/folders/1lwXCiuztL22ZhJj0v-7LybO2XWQ2nIQX?usp=drive_link
+italian_24l,https://drive.google.com/drive/folders/1lnDYoOpw_LXYt2ZFQ3T8oKRxkRrYGXbK?usp=drive_link
+portuguese,https://drive.google.com/drive/folders/12E-3Rp4cTnvJTdS7tunDv4-Dh8kgADyC?usp=drive_link
+portuguese_24l,https://drive.google.com/drive/folders/1g_3c0d-EacF9iQgOdH7on7HW7DjbilJC?usp=drive_link
+spanish,https://drive.google.com/drive/folders/1XcO5RSFiPf-qnb5feEuEez-GWcPCruye?usp=drive_link
+spanish_24l,https://drive.google.com/drive/folders/1On6-vDMz1Rkgsmy_G5hpp1teTBCmimNO?usp=drive_link

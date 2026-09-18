@@ -4,7 +4,11 @@ from settings_manager import SettingsManager
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 import asyncio
-import win32com.client
+try:
+    import win32com.client
+except ImportError:
+    # Linux/macOS: keep the plugin importable; SAPI TTS stays unavailable
+    win32com = None
 
 
 class SetVoicePayload(BaseModel):
@@ -17,6 +21,12 @@ class Ttsdefault(Baseplugin):
         self.router = None
         super().__init__(plugin_name, pm)
         self.settings = self.get_my_settings()
+        self.is_loaded = False
+        if win32com is None:
+            self.logger.warning("ttsdefault: Windows SAPI TTS not available on this platform (win32com missing) — plugin loaded but inactive")
+            self.fallback_only = False
+            self.voice_id = 0
+            return
         # Initialize SAPI
         self.fallback_only = self.settings.get("fallback_only", False)
         self.voice_id = self.settings.get("voice_id", 0)
@@ -40,9 +50,38 @@ class Ttsdefault(Baseplugin):
             
             self.is_loaded = True
             self.update_my_settings("voice_list", self.available_voices)
+            # Follow the app language unless the user picked a voice manually:
+            # SAPI's first voice is not necessarily the right language.
+            if self.settings.get("voice_auto", True):
+                self._auto_pick_voice()
         except Exception as e:
             self.logger.error(f"ERROR: No available voices for TTS DEFAULT: {e}")
             self.is_loaded = False
+
+    # Description language word for each supported app language code
+    VOICE_LANG_WORDS = {
+        "en": "English", "fr": "French", "it": "Italian",
+        "pt": "Portuguese", "de": "German", "es": "Spanish",
+    }
+
+    def _auto_pick_voice(self):
+        """Pick the first available SAPI voice matching the current app
+        language. No-op (keeps the current voice) when none matches - e.g. a
+        French profile on a machine with only English voices installed."""
+        word = self.VOICE_LANG_WORDS.get(str(self.lang or "").split("_")[0].lower())
+        if not word:
+            return
+        for voice in self.available_voices:
+            if str(voice.get("lang", "")).lower().startswith(word.lower()):
+                self.voice_id = voice["voice_id"]
+                self.update_my_settings("voice_id", self.voice_id)
+                self.logger.info(f"Auto-picked voice for '{self.lang}': {voice['voice_label']}")
+                try:
+                    self.speaker.Voice = self.speaker.GetVoices().Item(self.voice_id)
+                except Exception as e:
+                    self.logger.error(f"Error applying auto-picked voice: {e}")
+                return
+        self.logger.warning(f"No {word} voice available - keeping voice {self.voice_id}")
 
     def _ensure_router(self):
         """Initialize FastAPI router for plugin endpoints"""
@@ -59,6 +98,9 @@ class Ttsdefault(Baseplugin):
                 # Update instance variables immediately
                 self.voice_id = payload.voice_id
                 self.fallback_only = payload.fallback_only
+
+                # Explicit user choice: stop auto-following the app language
+                self.update_my_settings("voice_auto", False)
 
                 # Update settings file
                 self.update_my_settings("voice_id", payload.voice_id)
@@ -83,7 +125,7 @@ class Ttsdefault(Baseplugin):
             self.logger.info(f"Settings updated for {plugin_name}: {new_settings}")
             self.settings = new_settings
             self.fallback_only = new_settings.get("fallback_only", False)
-            self.voice_id = new_settings.get("voice_id")
+            self.voice_id = new_settings.get("voice_id", 0)
             if self.is_loaded:
                 try:
                     self.speaker.Voice = self.speaker.GetVoices().Item(self.voice_id)
@@ -93,9 +135,18 @@ class Ttsdefault(Baseplugin):
     @hookimpl
     def global_settings_updated(self):
         self.logger.info("Global settings updated, refreshing ttsdefault settings")
+        old_lang = self.lang
+        self.lang = self.settings_manager.get_lang()
         self.settings = self.get_my_settings()
         self.fallback_only = self.settings.get("fallback_only", False)
         self.voice_id = self.settings.get("voice_id", 0)
+        # In auto mode a language change (first-run wizard, settings) switches
+        # to a voice of the new language; a manually chosen voice is never
+        # overridden.
+        if self.settings.get("voice_auto", True) and old_lang != self.lang:
+            if self.is_loaded:
+                self._auto_pick_voice()
+            return
         if self.is_loaded:
             try:
                 self.speaker.Voice = self.speaker.GetVoices().Item(self.voice_id)
@@ -143,6 +194,8 @@ class Ttsdefault(Baseplugin):
             
     @hookimpl
     def speak_as_igoor(self, message):
+        if not self.is_loaded:
+            return
         self.logger.info(f"§§§§ SPEAKING AS IGOOR *********************************************** : {message}")
         # Used to speak as the machine
         asyncio.create_task(self.run_speak_func(message))
@@ -155,7 +208,7 @@ class Ttsdefault(Baseplugin):
 
     async def run_speak_func(self, message, skip_asr=False):
         await self.pm.trigger_hook(hook_name="pause_asr")
-        await asyncio.sleep(0.1)  # Ensure pause message reaches frontend
+        await asyncio.sleep(0.03)  # Ensure pause message reaches frontend
         success = await self.speak_func(message)
         await self.pm.trigger_hook(hook_name="restart_asr", force_ready=skip_asr)
 
@@ -166,6 +219,10 @@ class Ttsdefault(Baseplugin):
 
     async def speak_func(self, message):
         self.logger.info("SPEAK FUNC:" + message)
+        if self.is_remote_ui():
+            # SAPI synthesizes and plays on the PC in one synchronous call:
+            # it cannot be streamed to the browser, even on the same machine.
+            self.logger.warning("SAPI TTS cannot reach the browser - speaking on PC speakers")
         try:
             # Run SAPI speech in a separate thread to avoid blocking
             await asyncio.to_thread(self.speaker.Speak, message)

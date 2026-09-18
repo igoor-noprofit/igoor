@@ -1,3 +1,8 @@
 {
-    "Change topic": "Cambia argomento"
+    "Change topic": "Cambia argomento",
+    "AI suggestions are off": "I suggerimenti IA sono disattivati",
+    "Connect an AI provider to unlock suggested replies. Everything else works without it.": "Collega un fornitore IA per sbloccare le risposte suggerite. Tutto il resto funziona comunque.",
+    "Connect an AI": "Collega un'IA",
+    "Edit phrase": "Modifica la frase",
+    "Speak edited phrase": "Pronuncia la frase modificata"
 }

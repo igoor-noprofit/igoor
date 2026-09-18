@@ -11,6 +11,8 @@ IGOOR is an open-source and free conversational application, controllable also b
 - Configuration: `plugin.json` with activation status, category, and database schema
 - Settings: `settings.json` for user preferences
 - "has_settings": true in plugin.json to allow displaying of plugin settings interface
+- Optional `"platforms": ["windows", "macos", "linux"]` in plugin.json restricts the plugin to those OSes (absent = all platforms). Values match `utils.get_platform_key()`. On an incompatible OS the plugin is never loaded, is shown as a disabled "Not available on this platform" card in the Extensions list, and activation is refused — but its `plugins_activation` entry in settings.json is NEVER modified, so user settings stay portable across OSes.
+- "user_data" in plugin.json declares the plugin's exportable user data (paths relative to the plugin's APPDATA folder), included automatically by onboarding's export/import. Entries: `{"path": "voices"}` (merge on import, default) or `{"path": "audio", "mode": "replace"}` (wipe local path first, for data that must stay in sync with the DB). Plugins without the key contribute nothing; rag is handled bespoke in data_manager.py because it needs logic beyond copying (embedding-model compatibility). Works for deactivated plugins too (declarations are read from the repo, not from loaded plugins). NEVER hardcode new plugin folders in data_manager.py — declare them here.
 
 **Communication Patterns**:
 - Backend-to-backend: Via Pluggy hooks `await self.pm.trigger_hook(hook_name, data)`
@@ -69,7 +71,7 @@ plugin_name/
 
 **Critical Plugins**:
 - `onboarding`: User prefs and AI settings
-- `asrvosk/asrwhisper`: Speech recognition (Vosk local, Whisper via Groq and Voxtral via Mistral)
+- `asrjs`: Speech recognition (Sherpa-ONNX local, Whisper via Groq and Voxtral via Mistral, wakeword detection)
 - `elevenlabs/speechify`: TTS integration
 - `conversation`: Current conversation handling
 - `memory`: FAISS-based long/short-term memory
@@ -100,6 +102,20 @@ plugin_name/
 - **Important**: Plugins are loaded dynamically, so PyInstaller can't auto-detect their imports. If a plugin uses a package not imported in `main.py`, add it to `hiddenimports` in `igoor.spec.txt`.
 
 **Python Version**: Tested on 3.10.6 only
+
+## Multiplatform Rules
+
+IGOOR targets Windows (production) and Linux/macOS (experimental). Keep every change multiplatform-safe:
+
+1. **Paths**: never `os.getenv('APPDATA')` or hardcoded `C:\...` paths. Always `utils.get_appdata_dir()`, joining *beneath* it (`os.path.join(get_appdata_dir(), 'plugins', <name>)`) — never the `dirname()` idiom (it builds `~/igoor` instead of `~/.igoor` on Linux).
+2. **Platform checks**: use `utils.get_platform_key()` (`"windows"/"macos"/"linux"`), not scattered `platform.system()` string compares.
+3. **OS-bound plugins**: declare `"platforms"` in plugin.json AND keep OS-only imports inside a module-top `try/except ImportError` (the module must stay importable everywhere). Never write or delete an incompatible plugin's `plugins_activation` entry in settings.json — user data must stay portable across OSes.
+4. **Dependencies**: new pip packages must install on all three platforms or carry a `; sys_platform == '...'` marker; apt/brew system deps go into the README platform table. Review `generate_requirements.py` diffs — it preserves markers/comments, not judgment.
+5. **Frontend URLs**: same-origin only — never hardcode `127.0.0.1:9714` or `localhost:9714`; use `/api/...` for fetches and `window.location`-derived URLs for WebSockets, so remote browsers (Tailscale/tablet access) work.
+6. **Runtime must not require Windows-only Python tooling**: no unconditional tkinter/pywin32/pywinauto/win32com imports outside gated plugins. Packaging `.bat`/`.ps1` scripts are exempt.
+7. **Network**: the server binds loopback by default; `IGOOR_ACCESS_FROM_OUTSIDE=true` opts into all interfaces (remote/tailscale/tablet use — unauthenticated, trusted networks only). `IGOOR_HEADLESS=true` skips the native window (the legacy `IGOOR_CLI` name still works as fallback). With external access enabled, `tailscale_serve.py` auto-enables `tailscale serve --bg localhost:9714` when the Tailscale CLI is present (HTTPS for the mic; one UAC prompt on Windows, then persists in Tailscale) — never touches a serve config proxying another target.
+8. **Audio routing**: TTS streams to connected browsers when `is_remote_ui()` is true (headless OR external access); local playback happens otherwise. SAPI/ttsdefault can never stream — it warns and plays on the machine.
+9. **Before merging**: `python -m py_compile` changed files; `IGOOR_HEADLESS=true` boot + `curl http://127.0.0.1:9714/health` smoke; **requirements changes require a fresh-venv install test** — populated venvs mask unsatisfiable pins (the beartype==0.18.5 lesson).
 
 ## Testing Python syntax
 If you modify a python file, ALWAYS test syntax with:

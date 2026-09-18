@@ -64,7 +64,7 @@
 
         <!-- Save Button -->
         <div class="form-label"></div>
-        <div class="form-input">
+        <div class="form-input" style="grid-column: 2 / -1;">
             <SaveSettingsButton
                 :hasChanges="hasUnsavedChanges"
                 :loading="isSaving"
@@ -74,7 +74,6 @@
                 @cancel="resetSettings"
             />
         </div>
-        <div class="form-note"></div>
     </div>
 </template>
 

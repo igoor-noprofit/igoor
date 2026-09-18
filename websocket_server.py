@@ -110,6 +110,39 @@ class WebSocketHub:
 
         return True
 
+    def send_bytes(self, plugin_name: str, data: bytes) -> bool:
+        with self._lock:
+            connections = list(self.active_connections.get(plugin_name, set()))
+
+        if not connections:
+            print(f"WARNING: Plugin {plugin_name} is not actively connected. Cannot send binary data.")
+            return False
+
+        if self.loop is None:
+            raise RuntimeError("WebSocket event loop is not initialized")
+
+        stale: list[WebSocket] = []
+        for websocket in connections:
+            if websocket.client_state == WebSocketState.CONNECTED:
+                try:
+                    asyncio.run_coroutine_threadsafe(websocket.send_bytes(data), self.loop)
+                except Exception as exc:
+                    print(f"ERROR: Error sending binary data to {plugin_name}: {exc}")
+                    stale.append(websocket)
+            else:
+                stale.append(websocket)
+
+        if stale:
+            with self._lock:
+                current = self.active_connections.get(plugin_name)
+                if current:
+                    for ws in stale:
+                        current.discard(ws)
+                    if not current:
+                        self.active_connections.pop(plugin_name, None)
+
+        return True
+
     async def _close_all(self) -> None:
         with self._lock:
             snapshot = {

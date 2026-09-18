@@ -3,12 +3,12 @@ from settings_manager import SettingsManager
 from status_manager import StatusManager
 from plugin_manager import hookimpl, PluginManager
 from websocket_server import websocket_server
-import os,json,asyncio
+import os,json,asyncio,base64,uuid,time,threading
 from pathlib import Path
 from datetime import datetime
 from utils import resource_path
 from llm_manager import LLMManager
-from utils import setup_logger
+from utils import setup_logger, get_appdata_dir
 from db_manager import DatabaseManager
 
 class Baseplugin:
@@ -19,8 +19,8 @@ class Baseplugin:
         self.plugin_name = plugin_name
         
         self.logger = setup_logger(
-            f'plugins.{plugin_name}', 
-            os.path.join(os.getenv('APPDATA'), __appname__),
+            f'plugins.{plugin_name}',
+            get_appdata_dir(),
             separate_plugin_log=False
         )
         
@@ -45,10 +45,10 @@ class Baseplugin:
         if self._plugin_metadata.get('requires_db', False):
             self._init_database()
         # self.pm = pm
-        # Construct the plugin folder path
+        # Construct the plugin folder path (get_appdata_dir() is the app folder
+        # itself on every OS, including the ~/.igoor dotfolder on Linux)
         self.app_name = __appname__  # Get the application name from the environment variable
-        self.appdata_path = os.getenv('APPDATA')  # Get the APPDATA path from the environment variable
-        self.plugin_folder = os.path.join(self.appdata_path, self.app_name, 'plugins', plugin_name)
+        self.plugin_folder = os.path.join(get_appdata_dir(), 'plugins', plugin_name)
         # Create the directory if it doesn't exist
         if not os.path.exists(self.plugin_folder):
             self.logger.info(f"CREATING FOLDER {self.plugin_folder}")
@@ -136,7 +136,7 @@ class Baseplugin:
     def get_bio_context(self) -> str:
         """Load biorecorder bio.md and return a formatted context string for LLM prompts.
         Returns an empty string if bio.md does not exist (plugin is optional)."""
-        bio_path = Path(self.appdata_path, self.app_name, 'plugins', 'biorecorder', 'bio.md')
+        bio_path = Path(get_appdata_dir(), 'plugins', 'biorecorder', 'bio.md')
         if not bio_path.exists():
             return ""
         try:
@@ -271,6 +271,73 @@ class Baseplugin:
         """
         success = await self.wait_for_socket_and_send(message, 'app')
         return success
+
+    def is_remote_ui(self) -> bool:
+        """
+        True when a browser may be the UI: headless run (IGOOR_HEADLESS=True,
+        legacy IGOOR_CLI honored) or external access enabled
+        (IGOOR_ACCESS_FROM_OUTSIDE=True). TTS audio is then streamed to the
+        connected browsers instead of being played on the PC speakers.
+        """
+        headless = os.getenv("IGOOR_HEADLESS", os.getenv("IGOOR_CLI", "False")).lower() == "true"
+        outside = os.getenv("IGOOR_ACCESS_FROM_OUTSIDE", "False").lower() == "true"
+        return headless or outside
+
+    async def stream_audio_to_frontend(self, audio_chunks, mime: str = "audio/mpeg") -> bool:
+        """
+        Streams audio chunks to the browser as they are produced (MediaSource
+        playback on the app websocket). Only TTS engines that can produce
+        audio bytes should call this (never SAPI/ttsdefault).
+        :param audio_chunks: iterable/iterator of bytes
+        :return: False when no browser is connected (caller falls back to local playback)
+        """
+        if not websocket_server.is_socket_open('app'):
+            self.logger.warning("No browser connected on the app websocket: cannot stream audio")
+            return False
+
+        if not hasattr(self, "_playback_done"):
+            self._playback_done = asyncio.Event()
+        self._playback_done.clear()
+
+        stream_id = uuid.uuid4().hex
+        await self.send_message_to_app({"play_stream": {"id": stream_id, "mime": mime}})
+
+        started = None
+        sent = 0
+        for chunk in audio_chunks:
+            if not websocket_server.send_bytes('app', bytes(chunk)):
+                self.logger.error("Failed to stream an audio chunk to the browser")
+                await self.send_message_to_app({"play_stream_end": {"id": stream_id, "aborted": True}})
+                return False
+            if started is None:
+                started = time.time()
+                self.logger.info(f"TTS stream {stream_id}: first chunk sent")
+            sent += 1
+        if started is not None:
+            self.logger.info(f"TTS stream {stream_id}: last chunk sent ({sent} chunks, {time.time() - started:.2f}s of streaming)")
+
+        await self.send_message_to_app({"play_stream_end": {"id": stream_id}})
+        await self.wait_playback_finished(timeout=30)
+        return True
+
+    def _on_playback_finished(self):
+        event = getattr(self, "_playback_done", None)
+        if event is not None and not event.is_set():
+            event.set()
+
+    async def wait_playback_finished(self, timeout: float = 30.0) -> bool:
+        """
+        Waits until the frontend acknowledges the end of audio playback
+        (tts_playback_finished hook) or the timeout expires.
+        """
+        if not hasattr(self, "_playback_done"):
+            self._playback_done = asyncio.Event()
+        try:
+            await asyncio.wait_for(self._playback_done.wait(), timeout=timeout)
+            return True
+        except asyncio.TimeoutError:
+            self.logger.warning(f"Browser playback ack not received within {timeout}s - continuing anyway")
+            return False
     
     def handle_llm_error(self, llm_response):
         """
@@ -329,45 +396,51 @@ class Baseplugin:
             
     def send_message_to_frontend(self, message, plugin_name=None):
         """
-        Sends a message to the designated plugin's frontend channel with retry mechanism.
-        
+        Sends a message to the designated plugin's frontend channel.
+        Tries to send immediately; if the frontend socket is not open yet (or the
+        send fails), retries continue in a background thread so the caller —
+        often an async hook chain — is never blocked waiting for the frontend.
+
         :param message: The message to be sent.
         :param plugin_name: (Optional) The plugin name to send the message to. If not provided, uses self.plugin_name.
         """
-        import time
-        
         # Use the provided plugin_name or default to self.plugin_name
         target_plugin_name = plugin_name or self.plugin_name
-        
-        # Retry configuration
-        max_retries = 5
-        retry_delay = 1  # seconds
-        
+
         # Ensure the message is a JSON string
         if isinstance(message, dict):
             message = json.dumps(message)
-            
-        # Attempt to send the message with retries
-        for attempt in range(max_retries + 1):
+
+        if websocket_server.is_socket_open(target_plugin_name):
+            try:
+                if websocket_server.send_message(target_plugin_name, message):
+                    return True
+            except Exception as e:
+                self.logger.warning(f"Failed to send message to {target_plugin_name} frontend: {e}")
+
+        self.logger.warning(f"{target_plugin_name} frontend is not ready, deferring send to background retries")
+        threading.Thread(
+            target=self._retry_send_to_frontend,
+            args=(target_plugin_name, message),
+            daemon=True
+        ).start()
+        return False
+
+    def _retry_send_to_frontend(self, target_plugin_name, message):
+        """Background retry loop for send_message_to_frontend; never blocks the caller."""
+        max_retries = 5
+        retry_delay = 1  # seconds
+        for attempt in range(1, max_retries + 1):
+            time.sleep(retry_delay)
             if websocket_server.is_socket_open(target_plugin_name):
                 try:
-                    return websocket_server.send_message(target_plugin_name, message)
+                    if websocket_server.send_message(target_plugin_name, message):
+                        return
                 except Exception as e:
-                    if attempt < max_retries:
-                        self.logger.warning(f"Failed to send message to {target_plugin_name} frontend (attempt {attempt + 1}/{max_retries + 1}): {e}")
-                        time.sleep(retry_delay)
-                    else:
-                        self.logger.error(f"Error while sending message to {target_plugin_name} frontend after {max_retries + 1} attempts: {e}")
-                        return False
+                    self.logger.warning(f"Failed to send message to {target_plugin_name} frontend (retry {attempt}/{max_retries}): {e}")
             else:
-                if attempt < max_retries:
-                    self.logger.warning(f"{target_plugin_name} frontend is not ready (attempt {attempt + 1}/{max_retries + 1})")
-                    time.sleep(retry_delay)
-                else:
-                    self.logger.error(f"{target_plugin_name} frontend is not ready after {max_retries + 1} attempts")
-                    return False
-        
-        return False
+                self.logger.warning(f"{target_plugin_name} frontend is not ready (retry {attempt}/{max_retries})")
+        self.logger.error(f"Could not send message to {target_plugin_name} frontend after {max_retries} retries")
     
     def send_action_to_frontend(self, action, plugin_name=None):
         target_plugin_name = plugin_name or self.plugin_name

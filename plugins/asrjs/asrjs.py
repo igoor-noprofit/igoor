@@ -10,7 +10,7 @@ import groq
 import numpy as np
 from typing import Optional
 from fastapi import APIRouter, UploadFile, File, HTTPException
-from utils import setup_logger, get_base_language_code
+from utils import setup_logger, get_base_language_code, open_os_sound_settings
 from pathlib import Path
 
 WAKEWORD_MODELS_DIR = os.path.join(os.path.dirname(__file__), "static", "wakeword")
@@ -137,6 +137,7 @@ class Asrjs(Baseplugin):
         self.is_loaded = False  # Make sure this is initialized
         self.wakeword_detected = False  # Initialize wakeword state
         self.wakeword_model_loaded = False  # Track wakeword model loading
+        self.current_status = "loading"  # Latest pushed status, served to (re)connecting frontends
         super().__init__(plugin_name, pm)
         
         # Create recordings directory for persistent audio files
@@ -202,7 +203,7 @@ class Asrjs(Baseplugin):
         if self.continuous and self.wakeword_enabled:
             self._load_wakeword_model()
         
-        self.model_provider = self.settings.get("model_provider", "groq")
+        self.model_provider = self._resolve_model_provider()
 
         self.model_thread = threading.Thread(target=self.load_model, daemon=True)
         self.model_thread.start()
@@ -222,6 +223,14 @@ class Asrjs(Baseplugin):
             self._router_registered = True
         elif fastapi_app is None:
             self.logger.warning("FastAPI app not available; asrjs endpoints not registered")
+
+    async def send_status(self, status):
+        """Record the latest ASR status so (re)connecting frontends can fetch it
+        via GET /api/plugins/asrjs/status: status pushes are one-shot deliveries
+        (wait_for_socket_and_send sends each message once), so a browser that
+        connects after a push would otherwise stay stuck in 'loading'."""
+        self.current_status = status
+        await super().send_status(status)
 
     def send_settings_to_frontend(self):
         """Override to include onboarding AI info so frontend knows if API keys are available from onboarding"""
@@ -633,10 +642,42 @@ class Asrjs(Baseplugin):
                     provider="cpu",
                 )
             self.logger.info(f"sherpa-onnx model loaded from {model_path}")
+            # Whether the model already emits punctuation + proper casing
+            # (whisper, NeMo *_pc): _transcribe_with_sherpa must then keep the
+            # raw casing instead of lowercasing everything.
+            self._sherpa_model_punctuated = bool(model_info.get("punctuated"))
         except ImportError:
             self.logger.error("sherpa-onnx not installed. Run: pip install sherpa-onnx")
         except Exception as e:
             self.logger.error(f"Error loading sherpa-onnx model: {e}")
+
+    def _onboarding_provider_key(self, provider):
+        """API key the onboarding AI settings hold for `provider`, or None.
+        Mirrors load_model's key precedence so the engine choice matches the
+        key that would actually be used."""
+        ai = self.settings_manager.get_nested(["plugins", "onboarding", "ai"]) or {}
+        if ai.get("provider") != provider:
+            return None
+        return ai.get("api_key") or None
+
+    def _resolve_model_provider(self):
+        """Effective ASR engine. Keyless first-run / keyless mode: when the
+        configured cloud provider has no usable key, fall back to the offline
+        local model instead of failing to load. The setting on disk is left
+        untouched, so entering a key later re-enables the cloud engine on the
+        next settings reload."""
+        provider = self.settings.get("model_provider", "groq")
+        if provider == "groq":
+            if self.settings.get("api_key") or self._onboarding_provider_key("groq"):
+                return "groq"
+            self.logger.info("No Groq key found (keyless mode) - falling back to offline local ASR")
+            return "sherpa"
+        if provider == "mistral":
+            if self.settings.get("voxtral_api_key") or self._onboarding_provider_key("mistral"):
+                return "mistral"
+            self.logger.info("No Mistral key found (keyless mode) - falling back to offline local ASR")
+            return "sherpa"
+        return provider
 
     def _get_sherpa_model_info(self):
         catalog_path = os.path.join(os.path.dirname(__file__), "sherpa_models.json")
@@ -706,10 +747,14 @@ class Asrjs(Baseplugin):
                 self.sherpa_recognizer.decode_stream(stream)
                 text = stream.result.text
 
-            text = text.strip().lower()
-            # Capitalize first letter
-            if text:
-                text = text[0].upper() + text[1:]
+            if getattr(self, '_sherpa_model_punctuated', False):
+                # Model already emits punctuation + capitalization - keep as-is
+                text = text.strip()
+            else:
+                text = text.strip().lower()
+                # Capitalize first letter
+                if text:
+                    text = text[0].upper() + text[1:]
 
             self.logger.info(f"sherpa-onnx transcribed: {text[:100]}...")
             return text
@@ -819,7 +864,17 @@ class Asrjs(Baseplugin):
             return
 
         self.router = APIRouter(prefix="/api/plugins/asrjs", tags=["asrjs"])
-        
+
+        @self.router.get("/status")
+        async def get_status_endpoint():
+            """Current ASR state for (re)connecting frontends: the one-shot
+            status/settings websocket pushes are only delivered to whichever
+            frontend was connected when they were sent."""
+            return {
+                "status": self.current_status,
+                "settings": self.get_my_settings(),
+            }
+
         @self.router.post("/start_recording")
         async def start_recording_endpoint():
             """Start recording via HTTP endpoint"""
@@ -914,6 +969,40 @@ class Asrjs(Baseplugin):
                 self.logger.error(f"Error transcribing audio: {e}")
                 raise HTTPException(status_code=500, detail=str(e))
         
+        @self.router.post("/test_transcribe")
+        async def test_transcribe_endpoint(audio_file: UploadFile = File(...)):
+            """One-shot transcription for the first-run wizard's microphone test.
+            Same engine and quality as normal ASR, but the text is returned to
+            the caller instead of being injected into the conversation."""
+            try:
+                if not self.is_loaded:
+                    return {"status": "loading", "text": ""}
+
+                timestamp = int(time.time())
+                temp_file_path = os.path.join(self.plugin_folder, f"recordings/wizard_test_{timestamp}.wav")
+                with open(temp_file_path, 'wb') as f:
+                    content = await audio_file.read()
+                    f.write(content)
+
+                original_temp_file = self.temp_audio_file
+                self.temp_audio_file = temp_file_path
+                try:
+                    text = await self.transcribe_audio()
+                finally:
+                    self.temp_audio_file = original_temp_file
+
+                try:
+                    os.remove(temp_file_path)
+                except OSError:
+                    pass
+
+                if text:
+                    text = self.clean_whisper_silence(text)
+                return {"status": "success", "text": text}
+            except Exception as e:
+                self.logger.error(f"Wizard test transcription error: {e}")
+                raise HTTPException(status_code=500, detail=str(e))
+
         # Wakeword detection endpoints
         @self.router.post("/wakeword_chunk")
         async def wakeword_chunk_endpoint(audio_chunk: UploadFile = File(...)):
@@ -1034,16 +1123,16 @@ class Asrjs(Baseplugin):
 
         @self.router.post("/open_sound_settings")
         async def open_sound_settings_endpoint():
-            """Open Windows Sound settings so the user can choose/verify the default microphone.
+            """Open the OS sound settings so the user can choose/verify the default microphone.
 
-            IGOOR captures from the Windows default input device, so device choice is managed
+            IGOOR captures from the OS default input device, so device choice is managed
             in the OS rather than in-app (browser deviceIds are not durable across sessions).
             """
             try:
-                if os.name == 'nt':
-                    os.startfile('ms-settings:sound')
+                success, message = open_os_sound_settings()
+                if success:
                     return {"status": "success"}
-                return {"status": "error", "message": "Not supported on this platform"}
+                return {"status": "error", "message": message}
             except Exception as e:
                 self.logger.error(f"Error opening sound settings: {e}")
                 return {"status": "error", "message": str(e)}
@@ -1052,7 +1141,12 @@ class Asrjs(Baseplugin):
         print(f"Transcribed text: {text}")
         SILENCE_STRINGS = [
             "Sous-titrage ST' 501",
-            "Sous-titrage Société Radio-Canada"
+            "Sous-titrage Société Radio-Canada",
+            # pt-BR: hallucinations on silence/music (caption artifacts)
+            "Obrigado por assistir",
+            "Se inscreva no canal",
+            "Inscreva-se no canal",
+            "Até o próximo vídeo",
         ]
         for s in SILENCE_STRINGS:
             # Remove at start
@@ -1141,8 +1235,14 @@ class Asrjs(Baseplugin):
         self.logger.info("ASRJS: global_settings_updated - reloading ASR model")
         # Reload settings from disk
         self.settings = self.get_my_settings()
+        # Re-resolve the global language too: the onboarding wizard can switch
+        # it live, and the ASR model (sherpa catalog) + transcription language
+        # must follow instead of staying at boot time's. The reload below then
+        # downloads/loads the new language's model without an app restart.
+        self.lang = self.settings_manager.get_lang()
+        self.lang_code = get_base_language_code(self.lang, default_lang="fr")
         # Reload model provider from settings
-        self.model_provider = self.settings.get("model_provider", "groq")
+        self.model_provider = self._resolve_model_provider()
         # Refresh wakeword/continuous config so the detector check uses current values
         self.continuous = self.settings.get("continuous", False)
         self.wakeword_enabled = self.settings.get("wakeword_enabled", False)

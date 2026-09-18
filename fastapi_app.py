@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import os
+import subprocess
+import sys
 import tempfile
+import threading
 from pathlib import Path
 from typing import Dict, Optional
 
-from fastapi import APIRouter, FastAPI, HTTPException, UploadFile, WebSocket, WebSocketDisconnect, status, Query
+from fastapi import APIRouter, FastAPI, HTTPException, Request, UploadFile, WebSocket, WebSocketDisconnect, status, Query
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from pydantic import BaseModel
 from starlette.staticfiles import StaticFiles
@@ -94,9 +97,13 @@ def create_app() -> FastAPI:
     async def api_update_plugin_settings(
         plugin_name: str, payload: UpdateSettingsPayload
     ):
+        if plugin_name == "asrjs":
+            # A manual save in the asrjs settings reclaims engine control from
+            # the onboarding provider matrix ("unless otherwise stated later").
+            payload.settings["asr_managed_by_onboarding"] = False
         settings_manager.update_plugin_settings(plugin_name, payload.settings, plugin_manager)
-        # Trigger settings_updated hook for the specific plugin (not global_settings_updated)
-        await plugin_manager.trigger_hook('settings_updated', plugin_name=plugin_name, new_settings=payload.settings)
+        # settings_updated is triggered inside update_plugin_settings (it
+        # receives plugin_manager); triggering it here too fired the hook twice.
         return Response(status_code=status.HTTP_204_NO_CONTENT)
 
     @api_router.post("/settings/reload")
@@ -105,13 +112,66 @@ def create_app() -> FastAPI:
         settings_manager.load_and_notify(plugin_manager)
         return {"status": "ok"}
 
+    @api_router.post("/app/restart")
+    async def api_restart_app():
+        """Restart the application: needed after a data import, because plugin
+        (de)activations only take effect at boot. Spawns a detached copy of the
+        current process, then exits."""
+        def _restart():
+            try:
+                flags = 0
+                if sys.platform == "win32":
+                    flags = subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP
+                # DETACHED_PROCESS leaves the child without a console: with
+                # invalid stdio the child's uvicorn logging/startup dies
+                # silently and the new window loads an error page. Give it
+                # real file handles (its diagnostics land there) and an
+                # absolute script path so it does not depend on our cwd.
+                script = sys.argv[0] if os.path.isabs(sys.argv[0]) else os.path.abspath(sys.argv[0])
+                log_path = os.path.join(get_appdata_dir(), "logs", "restart_child.log")
+                log_file = open(log_path, "ab")
+                subprocess.Popen(
+                    [sys.executable, script] + sys.argv[1:],
+                    creationflags=flags,
+                    stdout=log_file,
+                    stderr=log_file,
+                    stdin=subprocess.DEVNULL,
+                    cwd=os.path.dirname(script) or None,
+                )
+                logger.info(f"Restart child spawned; output -> {log_path}")
+            except Exception as exc:
+                logger.error(f"Could not spawn restart process: {exc}")
+            finally:
+                os._exit(0)
+
+        logger.info("Restart requested via REST - restarting the application")
+        threading.Timer(0.5, _restart).start()
+        return {"status": "ok"}
+
+    @api_router.post("/app/quit")
+    async def api_quit_app():
+        """Close the application without relaunching it. The onboarding wizard
+        uses this after a language change: the user is told to relaunch IGOOR,
+        which avoids the restart port race (the old process releases the port
+        only during teardown, so an immediately spawned child can fail to
+        bind) and needs no detached-process tricks."""
+        logger.info("Quit requested via REST - closing the application")
+        threading.Timer(0.5, os._exit, args=(0,)).start()
+        return {"status": "ok"}
+
     @api_router.post("/plugins/{plugin_name}/toggle")
     async def api_toggle_plugin(plugin_name: str, payload: TogglePluginPayload):
         try:
             if payload.active:
-                plugin_manager.activate_plugin(plugin_name)
+                if not plugin_manager.activate_plugin(plugin_name):
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Plugin '{plugin_name}' is not available on this platform",
+                    )
             else:
                 plugin_manager.deactivate_plugin(plugin_name)
+        except HTTPException:
+            raise
         except Exception as exc:
             raise HTTPException(status_code=500, detail=str(exc)) from exc
         return {"status": "ok"}
@@ -136,6 +196,39 @@ def create_app() -> FastAPI:
         except Exception as exc:
             raise HTTPException(status_code=500, detail=str(exc))
         return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+    @api_router.get("/app/clipboard")
+    async def api_get_clipboard():
+        """Return the OS clipboard text so the UI can offer a Paste button.
+
+        WKWebView (pywebview on macOS) does not route the Cmd+V shortcut to web
+        inputs, and the async Clipboard API is unavailable there — the desktop
+        frontend reads the clipboard through this endpoint instead.
+        """
+        import platform as _platform
+        import subprocess
+
+        system = _platform.system()
+        text = ""
+        try:
+            if system == "Darwin":
+                text = subprocess.run(["pbpaste"], capture_output=True, text=True, timeout=2).stdout
+            elif system == "Windows":
+                result = subprocess.run(
+                    ["powershell", "-NoProfile", "-Command", "Get-Clipboard -Raw"],
+                    capture_output=True, text=True, timeout=3,
+                )
+                text = result.stdout.rstrip("\r\n")
+            else:
+                for cmd in (["xclip", "-selection", "clipboard", "-o"], ["xsel", "--clipboard", "--output"]):
+                    try:
+                        text = subprocess.run(cmd, capture_output=True, text=True, timeout=2).stdout
+                        break
+                    except FileNotFoundError:
+                        continue
+        except Exception as exc:
+            logger.warning(f"Could not read clipboard: {exc}")
+        return {"text": text}
 
     @api_router.get("/context")
     async def api_get_context():
@@ -185,7 +278,9 @@ def create_app() -> FastAPI:
                     "success": True,
                     "message": result.get("message"),
                     "warnings": result.get("warnings", []),
-                    "version_info": result.get("version_info")
+                    "version_info": result.get("version_info"),
+                    "activation_changes": result.get("activation_changes", {}),
+                    "summary": result.get("summary", {})
                 }
             finally:
                 # Clean up temp file
@@ -204,10 +299,29 @@ def create_app() -> FastAPI:
     app.mount("/img", StaticFiles(directory=resource_path("img")), name="img")
     app.mount("/plugins", StaticFiles(directory=resource_path("plugins")), name="plugins")
     app.mount("/locales", StaticFiles(directory=resource_path("locales")), name="locales")
+
+    @app.middleware("http")
+    async def revalidate_static_assets(request: Request, call_next):
+        # Frontend assets (.vue/.js/.css served from the app root) change on every
+        # upgrade; without an explicit Cache-Control the browser heuristic-caches
+        # them and renders a stale UI until the cache happens to expire.
+        response = await call_next(request)
+        if "Cache-Control" not in response.headers:
+            response.headers["Cache-Control"] = "no-cache"
+        return response
+
     @app.websocket("/ws/{plugin_name}")
     async def websocket_endpoint(websocket: WebSocket, plugin_name: str):
         name = plugin_name.strip("/") or "app"
         await websocket_server.connect(name, websocket)
+        if name == "app":
+            # A (re)connecting app frontend needs the current view: on page
+            # reload nothing else re-sends it (gui_ready fires once per boot),
+            # which used to leave a refreshed browser stuck on the splash.
+            try:
+                await plugin_manager.trigger_hook("gui_ready")
+            except Exception as exc:
+                logger.warning(f"gui_ready re-fire on app connect failed: {exc}")
         try:
             while True:
                 message = await websocket.receive_text()

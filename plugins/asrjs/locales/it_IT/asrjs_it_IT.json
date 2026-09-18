@@ -21,6 +21,8 @@
     "Click the box and press a key or combination (e.g., Ctrl+R) to set the shortcut.": "Clicca nella casella e premi un tasto o una combinazione (es., Ctrl+K) per impostare la scorciatoia.",
     "Microphone Activation Shortcut": "Scorciatoia attivazione microfono",
     "This keyboard combination STARTS / STOPS the speech detection process": "Questa combinazione di tasti AVVIA / FERMA il processo di rilevamento vocale",
+    "Push-to-talk (hold the shortcut)": "Push-to-talk (tieni premuta la scorciatoia)",
+    "When enabled, hold the shortcut (or the external button) to talk: recording starts on press and stops when you release it.": "Quando attivata, tieni premuta la scorciatoia (o il pulsante esterno) per parlare: la registrazione inizia alla pressione e si interrompe al rilascio.",
     "Mistral API Key is required for Voxtral models": "La chiave API Mistral è richiesta per i modelli Voxtral",
     "Mistral API Key is required": "La chiave API Mistral è obbligatoria",
     "Groq API Key is required for Whisper models": "La chiave API Groq è richiesta per i modelli Whisper",
@@ -71,6 +73,6 @@
     "Medium": "Medio",
     "Slow": "Lento",
     "Very slow": "Molto lento",
-    "Open Windows microphone settings": "Apri le impostazioni del microfono di Windows",
-    "IGOOR uses your Windows default microphone.": "IGOOR utilizza il microfono predefinito di Windows."
+    "Open OS microphone settings": "Apri le impostazioni del microfono di sistema",
+    "IGOOR uses your system default microphone.": "IGOOR utilizza il microfono predefinito di sistema."
 }

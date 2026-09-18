@@ -1,29 +1,48 @@
-import pkg_resources
-import subprocess
+import re
 
-# Get all installed distributions
+import pkg_resources
+
+# A "plain pin" is an auto-refreshable "package==version" line. Everything
+# else (environment markers like "; sys_platform == 'win32'", comments,
+# ranged pins like ">=...") carries hand-maintained multi-platform
+# information and must survive regeneration verbatim.
+PLAIN_PIN = re.compile(r"^[A-Za-z0-9_.\-]+==[A-Za-z0-9.!+]+$")
+NAME_RE = re.compile(r"^\s*([A-Za-z0-9_.\-]+)")
+
+
+def _package_name(line):
+    match = NAME_RE.match(line)
+    return match.group(1).lower().replace("_", "-") if match else None
+
+
+preserved = []
+pinned_names = set()
+try:
+    with open("requirements.txt", "r", encoding="utf-8") as f:
+        for line in f.read().splitlines():
+            stripped = line.strip()
+            if not stripped or PLAIN_PIN.match(stripped):
+                continue
+            preserved.append(stripped)
+            name = _package_name(stripped)
+            if name:
+                pinned_names.add(name)
+except FileNotFoundError:
+    pass
+
 installed = list(pkg_resources.working_set)
 
-# Build a mapping: package -> set of packages that require it
-required_by = {pkg.key: set() for pkg in installed}
-for pkg in installed:
-    for dep in pkg.requires():
-        dep_name = dep.key
-        if dep_name in required_by:
-            required_by[dep_name].add(pkg.key)
+lines = [
+    f"{pkg.project_name}=={pkg.version}"
+    for pkg in installed
+    if _package_name(pkg.project_name) not in pinned_names
+]
+lines.extend(preserved)
 
-# Keep only packages that are required by something OR that are top-level (installed explicitly)
-top_level_packages = {pkg.key for pkg in pkg_resources.working_set}
-clean_packages = [pkg.key for pkg in installed if required_by[pkg.key] or pkg.key in top_level_packages]
+with open("requirements.txt", "w", encoding="utf-8") as f:
+    f.write("\n".join(sorted(lines)) + "\n")
 
-# Get versions and format for requirements.txt
-lines = []
-for pkg in installed:
-    if pkg.key in clean_packages:
-        lines.append(f"{pkg.project_name}=={pkg.version}")
-
-# Write to requirements.txt
-with open("requirements.txt", "w") as f:
-    f.write("\n".join(sorted(lines)))
-
-print("Clean requirements.txt generated with packages actually used.")
+print(
+    f"requirements.txt regenerated: {len(lines) - len(preserved)} refreshed pins, "
+    f"{len(preserved)} hand-edited lines preserved verbatim."
+)
