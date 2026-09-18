@@ -70,8 +70,10 @@ class Rag(Baseplugin):
         self.score_threshold = self.settings.get("score_threshold", 0.5)
 
 
-        # Start a thread to load both embedding model and indexes
-        thread = threading.Thread(target=lambda: asyncio.run(self.initialize_resources()))
+        # Start a thread to load both embedding model and indexes.
+        # daemon=True: a non-daemon loader keeps a windowless process alive
+        # at interpreter teardown if the user closes the app mid-load.
+        thread = threading.Thread(target=lambda: asyncio.run(self.initialize_resources()), daemon=True)
         thread.start()
         
     '''

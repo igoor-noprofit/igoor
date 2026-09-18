@@ -159,9 +159,15 @@ class WebSocketHub:
                     except Exception as exc:
                         print(f"WARNING: Failed closing websocket for {name}: {exc}")
 
-    def stop(self) -> None:
+    def stop(self, timeout: float = 1.0) -> None:
         if self.loop and self.loop.is_running():
-            asyncio.run_coroutine_threadsafe(self._close_all(), self.loop)
+            future = asyncio.run_coroutine_threadsafe(self._close_all(), self.loop)
+            try:
+                # Wait briefly for the closes to land so the endpoint
+                # receive-loops finish before the server is asked to exit.
+                future.result(timeout=timeout)
+            except Exception:
+                pass  # loop died or a close hung - caller force-exits anyway
 
 
 websocket_server = WebSocketHub()

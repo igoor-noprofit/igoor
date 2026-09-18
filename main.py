@@ -89,6 +89,9 @@ def start_fastapi_server() -> None:
                 host=host,
                 port=9714,
                 log_level="info",
+                # Cap uvicorn's wait on open connections/tasks at shutdown:
+                # without this it waits indefinitely on lingering websockets.
+                timeout_graceful_shutdown=1.0,
             ))
             fastapi_server = server
             try:
@@ -122,7 +125,12 @@ def stop_fastapi_server() -> None:
         fastapi_server.should_exit = True
 
     if fastapi_thread and fastapi_thread.is_alive():
-        fastapi_thread.join(timeout=5)
+        fastapi_thread.join(timeout=2)
+        if fastapi_thread.is_alive() and fastapi_server:
+            # Graceful drain didn't finish in time - abort it, on_closing()
+            # hard-exits the process right after this anyway.
+            fastapi_server.force_exit = True
+            fastapi_thread.join(timeout=1)
 
     fastapi_server = None
     fastapi_thread = None
@@ -336,10 +344,30 @@ def load_frontend_components(lang):
 
     return final_html
 
+_shutting_down = False
+
 def on_closing():
-    stop_fastapi_server()
-    websocket_server.stop()
-    print("WebSocket server has been closed.")
+    """Stop the backend, then hard-exit so the process can never linger.
+
+    Non-daemon threads (rag's model/index loader above all) would otherwise
+    keep a windowless process alive at interpreter teardown, blocking a
+    relaunch on port 9714. Reached from the window closing event, SIGINT,
+    KeyboardInterrupt and end-of-main; the flag makes it run exactly once.
+    """
+    global _shutting_down
+    if _shutting_down:
+        return
+    _shutting_down = True
+
+    try:
+        logger.info("Shutting down backend...")
+        # Close websockets FIRST, while the uvicorn loop is still alive, so the
+        # endpoint receive-loops finish and the server drains instantly.
+        websocket_server.stop()
+        stop_fastapi_server()
+        logger.info("Backend stopped - exiting process.")
+    finally:
+        os._exit(0)
 
 _gui_ready_fired = False
 
@@ -518,7 +546,7 @@ if __name__ == "__main__":
             logger.info("Shutdown requested (headless mode)")
         finally:
             stop_tray_icon(tray_icon)
-            stop_fastapi_server()
+            on_closing()
     else:
         start_fastapi_server()
         # GUI mode with external access (window + remote browsers) gets the
@@ -567,4 +595,9 @@ if __name__ == "__main__":
         if splash_root is not None:
             splash_root.destroy()
         start_webview()
+        # The window is gone. on_closing() usually ran via the closing event
+        # already; if it didn't (crash in webview, KeyboardInterrupt fell
+        # through), run it now - either way it hard-exits the process so no
+        # non-daemon thread (rag init) can keep it alive windowless.
+        on_closing()
 
