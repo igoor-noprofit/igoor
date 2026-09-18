@@ -237,7 +237,7 @@ async function initializeApp() {
           lost: {
             en_EN: "Connection lost — reconnecting…",
             fr_FR: "Connexion perdue — reconnexion…",
-            it_IT: "Connessione persa — riconnetting…",
+            it_IT: "Connessione persa — riconnessione…",
             pt_BR: "Conexão perdida — reconectando…",
           },
         };
