@@ -27,8 +27,8 @@ Documentation is ongoing. We strive to keep it up to date with latest functional
 - **Windows 10/11** (PC or tablet)
 - Minimum resolution: 1280x960
 - Recommended resolution: 1920x1080 or more
-- **Internet connection (preferably optic fiber or ADSL)**
-- A Groq API key
+- Internet connection for cloud AI features (the app also runs fully offline in keyless mode)
+- Optional: an API key for a supported AI provider (Groq, Mistral, Cerebras) or a local OpenAI-compatible server — IGOOR works without any key
 
 ### Microsoft © Edge WebView2 Runtime
 
@@ -72,19 +72,37 @@ untouched — so a user's settings and data stay portable across OSes.
 
 ### AI INFERENCE PROVIDER
 
-The only AI inference provider currently meeting our requirements of speed, privacy, quality, support of opensource models and availability of both ASR/LLM inference is Groq.
-Signup for a FREE-tier access to Groq's API here:
+IGOOR works **without any AI key**: typing, voice output (system voices) and
+offline speech recognition (local sherpa-onnx models, downloaded automatically
+for the user's language) all run locally. AI-powered features — suggested
+sentences, richer replies — need one of the following, chosen and validated in
+real time during the first-run wizard (or later in Settings → AI):
+
+| Provider | LLM | Speech recognition (auto-configured) |
+|---|---|---|
+| Groq | Cloud | Cloud (Whisper) |
+| Mistral | Cloud | Cloud (Voxtral) |
+| Cerebras | Cloud | Offline local model |
+| Other / Local (any OpenAI-compatible endpoint: Ollama, LM Studio, …) | Your server (local or remote) | Offline local model |
+
+The table shows what the wizard configures automatically per provider. Speech
+recognition is a separate subsystem: the ASR engine (Groq Whisper, Mistral
+Voxtral or the offline local model) can be changed independently of the LLM
+provider in Settings → Extensions → asrjs.
+
+Groq is the provider that currently best meets our requirements of speed,
+privacy, quality and support of open-source models, and offers a free tier:
 
 https://console.groq.com/keys
 
-For production use, you will need a developer tier self-serve (Pay per Token) access, 
-or you'll rapidly incur in rate limits errors.
-
-We plan on supporting other providers soon, as well as local models.
+For production use, you will need a developer tier self-serve (Pay per Token)
+access, or you'll rapidly incur in rate limits errors.
 
 ### DISK SPACE
 
 In the user's data folder, big ASR models take a lot of space.
+Offline (sherpa-onnx) ASR models are downloaded automatically per language and
+range from ~20 MB to ~300 MB depending on the language (the default small version).
 
 The embedding model from HuggingFace currently requires 1.15Gb on disk.
 
@@ -140,7 +158,7 @@ The application folder (IGOOR_FOLDER) on Win is :
 C:/Users/YourUsername/AppData/Roaming/igoor/
 ```
 
-The folder contains a settings.json and a plugins data folder, called "plugins".
+The folder contains settings.json, a database/ folder (conversations and plugin data), logs/ and a plugins/ data folder (models, voices, recordings...).
 
 ### EMBEDDING MODELS FOR RAG
 
@@ -272,7 +290,7 @@ You should have received a copy of the GNU Affero General Public License along w
 
 ## ADDING A LANGUAGE
 
-We now have a Claude skill to help developers add a new language from scratch. Use it (it' in skills\add-language).
+We have a Claude skill to help developers add a new language from scratch. Use it (it's in .claude/skills/add-language).
 
 ### PLUGINS
 
@@ -281,4 +299,4 @@ New languages may require new filters to be applied (see known issues 1).
 
 ## KNOWN ISSUES ##
 1) ASR models can interpret silence or very low, inaudible sounds as speech and return texts like "Thank you" instead of empty texts. This depends on the ASR models, not the IGOOR app.
-Whisper and Voxtral models have a known bug that can convert silences or very low, inaudible sounds, to specific strings never uttered by the user (ex. "Sous-titrage ST' 501"). These are cleaned by the function "clean_whisper_silence" in plugins/asrwhisper.py (added in 0.1.3.5). 
+Whisper and Voxtral models have a known bug that can convert silences or very low, inaudible sounds, to specific strings never uttered by the user (ex. "Sous-titrage ST' 501"). These are cleaned by the function "clean_whisper_silence" in plugins/asrjs/asrjs.py (added in 0.1.3.5). 
