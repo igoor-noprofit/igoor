@@ -1,6 +1,7 @@
 from version import __appname__, __version__
 import os
 import json
+import sqlite3
 import zipfile
 import tempfile
 import shutil
@@ -499,7 +500,7 @@ class DataManager:
                     self.logger.info(f"Restored plugins/{plugin_name}/{rel_path} ({mode})")
 
                 self.logger.info("Import completed successfully")
-                
+
                 # Import hook - let plugins know data was imported. import_user_data
                 # runs synchronously inside the FastAPI handler's event loop, so
                 # asyncio.run() would raise "cannot be called from a running event
@@ -517,7 +518,64 @@ class DataManager:
                         self.logger.info("Triggered data_imported hook")
                 except Exception as e:
                     self.logger.warning(f"Could not trigger data_imported hook: {e}")
-                
+
+                # Build a human-readable summary of what the import restored
+                # (shown to the user/caregiver after the wizard's import, and
+                # useful in the logs). Every item is best-effort: a missing
+                # table or folder just means the entry is absent.
+                summary = {}
+                try:
+                    db_file = os.path.join(self.appdata_dir, "database", "igoor.db")
+                    if os.path.exists(db_file):
+                        con = sqlite3.connect(db_file)
+                        try:
+                            cur = con.cursor()
+                            counts = {}
+                            for key, table in (("conversations", "conversation_threads"),
+                                               ("messages", "conversation_msgs"),
+                                               ("documents", "rag_documents")):
+                                try:
+                                    cur.execute(f"SELECT COUNT(*) FROM {table}")
+                                    counts[key] = cur.fetchone()[0]
+                                except sqlite3.OperationalError:
+                                    pass
+                            if counts.get("conversations"):
+                                summary["conversations"] = counts["conversations"]
+                            if counts.get("messages"):
+                                summary["messages"] = counts["messages"]
+                            if counts.get("documents"):
+                                summary["documents"] = counts["documents"]
+                        finally:
+                            con.close()
+                except Exception as e:
+                    self.logger.warning(f"Could not count restored database items: {e}")
+
+                try:
+                    voices = 0
+                    for plugin_name, rel_path in (("pockettts", "voices"), ("speakerid", "voices")):
+                        folder = os.path.join(self.appdata_dir, "plugins", plugin_name, rel_path)
+                        if os.path.isdir(folder):
+                            voices += sum(len(files) for _, _, files in os.walk(folder))
+                    if voices:
+                        summary["voices"] = voices
+                except Exception as e:
+                    self.logger.warning(f"Could not count restored voices: {e}")
+
+                try:
+                    restored_settings_path = os.path.join(self.appdata_dir, "settings.json")
+                    with open(restored_settings_path, 'r', encoding='utf-8') as f:
+                        restored = json.load(f)
+                    profile_name = (restored.get("plugins", {}).get("onboarding", {}).get("bio", {}) or {}).get("name")
+                    if profile_name:
+                        summary["name"] = profile_name
+                    ai = restored.get("plugins", {}).get("onboarding", {}).get("ai", {}) or {}
+                    summary["ai_connected"] = bool(ai.get("api_key"))
+                    summary["provider"] = ai.get("provider")
+                except Exception as e:
+                    self.logger.warning(f"Could not read restored settings for the summary: {e}")
+
+                self.logger.info(f"Import summary: {summary}")
+
                 return {
                     "success": True,
                     "message": "Import completed successfully",
@@ -525,7 +583,8 @@ class DataManager:
                     "backup_items": backup_items,
                     "warnings": warnings,
                     "version_info": metadata,
-                    "activation_changes": activation_changes
+                    "activation_changes": activation_changes,
+                    "summary": summary
                 }
                 
         except Exception as e:

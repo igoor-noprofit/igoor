@@ -1,7 +1,21 @@
 <template>
     <div>
+        <!-- First-run wizard (own component): full-window overlay for users
+             whose onboarding is still incomplete. Keyless by design: name +
+             language are enough to reach the daily view. The wizard shares
+             this component's bio/prefs/ai objects and key-validation state
+             via props; backend replies are forwarded from
+             handleIncomingMessage via $refs. -->
+        <onboarding-wizard ref="wizard" v-if="wizardActive"
+            :bio="bio" :prefs="prefs" :ai="ai" :boot-lang="lang"
+            :t="wizardT" :send="wizardSend" :rest="wizardRest" :open-mic-settings="openMicSettings"
+            :api-key-valid="apiKeyValid" :api-key-error="apiKeyError"
+            :api-key-error-message="apiKeyErrorMessage" :is-validating="isValidating"
+            @finish="onWizardFinish" @validate-key="onWizardValidateKey" @reset-validation="resetKeyValidation">
+        </onboarding-wizard>
+
         <!-- Settings Gear Icon -->
-        <div @click="toggleModal" class="settings-gear">
+        <div @click="toggleModal" class="settings-gear" v-show="appview !== 'onboarding'">
             <img src="/img/icons/src/settings.svg" width="30">
         </div>
         <!-- Modal Window for Plugin Settings -->
@@ -223,7 +237,9 @@
                                     </select>
                                 </div>
                                 <div>
-                                    <label>{{ t("Temperature") }}</label>
+                                    <label>{{ t("Temperature") }}
+                                        <HelpPopover :text="t('Controls how predictable the suggested phrases are. Lower: safer, more predictable suggestions. Higher: more varied suggestions, but sometimes less relevant.')" :t="t" :lang="lang"/>
+                                    </label>
                                     <div style="display: flex; align-items: center; gap: 12px;">
                                         <input type="range" v-model.number="ai.temperature" min="0" max="1" step="0.01"
                                             style="flex: 1 1 60%;">
@@ -363,12 +379,14 @@
 import BasePluginComponent from '/js/BasePluginComponent.js';
 import { ensureBackendApi } from '/js/ensureBackendApi.js';
 import HelpPopover from '/js/HelpPopover.vue';
+import OnboardingWizard from '/plugins/onboarding/frontend/onboarding_wizard.vue';
 
 export default {
     name: "onboarding",
     mixins: [BasePluginComponent], // Use the mixin
     components: {
-        HelpPopover
+        HelpPopover,
+        OnboardingWizard
     },
     data() {
         return {
@@ -409,6 +427,8 @@ export default {
             viewingPluginSettings: false,     // Controls visibility of plugin-specific settings view
             showUnsavedChangesModal: false,  // Controls visibility of unsaved changes confirmation modal
             pendingNavigation: null,            // Stores the pending navigation action to execute after confirmation
+            wizardActive: false,             // First-run wizard overlay (latched on entering the onboarding view)
+            backendOnboardingComplete: false, // Completion as CONFIRMED by backend settings (never local edits)
             // API key validation properties
             apiKeyError: false,
             apiKeyErrorMessage: '',
@@ -465,6 +485,7 @@ export default {
                 if (settings.bio) this.bio = { ...this.bio, ...settings.bio };
                 if (settings.prefs) this.prefs = { ...this.prefs, ...settings.prefs };
                 if (settings.ai) this.ai = { ...this.ai, ...settings.ai };
+                this.backendOnboardingComplete = Boolean(this.bio.name && this.bio.name.trim() && this.prefs.lang);
             }
         } catch (error) {
             console.error("Failed to load onboarding settings via REST", error);
@@ -490,6 +511,24 @@ export default {
     computed: {
         categories() {
             return Object.keys(this.pluginData)
+        },
+        onboardingComplete() {
+            // Mirrors the backend's mandatory-field check (name + language):
+            // completed users entering the onboarding view get the settings
+            // modal, never the first-run wizard.
+            return Boolean(this.bio.name && this.bio.name.trim() && this.prefs.lang);
+        },
+        // Parent-bound helpers handed to the wizard child (arrow wrappers so
+        // the child calls them with THIS component as `this`: the websocket
+        // and the translations live here, the child has no BasePluginComponent).
+        wizardT() {
+            return (key, params) => this.t(key, params);
+        },
+        wizardSend() {
+            return (data) => this.sendMsgToBackend(data);
+        },
+        wizardRest() {
+            return (pluginName, endpoint, options) => this.callPluginRestEndpoint(pluginName, endpoint, options);
         },
         supportsReasoning() {
             // Groq reasoning models (with openai/ prefix)
@@ -602,10 +641,55 @@ export default {
         },
     },
     watch: {
+        appview: {
+            // immediate: the async SFC loader can create this component AFTER
+            // the view already switched to onboarding - the prop then starts
+            // at 'onboarding' and would never "change", missing the latch.
+            immediate: true,
+            handler(val) {
+                // Only first-run users get the wizard: once onboarding is
+                // complete (name saved), entering the onboarding view opens
+                // the settings modal instead (the root's changeView used to
+                // trigger force_onboarding for this). wizardActive is latched
+                // on entry so saving the name mid-wizard (which completes
+                // onboarding backend-side) never unmounts it.
+                if (val === 'onboarding') {
+                    if (!this.onboardingComplete) {
+                        this.wizardActive = true;
+                    }
+                } else {
+                    this.wizardActive = false;
+                }
+            }
+        },
+        backendOnboardingComplete(done) {
+            // A completed profile must never keep the wizard up - but only
+            // when the BACKEND says so (settings arrival), never on local
+            // edits: typing the very first letter of the name in the choice
+            // screen flips the onboardingComplete computed locally, and
+            // tearing the wizard down there strands the user on the logo
+            // splash. backendOnboardingComplete is only ever assigned from
+            // websocket/REST settings merges. Only pre-interaction steps are
+            // torn down. NEVER tear down while an import runs or shows its
+            // recap: the imported settings (complete profile) are broadcast
+            // right before the import response.
+            if (done && this.appview === 'onboarding' && this.wizardActive) {
+                const wiz = this.$refs.wizard;
+                const importInProgress = wiz && (wiz.wizardImporting || wiz.wizardStep === 'importDone');
+                const preInteraction = !wiz || wiz.wizardStep === 'loading' || wiz.wizardStep === 'choice';
+                if (preInteraction && !importInProgress) {
+                    this.wizardActive = false;
+                }
+            }
+        },
         'prefs.lang'(newLang, oldLang) {
             // Only update locale if lang is set and not empty
             if (newLang) {
                 this.prefs.locale = `${newLang}.UTF-8`;
+                // Live language switch (wizard): t() reads this.translations
+                // reactively, so refetching the locale file retranslates the
+                // wizard immediately — no restart needed while onboarding.
+                this.reloadTranslations(newLang);
             }
             // Show restart alert if language has changed and it's not the initial set
             if (oldLang && newLang !== oldLang) {
@@ -616,7 +700,8 @@ export default {
             }
         },
         'ai.api_key'(newValue) {
-            // Debounce API key validation
+            // Debounce API key validation (fires for the wizard child too: it
+            // v-models the same shared ai object)
             if (this.validationDebounce) {
                 clearTimeout(this.validationDebounce);
             }
@@ -625,9 +710,7 @@ export default {
                     this.validateApiKey(newValue);
                 }, 500);
             } else {
-                this.apiKeyError = false;
-                this.apiKeyErrorMessage = '';
-                this.apiKeyValid = false;
+                this.resetKeyValidation();
             }
         },
         'ai.model_name'(newModel) {
@@ -638,6 +721,44 @@ export default {
         }
     },
     methods: {
+        // ---------- First-run wizard (child component) ----------
+        onWizardFinish() {
+            // force_onboarding may have opened the settings modal when the
+            // view was entered; close it so the daily view isn't covered by
+            // it, then hand control to the daily view.
+            this.showModal = false;
+            this.sendMsgToBackend({ action: 'finish_wizard' });
+        },
+        onWizardValidateKey() {
+            // The wizard re-selected a provider; validate the current key now.
+            this.validateApiKey(this.ai.api_key);
+        },
+        resetKeyValidation() {
+            this.apiKeyError = false;
+            this.apiKeyErrorMessage = '';
+            this.apiKeyValid = false;
+        },
+        async reloadTranslations(lang) {
+            // Fetch this plugin's locale file for an EXPLICIT language — the
+            // BasePluginComponent.loadTranslations() from created() always
+            // re-reads the boot-time lang prop baked into app.js. Swapping
+            // this.translations retranslates everything t() renders (the
+            // wizard's t prop included) without any restart.
+            try {
+                if (!lang || lang === 'en_EN') {
+                    this.translations = {};
+                    return;
+                }
+                const url = `/plugins/onboarding/locales/${lang}/onboarding_${lang}.json${window.IGOOR_VERSION ? "?v=" + encodeURIComponent(window.IGOOR_VERSION) : ""}`;
+                const response = await fetch(url);
+                if (!response.ok) throw new Error(`Could not load ${url}`);
+                this.translations = await response.json();
+            } catch (e) {
+                console.warn('Translation reload failed:', e);
+                this.translations = {};
+            }
+        },
+        // ---------- End first-run wizard ----------
         async $_pasteApiKey() {
             // The desktop shell has no working paste shortcut (and eye-tracking
             // users benefit from a single click): read the clipboard on the backend.
@@ -956,7 +1077,18 @@ export default {
                 }
                 if (data.action && data.action == "show_modal"){
                     console.warn("ONBOARDING FORCED");
+                    // Other plugins' 'Connect an AI' buttons request a specific
+                    // tab (open_settings?tab=ai) so the user lands on the
+                    // provider form instead of the default Bio tab.
+                    if (data.tab) {
+                        this.currentTab = data.tab;
+                    }
                     this.showModal = true;
+                }
+                if (this.$refs.wizard) {
+                    // Wizard replies (provider_saved, errors while saving): the
+                    // wizard child owns no websocket, so forward from here.
+                    this.$refs.wizard.onBackendMessage(data);
                 }
                 // Handle settings updates (both initial load and global settings update)
                 if (data.bio) {
@@ -967,6 +1099,18 @@ export default {
                 }
                 if (data.ai) {
                     this.ai = { ...this.ai, ...data.ai };
+                }
+                // Backend-confirmed completion (drives the wizard un-latch):
+                // set ONLY from arrived settings, so a local edit (typing the
+                // name) can never tear the wizard down.
+                if (data.bio || data.prefs) {
+                    this.backendOnboardingComplete = Boolean(this.bio.name && this.bio.name.trim() && this.prefs.lang);
+                }
+                // Settings can arrive after the view switch: (re)latch the
+                // wizard here too, the appview watcher alone can miss it.
+                // (Un-latching lives in the onboardingComplete watcher.)
+                if (this.appview === 'onboarding' && !this.onboardingComplete && !this.wizardActive) {
+                    this.wizardActive = true;
                 }
                 // Reload plugins list when settings are updated
                 if (data.bio || data.prefs || data.ai) {

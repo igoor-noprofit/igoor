@@ -27,6 +27,7 @@ test_elevenlabstts.py
 AI/
 .factory/docs
 .zcode/plans
+/docs 
 
 # Distribution / packaging
 .Python

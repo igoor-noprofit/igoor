@@ -60,6 +60,17 @@
                 </div>
             </div>
         </div>
+
+        <!-- Keyless mode: grey the suggestions out and offer a one-click path
+             to the AI settings (typing and voice still work without a key). -->
+        <div v-if="aiConnected === false" class="daily-keyless-cover">
+            <div class="daily-keyless-card">
+                <svg class="icon icon-l keyless-ic"><use xlink:href="/img/svgdefs.svg#icon-info"></use></svg>
+                <p class="keyless-title">{{ t('AI suggestions are off') }}</p>
+                <p class="keyless-text">{{ t('The suggestions on this screen need an AI connection. Typing and voice work without it.') }}</p>
+                <button class="btn btn-primary" @click="$_openAiSettings">{{ t('Connect an AI') }}</button>
+            </div>
+        </div>
     </div>
 </template>
 
@@ -77,7 +88,8 @@ module.exports = {
             secondaryCategories: [],
             answers: [],
             selectedItem: null,
-            editingKey: null
+            editingKey: null,
+            aiConnected: null   // null = unknown (keep the normal UI until proven keyless)
         };
     },
     computed: {
@@ -88,6 +100,15 @@ module.exports = {
                 right: 'icon-cloud-rain'
             };
         }
+    },
+    created() {
+        // Keyless mode: the daily suggestions are AI-generated, so grey the
+        // interface out and offer a one-click path to the AI settings rather
+        // than letting the user tap buttons that silently fail.
+        fetch('/api/plugins/onboarding/settings')
+            .then(r => r.json())
+            .then(d => { this.aiConnected = Boolean(d && d.ai && d.ai.api_key); })
+            .catch(() => { this.aiConnected = null; });
     },
     mounted() {
         console.log('DAILY MOUNTED');
@@ -109,6 +130,12 @@ module.exports = {
         this.checkAndSendReady();
     },
     methods: {
+        $_openAiSettings() {
+            // Open the onboarding settings modal straight on its AI tab -
+            // no view switch, the first-run wizard stays out of the way.
+            fetch('/api/plugins/onboarding/open-settings?tab=ai', { method: 'POST' })
+                .catch(e => console.error('Could not open the AI settings:', e));
+        },
         isSelected(category, key) {
             return this.selectedItem && this.selectedItem.category === category && this.selectedItem.itemKey === key;
         },
@@ -167,6 +194,12 @@ module.exports = {
                 console.log(event.data);
                 const data = JSON.parse(event.data);
                 console.log(data);
+                if (data.type === 'ai_connected') {
+                    // Onboarding saved (or cleared) an AI key: lift the grey
+                    // cover immediately instead of waiting for a reload.
+                    this.aiConnected = data.value !== false;
+                    return true;
+                }
                 if (data.dailyData) {
                     this.dailyData = data.dailyData.needs;
                     // this.tags = data.dailyData.tags;
@@ -271,6 +304,44 @@ module.exports = {
     flex-direction: column;
     flex: 1 1 auto;
     min-height: 0;
+    position: relative;
+}
+
+/* Keyless cover: greys the suggestions out and blocks interaction. */
+.daily-keyless-cover {
+    position: absolute;
+    inset: 0;
+    z-index: 60;
+    background: rgba(8, 10, 11, 0.72);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+}
+.daily-keyless-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    text-align: center;
+    background: var(--color-bgoverlay-0);
+    border: 1.5px dashed var(--color-gray700);
+    border-radius: 14px;
+    padding: 28px 32px;
+    max-width: 460px;
+}
+.daily-keyless-card .keyless-ic {
+    opacity: 0.6;
+}
+.daily-keyless-card .keyless-title {
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin: 0;
+}
+.daily-keyless-card .keyless-text {
+    color: var(--color-gray100);
+    font-size: 0.95rem;
+    margin: 0;
 }
 
 .btn-primary {

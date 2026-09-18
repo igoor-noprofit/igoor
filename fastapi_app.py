@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import os
+import subprocess
+import sys
 import tempfile
+import threading
 from pathlib import Path
 from typing import Dict, Optional
 
@@ -94,6 +97,10 @@ def create_app() -> FastAPI:
     async def api_update_plugin_settings(
         plugin_name: str, payload: UpdateSettingsPayload
     ):
+        if plugin_name == "asrjs":
+            # A manual save in the asrjs settings reclaims engine control from
+            # the onboarding provider matrix ("unless otherwise stated later").
+            payload.settings["asr_managed_by_onboarding"] = False
         settings_manager.update_plugin_settings(plugin_name, payload.settings, plugin_manager)
         # settings_updated is triggered inside update_plugin_settings (it
         # receives plugin_manager); triggering it here too fired the hook twice.
@@ -103,6 +110,53 @@ def create_app() -> FastAPI:
     async def api_reload_settings():
         """Force reload settings from disk and notify all plugins."""
         settings_manager.load_and_notify(plugin_manager)
+        return {"status": "ok"}
+
+    @api_router.post("/app/restart")
+    async def api_restart_app():
+        """Restart the application: needed after a data import, because plugin
+        (de)activations only take effect at boot. Spawns a detached copy of the
+        current process, then exits."""
+        def _restart():
+            try:
+                flags = 0
+                if sys.platform == "win32":
+                    flags = subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP
+                # DETACHED_PROCESS leaves the child without a console: with
+                # invalid stdio the child's uvicorn logging/startup dies
+                # silently and the new window loads an error page. Give it
+                # real file handles (its diagnostics land there) and an
+                # absolute script path so it does not depend on our cwd.
+                script = sys.argv[0] if os.path.isabs(sys.argv[0]) else os.path.abspath(sys.argv[0])
+                log_path = os.path.join(get_appdata_dir(), "logs", "restart_child.log")
+                log_file = open(log_path, "ab")
+                subprocess.Popen(
+                    [sys.executable, script] + sys.argv[1:],
+                    creationflags=flags,
+                    stdout=log_file,
+                    stderr=log_file,
+                    stdin=subprocess.DEVNULL,
+                    cwd=os.path.dirname(script) or None,
+                )
+                logger.info(f"Restart child spawned; output -> {log_path}")
+            except Exception as exc:
+                logger.error(f"Could not spawn restart process: {exc}")
+            finally:
+                os._exit(0)
+
+        logger.info("Restart requested via REST - restarting the application")
+        threading.Timer(0.5, _restart).start()
+        return {"status": "ok"}
+
+    @api_router.post("/app/quit")
+    async def api_quit_app():
+        """Close the application without relaunching it. The onboarding wizard
+        uses this after a language change: the user is told to relaunch IGOOR,
+        which avoids the restart port race (the old process releases the port
+        only during teardown, so an immediately spawned child can fail to
+        bind) and needs no detached-process tricks."""
+        logger.info("Quit requested via REST - closing the application")
+        threading.Timer(0.5, os._exit, args=(0,)).start()
         return {"status": "ok"}
 
     @api_router.post("/plugins/{plugin_name}/toggle")
@@ -225,7 +279,8 @@ def create_app() -> FastAPI:
                     "message": result.get("message"),
                     "warnings": result.get("warnings", []),
                     "version_info": result.get("version_info"),
-                    "activation_changes": result.get("activation_changes", {})
+                    "activation_changes": result.get("activation_changes", {}),
+                    "summary": result.get("summary", {})
                 }
             finally:
                 # Clean up temp file
@@ -259,6 +314,14 @@ def create_app() -> FastAPI:
     async def websocket_endpoint(websocket: WebSocket, plugin_name: str):
         name = plugin_name.strip("/") or "app"
         await websocket_server.connect(name, websocket)
+        if name == "app":
+            # A (re)connecting app frontend needs the current view: on page
+            # reload nothing else re-sends it (gui_ready fires once per boot),
+            # which used to leave a refreshed browser stuck on the splash.
+            try:
+                await plugin_manager.trigger_hook("gui_ready")
+            except Exception as exc:
+                logger.warning(f"gui_ready re-fire on app connect failed: {exc}")
         try:
             while True:
                 message = await websocket.receive_text()

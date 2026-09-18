@@ -12,6 +12,15 @@
         </button>
 
         <div class="answers" :class="`view-${appview}`">
+            <div v-if="aiConnected === false" class="flow-keyless">
+                <svg class="icon icon-l" style="opacity:.5">
+                    <use xlink:href="/img/svgdefs.svg#icon-magic"></use>
+                </svg>
+                <p class="keyless-title">{{ t('AI suggestions are off') }}</p>
+                <p class="keyless-text">{{ t('Connect an AI provider to unlock suggested replies. Everything else works without it.') }}</p>
+                <button class="btn btn-primary" @click="$_openAiSettings">{{ t('Connect an AI') }}</button>
+            </div>
+            <template v-else>
             <div class="row columns">
                 <div v-for="col in ['left', 'center', 'right']" :key="col" :class="['column', col]">
                     <div v-if="appview !== 'autocomplete' && answers[col].length > 0" class="column-mood-icon">
@@ -34,6 +43,7 @@
                     </div>
                 </div>
             </div>
+            </template>
         </div>
 
     </div>
@@ -53,7 +63,8 @@ module.exports = {
             answers: { left: [], center: [], right: [] },
             waitingai: true,
             currentInput: "",
-            editingKey: null
+            editingKey: null,
+            aiConnected: null   // null = unknown (keep the normal UI until proven keyless)
         }
     },
     computed: {
@@ -65,7 +76,21 @@ module.exports = {
             };
         }
     },
+    created() {
+        // Keyless mode: no AI key configured -> show an explicit "AI off"
+        // empty state instead of silently empty suggestion columns.
+        fetch('/api/plugins/onboarding/settings')
+            .then(r => r.json())
+            .then(d => { this.aiConnected = Boolean(d && d.ai && d.ai.api_key); })
+            .catch(() => { this.aiConnected = null; });
+    },
     methods: {
+        $_openAiSettings() {
+            // Open the onboarding settings modal straight on its AI tab -
+            // no view switch, the first-run wizard stays out of the way.
+            fetch('/api/plugins/onboarding/open-settings?tab=ai', { method: 'POST' })
+                .catch(e => console.error('Could not open the AI settings:', e));
+        },
         async $_abandonConversation(trigger_hook = false) {
             try {
                 if (trigger_hook) {
@@ -88,6 +113,12 @@ module.exports = {
             let data;
             try {
                 data = JSON.parse(event.data);
+                if (data.type === 'ai_connected') {
+                    // Onboarding saved (or cleared) an AI key: unblock the
+                    // suggestions immediately instead of waiting for a reload.
+                    this.aiConnected = data.value !== false;
+                    return true;
+                }
                 if (data.action) {
                     switch (data.action) {
                         case 'abandon_conversation':
@@ -182,6 +213,28 @@ module.exports = {
     flex-direction: row;
     height: 100%;
     flex: 1 1 auto;
+}
+
+.flow-keyless {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    text-align: center;
+    padding: 24px;
+}
+.keyless-title {
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin: 0;
+}
+.keyless-text {
+    max-width: 420px;
+    color: var(--color-gray100, #afbfbf);
+    font-size: 0.95rem;
+    margin: 0 0 8px;
 }
 
 .answers {

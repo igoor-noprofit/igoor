@@ -1,5 +1,6 @@
 {
     "fallback_only": false,
     "voice_id": 0,
+    "voice_auto": true,
     "voice_list": []
 }
