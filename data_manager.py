@@ -37,7 +37,10 @@ class DataManager:
     def _deep_merge(self, base: Dict, update: Dict) -> Dict:
         """
         Deep merge two dictionaries recursively.
-        Base dict takes precedence over update dict.
+        Update values WIN over base for non-dict keys (import semantics).
+        NOTE: not suitable for boot-time default merging - use
+        utils.merge_missing there (missing-keys-only, user values never
+        overwritten).
         """
         result = base.copy()
         

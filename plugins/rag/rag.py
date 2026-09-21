@@ -159,9 +159,24 @@ class Rag(Baseplugin):
                 self.logger.info("Loading FAISS indexes (first run)...")
                 await self.load_all_indexes()
         else:
-            # Normal path: load existing indexes
-            self.logger.info("Loading FAISS indexes...")
-            await self.load_all_indexes()
+            # Normal path: load existing indexes — unless they were built with
+            # a different embedding model (e.g. an app update changed it):
+            # incompatible dimensions/metric would silently break retrieval.
+            stored_model = self._read_index_model()
+            current_model = self.settings.get("embedding_model")
+            if stored_model and stored_model != current_model:
+                self.logger.info(
+                    f"Embedding model changed ({stored_model} -> {current_model}) - "
+                    "rebuilding FAISS indexes from DB..."
+                )
+                await self.rebuild_all_indexes()
+            else:
+                if not stored_model:
+                    # Pre-guard indexes: assume they match the current setting
+                    # and start stamping them.
+                    self._write_index_model()
+                self.logger.info("Loading FAISS indexes...")
+                await self.load_all_indexes()
         
         # Signal that loading is complete
         self.is_loaded = True
@@ -191,6 +206,27 @@ class Rag(Baseplugin):
         # await self.print_all_chunks()
         # await self.check_all_chunks()
         # await self.test_query_rag()
+
+    def _index_model_path(self):
+        return os.path.join(self.plugin_folder, "index_model.json")
+
+    def _read_index_model(self):
+        """Name of the embedding model the FAISS indexes on disk were built
+        with, or None when no marker exists yet (pre-guard indexes)."""
+        try:
+            with open(self._index_model_path(), "r", encoding="utf-8") as f:
+                return json.load(f).get("embedding_model")
+        except (OSError, json.JSONDecodeError):
+            return None
+
+    def _write_index_model(self):
+        """Stamp the current embedding model next to the indexes so the next
+        boot can detect a model change and rebuild (called from save_index)."""
+        try:
+            with open(self._index_model_path(), "w", encoding="utf-8") as f:
+                json.dump({"embedding_model": self.settings.get("embedding_model")}, f)
+        except OSError as e:
+            self.logger.warning(f"Could not write index_model.json: {e}")
 
     def _ensure_router(self):
         """Initialize FastAPI router for plugin endpoints"""
@@ -830,6 +866,7 @@ class Rag(Baseplugin):
                 os.makedirs(folder_path, exist_ok=True)
                 
                 self.vector_stores[store_type].save_local(folder_path)
+                self._write_index_model()
                 self.logger.info(f"Index type {store_type} saved successfully to {folder_path}.")
                 return True
             except Exception as e:

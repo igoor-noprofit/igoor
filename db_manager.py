@@ -3,7 +3,9 @@ import sqlite3
 import asyncio
 import os
 import json
+import re
 import threading
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, Optional, List, Any, Union
 from utils import setup_logger, get_appdata_dir
@@ -36,6 +38,7 @@ class DatabaseManager:
             # Store the database path but don't create a connection yet
             # We'll create connections per-thread as needed
             self.connections = {}
+            self._pre_migration_backup_done = False
             self._create_metadata_table()
             self.initialized = True
     
@@ -93,30 +96,17 @@ class DatabaseManager:
                     prefixed_table = f"{plugin_name}_{table_name}"
                     schema = config.get('schema', '')
                     version = config.get('version', '1.0')
-                    
-                    # Check if table needs to be updated
                     current_version = current_versions.get(table_name, {}).get('version', '0')
-                    
-                    if current_version != version:
-                        # Replace the original table name with the prefixed one in the schema
-                        prefixed_schema = schema.replace(f"CREATE TABLE IF NOT EXISTS {table_name}", 
-                                                    f"CREATE TABLE IF NOT EXISTS {prefixed_table}")
-                        
-                        # Fix foreign key references if they exist
-                        if "FOREIGN KEY" in prefixed_schema and "REFERENCES" in prefixed_schema:
-                            # Look for references to other tables in this plugin
-                            for ref_table in tables_config.keys():
-                                prefixed_schema = prefixed_schema.replace(
-                                    f"REFERENCES {ref_table}", 
-                                    f"REFERENCES {plugin_name}_{ref_table}"
-                                )
-                        
-                        self.logger.info(f"Creating/updating table {prefixed_table} (v{version})")
-                        self.logger.info(f"Executing SQL: {prefixed_schema}")
-                        cursor.execute(prefixed_schema)
-                        
-                        # Update version in our tracking
+
+                    prefixed_schema = self._prefix_schema(plugin_name, table_name, prefixed_table, schema, tables_config)
+
+                    added, ok = self._sync_table_schema(cursor, prefixed_table, prefixed_schema)
+                    if ok:
+                        if current_version != version or added:
+                            self.logger.info(f"Synced {prefixed_table} (declared v{version}, recorded v{current_version}, added columns: {added if added else 'none'})")
                         current_versions[table_name] = {'version': version}
+                    else:
+                        self.logger.error(f"Schema sync FAILED for {prefixed_table} - keeping recorded v{current_version}, will retry next boot")
                 except sqlite3.Error as e:
                     self.logger.error(f"Error creating table {table_name}: {e}")
                     # Continue with other tables instead of failing completely
@@ -135,6 +125,114 @@ class DatabaseManager:
             conn = self._get_connection()
             conn.rollback()
     
+    def _prefix_schema(self, plugin_name: str, table_name: str, prefixed_table: str, schema: str, tables_config: Dict[str, Dict]) -> str:
+        """Replace the declared table name with the prefixed one and rewrite
+        same-plugin FK references (same logic the create path always used)."""
+        prefixed_schema = schema.replace(f"CREATE TABLE IF NOT EXISTS {table_name}",
+                                    f"CREATE TABLE IF NOT EXISTS {prefixed_table}")
+
+        if "FOREIGN KEY" in prefixed_schema and "REFERENCES" in prefixed_schema:
+            # Look for references to other tables in this plugin
+            for ref_table in tables_config.keys():
+                prefixed_schema = prefixed_schema.replace(
+                    f"REFERENCES {ref_table}",
+                    f"REFERENCES {plugin_name}_{ref_table}"
+                )
+        return prefixed_schema
+
+    def _sync_table_schema(self, cursor, prefixed_table: str, prefixed_schema: str):
+        """Level 1 schema sync: make sure every column declared in the plugin's
+        schema exists on the live table. CREATE TABLE IF NOT EXISTS is a no-op on
+        an existing table, so columns added in a new release are applied here via
+        ALTER TABLE ADD COLUMN. Only additive changes are made: columns missing
+        from the declared schema are left in place, which keeps an older binary
+        working on newer data (SQLite ignores extra columns).
+        Returns (added_columns, success)."""
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?", (prefixed_table,))
+        if not cursor.fetchone():
+            cursor.execute(prefixed_schema)
+            return [], True
+
+        declared = self._declared_columns(prefixed_schema, prefixed_table)
+        if declared is None:
+            return [], False
+
+        cursor.execute(f"PRAGMA table_info({prefixed_table})")
+        live_cols = {row[1] for row in cursor.fetchall()}
+
+        added = []
+        for name, ctype, notnull, dflt, pk in declared:
+            if name in live_cols:
+                continue
+            if pk:
+                self.logger.error(f"{prefixed_table}: cannot ADD COLUMN {name} (PRIMARY KEY) - write a Level 2 migration (see docs/updates.md)")
+                return [], False
+            if notnull and dflt is None:
+                self.logger.error(f"{prefixed_table}: cannot ADD COLUMN {name} (NOT NULL without default) - write a Level 2 migration (see docs/updates.md)")
+                return [], False
+            if not self._pre_migration_backup_done:
+                self._backup_before_migration()
+            coldef = f"{name} {ctype}" if ctype else name
+            if dflt is not None and self._is_constant_default(dflt):
+                coldef += f" DEFAULT {dflt}"
+            elif dflt is not None:
+                self.logger.warning(f"{prefixed_table}: non-constant DEFAULT {dflt} on {name} cannot be re-applied via ALTER - column will default to NULL")
+            if notnull:
+                coldef += " NOT NULL"
+            cursor.execute(f"ALTER TABLE {prefixed_table} ADD COLUMN {coldef}")
+            added.append(name)
+            self.logger.info(f"{prefixed_table}: added column {name}")
+
+        extra = live_cols - {c[0] for c in declared}
+        if extra:
+            self.logger.info(f"{prefixed_table}: live columns not in declared schema (left in place): {sorted(extra)} - if a column was renamed, write a Level 2 migration")
+        return added, True
+
+    def _declared_columns(self, prefixed_schema: str, prefixed_table: str):
+        """Execute the declared schema in a scratch in-memory DB and read its
+        columns back with PRAGMA table_info - SQLite parses the DDL for us.
+        Returns [(name, type, notnull, dflt_value, pk)] or None on parse error."""
+        try:
+            scratch = sqlite3.connect(':memory:')
+            try:
+                scratch.execute(prefixed_schema)
+                rows = scratch.execute(f"PRAGMA table_info({prefixed_table})").fetchall()
+                return [(r[1], r[2], r[3], r[4], r[5]) for r in rows]
+            finally:
+                scratch.close()
+        except sqlite3.Error as e:
+            self.logger.error(f"Could not parse declared schema for {prefixed_table}: {e}")
+            return None
+
+    @staticmethod
+    def _is_constant_default(dflt: str) -> bool:
+        """PRAGMA table_info returns column defaults as SQL text; only numeric
+        or single-quoted string literals are valid in ALTER TABLE ADD COLUMN."""
+        return re.fullmatch(r"-?\d+(\.\d+)?|'([^']|'')*'", dflt.strip()) is not None
+
+    def _backup_before_migration(self):
+        """Take one consistent snapshot per boot before the first ALTER TABLE -
+        the only rollback path available to Store users (the Store cannot
+        downgrade). Keeps the 5 newest snapshots."""
+        self._pre_migration_backup_done = True
+        try:
+            backups_dir = self.db_path.parent / "backups"
+            backups_dir.mkdir(parents=True, exist_ok=True)
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            backup_path = backups_dir / f"igoor_pre_{__version__}_{timestamp}.db"
+            dest = sqlite3.connect(str(backup_path))
+            try:
+                self._get_connection().backup(dest)
+            finally:
+                dest.close()
+            self.logger.info(f"Pre-migration database backup: {backup_path}")
+            backups = sorted(backups_dir.glob("igoor_pre_*.db"))
+            for old in backups[:-5]:
+                old.unlink()
+                self.logger.info(f"Removed old migration backup: {old}")
+        except Exception as e:
+            self.logger.error(f"Pre-migration backup failed (continuing with additive migration): {e}")
+
     def _prefix_table_names(self, plugin_name: str, query: str) -> str:
         """
         Add plugin prefix to table names in query

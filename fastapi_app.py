@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 import sys
@@ -64,6 +65,26 @@ def _serve_index_html() -> HTMLResponse:
     path = Path(resource_path("index.html"))
     content = path.read_text(encoding="utf-8").replace("{{VERSION}}", IGOOR_VERSION)
     return HTMLResponse(content, headers={"Cache-Control": "no-store"})
+
+
+def _load_whatsnew_entries(lang: Optional[str]) -> list:
+    """Read locales/<lang>/whatsnew.json highlights for the current version.
+    A locale that has no entry for the version falls back to en_EN (same
+    convention as plugin translations); empty result means no dialog."""
+    for candidate in (lang, "en_EN"):
+        if not candidate:
+            continue
+        path = Path(resource_path(os.path.join("locales", candidate, "whatsnew.json")))
+        if not path.is_file():
+            continue
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+            entries = data.get(IGOOR_VERSION, [])
+            if isinstance(entries, list) and entries:
+                return entries
+        except (OSError, json.JSONDecodeError):
+            continue
+    return []
 
 
 def create_app() -> FastAPI:
@@ -196,6 +217,24 @@ def create_app() -> FastAPI:
         except Exception as exc:
             raise HTTPException(status_code=500, detail=str(exc))
         return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+    @api_router.get("/app/whatsnew")
+    async def api_get_whatsnew():
+        """Tell the frontend whether this boot follows an app update, plus the
+        locale'd highlights for the current version. `whatsnew_last_shown` is
+        only advanced by the dismiss endpoint, so the dialog shows once."""
+        s = settings_manager.get_settings()
+        shown_for = s.get("whatsnew_last_shown")
+        upgraded = bool(shown_for) and shown_for != IGOOR_VERSION
+        entries = _load_whatsnew_entries(settings_manager.get_lang()) if upgraded else []
+        return {"upgraded": upgraded, "version": IGOOR_VERSION, "entries": entries}
+
+    @api_router.post("/app/whatsnew/dismiss")
+    async def api_dismiss_whatsnew():
+        s = settings_manager.get_settings()
+        s["whatsnew_last_shown"] = IGOOR_VERSION
+        settings_manager.save_settings()
+        return {"status": "ok"}
 
     @api_router.get("/app/clipboard")
     async def api_get_clipboard():

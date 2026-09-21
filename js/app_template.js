@@ -206,6 +206,9 @@ async function initializeApp() {
         everConnected: false,
         connectionLost: false,
         connectionLostTimer: null,
+        whatsNewVisible: false,
+        whatsNewEntries: [],
+        whatsNewVersion: "",
       };
     },
     components: {
@@ -254,6 +257,24 @@ async function initializeApp() {
         };
         return this.lang && messages[this.lang] ? messages[this.lang] : messages.en_EN;
       },
+      whatsNewTitle() {
+        const messages = {
+          en_EN: "IGOOR has been updated",
+          fr_FR: "IGOOR a été mis à jour",
+          it_IT: "IGOOR è stato aggiornato",
+          pt_BR: "O IGOOR foi atualizado",
+        };
+        return this.lang && messages[this.lang] ? messages[this.lang] : messages.en_EN;
+      },
+      whatsNewContinueLabel() {
+        const messages = {
+          en_EN: "Continue",
+          fr_FR: "Continuer",
+          it_IT: "Continua",
+          pt_BR: "Continuar",
+        };
+        return this.lang && messages[this.lang] ? messages[this.lang] : messages.en_EN;
+      },
     },
     async mounted() {
       console.warn("APP MOUNTED");
@@ -277,6 +298,39 @@ async function initializeApp() {
         const backendApi = await backendApiPromise;
         await backendApi.waitUntilReady();
         this.connectAppWebSocket();
+        this.$_checkWhatsNew();
+      },
+      async $_checkWhatsNew() {
+        // One-shot per version: the backend reports whether this boot follows
+        // an update plus the locale'd highlights. With no entries written for
+        // the version, silently advance the marker so it is not re-checked.
+        try {
+          const response = await fetch("/api/app/whatsnew");
+          if (!response.ok) {
+            return;
+          }
+          const info = await response.json();
+          if (!info.upgraded) {
+            return;
+          }
+          if (Array.isArray(info.entries) && info.entries.length > 0) {
+            this.whatsNewEntries = info.entries;
+            this.whatsNewVersion = info.version || "";
+            this.whatsNewVisible = true;
+          } else {
+            this.$_dismissWhatsNew();
+          }
+        } catch (error) {
+          console.warn("What's-new check failed:", error);
+        }
+      },
+      async $_dismissWhatsNew() {
+        this.whatsNewVisible = false;
+        try {
+          await fetch("/api/app/whatsnew/dismiss", { method: "POST" });
+        } catch (error) {
+          console.warn("What's-new dismiss failed:", error);
+        }
       },
       connectAppWebSocket() {
         const socketUrl = `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}/ws/app`;

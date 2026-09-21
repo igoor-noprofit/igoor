@@ -1,0 +1,21 @@
+{
+  "1.2.6": [
+    "Clonage de voix local (active-le via le plugin Pocket TTS)",
+    "Nouveau parcours de première utilisation pour accompagner les nouveaux utilisateurs et leurs aidants",
+    "Tes conversations, tes souvenirs et tes réglages sont conservés lors des mises à jour",
+    "Télécharge IGOOR directement depuis le Microsoft Store, sans les blocages SmartScreen",
+    "Diverses corrections et améliorations de la reconnaissance et de la synthèse vocale (ASR et TTS)",
+    "Diverses améliorations de l'interface : barres de défilement uniquement quand nécessaire",
+    "Accès multiplateforme possible via Tailscale",
+    "Le portugais a été ajouté"
+  ],
+  "1.0.0.1": [
+    "Écoute en continu + mot d'activation personnalisé",
+    "Identification automatique de l'interlocuteur",
+    "Enregistreur de biographie avec clonage de voix pour ElevenLabs / Speechify",
+    "Ajout des IA Mistral / Cerebras / endpoint personnalisé",
+    "100 % local désormais possible avec l'ASR Sherpa-ONNX",
+    "L'italien a été ajouté",
+    "Nombreuses corrections et améliorations"
+  ]
+}

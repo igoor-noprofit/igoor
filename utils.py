@@ -28,6 +28,25 @@ def resource_path(relative_path):
     return os.path.join(base_path, relative_path)
 
 
+def merge_missing(user: dict, defaults: dict) -> tuple:
+    """Recursively fill ONLY absent keys from defaults into a copy of user.
+    Existing user values (of any type) are never overwritten - unlike
+    data_manager._deep_merge, which lets the update dict win on scalars and
+    would clobber user settings (API keys etc.) if used for boot-time merges.
+    Returns (merged_dict, added_keys_count)."""
+    merged = dict(user)
+    added = 0
+    for key, value in defaults.items():
+        if key not in merged:
+            merged[key] = value
+            added += 1
+        elif isinstance(merged[key], dict) and isinstance(value, dict):
+            sub, sub_added = merge_missing(merged[key], value)
+            merged[key] = sub
+            added += sub_added
+    return merged, added
+
+
 class JsonFormatter(logging.Formatter):
     """Formats log records as JSON strings."""
     def format(self, record):

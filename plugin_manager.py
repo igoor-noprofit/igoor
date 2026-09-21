@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 load_dotenv()
 from typing import Any
 from status_manager import StatusManager
-from utils import resource_path, setup_logger, get_appdata_dir, get_platform_key
+from utils import resource_path, setup_logger, get_appdata_dir, get_platform_key, merge_missing
 from websocket_server import websocket_server
 
 IGOOR_DEBUG = os.getenv('IGOOR_DEBUG', 'False')
@@ -685,11 +685,27 @@ class PluginManager:
         else:
             self.logger.warning(f"Settings file not found for plugin: {plugin_name}")
     
-    def copy_default_plugin_settings_if_needed(self,plugin_name):
+    def copy_default_plugin_settings_if_needed(self, plugin_name):
+        """First-install seed when the plugin has no settings yet; additive
+        merge of new default keys added in app updates otherwise (existing
+        user values are never overwritten)."""
         if not self.plugin_has_settings(plugin_name):
             self.set_def_plugin_settings(plugin_name)
-        else:
-            print("Keeping original settings")
+            return
+        settings_file_path = resource_path(os.path.join('plugins', plugin_name, 'settings.json'))
+        if not os.path.exists(settings_file_path):
+            return
+        try:
+            with open(settings_file_path, 'r', encoding='utf-8') as f:
+                default_settings = json.load(f)
+        except json.JSONDecodeError as e:
+            self.logger.error(f"Invalid JSON in {settings_file_path}: {e}")
+            return
+        current = self.settings_manager.get_plugin_settings(plugin_name) or {}
+        merged, added = merge_missing(current, default_settings)
+        if added:
+            self.settings_manager.update_plugin_settings(plugin_name, merged)
+            self.logger.info(f"Merged {added} new default setting key(s) for plugin: {plugin_name}")
             
     def activate_plugin(self, plugin_name):
         """Activates a plugin by setting its 'active' status to True in its plugin.json."""

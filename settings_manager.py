@@ -6,7 +6,7 @@ import shutil
 import glob
 import sys
 from datetime import datetime
-from utils import resource_path, setup_logger, get_appdata_dir
+from utils import resource_path, setup_logger, get_appdata_dir, merge_missing
 
 
 def _detect_start_lang():
@@ -72,6 +72,7 @@ class SettingsManager:
         self.default_settings_file = default_settings_path
         self.ensure_settings_file_exists()
         self.settings = self.load_settings()
+        self._merge_new_default_keys()
         self.create_backup()
 
     def ensure_settings_file_exists(self):
@@ -100,6 +101,22 @@ class SettingsManager:
                 }
                 with open(self.settings_file, 'w', encoding='utf-8') as f:
                     json.dump(default_settings, f, indent=4)
+
+    def _merge_new_default_keys(self):
+        """Additively merge keys added to default_settings.json in app updates
+        into the user's existing settings (user values are never overwritten).
+        Uses the same default file (and thus language resolution) as first
+        install."""
+        try:
+            with open(self.default_settings_file, 'r', encoding='utf-8') as f:
+                defaults = json.load(f)
+            merged, added = merge_missing(self.settings, defaults)
+            if added:
+                self.settings = merged
+                self.save_settings()
+                self.logger.info(f"Merged {added} new default setting key(s) from default_settings.json")
+        except Exception as e:
+            self.logger.error(f"Could not merge new default settings: {e}")
 
     def get_prefs(self):
         return self.get_nested(["plugins", "onboarding", "prefs"], default={})

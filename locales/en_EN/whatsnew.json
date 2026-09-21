@@ -1,0 +1,21 @@
+{
+  "1.2.6": [
+    "Local voice cloning (activate via the Pocket TTS plugin)",
+    "Completely new onboarding to help first time users and caregivers",
+    "Your conversations, memories and settings are kept safe during updates",
+    "Download IGOOR directly from MS Store, avoiding Smart Screen issues",
+    "Various bug fixes and improvements in ASR and TTS",
+    "Various UI improvements and bug fixes: scroll bars when needed",
+    "Multi-platform support available via Tailscale",
+    "Portuguese language added"
+  ],
+  "1.0.0.1": [
+    "Continuous listening + custom wake word",
+    "Automatic speaker identification",
+    "Biography recorder with voice cloning for Elevenlabs / Speechify",
+    "Added Mistral / Cerebras / Custom AI endpoint",
+    "100% local now possible with Sherpa-ONNX ASR",
+    "Added Italian language",
+    "Lots of fixes and improvements"
+  ]
+}

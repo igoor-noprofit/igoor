@@ -1,0 +1,51 @@
+{
+  "autocomplete": {
+    "predictions": {
+      "schema": "CREATE TABLE IF NOT EXISTS predictions (id INTEGER PRIMARY KEY, input TEXT NOT NULL, completion TEXT NOT NULL, hits INTEGER DEFAULT 1, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
+      "version": "1.0"
+    }
+  },
+  "conversation": {
+    "threads": {
+      "schema": "CREATE TABLE IF NOT EXISTS threads (  id INTEGER PRIMARY KEY, start_time TIMESTAMP, end_time TIMESTAMP, cause TEXT, topic TEXT, content TEXT, is_processed BOOLEAN, speakers_id INTEGER, speaker_id_method INTEGER)",
+      "version": "1.2"
+    },
+    "msgs": {
+      "schema": "CREATE TABLE IF NOT EXISTS msgs (  id INTEGER PRIMARY KEY,  thread_id INTEGER, author TEXT NOT NULL, datetime TIMESTAMP, msg TEXT, answers TEXT, msg_input TEXT, FOREIGN KEY (thread_id) REFERENCES conversation_threads(id))",
+      "version": "0.1.0"
+    }
+  },
+  "rag": {
+    "documents": {
+      "schema": "CREATE TABLE IF NOT EXISTS documents (id INTEGER PRIMARY KEY, title TEXT, filename TEXT NOT NULL, always_send INTEGER DEFAULT 0, created_at TIMESTAMP)",
+      "version": "2.0"
+    },
+    "chunks": {
+      "schema": "CREATE TABLE IF NOT EXISTS chunks (id INTEGER PRIMARY KEY, docstore_id TEXT, type INTEGER, content TEXT, reason TEXT, theme TEXT, tags TEXT, created_at TIMESTAMP, document_id INTEGER, conversation_id INTEGER, FOREIGN KEY(document_id) REFERENCES documents(id), FOREIGN KEY(conversation_id) REFERENCES conversation_threads(id))",
+      "version": "1.2"
+    }
+  },
+  "recorder": {
+    "records": {
+      "schema": "CREATE TABLE IF NOT EXISTS records (id INTEGER PRIMARY KEY, plugin TEXT NOT NULL, created_at TEXT NOT NULL, filename TEXT NOT NULL)",
+      "version": "1.0"
+    }
+  },
+  "shortcuts": {
+    "usage": {
+      "schema": "CREATE TABLE IF NOT EXISTS usage (id INTEGER PRIMARY KEY, msg TEXT NOT NULL, datetime TIMESTAMP NOT NULL, onboarding INTEGER NOT NULL, bid INTEGER NOT NULL)",
+      "version": "1.1"
+    }
+  },
+  "speakerid": {
+    "speakers": {
+      "schema": "CREATE TABLE IF NOT EXISTS speakers (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT UNIQUE NOT NULL, freq INTEGER DEFAULT 0)",
+      "version": "1.2"
+    },
+    "records": {
+      "schema": "CREATE TABLE IF NOT EXISTS records (id INTEGER PRIMARY KEY AUTOINCREMENT, recorder_id INTEGER NOT NULL, speakers_id INTEGER NOT NULL, FOREIGN KEY (recorder_id) REFERENCES recorder_records(id), FOREIGN KEY (speakers_id) REFERENCES speakers(id))",
+      "version": "1.1"
+    }
+  },
+  "__note__": "Snapshot of db_tables as last RELEASED. Refresh discipline: before changing any plugin schema, copy the current plugin.json db_tables here (docs/updates.md release checklist). tools/test_migrations.py builds old databases from this snapshot and runs the current repo schemas against them."
+}

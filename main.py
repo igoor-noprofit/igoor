@@ -518,8 +518,28 @@ def start_webview():
         logger.warning("KeyboardInterrupt detected. Shutting down...")
         on_closing()
 
+def _record_version_marker(settings):
+    """Persist the running version so logs/bugreports show the upgrade path,
+    and gate the What's-new dialog. `last_run_version` is informational and
+    updated every boot; `whatsnew_last_shown` is only advanced when the user
+    dismisses the dialog (initialized on first tracked boot so a fresh
+    install does not celebrate itself)."""
+    try:
+        s = settings.get_settings()
+        previous = s.get("last_run_version")
+        if previous and previous != IGOOR_VERSION:
+            logger.info(f"IGOOR updated: {previous} -> {IGOOR_VERSION}")
+        s["last_run_version"] = IGOOR_VERSION
+        if "whatsnew_last_shown" not in s:
+            s["whatsnew_last_shown"] = IGOOR_VERSION
+        settings.save_settings()
+    except Exception as e:
+        logger.error(f"Could not record version marker: {e}")
+
+
 if __name__ == "__main__":
     settings = load_settings()
+    _record_version_marker(settings)
     bio = settings.get_nested(["plugins", "onboarding", "bio"], default={})
     prefs = settings.get_nested(["plugins", "onboarding", "prefs"], default={})
     lang = prefs.get("lang")

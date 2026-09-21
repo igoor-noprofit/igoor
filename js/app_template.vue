@@ -8,6 +8,19 @@
     <img src="img/igoor_logo.png" alt="Igoor Logo">
     <h1>{{ connectionLostMessage }}</h1>
 </div>
+<!-- Post-update What's-new dialog: shown once per app version after a Store/
+     installer update (driven by /api/app/whatsnew; the dismissed state is
+     persisted backend-side, so a reload or reboot never re-shows it). -->
+<div class="whatsnew-overlay" v-if="whatsNewVisible">
+    <div class="whatsnew-card" role="dialog" aria-modal="true" :aria-label="whatsNewTitle">
+        <h1>{{ whatsNewTitle }}</h1>
+        <p class="whatsnew-version">IGOOR {{ whatsNewVersion }}</p>
+        <ul>
+            <li v-for="(entry, index) in whatsNewEntries" :key="index">{{ entry }}</li>
+        </ul>
+        <button class="btn btn-primary whatsnew-continue" @click="$_dismissWhatsNew">{{ whatsNewContinueLabel }}</button>
+    </div>
+</div>
 <div id="minimized" v-show="minimized" @click="maximize">
     <button height="80">
         <img src="img/igoor_minimized_icon.png" />
