@@ -45,6 +45,6 @@
     "weather": false,
     "recorder": true,
     "biorecorder": true,
-     "speakerid":true
+    "speakerid":true
   }
 }
