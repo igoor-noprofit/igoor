@@ -1053,9 +1053,9 @@ input:checked + .slider:before {
   justify-content: center;
 }
 .whatsnew-card {
+  box-sizing: border-box;
   width: min(640px, 86vw);
   max-height: 80vh;
-  overflow-y: auto;
   background: linear-gradient(to bottom, var(--basecolor-bggrad-overlay-0), var(--basecolor-bggrad-overlay-1));
   border: 1px solid var(--color-gray700);
   border-radius: 0.75rem;
@@ -1071,23 +1071,31 @@ input:checked + .slider:before {
   font-family: FontBold, sans-serif;
   font-size: 1.75rem;
   margin: 0;
+  flex-shrink: 0;
 }
 .whatsnew-card .whatsnew-version {
   margin: 0;
   color: var(--color-gray100);
   font-size: 1rem;
+  flex-shrink: 0;
 }
 .whatsnew-card ul {
   list-style: none;
   margin: 0.5rem 0 1rem;
-  padding: 0;
+  padding: 0 0.5rem;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
   font-size: 1.25rem;
   line-height: 1.6;
+  /* Only the list scrolls: title and Continue button stay visible even
+       with long entry lists on short viewports. */
+  overflow-y: auto;
+  min-height: 0;
+  flex: 0 1 auto;
 }
 .whatsnew-card .whatsnew-continue {
+  flex-shrink: 0;
   min-width: 60%;
   font-size: 1.5rem;
   padding: 1.75rem 2rem;

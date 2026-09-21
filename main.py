@@ -522,8 +522,12 @@ def _record_version_marker(settings):
     """Persist the running version so logs/bugreports show the upgrade path,
     and gate the What's-new dialog. `last_run_version` is informational and
     updated every boot; `whatsnew_last_shown` is only advanced when the user
-    dismisses the dialog (initialized on first tracked boot so a fresh
-    install does not celebrate itself)."""
+    dismisses the dialog. Marker adoption: a genuinely fresh install
+    (settings.json created this boot) adopts silently; a settings file that
+    pre-dates the What's-new feature adopts to the "legacy" sentinel so the
+    dialog is eligible on that first boot (when the current version has
+    entries). Machines that already booted a marker-aware version keep their
+    key and are unaffected."""
     try:
         s = settings.get_settings()
         previous = s.get("last_run_version")
@@ -531,7 +535,9 @@ def _record_version_marker(settings):
             logger.info(f"IGOOR updated: {previous} -> {IGOOR_VERSION}")
         s["last_run_version"] = IGOOR_VERSION
         if "whatsnew_last_shown" not in s:
-            s["whatsnew_last_shown"] = IGOOR_VERSION
+            s["whatsnew_last_shown"] = (
+                IGOOR_VERSION if getattr(settings, "created_settings_this_boot", False) else "legacy"
+            )
         settings.save_settings()
     except Exception as e:
         logger.error(f"Could not record version marker: {e}")

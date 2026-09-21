@@ -70,6 +70,7 @@ class SettingsManager:
             else:
                 raise FileNotFoundError('Default settings file not found for en_EN locale')
         self.default_settings_file = default_settings_path
+        self.created_settings_this_boot = False
         self.ensure_settings_file_exists()
         self.settings = self.load_settings()
         self._merge_new_default_keys()
@@ -78,6 +79,10 @@ class SettingsManager:
     def ensure_settings_file_exists(self):
         """Create settings.json from default if it doesn't exist"""
         if not os.path.exists(self.settings_file):
+            # Marks a genuinely fresh install (drives the What's-new marker
+            # adoption in main._record_version_marker: fresh installs stay
+            # silent, pre-marker upgrades adopt to the "legacy" sentinel).
+            self.created_settings_this_boot = True
             os.makedirs(os.path.dirname(self.settings_file), exist_ok=True)
             
             try:
