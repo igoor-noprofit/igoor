@@ -1,15 +1,5 @@
 {
-  "1.2.8": [
-    "Clonage de voix local (active-le via le plugin Pocket TTS)",
-    "Nouveau parcours de première utilisation pour accompagner les nouveaux utilisateurs et leurs aidants",
-    "Tes conversations, tes souvenirs et tes réglages sont conservés lors des mises à jour",
-    "Télécharge IGOOR directement depuis le Microsoft Store, sans les blocages SmartScreen",
-    "Diverses corrections et améliorations de la reconnaissance et de la synthèse vocale (ASR et TTS)",
-    "Diverses améliorations de l'interface : barres de défilement uniquement quand nécessaire",
-    "Accès multiplateforme possible via Tailscale",
-    "Le portugais a été ajouté"
-  ],
-  "1.2.6": [
+  "1.2.9": [
     "Clonage de voix local (active-le via le plugin Pocket TTS)",
     "Nouveau parcours de première utilisation pour accompagner les nouveaux utilisateurs et leurs aidants",
     "Tes conversations, tes souvenirs et tes réglages sont conservés lors des mises à jour",
