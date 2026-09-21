@@ -84,6 +84,13 @@ Copy `locales/en_EN/default_settings.json` as the base template. Change exactly 
 
 Do NOT change any other fields (api keys, provider, model_name, plugins_activation, etc.).
 
+### 1d. Create whatsnew file
+
+Create `locales/{LANG_CODE}/whatsnew.json` (translate `locales/fr_FR/whatsnew.json`;
+it maps version strings to release notes shown to the user). If `whatsnew.json`
+has no entry for the current version, an empty object `{}` is fine — add entries
+at release time.
+
 **Note**: creating `locales/{LANG_CODE}/` also changes first-run OS detection. `_detect_start_lang()` in `settings_manager.py` prefix-matches the OS locale, so every `{lang}_*` OS locale (e.g. `pt_PT`, `pt_AO` once `pt_BR` exists) now resolves to the new folder — users of the same language's other regional variants get THIS locale on first run.
 
 ---
@@ -127,6 +134,8 @@ For EACH plugin that has a `fr_FR` locale file, create the corresponding new lan
 | speechifytts | `plugins/speechifytts/locales/{LANG_CODE}/speechifytts_{LANG_CODE}.json` |
 | translator | `plugins/translator/locales/{LANG_CODE}/translator_{LANG_CODE}.json` |
 | ttsdefault | `plugins/ttsdefault/locales/{LANG_CODE}/ttsdefault_{LANG_CODE}.json` |
+| ttslinux | `plugins/ttslinux/locales/{LANG_CODE}/ttslinux_{LANG_CODE}.json` |
+| ttsmac | `plugins/ttsmac/locales/{LANG_CODE}/ttsmac_{LANG_CODE}.json` |
 
 > NOTE: keep this table in sync with the codebase — the authoritative list is
 > `glob: plugins/*/locales/fr_FR/*.json` from the pre-flight inventory above.
@@ -197,9 +206,14 @@ If the language has no T-V distinction (like English), use an empty string `""`.
 
 Regional variants may invert the convention: `pt_PT`'s note uses "tu", but `pt_BR`'s uses "Sempre usar 'você', nunca 'tu'". Write the note for the variant being added, and give `LANG_TO_NAME` a distinct name for it (e.g. `"pt_BR": "Brazilian Portuguese"` alongside `"pt_PT": "Portuguese"`) so the LLM's `{reply_language}` is unambiguous.
 
-### 4c. Frontend connection-lost messages
+### 4c. Frontend per-language status messages
 
-`js/app_template.js` has an inline per-language dict inside the `connectionLostMessage` computed property ("Connecting to IGOOR…" / "Connection lost — reconnecting…"). Add `{LANG_CODE}` entries for both keys — any unknown language silently falls back to en_EN there.
+`js/app_template.js` has inline per-language dicts with FOUR user-visible
+strings (audited at the pt_BR addition): "Connecting to IGOOR…" /
+"Connection lost — reconnecting…" (in the `connectionLostMessage` computed
+property), plus the app-updated message ("IGOOR has been updated") and the
+"Continue" button in the update banner. Add `{LANG_CODE}` entries for ALL of
+them — any unknown language silently falls back to en_EN there.
 
 ### 4d. Backend per-language data
 
@@ -217,11 +231,12 @@ These are NOT `t()`-based; each needs its own language entry or the feature sile
 
 ---
 
-## Step 5 — Update Onboarding Language Dropdown
+## Step 5 — Update Onboarding Language Dropdowns (TWO files)
 
-Edit `plugins/onboarding/frontend/onboarding_component.vue`.
+The language `<select>` exists in **both** onboarding frontends — update each:
 
-Find the language `<select>` block (around lines 109-114):
+1. `plugins/onboarding/frontend/onboarding_component.vue` (~line 130):
+
 ```html
 <select v-model="prefs.lang">
     <option value="fr_FR">{{ t("French") }}</option>
@@ -230,7 +245,9 @@ Find the language `<select>` block (around lines 109-114):
 </select>
 ```
 
-Add a new `<option>` for the new language, placed in alphabetical order by display label:
+2. `plugins/onboarding/frontend/onboarding_wizard.vue` (~line 28) — same block.
+
+Add a new `<option>` for the new language to BOTH, placed in alphabetical order by display label:
 ```html
 <option value="{LANG_CODE}">{{ t("{LANG_NAME}") }}</option>
 ```
@@ -424,7 +441,7 @@ for cat in en:
 After all files are created and validated, report:
 
 1. **Files created**: list every new file with its full path
-2. **Files modified**: list `settings_manager.py`, `onboarding_component.vue`, `installer/msix/AppxManifest.xml` (new `<Resource Language>`), and any ASR/TTS config files changed
+2. **Files modified**: list `settings_manager.py`, `onboarding_component.vue`, `onboarding_wizard.vue`, `installer/msix/AppxManifest.xml` (new `<Resource Language>`), and any ASR/TTS config files changed
 3. **Key counts**: table comparing key counts per plugin between `fr_FR` and the new language
 4. **Total translations**: sum of all individual string translations made
 5. **ASR/TTS compatibility report**:
@@ -434,6 +451,11 @@ After all files are created and validated, report:
    - ElevenLabs: reminder to pick a compatible voice
    - Default TTS (SAPI): reminder to install a system voice
 6. **Any warnings**: missing models, empty locale files, potential issues, validation failures
+7. **Remind about the Store listing** (manual, outside the repo): in Partner
+   Center, add the language to the listing and fill its required fields
+   (description, what's new, screenshots — screenshots can reuse the existing
+   images). Until then the Store shows the language as "incomplete". Listing
+   languages are independent of the package's declared `<Resources>`.
 
 ---
 
