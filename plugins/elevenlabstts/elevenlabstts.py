@@ -112,7 +112,7 @@ class Elevenlabstts(Baseplugin):
                 message = payload.get("message", "Hello, how are you doing? I feel better today!")
                 
                 # Call the existing _test_speak method to avoid code duplication
-                self._test_speak(message, payload)
+                await self._test_speak(message, payload)
                 
                 return {
                     "status": "success",
@@ -265,7 +265,7 @@ class Elevenlabstts(Baseplugin):
             elif action == "test_speak":
                 test_message = data.get("message", "Hello, how are you doing? I feel better today!")
                 # Use current settings for test
-                self._test_speak(test_message, data)
+                asyncio.create_task(self._test_speak(test_message, data))
                 
         except Exception as e:
             print(f"Error handling websocket message: {e}")
@@ -297,7 +297,7 @@ class Elevenlabstts(Baseplugin):
             print(f"Error getting voice list: {e}")
             self.send_error_to_frontend(f"Failed to retrieve voice list: {str(e)}")
     
-    def _test_speak(self, message, test_settings):
+    async def _test_speak(self, message, test_settings):
         """Test speak with provided settings"""
         try:
             # Create a temporary voice with test settings
@@ -346,22 +346,31 @@ class Elevenlabstts(Baseplugin):
             elif "enable_logging" in self.settings:
                 request_params["enable_logging"] = self.settings["enable_logging"]
             
-            audio_data = client.text_to_speech.convert(**request_params)
+            audio_data = await asyncio.to_thread(client.text_to_speech.convert, **request_params)
             output_format = request_params.get("output_format", "mp3_44100_128")
 
-            if self.is_remote_ui():
-                if output_format.startswith("pcm_"):
-                    request_params["output_format"] = "mp3_44100_128"
-                    audio_data = client.text_to_speech.convert(**request_params)
-                # Settings preview must play in the browser too (background task:
-                # this method is synchronous and has no ASR to coordinate)
-                audio_bytes = b"".join(audio_data)
-                asyncio.get_running_loop().create_task(
-                    self.stream_audio_to_frontend([audio_bytes], "audio/mpeg")
-                )
-            else:
-                # Use the helper method to play audio (handles both PCM and encoded formats)
-                self._play_audio(audio_data, output_format)
+            # Pause ASR before playback like speak_func: a live VAD would otherwise
+            # hear the preview through the mic and transcribe it as user speech
+            await self.pm.trigger_hook(hook_name="pause_asr")
+            await asyncio.sleep(0.03)  # Ensure pause message reaches frontend
+            try:
+                if self.is_remote_ui():
+                    # Settings preview must play in the browser too
+                    if output_format.startswith("pcm_"):
+                        request_params["output_format"] = "mp3_44100_128"
+                        audio_data = await asyncio.to_thread(client.text_to_speech.convert, **request_params)
+                    audio_bytes = b"".join(audio_data)
+                    streamed = await self.stream_audio_to_frontend([audio_bytes], "audio/mpeg")
+                    if not streamed:
+                        # No browser connected - fall back to local playback
+                        await asyncio.to_thread(self._play_audio, audio_data, request_params.get("output_format", "mp3_44100_128"))
+                else:
+                    # Use the helper method to play audio (handles both PCM and encoded formats)
+                    await asyncio.to_thread(self._play_audio, audio_data, output_format)
+            finally:
+                # force_ready: a settings preview must return the ASR to idle, not
+                # reopen the listening channel
+                self.run_restart_asr(force_ready=True)
             
         except Exception as e:
             print(f"Error in test speak: {e}")

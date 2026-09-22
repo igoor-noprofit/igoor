@@ -250,9 +250,12 @@ class Pockettts(Baseplugin):
                     # the next real speak re-applies the saved settings
                     self._test_overrides = {"temp": payload.temp, "eos": payload.eos}
                 # No speak_fallback here: a pockettts audition must not make
-                # another engine (e.g. ttsdefault) speak in its place
+                # another engine (e.g. ttsdefault) speak in its place.
+                # skip_asr: a settings preview returns the ASR to idle instead
+                # of reopening the listening channel
                 success = await self.run_speak_func(
-                    payload.message, voice_state=state, fallback_on_failure=False
+                    payload.message, voice_state=state, fallback_on_failure=False,
+                    skip_asr=True
                 )
                 if not success:
                     raise HTTPException(status_code=500, detail="Test speech failed")

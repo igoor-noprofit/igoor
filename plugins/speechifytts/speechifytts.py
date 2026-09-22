@@ -170,7 +170,9 @@ class Speechifytts(Baseplugin):
         print(f"TEST SPEAK with pitch={pitch}, rate={rate}, volume={volume}")
         ssml = self.get_ssml(message, **kwargs)
         print ("SSML:", ssml)
-        asyncio.create_task(self.call_speechify(input=ssml, voice_id=voice_id, language=self.lang_code, model="simba-multilingual"))
+        # skip_asr: a settings preview returns the ASR to idle instead of
+        # reopening the listening channel
+        asyncio.create_task(self.call_speechify(input=ssml, voice_id=voice_id, language=self.lang_code, model="simba-multilingual", skip_asr=True))
     
     async def _clone_voice(self, audio_file: UploadFile, name: str, gender: str) -> Dict:
         """Clone a voice from an audio file using Speechify voice cloning"""
