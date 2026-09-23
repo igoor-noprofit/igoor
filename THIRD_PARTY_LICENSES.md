@@ -1352,6 +1352,40 @@ Sources: https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3 (CC-BY-4.0)
          https://github.com/k2-fsa/sherpa-onnx/releases/tag/asr-models
          (ONNX export by the Apache-2.0 sherpa-onnx project)
 
+### ASR — sherpa-onnx model catalog (legacy local models)
+The asrjs plugin's per-language local models (plugins/asrjs/sherpa_models.json),
+downloaded unmodified from the k2-fsa GitHub releases at first use. Licenses
+verified per model:
+
+- Zipformer fr (streaming-zipformer-fr-2023-04-14, small/big): Apache-2.0,
+  declared in the archive README; trained by shaojieli on Common Voice fr
+  via icefall. https://huggingface.co/shaojieli/icefall-asr-commonvoice-fr-pruned-transducer-stateless7-streaming-2023-04-02
+- Zipformer en big (streaming-zipformer-en-2023-06-26): Apache-2.0, declared
+  on the ONNX export repo. https://huggingface.co/csukuangfj/sherpa-onnx-streaming-zipformer-en-2023-06-26
+  (converted from Zengwei/icefall-asr-librispeech-streaming-zipformer-2023-05-17)
+- Zipformer en small (streaming-zipformer-en-20M-2023-02-17): Apache-2.0,
+  same k2-fsa ONNX export family as the models above.
+- Zipformer zh small (streaming-zipformer-zh-14M-2023-02-23): Apache-2.0,
+  declared on the export repo. https://huggingface.co/csukuangfj/sherpa-onnx-streaming-zipformer-zh-14M-2023-02-23
+- Zipformer zh big (streaming-zipformer-zh-int8-2025-06-30): license NOT
+  independently verified — the ONNX export repo declares no license and the
+  source trainer repo is gated
+  (yuekai/icefall-asr-multi-zh-hans-zipformer-large); training code is
+  Apache-2.0 (icefall). Pending verification.
+- Zipformer ko (streaming-zipformer-korean-2024-06-16): trainer repo declares
+  Apache-2.0; trained on KSponSpeech (Korean AI Hub open data — dataset terms
+  should be reviewed before any commercial use).
+  https://huggingface.co/johnBamma/icefall-asr-ksponspeech-pruned-transducer-stateless7-streaming-2024-06-12
+- Whisper tiny/base ONNX (sherpa-onnx-whisper-tiny/base, it + fallback):
+  OpenAI Whisper weights (MIT) converted to ONNX by the sherpa-onnx project.
+  https://github.com/openai/whisper
+- NeMo transducer stt_pt_fastconformer_hybrid_large_pc (pt small/big):
+  NVIDIA weights under CC-BY-NC-4.0 (non-commercial) — see
+  https://huggingface.co/nvidia/stt_pt_fastconformer_hybrid_large_pc.
+  Incompatible with IGOOR's AGPLv3/no-NC distribution policy; removal is
+  pending (it is superseded by Parakeet v3, which covers Portuguese under
+  CC-BY-4.0).
+
 ---
 
 
@@ -1411,5 +1445,7 @@ Sources: https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3 (CC-BY-4.0)
 | Pocket TTS (weights) | CC-BY-4.0 | https://huggingface.co/kyutai/pocket-tts |
 | Pocket TTS (code) | MIT | https://github.com/kyutai-labs/pocket-tts |
 | Parakeet TDT 0.6B v3 ASR (weights) | CC-BY-4.0 | https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3 |
+| Zipformer ASR models (k2-fsa exports) | Apache 2.0 | https://github.com/k2-fsa/sherpa-onnx/releases/tag/asr-models |
+| Whisper tiny/base ASR ONNX (OpenAI weights) | MIT | https://github.com/openai/whisper |
 
 For full license texts and details, please visit the source URLs provided above.
