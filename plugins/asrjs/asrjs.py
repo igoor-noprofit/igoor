@@ -629,6 +629,20 @@ class Asrjs(Baseplugin):
                     num_threads=min(4, os.cpu_count() or 1),
                     provider="cpu",
                 )
+            elif model_info.get("type") == "nemo":
+                # NeMo transducer exports (parakeet): the generic loader aborts
+                # without model_type="nemo", and the fastconformer encoder needs
+                # 128 feature dims (verified against sherpa-onnx 1.13.8).
+                self.sherpa_recognizer = sherpa_onnx.OfflineRecognizer.from_transducer(
+                    encoder=os.path.join(model_path, model_info["encoder"]),
+                    decoder=os.path.join(model_path, model_info["decoder"]),
+                    joiner=os.path.join(model_path, model_info["joiner"]),
+                    tokens=os.path.join(model_path, "tokens.txt"),
+                    num_threads=min(4, os.cpu_count() or 1),
+                    feature_dim=128,
+                    model_type="nemo",
+                    provider="cpu",
+                )
             else:
                 self.sherpa_recognizer = sherpa_onnx.OnlineRecognizer.from_transducer(
                     tokens=os.path.join(model_path, "tokens.txt"),
@@ -685,6 +699,15 @@ class Asrjs(Baseplugin):
             catalog = json.load(f)
         lang = self.lang_code
         size = self.settings.get("sherpa_model_size", "small")
+        if size == "parakeet":
+            # One multilingual model for 25 European languages. Languages it
+            # doesn't cover (zh, ko, ...) keep their per-language models below.
+            parakeet = catalog.get("_parakeet")
+            if parakeet and lang in parakeet.get("languages", []):
+                return parakeet
+            self.logger.info(
+                f"Parakeet does not cover '{lang}' - falling back to the per-language sherpa model"
+            )
         if lang in catalog:
             return catalog[lang][size]
         return catalog.get("_fallback")

@@ -1,4 +1,8 @@
 {
+  "1.2.10": [
+    "Reconnaissance vocale plus précise grâce au modèle Parakeet (fonctionne sur le processeur)",
+    "Correction des boutons de test des plugins TTS"
+  ],
   "1.2.9": [
     "Clonage de voix local (active-le via le plugin Pocket TTS)",
     "Nouveau parcours de première utilisation pour accompagner les nouveaux utilisateurs et leurs aidants",

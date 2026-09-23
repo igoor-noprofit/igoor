@@ -54,11 +54,21 @@
                 </div>
                 <div class="form-input">
                     <select name="sherpa_model_size" v-model="formData.sherpa_model_size">
+                        <option value="parakeet" :disabled="!parakeetAvailable">{{t('Parakeet v3 (best quality, 25 languages)')}}</option>
                         <option value="small">{{t('Small (fast, less accurate)')}}</option>
-                        <option value="big">{{t('Big (slower, more accurate)')}}</option>
+                        <option value="big">{{t('Big (deprecated)')}}</option>
                     </select>
                 </div>
-                <div class="form-note"></div>
+                <div class="form-note" v-if="formData.sherpa_model_size === 'parakeet' && !parakeetAvailable">
+                    {{ t('Parakeet v3 does not support your language yet - the language-specific model is used instead.') }}
+                </div>
+                <div class="form-note" v-else-if="formData.sherpa_model_size === 'parakeet'">
+                    {{ t('Parakeet v3 covers 25 European languages with the best local accuracy. First use downloads ~640 MB, then works offline.') }}
+                </div>
+                <div class="form-note" v-else-if="formData.sherpa_model_size === 'big'">
+                    {{ t('Big is deprecated: use Parakeet for quality or Small for speed.') }}
+                </div>
+                <div class="form-note" v-else></div>
             </template>
 
             <!-- MISTRAL API KEY -->
@@ -322,7 +332,7 @@ export default {
                 redemptionFrames: 15,
                 shortcut: '',
                 hold_to_talk: false,
-                sherpa_model_size: 'small'
+                sherpa_model_size: 'parakeet'
             },
             defaultSettings: {
                 positiveSpeechThreshold: 0.5,
@@ -359,6 +369,13 @@ export default {
             return this.onboarding_ai &&
                 this.onboarding_ai.provider === 'mistral' &&
                 this.onboarding_ai.api_key;
+        },
+        parakeetAvailable() {
+            // Base language code (fr_FR -> fr) must be one of parakeet's 25
+            // European languages; keep in sync with plugins/asrjs/sherpa_models.json
+            const base = String(this.lang || 'en').split('_')[0];
+            return ['en','fr','de','es','it','pt','nl','pl','ru','sv','da','fi','bg','hr','cs',
+                    'et','el','hu','lv','lt','mt','ro','sk','sl','uk'].includes(base);
         }
     },
     watch: {

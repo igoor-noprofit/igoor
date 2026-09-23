@@ -18,17 +18,23 @@
         </div>
         <div class="form-note"></div>
 
-        <!-- Save Button -->
+        <!-- Test + Save buttons -->
         <div class="form-label"></div>
         <div class="form-input">
-            <SaveSettingsButton
-                :hasChanges="hasChanges"
-                :loading="isSaving"
-                :t="t"
-                :lang="lang"
-                @save="handleSave"
-                @cancel="resetSettings"
-            />
+            <div style="display: flex; justify-content: space-between; align-items: center; width: 100%">
+                <button type="button" @click="testVoice" :disabled="voiceList.length === 0 || isTesting">
+                    <span v-if="isTesting">{{ t('Testing...') }}</span>
+                    <span v-else>{{ t('Test voice') }}</span>
+                </button>
+                <SaveSettingsButton
+                    :hasChanges="hasChanges"
+                    :loading="isSaving"
+                    :t="t"
+                    :lang="lang"
+                    @save="handleSave"
+                    @cancel="resetSettings"
+                />
+            </div>
         </div>
     </div>
 </template>
@@ -55,6 +61,7 @@ export default {
             },
             originalSettings: null,
             isSaving: false,
+            isTesting: false,
             saveStatus: null
         };
     },
@@ -82,6 +89,25 @@ export default {
         resetSettings() {
             if (this.originalSettings) {
                 this.formData = JSON.parse(JSON.stringify(this.originalSettings));
+            }
+        },
+        async testVoice() {
+            if (this.isTesting) return;
+            this.isTesting = true;
+            try {
+                // Send the raw dropdown selection so the test speaks with the
+                // voice being tried out, not the last saved one
+                await this.callPluginRestEndpoint('ttsdefault', 'test_speak', {
+                    method: 'POST',
+                    data: {
+                        message: this.t('Hello, how are you doing? I feel better today!'),
+                        voice_id: this.formData.voice_id
+                    }
+                });
+            } catch (error) {
+                console.error('Error sending test message:', error);
+            } finally {
+                this.isTesting = false;
             }
         },
         async handleSave() {
@@ -139,5 +165,25 @@ export default {
     grid-column: 2 / span 1;
     font-size: 0.9em;
     color: #aaa;
+}
+
+button {
+    background: #3ca23c;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    padding: 6px 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+button:hover {
+    background: #338a33;
+}
+
+button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 </style>

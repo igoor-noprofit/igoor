@@ -1,8 +1,8 @@
 {
     "active": false,
     "category": "TTS",
-    "title": "Pocket TTS",
-    "description": "Free, local, CPU-only text-to-speech with voice cloning. No API key or internet needed after first model download.",
+    "title": "Pocket TTS (by Kyutai Labs)",
+    "description": "Free, local, CPU-only text-to-speech with local voice cloning. No API key or internet needed after first model download.",
     "layout": {
         "part": "topbar",
         "order": 0

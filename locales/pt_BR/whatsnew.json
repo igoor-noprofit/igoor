@@ -1,4 +1,8 @@
 {
+  "1.2.10": [
+    "Reconhecimento de fala mais preciso com o modelo Parakeet (funciona na CPU)",
+    "Correções nos botões de teste dos plugins de TTS"
+  ],
   "1.2.9": [
     "Clonagem de voz local (ative pelo plugin Pocket TTS)",
     "Novo configurador inicial para ajudar quem usa o IGOOR pela primeira vez e os cuidadores",

@@ -3,6 +3,7 @@ from plugins.baseplugin.baseplugin import Baseplugin
 from settings_manager import SettingsManager
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+from typing import Optional
 import asyncio
 try:
     import win32com.client
@@ -14,6 +15,10 @@ except ImportError:
 class SetVoicePayload(BaseModel):
     voice_id: int
     fallback_only: bool
+
+class TestSpeakPayload(BaseModel):
+    message: str = "Hello, how are you doing? I feel better today!"
+    voice_id: Optional[int] = None
 
 class Ttsdefault(Baseplugin):
     def __init__(self, plugin_name, pm):
@@ -118,6 +123,35 @@ class Ttsdefault(Baseplugin):
             except Exception as e:
                 self.logger.error(f"Error in set_voice endpoint: {e}")
                 return {"status": "error", "message": str(e)}
+
+        @self.router.post("/test_speak")
+        async def test_speak(payload: TestSpeakPayload):
+            """Preview a voice from the settings UI: the requested voice is
+            applied for this preview only (saved settings untouched), the ASR
+            is paused while speaking and returned to idle afterwards."""
+            if not self.is_loaded:
+                raise HTTPException(status_code=503, detail="SAPI TTS not available")
+            voice_id = payload.voice_id if payload.voice_id is not None else self.voice_id
+            if not 0 <= voice_id < len(self.available_voices):
+                raise HTTPException(status_code=400, detail=f"Voice not available: {voice_id}")
+            try:
+                voices = self.speaker.GetVoices()
+                self.speaker.Voice = voices.Item(voice_id)
+                try:
+                    # No translation/fallback: an audition previews this engine only
+                    success = await self.run_speak_func(payload.message, skip_asr=True)
+                finally:
+                    # Restore the engine's current voice: the preview must not
+                    # change the voice used by the next real speak
+                    self.speaker.Voice = voices.Item(self.voice_id)
+                if not success:
+                    raise HTTPException(status_code=500, detail="Test speech failed")
+                return {"status": "success", "voice_id": voice_id}
+            except HTTPException:
+                raise
+            except Exception as e:
+                self.logger.error(f"Error in test_speak endpoint: {e}")
+                raise HTTPException(status_code=500, detail=str(e))
                 
     @hookimpl
     def settings_updated(self, plugin_name, new_settings):
@@ -211,6 +245,7 @@ class Ttsdefault(Baseplugin):
         await asyncio.sleep(0.03)  # Ensure pause message reaches frontend
         success = await self.speak_func(message)
         await self.pm.trigger_hook(hook_name="restart_asr", force_ready=skip_asr)
+        return success
 
     async def run_speak_func_with_translation(self, message, skip_asr=False):
         """Translate outgoing speech before speaking"""
