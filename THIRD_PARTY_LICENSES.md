@@ -1335,6 +1335,23 @@ NOT distributed (mirrors must exclude these files from embeddings/):
 cosette.safetensors (Expresso, CC-BY-NC), jean.safetensors (EARS, CC-BY-NC),
 rafael.safetensors (unverified source).
 
+### ASR — Parakeet TDT 0.6B v3 (model weights, ONNX int8 export)
+Copyright (c) NVIDIA Corporation. All rights reserved.
+
+License: Creative Commons Attribution 4.0 International (CC-BY-4.0)
+https://creativecommons.org/licenses/by/4.0/
+
+The asrjs plugin downloads an unmodified copy of the k2-fsa int8 ONNX export
+of NVIDIA's parakeet-tdt-0.6b-v3 (encoder.int8.onnx, decoder.int8.onnx,
+joiner.int8.onnx, tokens.txt — archive
+sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8.tar.bz2, ~640 MB) from the
+k2-fsa GitHub releases at first use, selected as the default local ASR
+engine for the 25 supported European languages.
+
+Sources: https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3 (CC-BY-4.0)
+         https://github.com/k2-fsa/sherpa-onnx/releases/tag/asr-models
+         (ONNX export by the Apache-2.0 sherpa-onnx project)
+
 ---
 
 
@@ -1393,5 +1410,6 @@ rafael.safetensors (unverified source).
 | FFmpeg | GPL v2+ / LGPL | http://ffmpeg.org/legal.html |
 | Pocket TTS (weights) | CC-BY-4.0 | https://huggingface.co/kyutai/pocket-tts |
 | Pocket TTS (code) | MIT | https://github.com/kyutai-labs/pocket-tts |
+| Parakeet TDT 0.6B v3 ASR (weights) | CC-BY-4.0 | https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3 |
 
 For full license texts and details, please visit the source URLs provided above.
