@@ -1142,9 +1142,14 @@ class Pockettts(Baseplugin):
         self._playback_done.clear()
 
         stream_id = uuid.uuid4().hex
-        await self.send_message_to_app(
-            {"play_stream": {"id": stream_id, "mime": f"audio/pcm16;rate={self.tts_model.sample_rate}"}}
-        )
+        # play_stream / chunks / play_stream_end go to the PRIMARY browser page
+        # only (most recently connected), matching Baseplugin.stream_audio_to_frontend
+        if not websocket_server.send_message_primary(
+            'app',
+            json.dumps({"play_stream": {"id": stream_id, "mime": f"audio/pcm16;rate={self.tts_model.sample_rate}"}}),
+        ):
+            self.logger.warning("No browser page connected: cannot stream audio")
+            return False
 
         failure = threading.Event()
 
@@ -1155,7 +1160,7 @@ class Pockettts(Baseplugin):
             try:
                 with self._generation_threads():
                     for chunk in self._iter_speech_chunks(message, voice_state):
-                        if not websocket_server.send_bytes('app', chunk):
+                        if not websocket_server.send_bytes_primary('app', chunk):
                             failure.set()
                             return
                         if started is None:
@@ -1180,11 +1185,17 @@ class Pockettts(Baseplugin):
         producer.start()
         while producer.is_alive():
             await asyncio.sleep(0.1)
-        await self.send_message_to_app(
-            {"play_stream_end": {"id": stream_id, "aborted": failure.is_set()}}
+        ended = websocket_server.send_message_primary(
+            'app',
+            json.dumps({"play_stream_end": {"id": stream_id, "aborted": failure.is_set()}}),
         )
         if failure.is_set():
             return False
+        if not ended:
+            # The page vanished as the stream finished: nothing can acknowledge
+            # playback, so release the ack wait instead of stalling 30s.
+            self._on_playback_finished()
+            return True
         await self.wait_playback_finished(timeout=30)
         return True
 

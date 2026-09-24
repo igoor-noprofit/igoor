@@ -376,6 +376,14 @@ async function initializeApp() {
               this.$_endAudioStream(message.play_stream_end);
               return;
             }
+            if (message.audio_role) {
+              // Which page owns audio (mic + streamed TTS): plugin components
+              // (asrjs) listen for the 'igoor-audio-role' DOM event.
+              window.dispatchEvent(
+                new CustomEvent("igoor-audio-role", { detail: message.audio_role })
+              );
+              return;
+            }
             if (message.backend === "addmsg") {
               this.changeView("flow");
             }

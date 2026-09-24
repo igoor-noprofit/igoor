@@ -43,7 +43,8 @@ export default {
             wakewordEnabled: false, // Wakeword detection enabled from settings
             wakewordProcessing: false, // Flag to prevent overlapping wakeword requests
             wakewordDetected: false, // Flag to track if wakeword was detected
-            wakewordChannelOpened: false // One-shot gate: once the channel is opened (wake/click) it stays open until the conversation ends
+            wakewordChannelOpened: false, // One-shot gate: once the channel is opened (wake/click) it stays open until the conversation ends
+            isPrimaryAudioPage: true // Optimistic default (single-page case): flipped by the backend's audio_role message when another page owns the mic
         };
     },
     computed: {
@@ -95,6 +96,8 @@ export default {
         window.addEventListener('keydown', this.$_handleKeyPress);
         window.addEventListener('keyup', this.$_handleKeyRelease);
         window.addEventListener('blur', this.$_handlePttBlur);
+        // Audio-role changes pushed by the backend (dispatched by app.js on the app websocket)
+        window.addEventListener('igoor-audio-role', this.$_onAudioRoleEvent);
 
         // If continuous mode, load VAD library for automatic speech detection
         if (this.continuous) {
@@ -118,6 +121,7 @@ export default {
         window.removeEventListener('keydown', this.$_handleKeyPress);
         window.removeEventListener('keyup', this.$_handleKeyRelease);
         window.removeEventListener('blur', this.$_handlePttBlur);
+        window.removeEventListener('igoor-audio-role', this.$_onAudioRoleEvent);
 
         if (this.voiceProfilesRefreshInterval) {
             clearInterval(this.voiceProfilesRefreshInterval);
@@ -581,6 +585,33 @@ export default {
             this._lastProcessedAudio = null;
         },
 
+        $_onAudioRoleEvent(event) {
+            const role = event && event.detail;
+            const primary = role === 'primary';
+            if (primary === this.isPrimaryAudioPage) return;
+            this.isPrimaryAudioPage = primary;
+            console.log(`AUDIO ROLE: this page is now ${role} for the microphone`);
+            if (primary) {
+                // Re-arm exactly like a 'listening' status would
+                if (this.continuous && this.vad && this.vadInitialized && this.status === 'listening') {
+                    this.vad.start();
+                    if (this.wakewordEnabled && this.processor && !this.wakewordChannelOpened) {
+                        this.wakewordDetected = false;
+                        this.processor.port.postMessage({ type: 'enable-wakeword' });
+                    }
+                }
+            } else {
+                // Secondary page: stop every automatic mic path (VAD, wakeword,
+                // speaker-id chunks) so N open pages never transcribe the same
+                // speech N times. Manual mic interactions are gated too.
+                if (this.vad && this.vadInitialized) this.vad.pause();
+                this.$_resetAudioBuffer();
+                if (this.processor) this.processor.port.postMessage({ type: 'disable-wakeword' });
+            }
+            // Re-apply the speaker-id gate for the new role
+            this.$_applyVoiceProfilesEnabled(this.voiceProfilesEnabled);
+        },
+
         $_handleVADStatusChange(status) {
             // Pause VAD when receiving "ready" or "paused" status (e.g., TTS speaking, abandon)
             if ((status === 'ready' || status === 'paused') && this.vad && this.vadInitialized) {
@@ -598,7 +629,7 @@ export default {
                 console.log('Wakeword detection re-enabled (ready state)');
             }
             // Resume VAD when receiving "listening" status in continuous mode (e.g., TTS finished)
-            if (status === 'listening' && this.continuous && this.vad && this.vadInitialized) {
+            if (status === 'listening' && this.continuous && this.vad && this.vadInitialized && this.isPrimaryAudioPage) {
                 console.log('VAD: status is listening in continuous mode, resuming VAD');
                 this.vad.start();
                 // Re-enable wakeword detection if enabled
@@ -877,7 +908,10 @@ export default {
         $_applyVoiceProfilesEnabled(enabled) {
             this.voiceProfilesEnabled = !!enabled;
             if (this.processor) {
-                this.processor.port.postMessage({ type: enabled ? 'enable-speakerid' : 'disable-speakerid' });
+                // Only the primary audio page may stream speaker-id chunks, so
+                // several open pages don't feed the backend interleaved mics.
+                const effective = this.voiceProfilesEnabled && this.isPrimaryAudioPage;
+                this.processor.port.postMessage({ type: effective ? 'enable-speakerid' : 'disable-speakerid' });
             }
         },
 
@@ -1075,6 +1109,10 @@ export default {
             // console.log("Pressed combination:", pressedCombo + ", looking for:", this.keyboardShortcut);
             if (this.keyboardShortcut && pressedCombo === this.keyboardShortcut) {
                 event.preventDefault();
+                if (!this.isPrimaryAudioPage) {
+                    // The primary audio page owns the microphone
+                    return;
+                }
                 if (this.holdToTalk && !this.continuous) {
                     // Push-to-talk: keydown starts, keyup (or window blur) stops.
                     // event.repeat guards the auto-repeat keydowns fired while the key is held.
@@ -1183,7 +1221,7 @@ export default {
                         if (this.continuous) {
                             await this.$_initializeVAD();
                             // Restart VAD listening after re-initialization
-                            if (this.vad && this.vadInitialized) {
+                            if (this.vad && this.vadInitialized && this.isPrimaryAudioPage) {
                                 this.vad.start();
                                 this.status = 'listening';
                                 console.log('VAD restarted after settings change');
@@ -1249,6 +1287,9 @@ export default {
             // Treat a wake-word detection — or a manual mic click while the wakeword is
             // armed — as "open the channel": stop listening for the wakeword and start VAD.
             if (this.wakewordDetected) return;
+            // Wake notifications are broadcast to every page: only the audio
+            // primary may open the listening channel.
+            if (!this.isPrimaryAudioPage) return;
             this.wakewordDetected = true;
             this.wakewordChannelOpened = true; // Channel is open for this conversation — stop auto-re-arming the wakeword
             console.log(manual
@@ -1280,6 +1321,13 @@ export default {
                 continuous: this.continuous,
                 chunksLength: this.audioChunks.length
             });
+
+            if (!this.isPrimaryAudioPage) {
+                // Another page owns the microphone (most recently connected one);
+                // interacting there would transcribe the same speech twice.
+                console.log('Mic inactive on this page: the primary audio page owns the microphone');
+                return;
+            }
 
             if (!this.continuous) {
                 // NON-CONTINUOUS (push-to-talk): click to start, click to stop + transcribe

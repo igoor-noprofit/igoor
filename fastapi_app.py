@@ -103,6 +103,22 @@ def create_app() -> FastAPI:
     plugin_manager.fastapi_app = app
     settings_manager = SettingsManager()
 
+    def _notify_app_audio_role(plugin_name: str) -> None:
+        """Single-owner audio: whenever the primary app page changes, tell
+        every connected page its role. The primary page plays streamed TTS
+        (send_*_primary) and is the only page allowed to run the microphone
+        (continuous VAD / wakeword / speaker-id) - otherwise N open pages
+        would transcribe the same speech N times."""
+        if plugin_name != "app":
+            return
+        websocket_server.send_message_by_role(
+            "app",
+            json.dumps({"audio_role": "primary"}),
+            json.dumps({"audio_role": "secondary"}),
+        )
+
+    websocket_server.set_on_primary_change(_notify_app_audio_role)
+
     @api_router.get("/plugins/by-category")
     async def api_get_plugins_by_category():
         return plugin_manager.get_plugins_by_category()

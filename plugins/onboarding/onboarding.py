@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 load_dotenv()
 from context_manager import context_manager
 from settings_manager import SettingsManager
-from utils import get_appdata_dir, open_os_sound_settings
+from utils import get_appdata_dir, open_os_sound_settings, redact_sensitive
 from fastapi import APIRouter, HTTPException
 
 class Onboarding(Baseplugin):
@@ -363,7 +363,7 @@ class Onboarding(Baseplugin):
             self.logger.error(f"Could not notify the AI connection state: {e}")
 
     def handle_save_settings(self, new_settings):
-        self.logger.info("NEW SETTINGS: %s", json.dumps(new_settings, indent=2))
+        self.logger.info("NEW SETTINGS: %s", json.dumps(redact_sensitive(new_settings), indent=2))
         """
         Handle saving of new settings.
         

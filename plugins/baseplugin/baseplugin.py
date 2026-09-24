@@ -8,7 +8,7 @@ from pathlib import Path
 from datetime import datetime
 from utils import resource_path
 from llm_manager import LLMManager
-from utils import setup_logger, get_appdata_dir
+from utils import setup_logger, get_appdata_dir, redact_sensitive, redact_json_for_log
 from db_manager import DatabaseManager
 
 class Baseplugin:
@@ -249,7 +249,7 @@ class Baseplugin:
         target_plugin_name = plugin_name or self.plugin_name
         while not websocket_server.is_socket_open(target_plugin_name):
             await asyncio.sleep(1)  # Wait for 1 second before checking again
-            self.logger.info(f"Waiting for socket to open, to send {message} to {target_plugin_name}")
+            self.logger.info(f"Waiting for socket to open, to send {redact_json_for_log(message)} to {target_plugin_name}")
         self.send_message_to_frontend(message, target_plugin_name)
 
     async def send_status(self, status):
@@ -277,7 +277,8 @@ class Baseplugin:
         True when a browser may be the UI: headless run (IGOOR_HEADLESS=True,
         legacy IGOOR_CLI honored) or external access enabled
         (IGOOR_ACCESS_FROM_OUTSIDE=True). TTS audio is then streamed to the
-        connected browsers instead of being played on the PC speakers.
+        most recently connected browser page instead of being played on the
+        PC speakers.
         """
         headless = os.getenv("IGOOR_HEADLESS", os.getenv("IGOOR_CLI", "False")).lower() == "true"
         outside = os.getenv("IGOOR_ACCESS_FROM_OUTSIDE", "False").lower() == "true"
@@ -287,7 +288,9 @@ class Baseplugin:
         """
         Streams audio chunks to the browser as they are produced (MediaSource
         playback on the app websocket). Only TTS engines that can produce
-        audio bytes should call this (never SAPI/ttsdefault).
+        audio bytes should call this (never SAPI/ttsdefault). Delivery targets
+        the primary (most recently connected) page only, so several open pages
+        never play the same voice on top of each other.
         :param audio_chunks: iterable/iterator of bytes
         :return: False when no browser is connected (caller falls back to local playback)
         """
@@ -300,14 +303,23 @@ class Baseplugin:
         self._playback_done.clear()
 
         stream_id = uuid.uuid4().hex
-        await self.send_message_to_app({"play_stream": {"id": stream_id, "mime": mime}})
+        # play_stream / chunks / play_stream_end go to the PRIMARY browser page
+        # only (the most recently connected one): broadcasting them made every
+        # open page play the same voice on top of each other.
+        if not websocket_server.send_message_primary(
+            'app', json.dumps({"play_stream": {"id": stream_id, "mime": mime}})
+        ):
+            self.logger.warning("No browser page connected: cannot stream audio")
+            return False
 
         started = None
         sent = 0
         for chunk in audio_chunks:
-            if not websocket_server.send_bytes('app', bytes(chunk)):
+            if not websocket_server.send_bytes_primary('app', bytes(chunk)):
                 self.logger.error("Failed to stream an audio chunk to the browser")
-                await self.send_message_to_app({"play_stream_end": {"id": stream_id, "aborted": True}})
+                websocket_server.send_message_primary(
+                    'app', json.dumps({"play_stream_end": {"id": stream_id, "aborted": True}})
+                )
                 return False
             if started is None:
                 started = time.time()
@@ -316,7 +328,13 @@ class Baseplugin:
         if started is not None:
             self.logger.info(f"TTS stream {stream_id}: last chunk sent ({sent} chunks, {time.time() - started:.2f}s of streaming)")
 
-        await self.send_message_to_app({"play_stream_end": {"id": stream_id}})
+        if not websocket_server.send_message_primary(
+            'app', json.dumps({"play_stream_end": {"id": stream_id}})
+        ):
+            # The page vanished as the stream finished: nothing can acknowledge
+            # playback, so release the ack wait instead of stalling 30s.
+            self._on_playback_finished()
+            return True
         await self.wait_playback_finished(timeout=30)
         return True
 
@@ -640,7 +658,7 @@ class Baseplugin:
 
         sm = self.settings_manager
         translator_settings = sm.get_plugin_settings("translator")
-        self.logger.info(f"[TRANSLATE] direction={direction}, settings={translator_settings}")
+        self.logger.info(f"[TRANSLATE] direction={direction}, settings={redact_sensitive(translator_settings)}")
 
         target_lang = translator_settings.get("interlocutor_language", "")
         if not target_lang:

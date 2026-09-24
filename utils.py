@@ -47,6 +47,35 @@ def merge_missing(user: dict, defaults: dict) -> tuple:
     return merged, added
 
 
+# Substring match on lowercased key names: catches api_key, groq_api_key,
+# access_token, client_secret, password, ... without hitting unrelated words.
+_SENSITIVE_KEY_MARKERS = ("api_key", "apikey", "token", "secret", "password", "authorization")
+
+
+def redact_sensitive(obj):
+    """Recursively mask values whose key looks sensitive (API keys, tokens,
+    passwords...) so settings payloads can be logged safely."""
+    if isinstance(obj, dict):
+        return {
+            key: ("***" if any(marker in str(key).lower() for marker in _SENSITIVE_KEY_MARKERS)
+                  else redact_sensitive(value))
+            for key, value in obj.items()
+        }
+    if isinstance(obj, (list, tuple)):
+        return [redact_sensitive(item) for item in obj]
+    return obj
+
+
+def redact_json_for_log(text: str, limit: int = 300) -> str:
+    """Redact sensitive values inside a JSON-string payload for logging;
+    falls back to truncation for non-JSON text."""
+    try:
+        redacted = json.dumps(redact_sensitive(json.loads(text)))
+    except (ValueError, TypeError):
+        redacted = text
+    return redacted if len(redacted) <= limit else redacted[:limit] + "..."
+
+
 class JsonFormatter(logging.Formatter):
     """Formats log records as JSON strings."""
     def format(self, record):
