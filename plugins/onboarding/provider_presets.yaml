@@ -4,7 +4,7 @@
 groq:
   flow:
     preflow_model_name: "openai/gpt-oss-20b"
-    semantic_model_name: "llama-3.1-8b-instant"
+    semantic_model_name: "openai/gpt-oss-20b"
   memory:
     model_name: "openai/gpt-oss-120b"
   autocomplete:
