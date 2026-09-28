@@ -7,6 +7,7 @@ load_dotenv()
 import signal
 import sys
 import asyncio
+import multiprocessing
 import threading
 from typing import Optional
 # Linux + uv-managed Python: _tkinter can't locate its Tcl/Tk script libraries
@@ -102,6 +103,15 @@ def start_fastapi_server() -> None:
                 return
             logger.warning(f"Port 9714 not free yet (attempt {attempt + 1}/120) - retrying in 0.5s")
             time.sleep(0.5)
+
+        # Every attempt failed: the port is held for good (a second IGOOR the
+        # single-instance guard could not see - launched before either
+        # instance had bound the port - or a foreign process). Booting on
+        # regardless would create a windowless, portless instance with every
+        # model loaded - the process pile-up that OOM-killed macOS test
+        # machines. Exit hard instead.
+        logger.error("Port 9714 still not free after 120 attempts - exiting instead of booting without the server.")
+        os._exit(1)
 
     fastapi_thread = threading.Thread(target=_run_with_bind_retry, daemon=True)
     fastapi_thread.start()
@@ -543,7 +553,53 @@ def _record_version_marker(settings):
         logger.error(f"Could not record version marker: {e}")
 
 
+def _is_igoor_already_running() -> bool:
+    """True when a live IGOOR answers on 9714 (loopback works for both bind
+    hosts). Used to refuse booting a second instance, which would otherwise
+    load every model only to end up portless."""
+    try:
+        import urllib.request
+        with urllib.request.urlopen("http://127.0.0.1:9714/health", timeout=2) as resp:
+            return resp.status == 200
+    except Exception:
+        return False
+
+
+def _show_already_running_dialog() -> None:
+    """Best-effort notice for a user double-launching the app: the running
+    instance keeps working, this second copy just exits. tkinter is optional
+    (minimal Linux installs skip the splash screen the same way)."""
+    try:
+        import tkinter as tk
+        from tkinter import messagebox
+        root = tk.Tk()
+        root.withdraw()
+        messagebox.showinfo("IGOOR", "IGOOR is already running.")
+        root.destroy()
+    except Exception:
+        pass
+
+
 if __name__ == "__main__":
+    # Must be the first statement: in frozen builds, multiprocessing-spawned
+    # helper processes re-execute this whole script. On macOS/Linux, creating
+    # tqdm's write lock (tqdm is used by sentence-transformers' encode()) spawns
+    # the multiprocessing resource tracker via sys.executable - in a frozen app
+    # that is IGOOR itself, so without freeze_support() each helper boots a
+    # full second IGOOR, recursively.
+    multiprocessing.freeze_support()
+
+    # Single-instance guard: a second manual launch must exit before loading
+    # any model. Restart children (/app/restart) are spawned by our own code
+    # while the OLD instance still holds port 9714 for a moment, so they mark
+    # themselves via env and skip this probe - the bind-retry loop in
+    # start_fastapi_server handles that race instead.
+    if os.environ.get("IGOOR_RESTART_CHILD") != "1" and _is_igoor_already_running():
+        logger.error("IGOOR is already running (port 9714 answered /health) - this instance exits.")
+        if IGOOR_HEADLESS.lower() != 'true':
+            _show_already_running_dialog()
+        os._exit(0)
+
     settings = load_settings()
     _record_version_marker(settings)
     bio = settings.get_nested(["plugins", "onboarding", "bio"], default={})

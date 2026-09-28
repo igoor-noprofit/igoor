@@ -205,6 +205,10 @@ def create_app() -> FastAPI:
                     stderr=log_file,
                     stdin=subprocess.DEVNULL,
                     cwd=os.path.dirname(script) or None,
+                    # Mark the child so main.py's single-instance guard does not
+                    # mistake our own still-dying instance (which keeps answering
+                    # /health on 9714 for a moment) for another running IGOOR.
+                    env={**os.environ, "IGOOR_RESTART_CHILD": "1"},
                 )
                 logger.info(f"Restart child spawned; output -> {log_path}")
             except Exception as exc:
