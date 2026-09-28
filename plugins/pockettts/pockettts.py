@@ -608,10 +608,30 @@ class Pockettts(Baseplugin):
             self.is_loaded = True
             self.mark_ready()
             self.logger.info("Pocket TTS is ready")
+            self._warmup_generation()
 
         except Exception as e:
             self.mark_not_ready()
             self.logger.error(f"Failed to load pocket-tts model: {e}", exc_info=True)
+
+    def _warmup_generation(self):
+        """Silent throwaway generation right after the model loads: the first
+        generate_audio call pays a one-time lazy init (~26s cold on an 8GB
+        M-series) that would otherwise land on the user's first reply after
+        boot. Runs in the background loader thread, so boot is not blocked,
+        and discards the audio - no pause_asr hook, no streaming, no playback
+        (same trick as the rag embedding warmup)."""
+        try:
+            start = time.time()
+            self._apply_generation_params()
+            with self._generation_threads():
+                self.tts_model.generate_audio(self.voice_state, "Ok.")
+            self.logger.info(
+                f"Pocket TTS warm-up generation done in {time.time() - start:.1f}s "
+                "- first real speak will not pay the cold-init cost"
+            )
+        except Exception as e:
+            self.logger.warning(f"Pocket TTS warm-up skipped: {e}")
 
     def _resolve_voice_prompt(self, voice_name):
         """Translate a built-in voice NAME into something get_state_for_audio_prompt

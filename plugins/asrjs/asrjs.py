@@ -11,6 +11,7 @@ import numpy as np
 from typing import Optional
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from utils import setup_logger, get_base_language_code, open_os_sound_settings
+from websocket_server import websocket_server
 from pathlib import Path
 
 WAKEWORD_MODELS_DIR = os.path.join(os.path.dirname(__file__), "static", "wakeword")
@@ -228,8 +229,15 @@ class Asrjs(Baseplugin):
         """Record the latest ASR status so (re)connecting frontends can fetch it
         via GET /api/plugins/asrjs/status: status pushes are one-shot deliveries
         (wait_for_socket_and_send sends each message once), so a browser that
-        connects after a push would otherwise stay stuck in 'loading'."""
+        connects after a push would otherwise stay stuck in 'loading'.
+        Never WAIT for a page here either: baseplugin's send_status loops until
+        a page connects, but status pushes also come from hooks (pause_asr
+        during any TTS speak, restart_asr, change_view) - blocking those on a
+        disconnected frontend wedges the speak request forever. The status is
+        recorded above either way and served to the page when it connects."""
         self.current_status = status
+        if not websocket_server.is_socket_open(self.plugin_name):
+            return
         await super().send_status(status)
 
     def send_settings_to_frontend(self):
