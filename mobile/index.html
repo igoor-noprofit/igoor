@@ -1,0 +1,1546 @@
+<!DOCTYPE html>
+<!--
+  IGOOR — Mobile companion page (LIVE)
+
+  Served by fastapi_app at /mobile/ and to phone browsers on / (UA
+  detection). Talks to the running IGOOR backend over same-origin REST
+  and WebSockets — no auth, trusted networks only (use the Tailscale
+  HTTPS URL so getUserMedia works).
+
+  Layout: interlocutor/assistant messages (author "def") on the LEFT,
+  patient messages (author "master") on the RIGHT — identical to the
+  desktop conversation semantics. The phone mic belongs to the
+  INTERLOCUTOR (caregiver/family); the patient replies via the flow
+  suggested phrases or typed text. ONE merged state/mic button follows
+  the conversation lifecycle.
+
+  The server replaces {{VERSION}} (cache-busting) and {{LANG}} (ui
+  language); the page falls back to en_EN when opened standalone.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#121617">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>IGOOR — Mobile</title>
+  <link rel="stylesheet" href="/css/phosphor-2.1.1-light.css?v={{VERSION}}">
+  <style>
+    /* ==========================================================
+       Design tokens — copied from css/app.less
+       ========================================================== */
+    :root {
+      --accent-100: #0095c0;
+      --accent-500: #216776;
+      --accent-700: #23515b;
+      --green:      #396350;
+      --darkest:    #121617;
+      --topbar-bg:  #1d1d1d;
+      --conv-bg:    #28373b;
+      --warning:    #a8351b;
+      --gray-100:   #a6bfbf;
+      --gray-900:   #3e5e65;
+      --page-light: #edeee7;
+      --rounded:    10px;
+      --sat: env(safe-area-inset-top, 0px);
+      --sab: env(safe-area-inset-bottom, 0px);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+      height: 100%;
+      font-family: "Public Sans", -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--darkest);
+      color: var(--page-light);
+      overscroll-behavior: none;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body { display: flex; justify-content: center; }
+    #shell {
+      width: 100%;
+      max-width: 520px;
+      height: 100vh;
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      background: var(--darkest);
+      box-shadow: 0 0 40px rgba(0, 0, 0, .6);
+    }
+
+    /* ==========================================================
+       Top bar
+       ========================================================== */
+    #topbar {
+      flex: 0 0 auto;
+      padding: calc(var(--sat) + 8px) 12px 8px;
+      background: var(--topbar-bg);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .topbar-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    #conn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: .8rem;
+      color: var(--gray-100);
+      border: none;
+      background: none;
+      font-family: inherit;
+      cursor: pointer;
+      padding: 4px 2px;
+    }
+    #connDot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: #4caf7d;
+      box-shadow: 0 0 6px rgba(76, 175, 125, .8);
+    }
+    #conn.offline #connDot { background: var(--warning); box-shadow: 0 0 6px rgba(168, 53, 27, .8); }
+    .brand {
+      flex: 1;
+      text-align: center;
+      font-weight: 600;
+      font-size: 1.15rem;
+      letter-spacing: .12em;
+      color: var(--page-light);
+      user-select: none;
+    }
+    .icon-btn {
+      width: 44px; height: 44px;
+      border: none;
+      border-radius: var(--rounded);
+      background: rgba(255, 255, 255, .06);
+      color: var(--page-light);
+      font-size: 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+    .icon-btn:active { background: var(--accent-700); }
+
+    /* ==========================================================
+       Merged state + mic button
+       ========================================================== */
+    #stateBtn {
+      flex: 0 0 auto;
+      margin: 8px 10px 0;
+      min-height: 60px;
+      border-radius: var(--rounded);
+      border: 1px solid transparent;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      font-family: inherit;
+      font-size: 1.05rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .1em;
+      cursor: pointer;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+      touch-action: none;
+      transition: background .25s, color .25s;
+    }
+    #stateBtn i { font-size: 1.5rem; }
+    #stateBtn.idle      { background: var(--accent-100); color: var(--darkest); }
+    #stateBtn.listening { background: var(--topbar-bg); border-color: var(--accent-100); color: var(--accent-100); }
+    #stateBtn.ready     { background: var(--topbar-bg); border-color: var(--gray-900); color: var(--page-light); }
+    #stateBtn.ready i   { color: var(--gray-100); }
+    #stateBtn.recording { background: var(--warning); color: #fff; animation: sos 1.2s infinite; }
+    #stateBtn.thinking  { background: var(--accent-500); color: #fff; }
+    #stateBtn.speaking  { background: var(--gray-900); color: #fff; }
+    #stateBtn.loading   { background: var(--topbar-bg); border-color: var(--gray-900); color: var(--gray-100); }
+    #stateBtn.loading i { animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Hint banner (insecure context, mic ownership, degradations) */
+    #hint {
+      display: none;
+      margin: 6px 10px 0;
+      padding: 8px 12px;
+      border-radius: var(--rounded);
+      background: rgba(168, 53, 27, .18);
+      border: 1px solid var(--warning);
+      color: var(--page-light);
+      font-size: .85rem;
+      line-height: 1.3;
+    }
+    #hint.visible { display: block; }
+
+    /* ==========================================================
+       Conversation area
+       ========================================================== */
+    #conv {
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow-y: auto;
+      padding: 14px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      background: linear-gradient(180deg, var(--conv-bg) 0%, var(--darkest) 100%);
+      scrollbar-width: thin;
+      scrollbar-color: var(--gray-900) transparent;
+    }
+    .bubble {
+      position: relative;
+      max-width: 82%;
+      padding: 12px 14px;
+      border-radius: var(--rounded);
+      font-size: 1.125rem;
+      line-height: 1.35;
+      word-wrap: break-word;
+      user-select: text;
+      -webkit-user-select: text;
+    }
+    /* WhatsApp-style speech-bubble tail (comic beak at the top corner) */
+    .bubble::before, .typing::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      width: 10px;
+      height: 14px;
+      background: inherit;
+    }
+    .bubble.def {                     /* interlocutor / assistant — left, teal */
+      align-self: flex-start;
+      background: var(--accent-500);
+      border-top-left-radius: 2px;
+    }
+    .bubble.def::before, .typing::before {
+      left: -9px;
+      clip-path: polygon(100% 0, 0 0, 100% 100%);
+    }
+    .bubble.master {                  /* user / patient — right, green (color code: green = patient) */
+      align-self: flex-end;
+      background: var(--green);
+      border-top-right-radius: 2px;
+    }
+    .bubble.master::before {
+      right: -9px;
+      clip-path: polygon(0 0, 100% 0, 0 100%);
+    }
+
+    /* Typing indicator */
+    .typing {
+      align-self: flex-start;
+      position: relative;
+      display: flex;
+      gap: 5px;
+      padding: 14px 16px;
+      background: var(--accent-500);
+      border-radius: var(--rounded);
+      border-top-left-radius: 2px;
+    }
+    .typing span {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--page-light);
+      opacity: .4;
+      animation: blink 1.2s infinite;
+    }
+    .typing span:nth-child(2) { animation-delay: .2s; }
+    .typing span:nth-child(3) { animation-delay: .4s; }
+    @keyframes blink { 0%, 80%, 100% { opacity: .25; } 40% { opacity: 1; } }
+
+    #conv:empty::before {
+      content: "";
+      flex: 1;
+    }
+
+    /* ==========================================================
+       Phrases — flow suggested replies (mood groups) + REPEAT
+       ========================================================== */
+    #phrases:not(.active) { display: none; }  /* hidden until a conversation starts */
+    /* Flow suggestions yield while the user is typing: autocomplete
+       completions take over (two suggestion systems at once = confusing) */
+    #phrases.autocompleting { display: none; }
+    #phrases {
+      flex: 0 0 auto;
+      padding: 8px 10px;
+      background: var(--darkest);
+      border-top: 1px solid rgba(255, 255, 255, .06);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .mood-group {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .mood-head {
+      display: flex;
+      justify-content: center;
+      opacity: .45;               /* mirrors .column-mood-icon */
+      color: var(--page-light);
+    }
+    .mood-head svg {
+      width: 22px; height: 22px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 1.5;
+    }
+    .suggestion-btn {
+      width: 100%;
+      min-height: 56px;
+      border: 1px solid rgba(255, 255, 255, .1);
+      border-radius: var(--rounded);
+      background: rgba(255, 255, 255, .05);
+      color: var(--page-light);
+      font-family: inherit;
+      font-size: 1.125rem;
+      line-height: 1.2;
+      padding: 6px 16px;
+      cursor: pointer;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+    }
+    .suggestion-btn:active { background: var(--accent-700); border-color: var(--accent-100); }
+    /* Portrait density: one phrase per mood (consuming one reveals the
+       next, mirroring the desktop column splice) — 6 buttons would
+       starve the conversation */
+    .mood-group .suggestion-btn:nth-child(n+3) { display: none; }
+
+    /* REPEAT — the speaker's button: asks the AI to repeat itself */
+    .suggestion-btn.repeat {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      min-height: 56px;
+      margin-top: 6px;
+      background: var(--topbar-bg);
+      border-color: var(--accent-700);
+      font-size: 1.1rem;
+      font-weight: 600;
+    }
+    .suggestion-btn.repeat i { font-size: 1.6rem; color: var(--accent-100); }
+    @keyframes sos {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(168, 53, 27, .7); }
+      50%      { box-shadow: 0 0 0 9px rgba(168, 53, 27, 0); }
+    }
+
+    /* ==========================================================
+       Input area
+       ========================================================== */
+    #inputArea {
+      flex: 0 0 auto;
+      padding: 8px 10px calc(var(--sab) + 10px);
+      background: var(--darkest);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      border-top: 1px solid rgba(255, 255, 255, .06);
+    }
+    /* Autocomplete phrase completions while typing (no mood icons —
+       mood grouping is flow's semantic). Same big-button sizing as the
+       flow suggestions; the dashed border keeps them distinguishable.
+       Full text, never truncated. */
+    #completions { display: none; flex-direction: column; gap: 6px; }
+    #completions.visible { display: flex; }
+    .completion-btn {
+      width: 100%;
+      min-height: 56px;
+      border: 1px dashed var(--accent-700);
+      border-radius: var(--rounded);
+      background: rgba(0, 149, 192, .08);
+      color: var(--page-light);
+      font-family: inherit;
+      font-size: 1.125rem;
+      line-height: 1.2;
+      padding: 8px 16px;
+      text-align: left;
+      cursor: pointer;
+      user-select: none;
+      -webkit-user-select: none;
+      white-space: normal;
+      word-wrap: break-word;
+    }
+    .completion-btn .typed { color: var(--gray-100); }
+    .completion-btn:active { background: var(--accent-700); }
+
+    #textRow { display: flex; gap: 8px; }
+    #textInput {
+      flex: 1;
+      min-width: 0;
+      height: 50px;
+      border-radius: var(--rounded);
+      border: 1px solid var(--gray-900);
+      background: var(--topbar-bg);
+      color: var(--page-light);
+      font-size: 16px; /* ≥16px prevents iOS focus zoom */
+      font-family: inherit;
+      padding: 0 14px;
+      outline: none;
+    }
+    #textInput:focus { border-color: var(--accent-100); }
+    #sendBtn {
+      width: 50px; height: 50px;
+      flex: 0 0 auto;
+      border: none;
+      border-radius: var(--rounded);
+      background: var(--accent-100);
+      color: var(--darkest);
+      font-size: 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+    #sendBtn:active { background: var(--accent-500); color: #fff; }
+
+    /* Landscape phones: mood groups side by side (REPEAT as 4th column),
+       compact chrome */
+    @media (orientation: landscape) and (max-height: 500px) {
+      #topbar { padding-top: 4px; padding-bottom: 4px; }
+      #topbar .topbar-row { gap: 6px; }
+      .icon-btn { width: 36px; height: 36px; font-size: 1.2rem; }
+      #stateBtn { margin: 4px 10px 0; min-height: 40px; font-size: .85rem; }
+      #stateBtn i { font-size: 1.2rem; }
+      .brand { font-size: .95rem; }
+      #phrases { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+      .mood-head { display: none; }
+      .suggestion-btn, .suggestion-btn.repeat { min-height: 48px; font-size: .85rem; }
+      .suggestion-btn.repeat { margin-top: 0; }
+      #textInput, #sendBtn { height: 44px; }
+      #sendBtn { width: 44px; }
+    }
+
+    /* ==========================================================
+       Offline overlay (mirrors #connection-lost)
+       ========================================================== */
+    #offline {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      background: rgba(18, 22, 23, .96);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      text-align: center;
+      padding: 24px;
+    }
+    #offline.visible { display: flex; }
+    #offline i { font-size: 3rem; color: var(--warning); }
+    #offline h2 { font-size: 1.2rem; font-weight: 600; }
+    #offline p { color: var(--gray-100); font-size: .9rem; }
+
+    /* Wide screens: keep phone proportions, rounded frame */
+    @media (min-width: 560px) {
+      #shell { margin: 12px 0; height: calc(100dvh - 24px); border-radius: 18px; overflow: hidden; }
+    }
+  </style>
+</head>
+<body>
+  <div id="shell">
+
+    <header id="topbar">
+      <div class="topbar-row">
+        <div id="conn">
+          <span id="connDot"></span><span id="connLabel">…</span>
+        </div>
+        <div class="brand">IGOOR</div>
+        <button id="muteBtn" class="icon-btn" aria-label="Mute TTS playback on this device" title="Mute TTS on this device">
+          <i id="muteIcon" class="ph-light ph-speaker-high"></i>
+        </button>
+        <button id="newConvBtn" class="icon-btn" aria-label="New conversation" title="New conversation">
+          <i class="ph-light ph-arrows-clockwise"></i>
+        </button>
+      </div>
+    </header>
+
+    <button id="stateBtn" class="idle" aria-live="polite">
+      <i id="stateIcon" class="ph-light ph-chat-circle-dots"></i>
+      <span id="stateLabel">…</span>
+    </button>
+
+    <div id="hint"></div>
+
+    <main id="conv" aria-live="polite"></main>
+
+    <section id="phrases" aria-label="Suggested replies"></section>
+
+    <footer id="inputArea">
+      <div id="completions" aria-label="Phrase completions"></div>
+      <form id="textRow">
+        <input id="textInput" type="text" autocomplete="off" autocapitalize="sentences"
+               placeholder="…" aria-label="Type a message">
+        <button id="sendBtn" type="submit" aria-label="Send message">
+          <i class="ph-light ph-paper-plane-tilt"></i>
+        </button>
+      </form>
+    </footer>
+
+  </div>
+
+  <div id="offline">
+    <i class="ph-light ph-wifi-slash"></i>
+    <h2>…</h2>
+    <p>…</p>
+  </div>
+
+  <script>
+    'use strict';
+
+    /* ============================================================
+       Language & strings (server replaces {{LANG}})
+       ============================================================ */
+    const RAW_LANG = '{{LANG}}';
+    const LANG = (RAW_LANG.indexOf('{{') === 0 || !RAW_LANG) ? 'en_EN' : RAW_LANG;
+
+    const I18N = {
+      en_EN: {
+        connecting: 'Connecting…', connected: 'Connected', offline: 'Offline',
+        startConversation: 'Start conversation',
+        continuousListening: 'Continuous listening',
+        holdToTalk: 'Hold to talk', pushToStart: 'Push to start', pushToEnd: 'Push to end',
+        listening: 'Listening', thinking: 'Thinking', speaking: 'Speaking',
+        nameSpeaking: '{name} speaking…',
+        typePlaceholder: 'Type a message…',
+        newConversation: 'New conversation',
+        loading: 'Loading {ready}/{total}',
+        repeatLabel: 'Can you repeat for AI?',
+        repeatMsgFallback: 'Can you repeat for the AI?',
+        offlineTitle: 'Connection lost',
+        offlineText: 'Cannot reach IGOOR on the PC. Retrying…',
+        micInsecure: 'Microphone needs a secure connection. Open this page through IGOOR\'s HTTPS URL (Tailscale).',
+        micOtherPage: 'Another screen owns the microphone right now.',
+        asrInactive: 'Voice input is off (voice recognition extension inactive).',
+        shortcutsInactive: 'The repeat shortcut is unavailable (shortcuts extension inactive).',
+      },
+      fr_FR: {
+        connecting: 'Connexion…', connected: 'Connecté', offline: 'Hors ligne',
+        startConversation: 'Démarrer la conversation',
+        continuousListening: 'Écoute continue',
+        holdToTalk: 'Maintenir pour parler', pushToStart: 'Appuyer pour parler', pushToEnd: 'Appuyer pour terminer',
+        listening: 'Écoute', thinking: 'Réflexion', speaking: 'Parle',
+        nameSpeaking: '{name} parle…',
+        typePlaceholder: 'Écrivez un message…',
+        newConversation: 'Nouvelle conversation',
+        loading: 'Chargement {ready}/{total}',
+        repeatLabel: 'Peux-tu répéter pour l\'IA ?',
+        repeatMsgFallback: 'Can you repeat for the AI?',
+        offlineTitle: 'Connexion perdue',
+        offlineText: 'Impossible de joindre IGOOR sur le PC. Nouvelle tentative…',
+        micInsecure: 'Le micro nécessite une connexion sécurisée. Ouvrez cette page via l\'URL HTTPS de IGOOR (Tailscale).',
+        micOtherPage: 'Un autre écran utilise le micro actuellement.',
+        asrInactive: 'La voix est désactivée (extension de reconnaissance vocale inactive).',
+        shortcutsInactive: 'Le raccourci répéter est indisponible (extension raccourcis inactive).',
+      },
+      it_IT: {
+        connecting: 'Connessione…', connected: 'Connesso', offline: 'Offline',
+        startConversation: 'Avvia conversazione',
+        continuousListening: 'Ascolto continuo',
+        holdToTalk: 'Tieni premuto per parlare', pushToStart: 'Premi per parlare', pushToEnd: 'Premi per terminare',
+        listening: 'In ascolto', thinking: 'Riflette', speaking: 'Parla',
+        nameSpeaking: '{name} parla…',
+        typePlaceholder: 'Scrivi un messaggio…',
+        newConversation: 'Nuova conversazione',
+        loading: 'Caricamento {ready}/{total}',
+        repeatLabel: 'Puoi ripetere per l\'IA?',
+        repeatMsgFallback: 'Can you repeat for the AI?',
+        offlineTitle: 'Connessione persa',
+        offlineText: 'Impossibile raggiungere IGOOR sul PC. Riprovo…',
+        micInsecure: 'Il microfono richiede una connessione sicura. Apri questa pagina tramite l\'URL HTTPS di IGOOR (Tailscale).',
+        micOtherPage: 'Un altro schermo sta usando il microfono.',
+        asrInactive: 'Voce disattivata (estensione di riconoscimento vocale inattiva).',
+        shortcutsInactive: 'Scorciatoia ripeti non disponibile (estensione scorciatoie inattiva).',
+      },
+      pt_BR: {
+        connecting: 'Conectando…', connected: 'Conectado', offline: 'Offline',
+        startConversation: 'Iniciar conversa',
+        continuousListening: 'Escuta contínua',
+        holdToTalk: 'Segure para falar', pushToStart: 'Toque para falar', pushToEnd: 'Toque para terminar',
+        listening: 'Ouvindo', thinking: 'Pensando', speaking: 'Falando',
+        nameSpeaking: '{name} falando…',
+        typePlaceholder: 'Digite uma mensagem…',
+        newConversation: 'Nova conversa',
+        loading: 'Carregando {ready}/{total}',
+        repeatLabel: 'Pode repetir para a IA?',
+        repeatMsgFallback: 'Can you repeat for the AI?',
+        offlineTitle: 'Conexão perdida',
+        offlineText: 'Não foi possível alcançar o IGOOR no PC. Tentando novamente…',
+        micInsecure: 'O microfone exige uma conexão segura. Abra esta página pela URL HTTPS do IGOOR (Tailscale).',
+        micOtherPage: 'Outra tela está usando o microfone agora.',
+        asrInactive: 'Voz desativada (extensão de reconhecimento de voz inativa).',
+        shortcutsInactive: 'Atalho repetir indisponível (extensão de atalhos inativa).',
+      },
+    };
+    const t = (key) => (I18N[LANG] && I18N[LANG][key]) || I18N.en_EN[key] || key;
+
+    /* ============================================================
+       DOM refs & tiny helpers
+       ============================================================ */
+    const $ = (id) => document.getElementById(id);
+    const conv = $('conv'), textInput = $('textInput'), phrasesEl = $('phrases');
+    const completionsEl = $('completions'), stateBtn = $('stateBtn'), stateIcon = $('stateIcon'), stateLabel = $('stateLabel');
+    const hintEl = $('hint'), offlineEl = document.getElementById('offline');
+
+    // Apply static strings
+    $('connLabel').textContent = t('connecting');
+    stateLabel.textContent = t('connecting');
+    textInput.placeholder = t('typePlaceholder');
+    offlineEl.querySelector('h2').textContent = t('offlineTitle');
+    offlineEl.querySelector('p').textContent = t('offlineText');
+
+    let hintTimer = null;
+    function showHint(text) {
+      hintEl.textContent = text;
+      hintEl.classList.add('visible');
+      clearTimeout(hintTimer);
+      hintTimer = setTimeout(() => hintEl.classList.remove('visible'), 6000);
+    }
+
+    async function api(path, options) {
+      const response = await fetch(path, options);
+      if (!response.ok) throw new Error(path + ' → ' + response.status);
+      return response.json();
+    }
+
+    /* ============================================================
+       Global state
+       ============================================================ */
+    let muted = false;
+    let audioRole = 'primary';        // /ws/app tells us who owns mic + TTS
+    let conversationActive = false;
+    let pluginActive = {};            // name → bool (from /api/plugins/by-category)
+    let asrSettings = {};             // from /api/plugins/asrjs/status
+    let asrBackendStatus = 'loading'; // last status pushed on /ws/asrjs
+    let repeatMsg = t('repeatMsgFallback'); // spoken text, from the shortcuts locale
+    const micAllowed = () => window.isSecureContext && navigator.mediaDevices && !!navigator.mediaDevices.getUserMedia;
+    function ackPlayback() {
+      // The backend awaits this after play_stream_end (wait_playback_finished);
+      // sent even when muted, so TTS never blocks on an absent playback.
+      fetch('/api/hooks/tts_playback_finished', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{}',
+      }).catch(() => {});
+    }
+
+    /* ============================================================
+       Merged state + mic button
+       ============================================================ */
+    const BTN_STATES = {
+      idle:      'ph-chat-circle-dots',
+      listening: 'ph-microphone',
+      ready:     'ph-microphone',
+      recording: 'ph-microphone',
+      thinking:  'ph-chat-circle-dots',
+      speaking:  'ph-speaker-high',
+      loading:   'ph-circle-notch',
+    };
+    function setBtn(state, text) {
+      // While plugins are still loading, only the loading state may show —
+      // stray status pushes must not mask "where we are".
+      if (booting && state !== 'loading') return;
+      stateBtn.className = state;
+      stateIcon.className = 'ph-light ' + BTN_STATES[state];
+      stateLabel.textContent = text;
+    }
+    /* Boot loading: while plugins are still starting up the button shows
+       "Loading r/t" (source: GET /api/plugins/onboarding/boot-status and
+       boot_progress pushes on /ws/app) and absorbs every other state
+       change until boot completes. */
+    let booting = false;
+    let bootPoll = null;
+    function setBootLoading(ready, total) {
+      if (total > 0 && ready < total) {
+        booting = true;
+        setBtn('loading', t('loading').replace('{ready}', ready).replace('{total}', total));
+      } else {
+        finishBoot();
+      }
+    }
+    function finishBoot() {
+      booting = false;
+      if (bootPoll) { clearInterval(bootPoll); bootPoll = null; }
+      if (conversationActive || asrMode() === 'continuous') micState();
+      else setBtn('idle', t('startConversation'));
+    }
+    function asrMode() {
+      return asrSettings.continuous ? 'continuous' : (asrSettings.hold_to_talk ? 'hold' : 'push');
+    }
+    function micState() {
+      if (booting) return;
+      if (!conversationActive && asrMode() !== 'continuous') return;
+      if (!pluginActive.asrjs) { setBtn('listening', t('listening')); return; }
+      if (asrMode() === 'continuous') setBtn('listening', t('continuousListening'));
+      else if (asrMode() === 'hold') setBtn('ready', t('holdToTalk'));
+      else setBtn('ready', t('pushToStart'));
+    }
+
+    /* ============================================================
+       Conversation rendering (bubbles come ONLY from pushes/hydration:
+       author "def" = interlocutor → left; "master" = patient → right)
+       ============================================================ */
+    let typingEl = null;
+    function addBubble(msg, author) {
+      if (!msg) return;
+      const el = document.createElement('div');
+      el.className = 'bubble ' + (author === 'master' ? 'master' : 'def');
+      el.textContent = msg;
+      conv.appendChild(el);
+      while (conv.children.length > 100) conv.removeChild(conv.firstChild);
+      conv.scrollTop = conv.scrollHeight;
+    }
+    function setTyping(on) {
+      if (on && !typingEl) {
+        typingEl = document.createElement('div');
+        typingEl.className = 'typing';
+        typingEl.innerHTML = '<span></span><span></span><span></span>';
+        conv.appendChild(typingEl);
+        conv.scrollTop = conv.scrollHeight;
+      } else if (!on && typingEl) {
+        typingEl.remove();
+        typingEl = null;
+      }
+    }
+    function clearConversation() {
+      conv.innerHTML = '';
+      typingEl = null;
+    }
+    /* Nothing pushes history on connect and phones reload constantly:
+       pull the in-flight thread (conversation.get_conversation hook). */
+    async function hydrateConversation() {
+      try {
+        const data = await api('/api/hooks/get_conversation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ format: 'json' }),
+        });
+        const thread = data && data.result && data.result[0];
+        clearConversation();
+        if (Array.isArray(thread)) {
+          thread.forEach((m) => addBubble(m.msg, m.author));
+          if (thread.length) {
+            conversationActive = true;
+            phrasesEl.classList.add('active');
+            micState();
+          }
+        }
+      } catch (e) {
+        console.warn('hydration failed:', e);
+      }
+    }
+
+    /* ============================================================
+       Flow suggested replies (mood groups) + REPEAT
+       ============================================================ */
+    const MOODS = [
+      { key: 'left',   icon: 'icon-sun-high' },   /* positive / affirmative */
+      { key: 'center', icon: 'icon-cloud' },      /* nuanced / alternative  */
+      { key: 'right',  icon: 'icon-cloud-rain' }, /* opposite / negative    */
+    ];
+    let currentAnswers = { left: [], center: [], right: [] };
+
+    const repeatBtn = document.createElement('button');
+    repeatBtn.type = 'button';
+    repeatBtn.className = 'suggestion-btn repeat';
+    repeatBtn.innerHTML = '<i class="ph-light ph-arrow-counter-clockwise"></i><span></span>';
+    repeatBtn.querySelector('span').textContent = t('repeatLabel');
+    repeatBtn.addEventListener('click', () => {
+      if (!pluginActive.shortcuts) { showHint(t('shortcutsInactive')); return; }
+      /* bid must be the int button index (repeat = 6 in the desktop
+         shortcutButtons array) — it feeds the backend usage log */
+      wsSend('shortcuts', { action: 'speak', msg: repeatMsg, bid: 6 });
+    });
+    phrasesEl.appendChild(repeatBtn);
+
+    function renderAnswers() {
+      phrasesEl.querySelectorAll('.mood-group').forEach((el) => el.remove());
+      MOODS.forEach((mood) => {
+        const list = currentAnswers[mood.key] || [];
+        if (!list.length) return;
+        const group = document.createElement('div');
+        group.className = 'mood-group';
+        const head = document.createElement('div');
+        head.className = 'mood-head';
+        head.innerHTML = '<svg><use xlink:href="/img/svgdefs.svg#' + mood.icon + '"></use></svg>';
+        group.appendChild(head);
+        list.forEach((text) => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'suggestion-btn';
+          btn.textContent = text;
+          btn.addEventListener('click', () => {
+            /* desktop parity: $_chooseAnswer splices the tapped phrase,
+               then speaks it (the thread push adds the bubble) */
+            currentAnswers[mood.key] = currentAnswers[mood.key].filter((t2) => t2 !== text);
+            renderAnswers();
+            wsSend('flow', { action: 'speak', msg: text });
+          });
+          group.appendChild(btn);
+        });
+        phrasesEl.insertBefore(group, repeatBtn);
+      });
+    }
+    function clearAnswers() {
+      currentAnswers = { left: [], center: [], right: [] };
+      renderAnswers();
+    }
+    function showAnswers(answers) {
+      currentAnswers = {
+        left: (answers && answers.left) || [],
+        center: (answers && answers.center) || [],
+        right: (answers && answers.right) || [],
+      };
+      phrasesEl.classList.add('active');
+      renderAnswers();
+      micState();
+    }
+
+    /* ============================================================
+       Autocomplete: phrase completions while typing (no mood icons)
+       ============================================================ */
+    let completionsTimer = null;
+    let lastTyped = '';
+
+    function renderCompletions(list) {
+      completionsEl.innerHTML = '';
+      const typed = textInput.value.trim();
+      const items = (list || []).slice(0, 3);
+      const show = Boolean(typed) && items.length > 0 && pluginActive.autocomplete !== false;
+      completionsEl.classList.toggle('visible', show);
+      /* flow predictions step aside while autocompleting */
+      phrasesEl.classList.toggle('autocompleting', show);
+      items.forEach((full) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'completion-btn';
+        const lower = full.toLowerCase();
+        const idx = lower.indexOf(typed.toLowerCase());
+        if (idx === 0) {
+          btn.innerHTML = '<span class="typed"></span><span class="rest"></span>';
+          btn.querySelector('.typed').textContent = typed;
+          btn.querySelector('.rest').textContent = full.slice(typed.length);
+        } else {
+          btn.textContent = full;
+        }
+        btn.title = full;
+        btn.addEventListener('click', () => {
+          textInput.value = '';
+          renderCompletions([]);
+          ensureConversation();
+          /* "speak" delivers the phrase; "prediction_selected" is what
+             trains the prediction database — both are required */
+          wsSend('autocomplete', { action: 'speak', msg: full });
+          wsSend('autocomplete', { action: 'prediction_selected', input: lastTyped, completion: full });
+        });
+        completionsEl.appendChild(btn);
+      });
+    }
+    function ensureConversation() {
+      if (conversationActive) return;
+      conversationActive = true;
+      phrasesEl.classList.add('active');
+      micState();
+    }
+
+    textInput.addEventListener('input', () => {
+      clearTimeout(completionsTimer);
+      completionsTimer = setTimeout(() => {
+        const raw = textInput.value;
+        const typed = raw.trim();
+        if (!typed) {
+          lastTyped = '';
+          renderCompletions([]);
+          return;
+        }
+        lastTyped = typed;
+        if (pluginActive.autocomplete === false) return;
+        /* "typing" feeds the backend staleness guard (a slow LLM result
+           for an earlier input is dropped) */
+        wsSend('autocomplete', { action: 'typing', input: typed });
+        /* Whole-phrase LLM prediction, desktop rule: ask when the RAW
+           input ends with a space (trim() would hide the word boundary).
+           The result arrives on /ws/flow as {input, completions:[...]} —
+           NOT the short-predictions REST endpoint (that is the SQLite
+           next-word predictor). */
+        if (raw.endsWith(' ')) {
+          wsSend('autocomplete', { action: 'predict', msg: raw });
+        }
+      }, 250);
+    });
+
+    document.getElementById('textRow').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const text = textInput.value.trim();
+      if (!text) return;
+      textInput.value = '';
+      renderCompletions([]);
+      ensureConversation();
+      /* the speak hook adds it to the thread (author "master") and
+         answers it — the bubble comes back as a push */
+      wsSend('autocomplete', { action: 'speak', msg: text });
+    });
+
+    /* ============================================================
+       Merged button interaction (non-continuous: PTT via AudioWorklet;
+       continuous: MicVAD owns the mic — the button is a status display)
+       ============================================================ */
+    let recording = false;
+    let recStart = 0;
+    let recTimer = null;
+    let micCtx = null, micNode = null, micStream = null;
+    let recordingBuffer = [];
+    let vad = null;
+
+    function showRecordingLabel() {
+      const s = ((Date.now() - recStart) / 1000).toFixed(1);
+      setBtn('recording', t('listening') + '… ' + s + 's');
+    }
+
+    async function ensureMicWorklet() {
+      if (micNode) return;
+      if (!micAllowed()) { showHint(t('micInsecure')); throw new Error('insecure context'); }
+      if (audioRole !== 'primary') { showHint(t('micOtherPage')); throw new Error('not primary'); }
+      let stream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: { channelCount: 1, echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+        });
+      } catch (e) {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      }
+      micStream = stream;
+      const track = stream.getAudioTracks()[0];
+      const rate = (track.getSettings() && track.getSettings().sampleRate) || 48000;
+      micCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: rate });
+      const source = micCtx.createMediaStreamSource(stream);
+      await micCtx.audioWorklet.addModule('/plugins/asrjs/frontend/audio-processor.js');
+      micNode = new AudioWorkletNode(micCtx, 'audio-processor');
+      micNode.port.onmessage = (event) => {
+        if (event.data.type === 'audio-data' && recording) {
+          recordingBuffer = recordingBuffer.concat(event.data.data);
+        }
+      };
+      source.connect(micNode);
+      // The worklet node needs an output sink to be pulled; connect to a
+      // zero-gain destination so the mic never feeds the speakers.
+      const sink = micCtx.createGain();
+      sink.gain.value = 0;
+      micNode.connect(sink);
+      sink.connect(micCtx.destination);
+    }
+
+    async function startPTT() {
+      if (recording) return;
+      if (!pluginActive.asrjs) { showHint(t('asrInactive')); return; }
+      await ensureMicWorklet();
+      recording = true;
+      recordingBuffer = [];
+      recStart = Date.now();
+      micNode.port.postMessage({ type: 'clear-buffers' });
+      micNode.port.postMessage({ type: 'start-recording' });
+      showRecordingLabel();
+      recTimer = setInterval(showRecordingLabel, 100);
+      try { await api('/api/plugins/asrjs/start_recording', { method: 'POST' }); } catch (e) { console.warn(e); }
+    }
+
+    function audioToWav(float32Array, sampleRate) {
+      const rate = sampleRate || 48000;
+      const int16 = new Int16Array(float32Array.length);
+      for (let i = 0; i < float32Array.length; i++) {
+        const s = Math.max(-1, Math.min(1, float32Array[i]));
+        int16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+      }
+      const buffer = new ArrayBuffer(44 + int16.length * 2);
+      const view = new DataView(buffer);
+      const writeString = (offset, str) => {
+        for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
+      };
+      writeString(0, 'RIFF');
+      view.setUint32(4, 36 + int16.length * 2, true);
+      writeString(8, 'WAVE');
+      writeString(12, 'fmt ');
+      view.setUint32(16, 16, true);
+      view.setUint16(20, 1, true);
+      view.setUint16(22, 1, true);
+      view.setUint32(24, rate, true);
+      view.setUint32(28, rate * 2, true);
+      view.setUint16(32, 2, true);
+      view.setUint16(34, 16, true);
+      writeString(36, 'data');
+      view.setUint32(40, int16.length * 2, true);
+      for (let i = 0; i < int16.length; i++) view.setInt16(44 + i * 2, int16[i], true);
+      return new Blob([buffer], { type: 'audio/wav' });
+    }
+
+    async function transcribe(blob) {
+      const form = new FormData();
+      form.append('audio_file', blob, 'recording.wav');
+      await fetch('/api/plugins/asrjs/transcribe', { method: 'POST', body: form });
+    }
+
+    async function stopPTT() {
+      if (!recording) return;
+      recording = false;
+      clearInterval(recTimer);
+      const seconds = (Date.now() - recStart) / 1000;
+      // Wait for the worklet to flush its final partial chunk
+      await new Promise((resolve) => {
+        const handler = (event) => {
+          if (event.data.type === 'recording-stopped') {
+            micNode.port.removeEventListener('message', handler);
+            resolve();
+          }
+        };
+        micNode.port.addEventListener('message', handler);
+        setTimeout(() => { micNode.port.removeEventListener('message', handler); resolve(); }, 500);
+        micNode.port.postMessage({ type: 'stop-recording' });
+      });
+      try { await api('/api/plugins/asrjs/stop_recording', { method: 'POST' }); } catch (e) { /* optional */ }
+      setBtn('thinking', t('thinking'));
+      if (recordingBuffer.length) {
+        await transcribe(audioToWav(recordingBuffer, micCtx ? micCtx.sampleRate : 48000));
+      }
+      recordingBuffer = [];
+      // Transcription → conversation push (def) → flow answers. If nothing
+      // comes back, restore the mic state after a grace period.
+      setTimeout(() => { if (!recording) micState(); }, 6000);
+    }
+
+    /* Continuous mode: MicVAD owns its own mic stream (no AudioWorklet).
+       MOBILE REALITY: MicVAD.new calls getUserMedia internally, and mobile
+       browsers only allow that from a user gesture — so the VAD is
+       (re)attempted on every pointerdown, not just on WS events. */
+    const scriptLoads = {};
+    function loadScript(src) {
+      if (!scriptLoads[src]) {
+        scriptLoads[src] = new Promise((resolve, reject) => {
+          const script = document.createElement('script');
+          script.src = src;
+          script.async = true;
+          script.onload = () => {
+            if (window.ort && !self.ort) self.ort = window.ort;
+            resolve();
+          };
+          script.onerror = () => { delete scriptLoads[src]; reject(new Error('failed to load ' + src)); };
+          document.head.appendChild(script);
+        });
+      }
+      return scriptLoads[src];
+    }
+    let vadStarting = false;
+    async function ensureVAD() {
+      if (vad || vadStarting) return vad;
+      if (!micAllowed()) { showHint(t('micInsecure')); throw new Error('insecure context'); }
+      if (audioRole !== 'primary') { throw new Error('not primary'); }
+      vadStarting = true;
+      try {
+        if (!window.vad) {
+          await loadScript('/plugins/asrjs/static/vad/ort.js');
+          await loadScript('/plugins/asrjs/static/vad/bundle.min.js');
+        }
+        const positive = asrSettings.positiveSpeechThreshold || 0.5;
+        vad = await window.vad.MicVAD.new({
+          model: 'v5',
+          baseAssetPath: '/plugins/asrjs/static/vad/',
+          onnxWASMBasePath: '/plugins/asrjs/static/vad/ort-wasm/',
+          startOnLoad: false,
+          positiveSpeechThreshold: positive,
+          negativeSpeechThreshold: positive - 0.15,
+          redemptionFrames: asrSettings.redemptionFrames || 15,
+          preSpeechPadFrames: 1,
+          minSpeechFrames: 3,
+          onSpeechStart: async () => {
+            setBtn('recording', t('listening') + '…');
+            try { await api('/api/plugins/conversation/start_transcribing'); } catch (e) { /* dots only */ }
+          },
+          onSpeechEnd: (audio) => {
+            setBtn('thinking', t('thinking'));
+            transcribe(audioToWav(audio, 16000));
+          },
+          onVADMisfire: async () => {
+            try { await api('/api/plugins/conversation/end_transcribing'); } catch (e) { /* ignore */ }
+            micState();
+          },
+        });
+        return vad;
+      } finally {
+        vadStarting = false;
+      }
+    }
+    function vadShouldRun() {
+      // Continuous ASR listens whenever this page owns the audio and the
+      // backend is not speaking — like the desktop, WITHOUT requiring an
+      // open conversation (speech itself auto-opens one backend-side;
+      // gating here would deadlock the mic).
+      return asrMode() === 'continuous' && pluginActive.asrjs
+        && audioRole === 'primary' && micAllowed() && asrBackendStatus !== 'paused';
+    }
+    async function syncVAD() {
+      if (!vadShouldRun()) {
+        if (vad && vad.listening) { try { vad.pause(); } catch (e) { /* ignore */ } }
+        return;
+      }
+      try {
+        const instance = await ensureVAD();
+        if (instance && !instance.listening) instance.start();
+      } catch (e) {
+        // Expected on mobile until the first user gesture unlocks
+        // getUserMedia; the pointerdown bootstrap retries.
+        console.warn('VAD not started:', e.message);
+      }
+    }
+
+    stateBtn.addEventListener('pointerdown', (e) => {
+      if (conversationActive && asrMode() === 'hold' && stateBtn.classList.contains('ready')) {
+        e.preventDefault();
+        startPTT().catch((err) => console.warn('PTT start failed:', err));
+      }
+    });
+    function pointerDone() {
+      if (recording && asrMode() === 'hold') stopPTT();
+    }
+    stateBtn.addEventListener('pointerup', pointerDone);
+    stateBtn.addEventListener('pointercancel', pointerDone);
+    stateBtn.addEventListener('pointerleave', pointerDone);
+    stateBtn.addEventListener('contextmenu', (e) => e.preventDefault());
+    stateBtn.addEventListener('click', () => {
+      if (booting) return;
+      if (!conversationActive && asrMode() !== 'continuous') { startConversation(); return; }
+      if (!pluginActive.asrjs) return;
+      if (asrMode() === 'push') {
+        if (recording) stopPTT();
+        else if (stateBtn.classList.contains('ready')) startPTT().catch((err) => console.warn('PTT start failed:', err));
+      } else if (asrMode() === 'continuous') {
+        // This tap IS the user gesture mobile browsers require to grant
+        // the microphone — (re)arm the VAD now.
+        syncVAD();
+      }
+    });
+
+    /* ---------- conversation lifecycle ---------- */
+    async function startConversation() {
+      ensureConversation();
+      try { await api('/api/hooks/new_conversation', { method: 'POST' }); } catch (e) { console.warn(e); }
+      clearConversation();
+      micState();
+    }
+
+    /* New conversation (header) — desktop "Change topic" parity:
+       {action:"abandon_conversation"} on /ws/flow triggers the hook; the
+       conversation channel then pushes the reset too (idempotent here).
+       Needed even in continuous mode, where the merged button never shows
+       its idle state. */
+    $('newConvBtn').title = t('newConversation');
+    $('newConvBtn').setAttribute('aria-label', t('newConversation'));
+    $('newConvBtn').addEventListener('click', async () => {
+      if (pluginActive.flow) {
+        wsSend('flow', { action: 'abandon_conversation' });
+      } else {
+        try { await api('/api/hooks/abandon_conversation', { method: 'POST' }); } catch (e) { console.warn(e); }
+      }
+      clearConversation();
+      clearAnswers();
+      conversationActive = false;
+      if (asrMode() === 'continuous') micState();
+      else setBtn('idle', t('startConversation'));
+    });
+
+    /* ============================================================
+       TTS playback — ported from js/app_template.js: PCM → WebAudio,
+       MP3/other → MediaSource, fallback → whole-clip blob at the end.
+       ============================================================ */
+    let audioStream = null;
+    function stopAudioStream() {
+      const stream = audioStream;
+      if (!stream) return;
+      audioStream = null;
+      try { if (stream.audio) { stream.audio.onended = null; stream.audio.onerror = null; stream.audio.pause(); } } catch (e) { /* torn down */ }
+      try { if (stream.sourceBuffer && stream.sourceBuffer.updating) stream.sourceBuffer.abort(); } catch (e) { /* detached */ }
+      try { if (stream.mediaSource && stream.mediaSource.readyState === 'open') stream.mediaSource.endOfStream(); } catch (e) { /* closed */ }
+      if (stream.objectUrl) URL.revokeObjectURL(stream.objectUrl);
+      if (stream.completionTimer) clearTimeout(stream.completionTimer);
+      try { if (stream.pcm && stream.pcm.ctx) stream.pcm.ctx.close(); } catch (e) { /* closed */ }
+    }
+    function pcmRate(mime) {
+      if (!mime || mime.indexOf('audio/pcm') !== 0) return 0;
+      const match = /rate=(\d+)/.exec(mime);
+      return match ? parseInt(match[1], 10) : 44100;
+    }
+    function startAudioStream(spec) {
+      stopAudioStream();
+      if (muted) { audioStream = { id: spec.id, muted: true }; return; }
+      setBtn('speaking', t('speaking'));
+      const stream = {
+        id: spec.id, mime: spec.mime, queue: [], ended: false, started: false,
+        confirmedPlaying: false, completionTimer: null, mediaSource: null,
+        sourceBuffer: null, audio: null, objectUrl: null, chunks: null, pcm: null,
+      };
+      audioStream = stream;
+      const rate = pcmRate(spec.mime);
+      if (rate) {
+        stream.pcm = { rate, ctx: null, nextTime: 0 };
+      } else if (window.MediaSource && MediaSource.isTypeSupported(spec.mime)) {
+        stream.mediaSource = new MediaSource();
+        stream.objectUrl = URL.createObjectURL(stream.mediaSource);
+        stream.mediaSource.addEventListener('sourceopen', () => {
+          try {
+            stream.sourceBuffer = stream.mediaSource.addSourceBuffer(spec.mime);
+            stream.sourceBuffer.addEventListener('updateend', () => pumpAudioQueue(stream));
+            pumpAudioQueue(stream);
+          } catch (e) {
+            console.error('MSE SourceBuffer error:', e);
+            try { if (stream.mediaSource.readyState === 'open') stream.mediaSource.endOfStream(); } catch (e2) { /* closed */ }
+            stream.chunks = stream.queue.splice(0);
+          }
+        });
+        stream.audio = new Audio(stream.objectUrl);
+        attachAudioHandlers(stream);
+      } else {
+        // e.g. iPhone Safari without MSE audio: play the complete blob at the end
+        console.warn('MediaSource does not support ' + spec.mime + ' - falling back to whole-clip playback');
+        stream.chunks = [];
+      }
+    }
+    function onAudioChunk(data) {
+      const stream = audioStream;
+      if (!stream || stream.muted) return;
+      if (stream.pcm) { schedulePcmChunk(stream, data); return; }
+      if (stream.chunks) { stream.chunks.push(data); return; }
+      stream.queue.push(data);
+      pumpAudioQueue(stream);
+    }
+    function schedulePcmChunk(stream, data) {
+      const pcm = stream.pcm;
+      try {
+        if (!pcm.ctx) pcm.ctx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: pcm.rate });
+        const ctx = pcm.ctx;
+        if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+        const samples = new Int16Array(data);
+        if (!samples.length) return;
+        const buffer = ctx.createBuffer(1, samples.length, pcm.rate);
+        const channel = buffer.getChannelData(0);
+        for (let i = 0; i < samples.length; i++) channel[i] = samples[i] / 32768;
+        const source = ctx.createBufferSource();
+        source.buffer = buffer;
+        source.connect(ctx.destination);
+        const startAt = Math.max(ctx.currentTime + 0.12, pcm.nextTime);
+        source.start(startAt);
+        pcm.nextTime = startAt + buffer.duration;
+        if (!stream.started) {
+          stream.started = true;
+          const ensureCompletion = () => {
+            if (audioStream !== stream || stream.confirmedPlaying) return;
+            stream.confirmedPlaying = true;
+            scheduleStreamCompletion(stream);
+          };
+          if (ctx.state === 'running') ensureCompletion();
+          else document.addEventListener('pointerdown', () => {
+            if (audioStream === stream && stream.pcm && stream.pcm.ctx) {
+              stream.pcm.ctx.resume().then(ensureCompletion).catch(() => {});
+            }
+          }, { once: true });
+        }
+      } catch (e) {
+        console.error('PCM scheduling error:', e);
+      }
+    }
+    function pumpAudioQueue(stream) {
+      if (!stream.sourceBuffer || stream.sourceBuffer.updating) return;
+      if (stream.queue.length > 0) {
+        try { stream.sourceBuffer.appendBuffer(stream.queue.shift()); } catch (e) { console.error('appendBuffer error:', e); return; }
+        if (!stream.started) { stream.started = true; playAudioElement(stream); }
+      } else if (stream.ended) {
+        try {
+          if (stream.sourceBuffer.buffered.length > 0) {
+            stream.mediaSource.duration = stream.sourceBuffer.buffered.end(stream.sourceBuffer.buffered.length - 1);
+          }
+          if (stream.mediaSource.readyState === 'open') stream.mediaSource.endOfStream();
+        } catch (e) { /* closed */ }
+      }
+    }
+    function endAudioStream(spec) {
+      const stream = audioStream;
+      if (!stream || stream.id !== spec.id) return;
+      if (stream.muted) { stopAudioStream(); ackPlayback(); return; }
+      stream.ended = true;
+      if (stream.pcm) { scheduleStreamCompletion(stream); return; }
+      if (stream.chunks) {
+        const blob = new Blob(stream.chunks, { type: stream.mime });
+        stream.objectUrl = URL.createObjectURL(blob);
+        stream.audio = new Audio(stream.objectUrl);
+        attachAudioHandlers(stream);
+        playAudioElement(stream);
+        return;
+      }
+      pumpAudioQueue(stream);
+    }
+    function playAudioElement(stream) {
+      if (!stream.audio) return;
+      stream.audio.play().then(() => {
+        stream.confirmedPlaying = true;
+        scheduleStreamCompletion(stream);
+      }).catch(() => {
+        console.warn('Audio autoplay blocked - will retry on next user interaction');
+        document.addEventListener('pointerdown', () => {
+          if (audioStream === stream && stream.audio) {
+            stream.audio.play().then(() => {
+              stream.confirmedPlaying = true;
+              scheduleStreamCompletion(stream);
+            }).catch(() => {});
+          }
+        }, { once: true });
+      });
+    }
+    function scheduleStreamCompletion(stream) {
+      if (stream.completionTimer) return;
+      const check = () => {
+        stream.completionTimer = null;
+        if (audioStream !== stream) return;
+        if (stream.pcm) {
+          if (!stream.pcm.ctx) { notifyPlaybackFinished(stream); return; }
+          if (!stream.ended) { stream.completionTimer = setTimeout(check, 250); return; }
+          const remaining = Math.max(0, stream.pcm.nextTime - stream.pcm.ctx.currentTime) * 1000 + 400;
+          stream.completionTimer = setTimeout(() => notifyPlaybackFinished(stream), remaining);
+          return;
+        }
+        if (!stream.audio) return;
+        const audio = stream.audio;
+        let end = isFinite(audio.duration) && audio.duration > 0 ? audio.duration : 0;
+        if (end === 0 && stream.sourceBuffer && stream.sourceBuffer.buffered.length > 0) {
+          end = stream.sourceBuffer.buffered.end(stream.sourceBuffer.buffered.length - 1);
+        }
+        if (end <= 0) { stream.completionTimer = setTimeout(check, 250); return; }
+        const remaining = Math.max(0, end - audio.currentTime) * 1000 + 400;
+        stream.completionTimer = setTimeout(() => notifyPlaybackFinished(stream), remaining);
+      };
+      check();
+    }
+    function attachAudioHandlers(stream) {
+      stream.audio.onended = () => notifyPlaybackFinished(stream);
+      stream.audio.onerror = () => notifyPlaybackFinished(stream);
+    }
+    function notifyPlaybackFinished(stream) {
+      if (audioStream !== stream) return;
+      audioStream = null;
+      if (stream.objectUrl) URL.revokeObjectURL(stream.objectUrl);
+      if (stream.completionTimer) clearTimeout(stream.completionTimer);
+      try { if (stream.mediaSource && stream.mediaSource.readyState === 'open') stream.mediaSource.endOfStream(); } catch (e) { /* closed */ }
+      try { if (stream.pcm && stream.pcm.ctx) stream.pcm.ctx.close(); } catch (e) { /* closed */ }
+      ackPlayback();
+      micState();
+    }
+
+    /* ============================================================
+       WebSockets — one per plugin channel, same-origin, retrying.
+       Unknown messages are IGNORED (the /ws/app channel carries
+       desktop-only traffic: backend:"addmsg", switchview, gui_ready).
+       ============================================================ */
+    const WS_BASE = (location.protocol === 'https:' ? 'wss' : 'ws') + '://' + location.host + '/ws/';
+    const sockets = {};
+    let appEverConnected = false;
+    let appLostTimer = null;
+
+    function wsSend(channel, obj) {
+      const socket = sockets[channel];
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify(obj));
+        return true;
+      }
+      console.warn('ws ' + channel + ' not open, dropped:', obj);
+      return false;
+    }
+
+    function handleChannelMessage(channel, raw) {
+      let data;
+      try { data = JSON.parse(raw); } catch (e) { return; }
+      if (channel === 'app') {
+        if (data.play_stream) startAudioStream(data.play_stream);
+        else if (data.play_stream_end) endAudioStream(data.play_stream_end);
+        else if (data.audio_role) {
+          audioRole = data.audio_role === 'secondary' ? 'secondary' : 'primary';
+          syncVAD();
+        }
+        else if (data.type === 'boot_progress') setBootLoading(Number(data.ready || 0), Number(data.total || 0));
+        // backend:"addmsg" / switchview / minimize: desktop-only → ignored
+        return;
+      }
+      if (channel === 'conversation') {
+        if (data.status === 'transcribing_started') { setTyping(true); setBtn('thinking', t('thinking')); }
+        else if (data.status === 'transcribing_ended') { setTyping(false); }
+        else if (data.action === 'abandon_conversation') {
+          clearConversation();
+          clearAnswers();
+          conversationActive = false;
+          if (asrMode() === 'continuous') micState();
+          else setBtn('idle', t('startConversation'));
+        }
+        else if (data.msg !== undefined) {
+          ensureConversation();
+          addBubble(data.msg, data.author);
+        }
+        // startCountdown / resetCountdown / showProgressBar: desktop-only
+        return;
+      }
+      if (channel === 'flow') {
+        if (data.answers && typeof data.answers === 'object') {
+          setTyping(false);
+          showAnswers(data.answers);
+        } else if (Array.isArray(data.completions)) {
+          // LLM phrase completions for what is being typed (same strip as
+          // the short-predictions REST path)
+          if (textInput.value.trim()) renderCompletions(data.completions);
+        } else if (data.action === 'clear_answers') clearAnswers();
+        else if (data.action === 'abandon_conversation') clearAnswers();
+        // action:"listening" (semantic-VAD "waiting_for_more") → ignored
+        return;
+      }
+      if (channel === 'asrjs') {
+        if (data.status) {
+          asrBackendStatus = data.status;
+          if (data.status === 'paused') setTyping(false);
+          syncVAD();
+          if (!recording && conversationActive && asrMode() !== 'continuous'
+              && (data.status === 'ready' || data.status === 'listening')) micState();
+        }
+        if (data.settings) asrSettings = data.settings;
+        return;
+      }
+      // shortcuts / autocomplete channels: push messages (e.g. play_alert)
+      // are desktop-button concerns → ignored on mobile v1
+    }
+
+    function connectWS(channel) {
+      try {
+        const socket = new WebSocket(WS_BASE + channel);
+        socket.binaryType = 'arraybuffer';
+        sockets[channel] = socket;
+        socket.onopen = () => {
+          if (channel === 'app') {
+            appEverConnected = true;
+            clearTimeout(appLostTimer);
+            $('conn').classList.remove('offline');
+            $('connLabel').textContent = t('connected');
+            offlineEl.classList.remove('visible');
+            // NO full-page reload on reconnect: reloading drops all six
+            // sockets and keeps handing the audio-primary role to other
+            // open pages while this one boots. Hydrate instead.
+            hydrateConversation();
+          }
+          if (channel === 'conversation') hydrateConversation();
+          if (channel === 'asrjs') syncVAD();
+        };
+        socket.onmessage = (event) => {
+          if (typeof event.data === 'string') handleChannelMessage(channel, event.data);
+          else if (channel === 'app') onAudioChunk(event.data);
+        };
+        socket.onclose = () => {
+          sockets[channel] = null;
+          if (channel === 'app') {
+            if (appEverConnected) {
+              $('conn').classList.add('offline');
+              $('connLabel').textContent = t('offline');
+              appLostTimer = setTimeout(() => offlineEl.classList.add('visible'), 2000);
+            }
+            setTimeout(() => connectWS(channel), 1000);
+          } else {
+            setTimeout(() => connectWS(channel), 2000);
+          }
+        };
+        socket.onerror = () => { try { socket.close(); } catch (e) { /* already closed */ } };
+      } catch (e) {
+        setTimeout(() => connectWS(channel), 2000);
+      }
+    }
+
+    /* ============================================================
+       Boot
+       ============================================================ */
+    async function boot() {
+      // Plugin activation in one call → degrade gracefully
+      try {
+        const byCategory = await api('/api/plugins/by-category');
+        pluginActive = {};
+        Object.values(byCategory).forEach((list) => {
+          (list || []).forEach((p) => { pluginActive[p.name] = !!p.active; });
+        });
+      } catch (e) {
+        console.warn('by-category failed:', e);
+      }
+      if (!pluginActive.flow) phrasesEl.querySelectorAll('.mood-group').forEach((el) => el.remove());
+      if (!pluginActive.shortcuts) { /* repeat button stays but hints on tap */ }
+      if (pluginActive.autocomplete === false) textInput.disabled = true;
+
+      // REPEAT's spoken message: the same string the desktop repeat button
+      // uses, from the shortcuts plugin locale (English = no file → fallback)
+      try {
+        const response = await fetch('/plugins/shortcuts/locales/' + LANG + '/shortcuts_' + LANG + '.json');
+        if (response.ok) {
+          const dict = await response.json();
+          if (dict && dict['Can you repeat for the AI?']) repeatMsg = dict['Can you repeat for the AI?'];
+        }
+      } catch (e) { /* fallback string already set */ }
+
+      // ASR mode + current status (one-shot pushes are missed by late pages)
+      if (pluginActive.asrjs) {
+        try {
+          const data = await api('/api/plugins/asrjs/status');
+          if (data.settings) asrSettings = data.settings;
+          if (data.status) asrBackendStatus = data.status;
+        } catch (e) { /* defaults: non-continuous, hold_to_talk */ }
+        if (!micAllowed()) showHint(t('micInsecure'));
+      }
+
+      // Boot readiness: "Loading r/t" until every plugin is up. The WS
+      // pushes arrive only while the monitor runs — a page opened after
+      // boot completed catches up via the REST status instead.
+      try {
+        const bootState = await api('/api/plugins/onboarding/boot-status');
+        setBootLoading(Number(bootState.ready || 0), Number(bootState.total || 0));
+        if (booting) {
+          bootPoll = setInterval(async () => {
+            try {
+              const again = await api('/api/plugins/onboarding/boot-status');
+              setBootLoading(Number(again.ready || 0), Number(again.total || 0));
+            } catch (e) { finishBoot(); }
+          }, 2000);
+        }
+      } catch (e) {
+        // endpoint unavailable (onboarding inactive?) → normal init
+        setBtn('idle', t('startConversation'));
+        micState();
+      }
+
+      // In continuous mode the mic is live from the start (like the
+      // desktop): the button is never "Start conversation", speech itself
+      // opens the conversation backend-side.
+      if (!booting) { setBtn('idle', t('startConversation')); micState(); }
+      ['app', 'conversation', 'flow', 'asrjs', 'shortcuts', 'autocomplete'].forEach(connectWS);
+    }
+
+    // Autoplay policy + MOBILE MIC GESTURE: audio contexts and getUserMedia
+    // (inside MicVAD.new) both need a user gesture on phones — retry both
+    // on every pointerdown until they stick.
+    document.addEventListener('pointerdown', () => {
+      if (audioStream && audioStream.pcm && audioStream.pcm.ctx && audioStream.pcm.ctx.state === 'suspended') {
+        audioStream.pcm.ctx.resume().catch(() => {});
+      }
+      if (micCtx && micCtx.state === 'suspended') micCtx.resume().catch(() => {});
+      if (!vad && vadShouldRun()) syncVAD();
+    }, { capture: true });
+
+    boot();
+  </script>
+</body>
+</html>

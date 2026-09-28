@@ -143,9 +143,6 @@ THEN,leverage whatever MCP tool for browsing is available to browse @ http://127
 In the frontend, you have to click on the settings-gear top right in the header to access all the extensions. 
 Once there,you have to click on the extensions tab,the plugin category etc.
 
-## Checking the libraries documentation
-ALWAYS use Context7 MCP to access the documentation corresponding to the installed python libraries.
-
 Behavioral guidelines to reduce common LLM coding mistakes:
 
 ## 1. Think Before Coding

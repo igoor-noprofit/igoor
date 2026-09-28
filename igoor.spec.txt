@@ -36,6 +36,7 @@ datas = [
     ('img', 'img'),
     ('js', 'js'),
     ('locales','locales'),
+    ('mobile', 'mobile'),
     ('plugins', 'plugins'),
     ('tools', 'tools'),
     ('.env', '.'),

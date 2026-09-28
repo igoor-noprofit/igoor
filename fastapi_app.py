@@ -67,6 +67,37 @@ def _serve_index_html() -> HTMLResponse:
     return HTMLResponse(content, headers={"Cache-Control": "no-store"})
 
 
+def _serve_mobile_html() -> HTMLResponse:
+    """Serve the phone companion page (mobile/index.html) with the app
+    version for cache-busting and the UI language injected. Unlike
+    index.html (whose {{LANG}} is replaced at app.js generation time),
+    the mobile page embeds its own {{LANG}} placeholder."""
+    path = Path(resource_path(os.path.join("mobile", "index.html")))
+    content = path.read_text(encoding="utf-8").replace("{{VERSION}}", IGOOR_VERSION)
+    try:
+        lang = SettingsManager().get_lang() or "en_EN"
+    except Exception:
+        lang = "en_EN"
+    content = content.replace("{{LANG}}", lang)
+    return HTMLResponse(content, headers={"Cache-Control": "no-store"})
+
+
+def _is_phone_request(request: Request) -> bool:
+    """True only for PHONE browsers — never tablets, desktops or the
+    pywebview window (their UAs contain no Mobi token). Uses the
+    client-hints header when present, with a UA-string fallback because
+    hints are withheld on insecure origins. ?desktop=1 forces the
+    classic UI as a recovery path; /mobile/ always serves this page."""
+    if request.query_params.get("desktop") in ("1", "true"):
+        return False
+    if (request.headers.get("sec-ch-ua-mobile") or "").strip() == "?1":
+        return True
+    ua = request.headers.get("user-agent") or ""
+    if any(token in ua for token in ("iPad", "Tablet", "PlayBook", "Silk", "Kindle")):
+        return False
+    return "Mobi" in ua
+
+
 def _load_whatsnew_entries(lang: Optional[str]) -> list:
     """Read locales/<lang>/whatsnew.json highlights for the current version.
     A locale that has no entry for the version falls back to en_EN (same
@@ -412,13 +443,25 @@ def create_app() -> FastAPI:
         logger.debug(f"Serving packaged JS resource {asset_path} from {packaged_path}")
         return _file_response(packaged_path, media_type=media_type)
 
+    @app.get("/mobile")
+    @app.get("/mobile/")
+    async def get_mobile_html():
+        logger.debug("Serving mobile companion page")
+        return _serve_mobile_html()
+
     @app.get("/index.html")
-    async def get_index_html():
+    async def get_index_html(request: Request):
+        if _is_phone_request(request):
+            logger.debug("Phone browser detected - serving mobile companion page")
+            return _serve_mobile_html()
         logger.debug("Serving index.html with version cache-busting")
         return _serve_index_html()
 
     @app.get("/")
-    async def root():
+    async def root(request: Request):
+        if _is_phone_request(request):
+            logger.debug("Phone browser detected - serving mobile companion page")
+            return _serve_mobile_html()
         logger.debug("Serving root index with version cache-busting")
         return _serve_index_html()
 
