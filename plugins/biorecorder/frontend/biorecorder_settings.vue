@@ -37,6 +37,11 @@
                     <button class="btn btn-nav" @click="previousQuestion" :disabled="currentIndex === 0">
                         <svg class="icon icon-l"><use xlink:href="/img/svgdefs.svg#icon-chevron_left" /></svg>
                     </button>
+                    <!-- Middle: jump straight to the last question -->
+                    <button class="btn btn-nav btn-jump-last" @click="goToLastQuestion" :disabled="isLastQuestion"
+                        :title="t('Jump to last question')">
+                        <i class="ph-light ph-skip-forward"></i>
+                    </button>
                     <!-- On last question: show Finish button instead of next arrow -->
                     <button v-if="isLastQuestion" class="btn btn-finish" @click="finishQuestions">
                         {{ t('Finish') }}
@@ -394,6 +399,13 @@ module.exports = {
             }
         },
 
+        async goToLastQuestion() {
+            await this.saveCurrentIfDirty();
+            if (this.currentIndex < this.questions.length - 1) {
+                this.currentIndex = this.questions.length - 1;
+            }
+        },
+
         async finishQuestions() {
             await this.saveCurrentIfDirty();
             this.showCompletion = true;
@@ -648,6 +660,11 @@ module.exports = {
 .btn-nav:disabled {
     opacity: 0.3;
     cursor: not-allowed;
+}
+
+/* match the .icon-l (2.5rem) chevrons used by the nav arrows */
+.btn-jump-last i {
+    font-size: 2.5rem;
 }
 
 .btn-finish {
