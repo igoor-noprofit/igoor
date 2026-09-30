@@ -1,7 +1,7 @@
 {
     "voice_id": "",
     "api_key": "",
-    "model_id": "eleven_flash_v2_5",
+    "model_id": "eleven_v4_turbo",
     "stability": 0.6,
     "similarity_boost": 0.75,
     "style": 0.0,

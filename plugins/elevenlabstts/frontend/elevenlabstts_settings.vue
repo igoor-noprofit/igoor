@@ -58,6 +58,8 @@
                     <option value="eleven_turbo_v2_5">Eleven Turbo v2.5</option>
                     <option value="eleven_flash_v2_5">Eleven Flash v2.5</option>
                     <option value="eleven_v3">Eleven v3</option>
+                    <option value="eleven_v4">Eleven v4</option>
+                    <option value="eleven_v4_turbo">Eleven v4 Turbo</option>
                 </select>
             </div>
 
@@ -172,11 +174,11 @@
                     <div class="ssml-row">
                         <div class="ssml-left">
                             {{ t('Latency Optimization') }}
-                            <div v-if="isV3Model" class="disabled-note">{{ t('Not available for Eleven v3') }}</div>
+                            <div v-if="isLatencyUnsupportedModel" class="disabled-note">{{ t('Not available for this model') }}</div>
                         </div>
                         <div class="ssml-center">
                             <select id="latencyOptimizationSlider" v-model="latencyOptimizationValue"
-                                :disabled="isV3Model" @change="onLatencyOptimizationChange">
+                                :disabled="isLatencyUnsupportedModel" @change="onLatencyOptimizationChange">
                                 <option :value="0">{{ t('Best Quality') }}</option>
                                 <option :value="1">{{ t('Quality') }}</option>
                                 <option :value="2">{{ t('Balanced') }}</option>
@@ -186,7 +188,7 @@
                         </div>
                         <div class="ssml-right">
                             <input type="number" class="numeric-input" v-model.number="latencyOptimizationValue"
-                                :disabled="isV3Model" @change="onLatencyOptimizationChange" min="0" max="4" />
+                                :disabled="isLatencyUnsupportedModel" @change="onLatencyOptimizationChange" min="0" max="4" />
                         </div>
                     </div>
 
@@ -282,9 +284,9 @@ export default {
                 .slice()
                 .sort((a, b) => a.display_name.localeCompare(b.display_name, undefined, { sensitivity: 'base' }));
         },
-        isV3Model() {
-            // eleven_v3 does not support optimize_streaming_latency
-            return this.formData.model_id === 'eleven_v3';
+        isLatencyUnsupportedModel() {
+            // These models reject optimize_streaming_latency
+            return ['eleven_v3', 'eleven_v4', 'eleven_v4_turbo'].includes(this.formData.model_id);
         },
         minVoiceSampleSeconds() {
             return MIN_VOICE_SAMPLE_SECONDS;

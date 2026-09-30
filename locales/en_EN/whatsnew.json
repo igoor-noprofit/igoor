@@ -1,5 +1,6 @@
 {
-  "1.2.10": [
+  "1.2.13": [
+    "Elevenlabs v4 / v4 turbo support",
     "Better speech-to-text with improved accuracy through Parakeet model (works on CPU)",
     "Fixes to TTS plugins test buttons"
   ],

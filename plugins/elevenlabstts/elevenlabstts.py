@@ -13,6 +13,9 @@ from fastapi import Form
 import sounddevice as sd
 import numpy as np
 
+# Models that reject the optimize_streaming_latency query param
+MODELS_WITHOUT_LATENCY_OPTIMIZATION = {"eleven_v3", "eleven_v4", "eleven_v4_turbo"}
+
 class Elevenlabstts(Baseplugin):
     def __init__(self, plugin_name, pm):
         self.pm = pm
@@ -334,8 +337,8 @@ class Elevenlabstts(Baseplugin):
             request_params["voice_settings"] = voice_settings
             
             # Add optional parameters if provided
-            # optimize_streaming_latency is not supported by the eleven_v3 model
-            if request_params.get("model_id") != "eleven_v3":
+            # optimize_streaming_latency is rejected by some models (v3, v4)
+            if request_params.get("model_id") not in MODELS_WITHOUT_LATENCY_OPTIMIZATION:
                 if "latency_optimization" in test_settings:
                     request_params["optimize_streaming_latency"] = test_settings["latency_optimization"]
                 elif "latency_optimization" in self.settings:
@@ -547,8 +550,8 @@ class Elevenlabstts(Baseplugin):
                 request_params["voice_settings"] = voice_settings
 
                 # Add optional parameters if configured
-                # optimize_streaming_latency is not supported by the eleven_v3 model
-                if request_params.get("model_id") != "eleven_v3" and "latency_optimization" in self.settings:
+                # optimize_streaming_latency is rejected by some models (v3, v4)
+                if request_params.get("model_id") not in MODELS_WITHOUT_LATENCY_OPTIMIZATION and "latency_optimization" in self.settings:
                     request_params["optimize_streaming_latency"] = self.settings["latency_optimization"]
 
                 if "enable_logging" in self.settings:
