@@ -36,7 +36,13 @@ def convert_to_wav(input_data: bytes, target_sample_rate: int = 44100) -> bytes:
             output_file_path
         ]
         
-        result = subprocess.run(cmd, capture_output=True, text=True)
+        # CREATE_NO_WINDOW: without it, the windowed PyInstaller exe has no
+        # console, so Windows allocates a new one for ffmpeg and a black
+        # window flashes on screen. Attribute is Windows-only; 0 elsewhere.
+        result = subprocess.run(
+            cmd, capture_output=True, text=True,
+            creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0)
+        )
         if result.returncode != 0:
             raise RuntimeError(f"ffmpeg conversion failed: {result.stderr}")
         
