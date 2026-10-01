@@ -29,6 +29,15 @@ openwakeword_datas = collect_data_files('openwakeword')
 # FileNotFoundError on _internal\pocket_tts\config\<lang>.yaml.
 pockettts_datas = collect_data_files('pocket_tts')
 
+# Bundle the .env TEMPLATE, never the developer's live .env: stage a copy of
+# .env-example under the name PyInstaller ships (_internal\.env) so local dev
+# config (debug flags, personal overrides) cannot leak into a release. Inno
+# Setup rewrites IGOOR_START_LANG in it at install time; the MSIX build
+# replaces it wholesale with installer/msix/env.production.
+import shutil
+os.makedirs('build', exist_ok=True)
+shutil.copyfile('.env-example', os.path.join('build', '.env'))
+
 # Merge with your existing datas
 datas = [
     ('css', 'css'),
@@ -39,7 +48,7 @@ datas = [
     ('mobile', 'mobile'),
     ('plugins', 'plugins'),
     ('tools', 'tools'),
-    ('.env', '.'),
+    (os.path.join('build', '.env'), '.'),
     ('README.md', '.'),
     ('THIRD_PARTY_LICENSES.md', '.'),
     ('index.html', '.')
