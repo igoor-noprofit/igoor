@@ -273,7 +273,7 @@ class Flow(Baseplugin):
             model_name = ai.get("model_name")
 
             # Use global temperature (or default if not set)
-            temperature = self.settings.get("temperature") if self.settings.get("temperature") is not None else ai.get("temperature", 1)
+            temperature = ai.get("temperature", 0.7)
 
             llm = LLMManager(provider, api_key, model_name, temperature=temperature)
             llm.set_json_schema(Answers)
