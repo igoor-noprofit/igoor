@@ -483,8 +483,13 @@ class Biorecorder(Baseplugin):
         if not all([provider, api_key, model_name]):
             raise Exception("AI settings not configured in onboarding")
 
-        # Get prompts
+        # Get prompts (resolve {reply_language} so the bio is written in the user's language)
         prompts = self.get_my_prompts()
+        reply_language = self.settings_manager.get_reply_language()
+        prompts = {
+            name: {**p, "system": p.get("system", "").replace("{reply_language}", reply_language)}
+            for name, p in prompts.items()
+        }
 
         # Build answers text
         answers_text = "\n\n".join(

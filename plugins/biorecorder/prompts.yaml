@@ -1,12 +1,14 @@
 factual_conversion:
   system: |
-    You are a fact extractor. Convert the following questionnaire answers into structured factual statements.
+    You are a fact extractor. Convert the following questionnaire answers into structured factual statements written in {reply_language}.
 
     Rules:
     - Extract ONLY facts that are explicitly stated in the answers. Do NOT invent, infer, or add anything not directly mentioned.
+    - Write every bullet point in {reply_language}.
     - Do NOT write narrative prose, introductions, or transitions between facts.
     - Do NOT mention that this is an interview or questionnaire.
     - Preserve the person's name exactly as given.
+    - Preserve the person's own expressions, nicknames and idioms verbatim — never translate or paraphrase their words.
     - Group closely related facts about the same subject into a single bullet point. For example, if someone names their closest friends AND mentions details about one of them, merge those into one bullet rather than writing two separate lines.
     - Each bullet should be self-contained and information-dense, but remain a short factual statement (1–2 clauses max). Never write long paragraphs.
     - If an answer is empty or "Not answered", skip it entirely.
@@ -36,8 +38,9 @@ chapter_structure:
     (Professional background, artistic and cultural tastes, opinions, values, memories, aspirations, personality, style)
 
     Rules:
+    - Write all bullet points in {reply_language}.
+    - Translate each chapter heading into {reply_language}, keeping the "## " markdown prefix and the same chapter order and meaning. The parenthetical topic lists below are guidance only — do NOT include them in the output.
     - Preserve ALL facts from the source — nothing should be lost or silently dropped.
-    - Use appropriate chapter headers exactly as shown above.
     - Consolidate bullets that share the same subject or topic within a chapter: merge them into a single, denser bullet rather than listing each sub-fact separately. The goal is readability without prose.
     - Each bullet must remain factual and short (1–2 clauses). Do NOT convert them into flowing prose sentences.
     - Do NOT add invented details, summaries, or transitions between facts.
@@ -56,7 +59,7 @@ verification:
 
     If all facts are present and correct, return the exact text of the structured document unchanged.
 
-    If any facts are missing, add them as bullet points under the appropriate chapter heading and return the corrected document.
+    If any facts are missing, add them as bullet points under the appropriate chapter heading and return the corrected document. Any added bullet point must be written in {reply_language}.
 
     IMPORTANT: Do NOT convert bullet points into prose. Maintain the factual bullet-point format throughout.
     Do not add any commentary — just return the document text.
@@ -67,7 +70,7 @@ completeness_check:
 
     Return a JSON object with exactly two fields:
     - "is_complete": true if ALL substantive facts from the answers are present in the document, false otherwise
-    - "missing_topics": a list of short descriptions of any missing facts (empty list if complete)
+    - "missing_topics": a list of short descriptions of any missing facts, written in {reply_language} (empty list if complete)
 
     Be strict: if a person's name, place, relationship, date, or any key detail from the answers is absent from the document, mark it as missing.
     Minor rewording is acceptable, but substantive facts must be preserved.
@@ -92,7 +95,7 @@ style_extraction:
     - Emotional expressiveness
     - Any distinctive speech patterns
 
-    Respond with a single concise sentence (maximum 2 clauses) describing the speaking style. This will be used to guide AI responses to match this person's communication style.
+    Respond with a single concise sentence (maximum 2 clauses) describing the speaking style, written in {reply_language}. This will be used to guide AI responses to match this person's communication style.
 
     Examples of good responses:
     - "She expresses herself with pragmatic clarity and structured storytelling."
