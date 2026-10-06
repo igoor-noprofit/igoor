@@ -4,7 +4,7 @@
   "hold_to_talk": false,
   "always_generate": true,
   "positiveSpeechThreshold": 0.5,
-  "redemptionFrames": 15,
+  "redemptionFrames": 12,
   "chunk_duration_ms": 30,
   "sample_rate": 48000,
   "audio_format": "PCM_16",
