@@ -15,5 +15,6 @@
   "wakeword_enabled": false,
   "wakeword_sensitivity": 0.1,
   "wakeword_model": "",
-  "sherpa_model_size": "parakeet"
+  "sherpa_model_size": "parakeet",
+  "shortcut": "Ctrl+K"
 }
