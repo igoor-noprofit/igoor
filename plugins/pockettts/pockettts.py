@@ -145,6 +145,62 @@ def _load_gdrive_models():
 
 GDRIVE_MODELS = _load_gdrive_models()
 
+# ── Voice-state conditioning cap (export normalization) ──────────────────
+# Clones are conditioned on at most 30s of audio (truncate=True in the clone
+# paths), but states created before that cap shipped — or by external tools —
+# can carry minutes of KV cache: a 143s state is a 352MB file that bloats
+# every export and slows every generation. The cache is causal, so trimming
+# a state to its first 30s yields exactly what a fresh 30s clone produces.
+VOICE_COND_MAX_SECONDS = 30
+VOICE_COND_FRAME_RATE = 12.5  # Mimi frame rate in every bundled language config
+VOICE_COND_BOS_FRAMES = 1     # insert_bos_before_voice prepends one frame
+
+
+def _trim_voice_state_file(path):
+    """Rewrite a pocket-tts voice-state .safetensors in place so its
+    conditioning covers at most VOICE_COND_MAX_SECONDS of audio.
+
+    Returns True if the file was rewritten, False when it is already within
+    the cap or is not a pocket-tts voice state. Only the header is read in
+    the common (already-capped) case."""
+    import struct
+
+    cap = int(VOICE_COND_FRAME_RATE * VOICE_COND_MAX_SECONDS) + VOICE_COND_BOS_FRAMES
+
+    with open(path, "rb") as f:
+        header_len = struct.unpack("<Q", f.read(8))[0]
+        header = json.loads(f.read(header_len))
+
+    caches = [k for k, v in header.items()
+              if k != "__metadata__" and k.endswith("/cache")]
+    if not caches:
+        return False
+    # cache layout: (kv, batch, seq, heads, head_dim) — trim the seq axis
+    if all(header[k].get("shape", [0, 0, 0])[2] <= cap for k in caches):
+        return False
+
+    import torch
+    import safetensors
+    import safetensors.torch
+
+    trimmed = {}
+    with safetensors.safe_open(path, framework="pt") as f:
+        for key in f.keys():
+            tensor = f.get_tensor(key)
+            name = key.split("/")[-1]
+            if name == "cache":
+                tensor = tensor[:, :, :cap].contiguous()
+            elif name == "current_end":
+                # legacy format: the offset is encoded in the tensor LENGTH
+                tensor = tensor[:cap].contiguous()
+            elif name == "offset":
+                tensor = torch.clamp(tensor, max=cap)
+            trimmed[key] = tensor
+    tmp_path = path + ".trimmed"
+    safetensors.torch.save_file(trimmed, tmp_path)
+    os.replace(tmp_path, path)
+    return True
+
 
 class TestSpeakPayload(BaseModel):
     message: str = "Hello, how are you doing? I feel better today!"
@@ -348,6 +404,16 @@ class Pockettts(Baseplugin):
                     "is_custom": True,
                 })
         return custom
+
+    def normalize_exported_file(self, path):
+        """Export-time normalization, called by DataManager on STAGED copies
+        only (local voice files are never modified): trims voice states whose
+        conditioning exceeds the 30s clone cap, so exports stay small no
+        matter how or when a voice was cloned. Duck-typed contract — no
+        hookspec — like PluginManager's warmup pass."""
+        if not str(path).lower().endswith(".safetensors"):
+            return False
+        return _trim_voice_state_file(str(path))
 
     # ── Google Drive model download ───────────────────────────────────────
 

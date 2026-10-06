@@ -104,6 +104,42 @@ class DataManager:
                 self.logger.warning(f"Could not read plugin.json of {plugin_name}: {e}")
         return declarations
 
+    def _normalize_exported_user_data(self, plugin_name: str, staged_path) -> None:
+        """Let the owning plugin normalize its staged export copies (e.g.
+        pockettts trims voice states cloned before the 30s conditioning cap).
+        Method lookup is duck-typed like PluginManager's warmup pass, not a
+        hookspec: the export is synchronous. Only ACTIVATED plugins are
+        instantiated, so a deactivated plugin's data is still exported, just
+        byte-for-byte."""
+        try:
+            from plugin_manager import PluginManager
+            pm = PluginManager()
+        except Exception as e:
+            self.logger.warning(f"Export normalization skipped (no plugin manager): {e}")
+            return
+        for plugin in getattr(pm, "plugins", []):
+            if getattr(plugin, "plugin_name", None) != plugin_name:
+                continue
+            normalizer = getattr(plugin, "normalize_exported_file", None)
+            if not callable(normalizer):
+                continue
+            staged_files = (
+                [staged_path] if os.path.isfile(staged_path)
+                else [p for p in Path(staged_path).rglob("*") if p.is_file()]
+            )
+            for staged_file in staged_files:
+                before = os.path.getsize(staged_file)
+                try:
+                    changed = normalizer(str(staged_file))
+                except Exception as e:
+                    self.logger.warning(f"Export normalization failed for {staged_file}: {e}")
+                    continue
+                if changed:
+                    self.logger.info(
+                        f"Normalized {staged_file.name} for export: "
+                        f"{before // 1e6:.0f}MB -> {os.path.getsize(staged_file) // 1e6:.0f}MB"
+                    )
+
     def export_user_data(self, output_path: Optional[str] = None, include_rag: bool = True) -> Dict:
         """
         Export user data to a ZIP file.
@@ -196,6 +232,7 @@ class DataManager:
                         else:
                             shutil.copy2(src, dest)
                         self.logger.info(f"Exported plugins/{plugin_name}/{rel_path}")
+                        self._normalize_exported_user_data(plugin_name, dest)
 
                 # Create ZIP file
                 with zipfile.ZipFile(output_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
