@@ -227,6 +227,11 @@ class Ttslinux(Baseplugin):
         so ASR restarts immediately instead of after the 30s timeout."""
         self._on_playback_finished()
 
+    @hookimpl
+    def tts_playback_started(self):
+        """Releases wait_playback_started once the browser confirms playback."""
+        self._on_playback_started()
+
     def run_restart_asr(self):
         asyncio.create_task(self.restart_asr())
 
@@ -246,15 +251,16 @@ class Ttslinux(Baseplugin):
 
     async def speak_func(self, message):
         self.logger.info("SPEAK FUNC:" + message)
-        if self.is_remote_ui():
-            # espeak-ng can render audio bytes: stream them to the browser
-            # (headless setups have no reachable local speakers).
-            pcm, rate = await asyncio.to_thread(self._synthesize_bytes, message)
-            if pcm:
-                streamed = await self.stream_audio_to_frontend([pcm], f"audio/pcm16;rate={rate}")
-                if streamed:
-                    return True
-            self.logger.warning("ttslinux: no browser connected - speaking on machine speakers")
+        # espeak-ng can render audio bytes: stream them to the browser. Browser
+        # playback is preferred even locally (not just headless): audio rendered
+        # by the browser is the AEC reference for the VAD's mic stream, so the
+        # app's own voice is echo-cancelled instead of re-triggering ASR.
+        pcm, rate = await asyncio.to_thread(self._synthesize_bytes, message)
+        if pcm:
+            streamed = await self.stream_audio_to_frontend([pcm], f"audio/pcm16;rate={rate}")
+            if streamed:
+                return True
+        self.logger.warning("ttslinux: browser playback unavailable - speaking on machine speakers")
         try:
             return await asyncio.to_thread(self._speak_sync, message)
         except Exception as e:

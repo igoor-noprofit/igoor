@@ -11,7 +11,6 @@ import sounddevice as sd
 import numpy as np
 from pydub import AudioSegment
 from pydub.exceptions import CouldntDecodeError
-from pydub.playback import play
 import io
 import base64
 import json
@@ -160,7 +159,12 @@ class Speechifytts(Baseplugin):
     def tts_playback_finished(self):
         # Browser acknowledged end of streamed audio playback
         self._on_playback_finished()
-        
+
+    @hookimpl
+    def tts_playback_started(self):
+        # Browser confirmed audible playback started
+        self._on_playback_started()
+
     @hookimpl
     def test_speak(self, message, **kwargs):
         pitch = kwargs.get('pitch', '0')
@@ -534,18 +538,22 @@ class Speechifytts(Baseplugin):
             await self.pm.trigger_hook(hook_name="pause_asr")
             await asyncio.sleep(0.03)  # Ensure pause message reaches frontend
 
-            if self.is_remote_ui():
-                # Speechify returns the complete audio only: single-chunk stream
-                mp3_buffer = audio_segment.export(format="mp3")
-                streamed = await self.stream_audio_to_frontend([mp3_buffer.getvalue()], "audio/mpeg")
-                if not streamed:
-                    # No browser connected - fall back to local playback
-                    await asyncio.to_thread(play, audio_segment)
-            else:
-                def play_audio():
-                    play(audio_segment)
+            # Always prefer browser playback, even in the local window: audio
+            # rendered by the browser is the AEC reference for the VAD's mic
+            # stream, so the app's own voice is echo-cancelled instead of
+            # re-triggering ASR after TTS ends. Speechify returns the complete
+            # audio only: single-chunk stream.
+            mp3_buffer = audio_segment.export(format="mp3")
+            streamed = await self.stream_audio_to_frontend([mp3_buffer.getvalue()], "audio/mpeg")
+            if not streamed:
+                # No page could play: blocking local playback, so restart_asr
+                # fires when the audio actually finished - pydub's
+                # fire-and-forget play() would release it at playback START.
+                def play_local():
+                    sd.play(samples, sample_rate)
+                    sd.wait()
 
-                await asyncio.to_thread(play_audio)
+                await asyncio.to_thread(play_local)
             self.run_restart_asr(force_ready=skip_asr)
             print("Playback finished.")
             

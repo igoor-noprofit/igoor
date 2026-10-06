@@ -1012,6 +1012,11 @@ class Pockettts(Baseplugin):
         so ASR restarts immediately instead of after the 30s timeout."""
         self._on_playback_finished()
 
+    @hookimpl
+    def tts_playback_started(self):
+        """Releases wait_playback_started once the browser confirms playback."""
+        self._on_playback_started()
+
     # ── Speech pipeline ─────────────────────────────────────────────────
 
     async def run_speak_func(self, message, voice_state=None, skip_asr=False,
@@ -1082,9 +1087,12 @@ class Pockettts(Baseplugin):
             )
 
     async def speak_func(self, message, voice_state=None):
-        """Generate audio from text: streamed to the browser in CLI mode,
-        played via sounddevice otherwise. voice_state lets the Test button
-        speak with a selection that isn't saved yet."""
+        """Generate audio from text: streamed to the browser when a page can
+        play (browser-rendered audio is the AEC reference for the VAD's mic
+        stream, so the app's own voice is echo-cancelled instead of
+        re-triggering ASR after TTS), played via sounddevice otherwise.
+        voice_state lets the Test button speak with a selection that isn't
+        saved yet."""
         self.logger.info(f"SPEAK FUNC: {message}")
         try:
             # Consume Test-button overrides exactly once, whatever happens
@@ -1109,12 +1117,10 @@ class Pockettts(Baseplugin):
                 else:
                     self._apply_generation_params()
 
-                if self.is_remote_ui():
-                    streamed = await self._stream_speech_to_frontend(message, voice_state)
-                    if not streamed:
-                        return await self._speak_local(message, voice_state)
-                    return True
-                return await self._speak_local(message, voice_state)
+                streamed = await self._stream_speech_to_frontend(message, voice_state)
+                if not streamed:
+                    return await self._speak_local(message, voice_state)
+                return True
 
         except Exception as e:
             self.logger.error(f"Error in speak_func: {e}", exc_info=True)

@@ -196,22 +196,34 @@ class Elevenlabstts(Baseplugin):
                 sample_rate = int(output_format.split("_")[1])
             except (IndexError, ValueError):
                 sample_rate = 16000  # Default fallback
-            
+
             # ElevenLabs API returns a generator, need to consume it
             if isinstance(audio_data, bytes):
                 audio_bytes = audio_data
             else:
                 audio_bytes = b''.join(audio_data)
-            
+
             # Convert bytes to numpy int16 array for sounddevice
             audio_array = np.frombuffer(audio_bytes, dtype=np.int16)
-            
+
             # Play raw PCM with explicit parameters
             sd.play(audio_array, samplerate=sample_rate)
             sd.wait()  # Block until playback is complete
         else:
             # Use elevenlabs play() for MP3 and other encoded formats
             play(audio_data)
+
+    def _stream_mime(self, output_format):
+        """MIME for browser playback of an ElevenLabs output format: raw PCM
+        (16-bit mono) streams through the frontend's WebAudio path, encoded
+        formats through MediaSource."""
+        if output_format.startswith("pcm_"):
+            try:
+                rate = int(output_format.split("_")[1])
+            except (IndexError, ValueError):
+                rate = 16000
+            return f"audio/pcm16;rate={rate}"
+        return "audio/mpeg"
     
     '''
     @hookimpl
@@ -357,19 +369,14 @@ class Elevenlabstts(Baseplugin):
             await self.pm.trigger_hook(hook_name="pause_asr")
             await asyncio.sleep(0.03)  # Ensure pause message reaches frontend
             try:
-                if self.is_remote_ui():
-                    # Settings preview must play in the browser too
-                    if output_format.startswith("pcm_"):
-                        request_params["output_format"] = "mp3_44100_128"
-                        audio_data = await asyncio.to_thread(client.text_to_speech.convert, **request_params)
-                    audio_bytes = b"".join(audio_data)
-                    streamed = await self.stream_audio_to_frontend([audio_bytes], "audio/mpeg")
-                    if not streamed:
-                        # No browser connected - fall back to local playback
-                        await asyncio.to_thread(self._play_audio, audio_data, request_params.get("output_format", "mp3_44100_128"))
-                else:
-                    # Use the helper method to play audio (handles both PCM and encoded formats)
-                    await asyncio.to_thread(self._play_audio, audio_data, output_format)
+                # Settings previews stream to the browser like speak_func (AEC
+                # reference); native PCM is streamed as-is.
+                audio_bytes = b"".join(audio_data)
+                streamed = await self.stream_audio_to_frontend([audio_bytes], self._stream_mime(output_format))
+                if not streamed:
+                    # No page could play - fall back to local playback (from the
+                    # joined bytes: audio_data is an exhausted generator by now)
+                    await asyncio.to_thread(self._play_audio, audio_bytes, output_format)
             finally:
                 # force_ready: a settings preview must return the ASR to idle, not
                 # reopen the listening channel
@@ -473,6 +480,11 @@ class Elevenlabstts(Baseplugin):
         # Browser acknowledged end of streamed audio playback
         self._on_playback_finished()
 
+    @hookimpl
+    def tts_playback_started(self):
+        # Browser confirmed audible playback started
+        self._on_playback_started()
+
     def run_restart_asr(self, force_ready=False):
         asyncio.create_task(self.restart_asr(force_ready))
         
@@ -557,25 +569,22 @@ class Elevenlabstts(Baseplugin):
                 if "enable_logging" in self.settings:
                     request_params["enable_logging"] = self.settings["enable_logging"]
 
-                # Browser playback (CLI mode) requires a compressed format MSE can play
-                if self.is_remote_ui() and request_params.get("output_format", "mp3_44100_128").startswith("pcm_"):
-                    self.logger.info("Remote UI: requesting MP3 instead of PCM for browser playback")
-                    request_params["output_format"] = "mp3_44100_128"
-
                 # Generate audio
                 audio = self.client.text_to_speech.convert(**request_params)
                 # Pause ASR before playback and give WebSocket time to deliver the message
                 await self.pm.trigger_hook(hook_name="pause_asr")
                 await asyncio.sleep(0.03)  # Ensure pause message reaches frontend
 
-                if self.is_remote_ui():
-                    # Stream the chunks to the browser as they are generated
-                    streamed = await self.stream_audio_to_frontend(audio, "audio/mpeg")
-                    if not streamed:
-                        # No browser connected - fall back to local playback
-                        await asyncio.to_thread(self._play_audio, audio, request_params.get("output_format", "mp3_44100_128"))
-                else:
-                    # Play audio in a thread to avoid blocking the event loop
+                # Stream the chunks to the browser as they are generated. Browser
+                # playback is preferred even in the local window: audio rendered
+                # by the browser is the AEC reference for the VAD's mic stream,
+                # so the app's own voice is echo-cancelled instead of re-triggering
+                # ASR after TTS ends. Falls back to local playback when no page
+                # can play (disconnected, or autoplay blocked).
+                streamed = await self.stream_audio_to_frontend(
+                    audio, self._stream_mime(request_params.get("output_format", "mp3_44100_128"))
+                )
+                if not streamed:
                     await asyncio.to_thread(self._play_audio, audio, request_params.get("output_format", "mp3_44100_128"))
                 self.run_restart_asr(force_ready=skip_asr)
                 return True

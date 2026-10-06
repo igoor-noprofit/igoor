@@ -456,6 +456,7 @@ async function initializeApp() {
           ended: false,
           started: false,
           confirmedPlaying: false,
+          startedAck: false,
           completionTimer: null,
           mediaSource: null,
           sourceBuffer: null,
@@ -545,6 +546,7 @@ async function initializeApp() {
             const ensureCompletion = () => {
               if (this.audioStream !== stream || stream.confirmedPlaying) return;
               stream.confirmedPlaying = true;
+              this.$_notifyPlaybackStarted(stream);
               this.$_scheduleStreamCompletion(stream);
             };
             if (ctx.state === "running") {
@@ -613,6 +615,7 @@ async function initializeApp() {
         if (!stream.audio) return;
         stream.audio.play().then(() => {
           stream.confirmedPlaying = true;
+          this.$_notifyPlaybackStarted(stream);
           this.$_scheduleStreamCompletion(stream);
         }).catch(() => {
           console.warn("Audio autoplay blocked - will retry on next user interaction");
@@ -630,7 +633,12 @@ async function initializeApp() {
       $_scheduleStreamCompletion(stream) {
         // With MediaSource the 'ended' event is not always fired (duration stays
         // Infinity while appending and the final timeupdate lands before the end),
-        // so guarantee the completion ack with a timer once duration is known.
+        // so guarantee the completion ack with a timer. The one-shot timer may
+        // only be armed once play_stream_end arrived (stream.ended): before that
+        // the buffered end is partial, and an early ack releases the backend's
+        // restart_asr (and drops the stream) while the phrase is still playing.
+        // The +400ms tail on both paths is deliberate: the room still carries
+        // the last sample (playout latency + reverb) after the media clock ends.
         // onended/onerror remain the instant fast paths when the browser fires them.
         // The PCM path has no audio element: poll the AudioContext clock instead.
         if (stream.completionTimer) return;
@@ -654,6 +662,12 @@ async function initializeApp() {
           }
           if (!stream.audio) return;
           const audio = stream.audio;
+          if (!stream.ended) {
+            // more audio may still arrive - the buffered end is still partial,
+            // so keep polling instead of arming the one-shot ack timer
+            stream.completionTimer = setTimeout(check, 250);
+            return;
+          }
           let end = isFinite(audio.duration) && audio.duration > 0 ? audio.duration : 0;
           if (end === 0 && stream.sourceBuffer && stream.sourceBuffer.buffered.length > 0) {
             end = stream.sourceBuffer.buffered.end(stream.sourceBuffer.buffered.length - 1);
@@ -671,6 +685,21 @@ async function initializeApp() {
       $_attachAudioHandlers(stream) {
         stream.audio.onended = () => this.$_notifyPlaybackFinished(stream);
         stream.audio.onerror = () => this.$_notifyPlaybackFinished(stream);
+      },
+      $_notifyPlaybackStarted(stream) {
+        // Tell the backend audible playback has begun. stream_audio_to_frontend
+        // waits for this after the first chunk and falls back to local playback
+        // when it never arrives (autoplay blocked, e.g. WKWebView/webkit2gtk).
+        // One-shot per stream; NOT resent by the pointerdown autoplay retry —
+        // by then the backend has already aborted and a late POST could
+        // wrongly satisfy the wait of the NEXT stream.
+        if (!stream || stream.startedAck) return;
+        stream.startedAck = true;
+        fetch("/api/hooks/tts_playback_started", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: "{}",
+        }).catch((e) => console.warn("playback started ack failed:", e));
       },
       $_notifyPlaybackFinished(stream) {
         if (this.audioStream !== stream) return;

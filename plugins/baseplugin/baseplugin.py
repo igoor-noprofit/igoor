@@ -301,6 +301,9 @@ class Baseplugin:
         if not hasattr(self, "_playback_done"):
             self._playback_done = asyncio.Event()
         self._playback_done.clear()
+        if not hasattr(self, "_playback_started"):
+            self._playback_started = asyncio.Event()
+        self._playback_started.clear()
 
         stream_id = uuid.uuid4().hex
         # play_stream / chunks / play_stream_end go to the PRIMARY browser page
@@ -324,6 +327,19 @@ class Baseplugin:
             if started is None:
                 started = time.time()
                 self.logger.info(f"TTS stream {stream_id}: first chunk sent")
+                # Confirm the page can actually play before committing to the
+                # stream: autoplay can be blocked (WKWebView/webkit2gtk local
+                # windows). Without this check such a page would stay silent
+                # while the caller waits the full 30s playback-ack timeout.
+                if not await self.wait_playback_started(timeout=2.0):
+                    self.logger.warning(
+                        "Browser did not confirm playback start within 2s (autoplay blocked?) "
+                        "- aborting stream so the caller falls back to local playback"
+                    )
+                    websocket_server.send_message_primary(
+                        'app', json.dumps({"play_stream_end": {"id": stream_id, "aborted": True}})
+                    )
+                    return False
             sent += 1
         if started is not None:
             self.logger.info(f"TTS stream {stream_id}: last chunk sent ({sent} chunks, {time.time() - started:.2f}s of streaming)")
@@ -342,6 +358,26 @@ class Baseplugin:
         event = getattr(self, "_playback_done", None)
         if event is not None and not event.is_set():
             event.set()
+
+    def _on_playback_started(self):
+        event = getattr(self, "_playback_started", None)
+        if event is not None and not event.is_set():
+            event.set()
+
+    async def wait_playback_started(self, timeout: float = 2.0) -> bool:
+        """
+        Waits until the frontend confirms audible playback has started
+        (tts_playback_started hook). False means autoplay is blocked or the
+        page is wedged: the caller should abort the stream and fall back to
+        local playback instead of streaming to a page that can't play.
+        """
+        if not hasattr(self, "_playback_started"):
+            self._playback_started = asyncio.Event()
+        try:
+            await asyncio.wait_for(self._playback_started.wait(), timeout=timeout)
+            return True
+        except asyncio.TimeoutError:
+            return False
 
     async def wait_playback_finished(self, timeout: float = 30.0) -> bool:
         """

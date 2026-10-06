@@ -634,6 +634,17 @@
         body: '{}',
       }).catch(() => {});
     }
+    function ackPlaybackStarted() {
+      // The backend awaits this after the first streamed chunk
+      // (wait_playback_started) and falls back to local playback when it never
+      // arrives (autoplay blocked). Sent even when muted for the same reason
+      // as ackPlayback: a muted primary page must not trigger the fallback.
+      fetch('/api/hooks/tts_playback_started', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{}',
+      }).catch(() => {});
+    }
 
     /* ============================================================
        Merged state + mic button
@@ -1180,11 +1191,11 @@
     }
     function startAudioStream(spec) {
       stopAudioStream();
-      if (muted) { audioStream = { id: spec.id, muted: true }; return; }
+      if (muted) { audioStream = { id: spec.id, muted: true }; ackPlaybackStarted(); return; }
       setBtn('speaking', t('speaking'));
       const stream = {
         id: spec.id, mime: spec.mime, queue: [], ended: false, started: false,
-        confirmedPlaying: false, completionTimer: null, mediaSource: null,
+        confirmedPlaying: false, startedAck: false, completionTimer: null, mediaSource: null,
         sourceBuffer: null, audio: null, objectUrl: null, chunks: null, pcm: null,
       };
       audioStream = stream;
@@ -1243,6 +1254,7 @@
           const ensureCompletion = () => {
             if (audioStream !== stream || stream.confirmedPlaying) return;
             stream.confirmedPlaying = true;
+            notifyPlaybackStarted(stream);
             scheduleStreamCompletion(stream);
           };
           if (ctx.state === 'running') ensureCompletion();
@@ -1273,6 +1285,7 @@
     function endAudioStream(spec) {
       const stream = audioStream;
       if (!stream || stream.id !== spec.id) return;
+      if (spec.aborted) { stopAudioStream(); return; }
       if (stream.muted) { stopAudioStream(); ackPlayback(); return; }
       stream.ended = true;
       if (stream.pcm) { scheduleStreamCompletion(stream); return; }
@@ -1290,6 +1303,7 @@
       if (!stream.audio) return;
       stream.audio.play().then(() => {
         stream.confirmedPlaying = true;
+        notifyPlaybackStarted(stream);
         scheduleStreamCompletion(stream);
       }).catch(() => {
         console.warn('Audio autoplay blocked - will retry on next user interaction');
@@ -1317,6 +1331,12 @@
         }
         if (!stream.audio) return;
         const audio = stream.audio;
+        if (!stream.ended) {
+          // more audio may still arrive - the buffered end is still partial,
+          // so keep polling instead of arming the one-shot ack timer
+          stream.completionTimer = setTimeout(check, 250);
+          return;
+        }
         let end = isFinite(audio.duration) && audio.duration > 0 ? audio.duration : 0;
         if (end === 0 && stream.sourceBuffer && stream.sourceBuffer.buffered.length > 0) {
           end = stream.sourceBuffer.buffered.end(stream.sourceBuffer.buffered.length - 1);
@@ -1330,6 +1350,15 @@
     function attachAudioHandlers(stream) {
       stream.audio.onended = () => notifyPlaybackFinished(stream);
       stream.audio.onerror = () => notifyPlaybackFinished(stream);
+    }
+    function notifyPlaybackStarted(stream) {
+      // Tell the backend audible playback has begun (see ackPlaybackStarted).
+      // One-shot per stream; NOT resent by the pointerdown autoplay retry —
+      // by then the backend has already aborted and a late POST could
+      // wrongly satisfy the wait of the NEXT stream.
+      if (!stream || stream.startedAck) return;
+      stream.startedAck = true;
+      ackPlaybackStarted();
     }
     function notifyPlaybackFinished(stream) {
       if (audioStream !== stream) return;
