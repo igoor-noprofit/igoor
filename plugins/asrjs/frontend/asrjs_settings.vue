@@ -144,15 +144,6 @@
                 <span class="volume-value">{{ volumeLevel }}%</span>
             </div>
             <div class="form-note"></div>
-            <!-- Continuous Mode -->
-            <div class="form-label">
-                <label class="toggle-switch">
-                    <input type="checkbox" v-model="formData.continuous" />
-                    <span class="toggle-slider"></span>
-                </label>
-                {{t('Continuous Listening Mode (BETA)')}}
-                <HelpPopover :text="t('When enabled, the microphone listens continuously and automatically detects speech.')" :t="t" :lang="lang"/>
-            </div>
         </div>
 
         <div class="bio right">
@@ -169,6 +160,15 @@
                 />
             </div>
 
+                        <!-- Continuous Mode -->
+            <div class="form-label">
+                <label class="toggle-switch">
+                    <input type="checkbox" v-model="formData.continuous" />
+                    <span class="toggle-slider"></span>
+                </label>
+                {{t('Continuous Listening Mode (BETA)')}}
+                <HelpPopover :text="t('When enabled, the microphone listens continuously and automatically detects speech.')" :t="t" :lang="lang"/>
+            </div>
             <!-- Speech Detection Threshold (only shown when continuous is enabled) -->
             <template v-if="formData.continuous">
                 <div class="form-label">
