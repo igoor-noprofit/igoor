@@ -1,5 +1,5 @@
 <template>
-    <div class="speakerid-settings">
+    <div class="speakerid-settings" :class="{ 'speakerid-settings--focus': recordingForSpeaker }">
         <!-- Two columns: LEFT = privacy switch + add person; RIGHT = people list.
              Hidden while recording a voice (focus mode shows only the recorder). -->
         <div class="speakerid-settings__columns" v-if="!recordingForSpeaker">
@@ -110,7 +110,7 @@
                         <span>{{ t('Phrase to read') }}</span>
                         <span class="speakerid-settings__phrase-count">{{ phraseIndex + 1 }} / {{ currentPhraseSet.length }}</span>
                     </div>
-                    <p :key="phraseIndex" class="speakerid-settings__phrase-current speakerid-settings__phrase-current--appear">{{ currentPhrase }}</p>
+                    <p :key="phraseIndex" class="speakerid-settings__phrase-current speakerid-settings__phrase-current--read speakerid-settings__phrase-current--appear">{{ currentPhrase }}</p>
                 </div>
                 <div v-else class="speakerid-settings__phrase-card">
                     <div class="speakerid-settings__phrase-label">
@@ -129,12 +129,14 @@
                 @recorded="onRecorded"
                 @error="onRecorderError"
             />
-            <div class="speakerid-settings__actions">
+            <div v-if="pendingBlob || statusMessage" class="speakerid-settings__actions">
+                <!-- Save appears only once there IS a recording to save -->
                 <button
+                    v-if="pendingBlob"
                     type="button"
                     class="speakerid-settings__btn"
                     @click="saveRecording"
-                    :disabled="!pendingBlob || isSaving"
+                    :disabled="isSaving"
                 >
                     {{ isSaving ? t('Saving…') : t('Save recording') }}
                 </button>
@@ -786,6 +788,36 @@ module.exports = {
     font-size: 1rem;
     line-height: 1.5;
     color: var(--color-text, #ffffff);
+}
+
+/* The sentence to read aloud is THE interface of the enrollment flow — dominant
+   type size for users with limited sight. The free-recording text stays 1rem
+   (it's instructions, not something to read on mic). */
+.speakerid-settings__phrase-current--read {
+    font-size: 2.2rem;
+    line-height: 1.35;
+}
+
+/* Focus mode (columns hidden, recorder open): tighter vertical rhythm so the
+   2.2rem phrase + the save row appearing after a take never push the panel past
+   the fixed-height .plugin-settings-scroll container into an avoidable
+   vertical scrollbar. */
+.speakerid-settings--focus {
+    padding: 8px 16px;
+    gap: 10px;
+}
+
+.speakerid-settings--focus .speakerid-settings__recorder {
+    padding: 10px 12px;
+    gap: 10px;
+}
+
+.speakerid-settings--focus .speakerid-settings__guide {
+    padding: 8px 12px;
+}
+
+.speakerid-settings--focus .speakerid-settings__phrase-card {
+    padding: 10px 12px;
 }
 
 /* When the phrase advances (phraseIndex changes), the <p> is re-keyed so this

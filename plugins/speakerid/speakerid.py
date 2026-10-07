@@ -25,6 +25,8 @@ class Speakerid(Baseplugin):
     COMMIT_VOTES = 3          # slow path: min agreeing detections (majority of the window)
     EVIDENCE_WINDOW = 5       # how many recent detections the evidence window keeps
     SILENCE_RMS = 0.005       # buffers below this RMS are silence/noise — skip the forward pass
+    CONTRADICTION_NO_MATCHES = 2   # consecutive no-match detections on non-silent audio
+                                  # that revert a pre-warm to unknown ahead of prewarm_ttl
 
     # Folder-name hardening: the speaker's name becomes the voices/<name>/ folder.
     RESERVED_NAMES = frozenset(  # Windows device names — unusable as folders (with any extension)
@@ -72,7 +74,7 @@ class Speakerid(Baseplugin):
         self.confidence_threshold_low = 0.45
         self.buffer_duration = 2.0
         self.min_audio_duration = 1.0
-        self.identification_cooldown = 3.0
+        self.identification_cooldown = 2.0   # matches the 2s asrjs chunk cadence (settings.json default)
         # Pre-warm staleness: a pre-warmed speaker must be re-confirmed by fresh
         # detections within this many seconds, or it reverts to unknown. Without
         # it, silence never clears a pre-warm (no-match results don't touch the
@@ -80,6 +82,11 @@ class Speakerid(Baseplugin):
         # next conversation open.
         self.prewarm_ttl = 30.0
         self._last_prewarm_refresh = 0.0
+        # Evidence freshness: a new speaker needs COMMIT_VOTES detections spanning
+        # 2 cooldowns, so votes older than 3x cooldown are stale — they must not
+        # keep outvoting whoever is talking now (re-derived on settings load).
+        self._evidence_ttl = 3.0 * self.identification_cooldown
+        self._consecutive_no_match = 0
 
         # Audio settings - will be updated based on actual input
         self.sample_rate = 16000  # chunks arrive pre-downsampled to 16kHz by the asrjs worklet
@@ -102,6 +109,7 @@ class Speakerid(Baseplugin):
         self._infer_busy = False
         self._last_tentative_push = None
         self._last_prewarm_refresh = 0.0
+        self._consecutive_no_match = 0
         # Deterministic-commit state: once a speaker is committed, detection LOCKS
         # for the rest of the conversation (cleared here on abandon/reset).
         self.committed_speaker = None
@@ -148,6 +156,7 @@ class Speakerid(Baseplugin):
         self._expire_stale_prewarm()
         self.conversation_active = True
         self.evidence_window = deque(maxlen=self.EVIDENCE_WINDOW)   # fresh voting
+        self._consecutive_no_match = 0
         with self.buffer_lock:
             if self.audio_buffer is not None:
                 self.audio_buffer.clear()                            # drop gap audio
@@ -348,8 +357,9 @@ class Speakerid(Baseplugin):
             self.confidence_threshold_low = self.settings.get("confidence_threshold_low", 0.45)
             self.buffer_duration = self.settings.get("buffer_duration", 2.0)
             self.min_audio_duration = self.settings.get("min_audio_duration", 1.0)
-            self.identification_cooldown = self.settings.get("identification_cooldown", 3.0)
+            self.identification_cooldown = self.settings.get("identification_cooldown", 2.0)
             self.prewarm_ttl = self.settings.get("prewarm_ttl", 30.0)
+            self._evidence_ttl = 3.0 * self.identification_cooldown
             # Privacy gate: when off, NO mic audio is accepted for identification (asrjs
             # won't post, and the endpoints early-return). Default off — opt-in.
             self.voice_profiles_enabled = bool(self.settings.get("voice_profiles_enabled", False))
@@ -622,11 +632,24 @@ class Speakerid(Baseplugin):
         except Exception as e:
             self.logger.error(f"Error during speaker identification: {e}")
 
+    def _revert_prewarm_to_unknown(self, reason: str):
+        """Single canonical pre-warm revert: drop the timer and no-match streak, flush
+        stale votes (they must not seed the next commit), push unknown to context +
+        topbar. Called by TTL expiry and by the no-match contradiction path."""
+        name = ((context_manager.get_context() or {}).get("speaker_info") or {}).get("name")
+        self._last_prewarm_refresh = 0.0
+        self._consecutive_no_match = 0
+        self.evidence_window.clear()
+        self.logger.info(f"Pre-warmed speaker '{name}' reverted to unknown — {reason}")
+        self._update_speaker_context("unknown", 0.0, "unknown")
+
     def _expire_stale_prewarm(self):
         """Revert a pre-warmed speaker to unknown when it hasn't been re-confirmed by
-        a fresh detection within prewarm_ttl seconds. No-match results and silence
-        never touch the context, so without this a pre-warm lingers forever and would
-        be promoted + locked at the next conversation open no matter how stale."""
+        a fresh detection within prewarm_ttl seconds (silence path — no-match
+        contradictions are handled in _handle_detection). No-match results and
+        silence never touch the context, so without this a pre-warm lingers forever
+        and would be promoted + locked at the next conversation open no matter how
+        stale."""
         if self._last_prewarm_refresh <= 0:
             return
         info = (context_manager.get_context() or {}).get("speaker_info") or {}
@@ -636,13 +659,30 @@ class Speakerid(Baseplugin):
             return
         if time.time() - self._last_prewarm_refresh <= self.prewarm_ttl:
             return
-        self._last_prewarm_refresh = 0.0
-        self.evidence_window.clear()           # stale votes must not seed the next commit
-        self.logger.info(
-            f"Pre-warmed speaker '{name}' expired — no re-confirming detection within "
-            f"{self.prewarm_ttl:.0f}s, reverting to unknown"
+        self._revert_prewarm_to_unknown(
+            f"expired: no re-confirming detection within {self.prewarm_ttl:.0f}s"
         )
-        self._update_speaker_context("unknown", 0.0, "unknown")
+
+    def _note_speech_contradiction(self) -> bool:
+        """A detection ran on non-silent audio and matched no enrolled voice above the
+        low bar — direct evidence AGAINST the pre-warmed speaker. After
+        CONTRADICTION_NO_MATCHES consecutive ones the pre-warm reverts to unknown
+        immediately instead of waiting out prewarm_ttl (silence, which never reaches
+        _handle_detection, keeps the full TTL: quiet ≠ somebody else talking).
+        Returns True when the revert fired (caller skips the tentative push)."""
+        self._consecutive_no_match += 1
+        if self._consecutive_no_match < self.CONTRADICTION_NO_MATCHES:
+            return False
+        info = (context_manager.get_context() or {}).get("speaker_info") or {}
+        name = info.get("name")
+        if info.get("status") != "prewarmed" or not name or name == "unknown":
+            self._consecutive_no_match = 0   # nothing pre-warmed to contradict — stop counting
+            return False
+        self._revert_prewarm_to_unknown(
+            f"contradicted: {self.CONTRADICTION_NO_MATCHES} consecutive no-match "
+            f"detections with speech present"
+        )
+        return True
     
 
     
@@ -1013,6 +1053,10 @@ class Speakerid(Baseplugin):
           inject the name into the LLM context and LOCK further detection until reset.
         - Fast path: a single detection ≥ _high with a clear runner-up margin commits
           at once, without waiting for the window to fill.
+        - Evidence decays: votes older than 3x identification_cooldown are dropped
+          before voting, so a previous speaker's history can't outvote the current one.
+        - Contradiction: 2 consecutive no-match detections on non-silent audio revert
+          a pre-warm to unknown ahead of prewarm_ttl (silence keeps the full TTL).
 
         Replaces the old 'latest higher score wins' logic, which flipped between
         speakers mid-conversation and could persist the wrong one.
@@ -1023,9 +1067,13 @@ class Speakerid(Baseplugin):
             return
 
         # Nothing usable above the low bar → tentative "unknown", no name injected.
+        # Unless this no-match contradicts (and reverts) a pre-warm — the context
+        # push from the revert already told the frontend "unknown".
         if not match or score < self.confidence_threshold_low:
-            self._send_tentative(None, score)
+            if not self._note_speech_contradiction():
+                self._send_tentative(None, score)
             return
+        self._consecutive_no_match = 0
 
         runner_up_score = top_results[1][1] if len(top_results) > 1 else 0.0
 
@@ -1035,10 +1083,16 @@ class Speakerid(Baseplugin):
             return
 
         # Slow path: accumulate evidence, look for a stable majority above the bar.
-        self.evidence_window.append((match, score))
+        # Time-decay first: votes older than 3x cooldown are stale — outside a
+        # conversation the window must track who is talking NOW, and the previous
+        # speaker's history must not keep outvoting (or out-displaying) a new one.
+        now = time.time()
+        while self.evidence_window and now - self.evidence_window[0][0] > self._evidence_ttl:
+            self.evidence_window.popleft()
+        self.evidence_window.append((now, match, score))
         votes = {}
         scores_by_name = {}
-        for name, sc in self.evidence_window:
+        for _, name, sc in self.evidence_window:
             votes[name] = votes.get(name, 0) + 1
             scores_by_name.setdefault(name, []).append(sc)
         for name, count in votes.items():
