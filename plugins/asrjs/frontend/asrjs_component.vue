@@ -3,7 +3,7 @@
         <div v-if="hasError" class="error-banner">
             {{ errorMessage }}
         </div>
-        <div v-if="!hasError" class="mic clickable" :class="[status, continuous ? 'continuous' : 'non-continuous']" @click="$_handleMicClick">
+        <div v-if="!hasError" class="mic clickable" :class="[status, continuous ? 'continuous' : 'non-continuous']" @click="$_handleMicClickSafe" @pointerdown="$_handleMicPointerDown" @pointerup="$_handleMicPointerUp" @pointercancel="$_handleMicPointerUp" @contextmenu.prevent>
             <img :src="micIcon" alt="">
         </div>
     </div>
@@ -23,6 +23,8 @@ export default {
             keyboardShortcut: null,
             holdToTalk: false, // Hold the shortcut to talk (release to stop) instead of click-to-toggle
             pttActive: false, // True while the shortcut is being held in push-to-talk mode
+            pttPointerId: null, // Pointer (touch/mouse) currently holding the mic in push-to-talk mode
+            pttSuppressClick: false, // Swallow the click that follows the release of a pointer hold
             vad: null, // Store VAD instance
             vadInitialized: false,
             accumulatedAudioBuffer: null, // Float32Array for audio accumulation on semantic VAD "nok"
@@ -1152,6 +1154,40 @@ export default {
                 await this.$_handleMicClick();
             }
         },
+        async $_handleMicPointerDown(event) {
+            // Push-to-talk by holding the mic (touch or mouse). In click-to-toggle
+            // mode (or continuous) do nothing here and let the click flow handle it.
+            if (!this.holdToTalk || this.continuous) return;
+            if (event.pointerType === 'mouse' && event.button !== 0) return;
+            if (!this.isPrimaryAudioPage || this.pttActive) return;
+            if (this.status !== 'listening' && this.status !== 'ready') return;
+            this.pttPointerId = event.pointerId;
+            this.pttSuppressClick = false;
+            // Capture the pointer so pointerup fires on the mic even if the finger
+            // slides off it while talking.
+            try { event.currentTarget.setPointerCapture(event.pointerId); } catch (e) {}
+            event.preventDefault(); // No text/image drag: the hold must not select or scroll
+            this.pttActive = true;
+            this.status = 'recording';
+            await this.$_startRecording();
+        },
+        $_handleMicPointerUp(event) {
+            if (this.pttPointerId === null || event.pointerId !== this.pttPointerId) return;
+            this.pttPointerId = null;
+            // pointerup is followed by a synthetic click: swallow it in the wrapper,
+            // the stop has already happened here. The timeout is a safety net for
+            // browsers that don't fire the click (finger released far off the button).
+            this.pttSuppressClick = true;
+            setTimeout(() => { this.pttSuppressClick = false; }, 400);
+            this.$_endPushToTalk();
+        },
+        $_handleMicClickSafe() {
+            if (this.pttSuppressClick) {
+                this.pttSuppressClick = false;
+                return;
+            }
+            return this.$_handleMicClick();
+        },
 
 
 
@@ -1474,6 +1510,12 @@ export default {
     align-items: center;
     width: 120px;
     flex: 0 0 auto;
+    /* Hold-to-talk: a press resting on the mic must not scroll, select
+       text or open the long-press callout/context menu. */
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
 }
 
 .mic img {

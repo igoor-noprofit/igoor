@@ -125,7 +125,7 @@
                         <span class="toggle-slider"></span>
                     </label>
                     {{t('Push-to-talk (hold the shortcut)')}}
-                    <HelpPopover :text="t('When enabled, hold the shortcut (or the external button) to talk: recording starts on press and stops when you release it.')" :t="t" :lang="lang"/>
+                    <HelpPopover :text="t('When enabled, hold the shortcut, the external button or the microphone to talk: recording starts on press and stops when you release it.')" :t="t" :lang="lang"/>
                 </div>
             </template>
 

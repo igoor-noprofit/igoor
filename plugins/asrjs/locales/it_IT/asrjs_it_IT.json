@@ -22,7 +22,7 @@
     "Microphone Activation Shortcut": "Scorciatoia attivazione microfono",
     "This keyboard combination STARTS / STOPS the speech detection process": "Questa combinazione di tasti AVVIA / FERMA il processo di rilevamento vocale",
     "Push-to-talk (hold the shortcut)": "Push-to-talk (tieni premuto per parlare)",
-    "When enabled, hold the shortcut (or the external button) to talk: recording starts on press and stops when you release it.": "Quando attivata, tieni premuta la scorciatoia (o il pulsante esterno) per parlare: la registrazione inizia alla pressione e si interrompe al rilascio.",
+    "When enabled, hold the shortcut, the external button or the microphone to talk: recording starts on press and stops when you release it.": "Quando attivata, tieni premuta la scorciatoia, il pulsante esterno o il microfono per parlare: la registrazione inizia alla pressione e si interrompe al rilascio.",
     "Mistral API Key is required for Voxtral models": "La chiave API Mistral è richiesta per i modelli Voxtral",
     "Mistral API Key is required": "La chiave API Mistral è obbligatoria",
     "Groq API Key is required for Whisper models": "La chiave API Groq è richiesta per i modelli Whisper",
