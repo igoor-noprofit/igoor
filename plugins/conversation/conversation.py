@@ -137,6 +137,13 @@ class Conversation(Baseplugin):
             await self.send_status("transcribing_ended")
             return {"status": "success"}
 
+        @self.router.get("/is_open")
+        async def conversation_is_open():
+            """Whether a conversation is currently open. Onboarding's frontend
+            polls this on mount to grey out its settings gear after a page
+            reload that happens mid-conversation (push messages were missed)."""
+            return {"is_open": self.conversation_is_open}
+
         @self.router.post("/thread_speaker")
         async def set_thread_speaker(payload: Dict[str, Any]):
             """Post-hoc speaker assignment for a conversation that ended Unknown.
@@ -210,6 +217,9 @@ class Conversation(Baseplugin):
         context_manager.update_context("conversation", "")
         self.init_timeout()
         self.send_message_to_frontend({"action": "startCountdown"})
+        # Onboarding greys out its settings gear while a conversation is open
+        # (changing AI/bio/prefs mid-conversation corrupts the active prompt chain)
+        self.send_message_to_frontend({"action": "conversation_started"}, "onboarding")
         
         # Create a new conversation in the database
         current_time = self._get_current_timestamp()
@@ -272,6 +282,8 @@ class Conversation(Baseplugin):
             self.logger.info("Abandon conversation called, but conversation is not open")
             return
         self.send_message_to_frontend({"action": "abandon_conversation"})
+        # Onboarding re-enables its settings gear (see new_conversation)
+        self.send_message_to_frontend({"action": "conversation_ended"}, "onboarding")
 
         # IMPORTANT: Send view change immediately to ensure UI updates before any processing
         await self.send_switch_view_to_app("daily")

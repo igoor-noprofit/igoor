@@ -14,8 +14,12 @@
             @finish="onWizardFinish" @validate-key="onWizardValidateKey" @reset-validation="resetKeyValidation">
         </onboarding-wizard>
 
-        <!-- Settings Gear Icon -->
-        <div @click="toggleModal" class="settings-gear" v-show="appview !== 'onboarding'">
+        <!-- Settings Gear Icon (greyed out while a conversation is open:
+             changing AI/bio/prefs mid-conversation corrupts the active
+             prompt chain) -->
+        <div @click="toggleModal" class="settings-gear" :class="{ 'settings-gear-disabled': conversationActive }"
+             :title="conversationActive ? t('Settings are locked during a conversation.') : ''"
+             v-show="appview !== 'onboarding'">
             <img src="/img/icons/src/settings.svg" width="30">
         </div>
         <!-- Modal Window for Plugin Settings -->
@@ -417,6 +421,7 @@ export default {
             },
             isSaving: false,
             saveStatus: null,
+            conversationActive: false, // True while a conversation is open: settings are locked (see handleIncomingMessage)
             pywebviewready: false,
             showRestartAlert: false,
             selectedPluginForSettings: null, // Holds the plugin object whose settings are being viewed/edited
@@ -489,6 +494,18 @@ export default {
             }
         } catch (error) {
             console.error("Failed to load onboarding settings via REST", error);
+        }
+
+        // Initial conversation state: a page reload mid-conversation misses the
+        // push notifications, so ask the backend whether a conversation is open.
+        try {
+            const resp = await fetch('/api/plugins/conversation/is_open');
+            if (resp.ok) {
+                const state = await resp.json();
+                this.conversationActive = Boolean(state.is_open);
+            }
+        } catch (error) {
+            console.warn("Failed to fetch conversation state", error);
         }
     },
     async onGlobalSettingsUpdated() {
@@ -962,6 +979,11 @@ export default {
         },
         async toggleModal() {
             console.warn('TOGGLE MODAL');
+            // Settings are locked during a conversation (gear is also greyed
+            // out; this guard covers keyboard/AT activation paths)
+            if (this.conversationActive) {
+                return;
+            }
             // Only check for unsaved changes when CLOSING the modal (showModal = true -> false)
             // Not when just switching between tabs within the modal
             if (this.showModal && !this.viewingPluginSettings) {
@@ -1075,8 +1097,24 @@ export default {
                         this.saveStatus = null;
                     }, 1500);
                 }
+                if (data.action && data.action == "conversation_started"){
+                    // Settings must be inaccessible while the conversation is
+                    // open: lock the gear and tear down an already-open modal
+                    // (the conversation may start underneath it via voice).
+                    this.conversationActive = true;
+                    if (this.showModal) {
+                        this.closeModal();
+                    }
+                }
+                if (data.action && data.action == "conversation_ended"){
+                    this.conversationActive = false;
+                }
                 if (data.action && data.action == "show_modal"){
                     console.warn("ONBOARDING FORCED");
+                    if (this.conversationActive) {
+                        // A conversation is open: keep settings locked
+                        return true;
+                    }
                     // Other plugins' 'Connect an AI' buttons request a specific
                     // tab (open_settings?tab=ai) so the user lands on the
                     // provider form instead of the default Bio tab.
@@ -1555,6 +1593,15 @@ button:disabled {
     align-items: center;
     justify-content: center;
     padding: 6px;
+}
+
+/* Conversation open: settings locked. Greyed out and click-dead; toggleModal
+   guards again for keyboard/AT activation paths. */
+.settings-gear.settings-gear-disabled {
+    filter: invert(100%) grayscale(100%);
+    opacity: 0.35;
+    cursor: not-allowed;
+    pointer-events: none;
 }
 
 /* Modal overlay styles */

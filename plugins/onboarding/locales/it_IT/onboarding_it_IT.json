@@ -214,5 +214,6 @@
     "Complete Biography": "Biografia completa",
     "Start Biography": "Avvia biografia",
     "Ex.: Diagnosis, upper/lower limb mobility, fatigue, assistance needs for transfers or daily activities.\\nAssistive devices: power wheelchair, eye-tracking device, orthoses, etc.\\nCare team: physiotherapist (1x/week), nurse, etc.\\nCurrent treatments: Riluzole (2x/day), vitamin D, etc.": "Es.: Diagnosi, mobilità arti superiori/inferiori, fatica, necessità di assistenza per trasferimenti o attività quotidiane.\nDispositivi di assistenza: carrozzina elettrica, dispositivo eye-tracking, ortesi, ecc.\nEquipe di cura: fisioterapista (1x/settimana), infermiere, ecc.\nTrattamenti attuali: Riluzole (2x/die), vitamina D, ecc.",
-    "Since you changed the language, the new model for your language is still loading. You can wait a minute or test this later.": "Dato che hai cambiato lingua, il nuovo modello per la tua lingua sta ancora caricando. Attendi un minuto oppure prova più tardi."
+    "Since you changed the language, the new model for your language is still loading. You can wait a minute or test this later.": "Dato che hai cambiato lingua, il nuovo modello per la tua lingua sta ancora caricando. Attendi un minuto oppure prova più tardi.",
+    "Settings are locked during a conversation.": "Le impostazioni sono bloccate durante una conversazione."
 }

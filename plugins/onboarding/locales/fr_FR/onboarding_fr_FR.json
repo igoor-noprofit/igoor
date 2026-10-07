@@ -214,5 +214,6 @@
     "Export date": "Date d'export",
     "Imported from version": "Importé depuis la version",
     "Ex.: Diagnosis, upper/lower limb mobility, fatigue, assistance needs for transfers or daily activities.\\nAssistive devices: power wheelchair, eye-tracking device, orthoses, etc.\\nCare team: physiotherapist (1x/week), nurse, etc.\\nCurrent treatments: Riluzole (2x/day), vitamin D, etc.": "Ex. : Diagnostic, mobilité des membres supérieurs/inférieurs, fatigue, besoins d'assistance pour les transferts ou les activités quotidiennes.\nDispositifs d'assistance : fauteuil roulant électrique, dispositif de suivi oculaire, orthèses, etc.\nÉquipe de soins : kinésithérapeute (1x/semaine), infirmier, etc.\nTraitements actuels : Riluzole (2x/jour), vitamine D, etc.",
-    "Since you changed the language, the new model for your language is still loading. You can wait a minute or test this later.": "Comme vous avez changé de langue, le nouveau modèle pour votre langue est encore en cours de chargement. Attendez une minute ou testez plus tard."
+    "Since you changed the language, the new model for your language is still loading. You can wait a minute or test this later.": "Comme vous avez changé de langue, le nouveau modèle pour votre langue est encore en cours de chargement. Attendez une minute ou testez plus tard.",
+    "Settings are locked during a conversation.": "Les paramètres sont verrouillés pendant une conversation."
 }
