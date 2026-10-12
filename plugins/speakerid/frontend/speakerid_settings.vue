@@ -6,6 +6,7 @@
             <!-- LEFT column -->
             <div class="speakerid-settings__col speakerid-settings__col-left">
                 <!-- Add person (name only — no voice recording required) -->
+                <p class="speakerid-settings__add-hint">{{ addPersonHint }}</p>
                 <div class="speakerid-settings__add">
                     <input
                         type="text"
@@ -16,16 +17,21 @@
                         @keyup.enter="addPerson"
                     />
                     <button
+                        v-if="newPersonName.trim()"
                         type="button"
                         class="speakerid-settings__btn"
                         @click="addPerson"
-                        :disabled="isAdding || !newPersonName.trim()"
+                        :disabled="isAdding"
                     >
                         {{ isAdding ? t('Adding…') : t('Add person') }}
                     </button>
                 </div>
-                <!-- Privacy gate: master switch for live speaker recognition. -->
-                <div class="speakerid-settings__gate">
+                <p v-if="addError" class="error-banner speakerid-settings__add-error">{{ addError }}</p>
+                <!-- Privacy gate: master switch for live speaker recognition.
+                     Hidden until at least one person exists — the switches
+                     control recognition OF enrolled people, so before that they
+                     are noise (settings persist while hidden). -->
+                <div v-if="speakers.length > 0" class="speakerid-settings__gate">
                     <div class="speakerid-settings__gate-row">
                         <label class="switch">
                             <input type="checkbox" v-model="voiceProfilesEnabled" @change="saveVoiceProfiles" />
@@ -180,6 +186,7 @@ module.exports = {
             voiceProfilesEnabled: false, // master privacy gate (live mic recognition)
             assignmentPopupEnabled: false, // opt-in: end-of-conversation assignment popup (Unknown fallback)
             newPersonName: '',
+            addError: '',        // inline duplicate-name error, shown under the field
             isLoadingSpeakers: false,
             isAdding: false,
             // Which speaker (if any) the contextual recorder is enrolling a voice for.
@@ -221,6 +228,15 @@ module.exports = {
                 recording: this.t('Recording…')
             };
         },
+        // Why the name field exists at all: users didn't realize a person must be
+        // typed in before a voice can be enrolled. Two variants because {user}
+        // can't absorb locale grammar when the bio name is empty (IT/PT articles
+        // elide against prepositions).
+        addPersonHint() {
+            return this.bioName
+                ? this.t('Record the voices of the people close to {user}: during conversations, their name appears next to what they said. To start, type the person\'s first name.', { user: this.bioName })
+                : this.t('Record the voices of the people close to the user: during conversations, their name appears next to what they said. To start, type the person\'s first name.');
+        },
         // Show one phrase at a time (the one to read now). Once all suggested phrases
         // are read, the template switches to the free-recording card (no more
         // suggestions) so the user can talk about anything.
@@ -238,6 +254,13 @@ module.exports = {
         confirmLabel() {
             if (!this.pendingAction) return '';
             return this.pendingAction.type === 'reset' ? this.t('Reset voice') : this.t('Delete');
+        }
+    },
+    watch: {
+        // Retyping is the fix for a duplicate — clear the error as soon as the
+        // name stops matching what failed.
+        newPersonName() {
+            this.addError = '';
         }
     },
     mounted() {
@@ -295,19 +318,36 @@ module.exports = {
         async addPerson() {
             const name = (this.newPersonName || '').trim();
             if (!name) return;
+            // Duplicate guard (case-insensitive, mirrors the backend's COLLATE
+            // NOCASE): on a duplicate the POST returns the EXISTING row with 200
+            // and inserts nothing — the silent failure users couldn't understand.
+            const isDuplicate = () => this.speakers.some(
+                s => (s.name || '').toLowerCase() === name.toLowerCase()
+            );
+            if (isDuplicate()) {
+                this.addError = this.t('This person already exists.');
+                return;
+            }
             this.isAdding = true;
             this.statusMessage = '';
             try {
-                await this.callPluginRestEndpoint('speakerid', 'speakers', {
+                const created = await this.callPluginRestEndpoint('speakerid', 'speakers', {
                     method: 'POST',
                     data: { name }
                 });
+                // Stale-list duplicate: the backend returned an existing row.
+                if (created && this.speakers.some(s => s.id === created.id)) {
+                    this.addError = this.t('This person already exists.');
+                    return;
+                }
                 this.newPersonName = '';
                 await this.loadSpeakers();
                 this.statusMessage = this.t('Person added');
             } catch (e) {
                 console.error('Failed to add person', e);
-                this.statusMessage = this.t('Error adding the person');
+                // statusMessage only renders inside the recorder panel — route
+                // add failures to the inline element so they're visible here
+                this.addError = this.t('Error adding the person');
             } finally {
                 this.isAdding = false;
             }
@@ -465,7 +505,7 @@ module.exports = {
 
 <style scoped>
 /* Dark-theme palette from the app's design tokens (css/app.css).
-   This component renders inside .plugin-settings-component (bg #0d1117). */
+   This component renders inside .plugin-settings-component (transparent). */
 .speakerid-settings {
     display: flex;
     flex-direction: column;
@@ -535,6 +575,27 @@ module.exports = {
 .speakerid-settings__add {
     display: flex;
     gap: 8px;
+}
+
+/* Guides users who don't realize a person must be typed in before enrolling.
+   Indented to align with the text typed inside the field below. */
+.speakerid-settings__add-hint {
+    margin: 0;
+    padding-left: 14px;
+    font-size: 1rem;
+    color: var(--basecolor-gray-100, #afbfbf);
+    line-height: 1.45;
+}
+
+/* Duplicate/add failure callout: standard .error-banner look (app.less) adapted
+   to sit inline under the field — the global class is a topbar flex banner
+   (height:100%, text pushed right), so re-shape layout and size here. */
+.speakerid-settings__add-error {
+    display: block;
+    height: auto;
+    justify-content: initial;
+    margin: 0;
+    font-size: 1rem;
 }
 
 .speakerid-settings__input {

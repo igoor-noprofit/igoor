@@ -47,5 +47,8 @@
   "Recording…": "Gravando…",
   "Recorder error": "Erro do gravador",
   "Record audio first": "Grave o áudio primeiro",
-  "Error saving the recording": "Erro ao salvar a gravação"
+  "Error saving the recording": "Erro ao salvar a gravação",
+  "Record the voices of the people close to {user}: during conversations, their name appears next to what they said. To start, type the person's first name.": "Grave as vozes das pessoas próximas de {user}: durante as conversas, o nome delas aparece ao lado do que disseram. Para começar, escreva o nome da pessoa.",
+  "Record the voices of the people close to the user: during conversations, their name appears next to what they said. To start, type the person's first name.": "Grave as vozes das pessoas próximas do usuário: durante as conversas, o nome delas aparece ao lado do que disseram. Para começar, escreva o nome da pessoa.",
+  "This person already exists.": "Esta pessoa já existe."
 }

@@ -1797,8 +1797,8 @@ button:disabled {
     border: 1px solid #eee;
     border-radius: 5px;
     /* margin-top: 10px; */
-    background-color: #0d1117;
-    /* Or your preferred background for settings */
+    background: none;
+    /* transparent: let the settings container's own background show through */
 }
 
 /* Ensure the save button for main settings is hidden when viewing plugin settings */
