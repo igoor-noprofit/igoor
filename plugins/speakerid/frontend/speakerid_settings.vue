@@ -577,14 +577,14 @@ module.exports = {
     gap: 8px;
 }
 
-/* Guides users who don't realize a person must be typed in before enrolling.
-   Indented to align with the text typed inside the field below. */
+/* Guides users who don't realize a person must be typed in before enrolling */
 .speakerid-settings__add-hint {
     margin: 0;
-    padding-left: 14px;
     font-size: 1rem;
     color: var(--basecolor-gray-100, #afbfbf);
     line-height: 1.45;
+    text-align: left;
+    padding: 16px 0;
 }
 
 /* Duplicate/add failure callout: standard .error-banner look (app.less) adapted
