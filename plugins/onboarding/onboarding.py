@@ -326,8 +326,10 @@ class Onboarding(Baseplugin):
 
     def _apply_asr_provider_matrix(self, provider, api_key):
         """Set the asrjs default engine for the chosen AI provider (see
-        handle_set_provider). Respects the manual-override marker: once the
-        user saves asrjs settings by hand, onboarding stops managing them."""
+        handle_set_provider), including its matching default model_name - the
+        previous value belongs to the previous engine and would be sent to the
+        new one's API. Respects the manual-override marker: once the user
+        saves asrjs settings by hand, onboarding stops managing them."""
         try:
             asr_settings = self.pm.settings_manager.get_plugin_settings('asrjs') or {}
             if asr_settings.get('asr_managed_by_onboarding') is False:
@@ -337,14 +339,17 @@ class Onboarding(Baseplugin):
             update = {'asr_managed_by_onboarding': True}
             if provider == 'groq':
                 update['model_provider'] = 'groq'
+                update['model_name'] = 'whisper-large-v3-turbo'
                 if not asr_settings.get('api_key') and api_key:
                     update['api_key'] = api_key
             elif provider == 'mistral':
                 update['model_provider'] = 'mistral'
+                update['model_name'] = 'voxtral-mini-latest'
                 if not asr_settings.get('voxtral_api_key') and api_key:
                     update['voxtral_api_key'] = api_key
             else:  # cerebras, other, skipped (no key) -> offline local model
                 update['model_provider'] = 'sherpa'
+                update['model_name'] = 'sherpa-local'
 
             self.pm.settings_manager.update_plugin_settings('asrjs', update, self.pm)
             self.logger.info(f"ASR provider matrix applied for '{provider}': {update.get('model_provider')}")
@@ -394,13 +399,20 @@ class Onboarding(Baseplugin):
                                 current_settings[section] = {}
                             current_settings[section].update(new_settings[section])
 
+                    # ASR first: mass_update below triggers global_settings_updated,
+                    # and asrjs must reload already seeing its new settings (same
+                    # ordering as handle_set_provider). The settings modal follows
+                    # the wizard's provider matrix instead of only syncing the key.
+                    if 'ai' in new_settings:
+                        self._apply_asr_provider_matrix(
+                            (new_settings['ai'].get('provider') or '').strip().lower(),
+                            (new_settings['ai'].get('api_key') or '').strip()
+                        )
+
                     if (self.mass_update_my_settings(current_settings)):
                         # Update local settings
                         self.settings = current_settings
                         self.onboarding_completed = True
-
-                        # Sync API key to asrjs plugin if needed
-                        self._sync_api_key_to_asrjs(new_settings.get('ai', {}))
 
                         # Unblock the flow/daily keyless grey-out states the
                         # moment a key is saved (they only fetch on creation)
@@ -483,36 +495,6 @@ class Onboarding(Baseplugin):
             print(f"[PRESETS] Error: {e}")
             import traceback
             print(f"[PRESETS] Traceback: {traceback.format_exc()}")
-
-    def _sync_api_key_to_asrjs(self, ai_settings):
-        """Sync API key to asrjs plugin if it doesn't have one for the current provider."""
-        provider = ai_settings.get('provider')
-        api_key = ai_settings.get('api_key')
-
-        if not provider or not api_key:
-            return
-
-        # Get asrjs current settings
-        asrjs_settings = self.pm.settings_manager.get_plugin_settings('asrjs') or {}
-
-        if provider == 'groq':
-            # For Groq, asrjs uses 'api_key' field
-            if not asrjs_settings.get('api_key'):
-                print(f"[ASRJS SYNC] Syncing Groq API key to asrjs plugin")
-                self.pm.settings_manager.update_plugin_settings(
-                    'asrjs',
-                    {'api_key': api_key},
-                    self.pm
-                )
-        elif provider == 'mistral':
-            # For Mistral, asrjs uses 'voxtral_api_key' field
-            if not asrjs_settings.get('voxtral_api_key'):
-                print(f"[ASRJS SYNC] Syncing Mistral API key to asrjs plugin")
-                self.pm.settings_manager.update_plugin_settings(
-                    'asrjs',
-                    {'voxtral_api_key': api_key},
-                    self.pm
-                )
 
     @hookimpl
     async def global_settings_updated(self):

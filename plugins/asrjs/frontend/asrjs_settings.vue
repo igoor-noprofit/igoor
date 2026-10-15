@@ -322,8 +322,8 @@ export default {
     data() {
         return {
             formData: {
-                model_provider: 'groq',
-                model_name: 'whisper-large-v3-turbo',
+                model_provider: 'sherpa',
+                model_name: 'sherpa-local',
                 api_key: '',
                 voxtral_api_key: '',
                 continuous: false,
