@@ -200,11 +200,11 @@ tenacity==9.0.0
 thinc==8.3.4
 threadpoolctl==3.5.0
 tiktoken==0.8.0
-tokenizers==0.20.1
+tokenizers==0.22.2
 torch==2.8.0
 tqdm>=4.67.1
 traits==6.3.2
-transformers==4.46.3
+transformers==4.57.6
 typer==0.15.1
 typing-extensions==4.12.2
 typing-inspect==0.9.0
@@ -223,8 +223,9 @@ yarl==1.16.0
 zstandard==0.23.0
 fastapi==0.115.5
 uvicorn[standard]==0.32.0
-# pocket-tts (local CPU TTS with voice cloning)
-pocket-tts>=3.1.0
+# pocket-tts (local CPU TTS with voice cloning; 4.0.0 = small models + french standard,
+# requires tokenizers>=0.21 hence transformers>=4.48)
+pocket-tts>=4.0.0
 sentencepiece>=0.2.1
 einops>=0.4.0
 typer>=0.12
