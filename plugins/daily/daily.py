@@ -7,6 +7,7 @@ from context_manager import context_manager
 from settings_manager import SettingsManager
 from llm_manager import LLMManager
 import asyncio,json,time,os
+from datetime import datetime
 from pydantic import BaseModel
 from typing import List, Dict
 from utils import normalize_filter_by_timeframe_result
@@ -22,6 +23,7 @@ class Daily(Baseplugin):
         self.bio_name = bio.get("name")
         self.health_state = self.settings_manager.get_health_state()
         self.daily_data = None
+        self.is_onboarding_on = False
         self._build_prompt_templates()
     
     def _build_prompt_templates(self):
@@ -83,6 +85,7 @@ class Daily(Baseplugin):
         
     @hookimpl
     def onboarding_toggled(self,is_onboarding):
+        self.is_onboarding_on = bool(is_onboarding)
         if (is_onboarding):
             self.send_settings_to_frontend()
             settings = self.get_my_settings()
@@ -100,13 +103,43 @@ class Daily(Baseplugin):
             self.settings_manager.update_plugin_settings('daily',data)
             '''
             if (self.mass_update_my_settings(data)):
+                self._log_settings_history(settings)
                 self.send_message_to_frontend({
                     'dailyData': data
                 })
                 asyncio.create_task(self.send_switch_view_to_app(view="daily"))
             else:
                 self.send_error_to_frontend("settings_error","Failed to update settings")
-            return True        
+            return True
+
+    def _log_settings_history(self, needs):
+        """Stats-only log of needs personalization: one JSONL snapshot per save
+        in the plugin's appdata folder, skipped when unchanged since the last save."""
+        try:
+            history_path = os.path.join(self.plugin_folder, 'history.jsonl')
+            # No sort_keys here: dict key order IS the category/item display
+            # order — reorders must register as changes.
+            snapshot = json.dumps(needs, ensure_ascii=False)
+            last_snapshot = None
+            if os.path.exists(history_path):
+                with open(history_path, 'r', encoding='utf-8') as f:
+                    lines = [line for line in f.read().splitlines() if line.strip()]
+                if lines:
+                    last_snapshot = json.dumps(
+                        json.loads(lines[-1]).get("needs"),
+                        ensure_ascii=False
+                    )
+            if last_snapshot == snapshot:
+                return
+            entry = {
+                "created_at": datetime.now().isoformat(),
+                "onboarding": 1 if self.is_onboarding_on else 0,
+                "needs": needs
+            }
+            with open(history_path, 'a', encoding='utf-8') as f:
+                f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+        except Exception as exc:
+            self.logger.error(f"Failed to store daily settings history: {exc}")
     
     @hookimpl
     def global_settings_updated(self):
