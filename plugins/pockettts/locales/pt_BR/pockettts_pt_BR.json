@@ -21,8 +21,12 @@
     "Voice cloning is now available!": "A clonagem de voz agora está disponível!",
     "Invalid token. Please check your HuggingFace token.": "Token inválido. Verifique seu token do HuggingFace.",
     "Authentication failed": "Falha na autenticação",
-    "High Quality Mode (24L)": "Modo de alta qualidade (24L)",
-    "Use 24-layer model (higher quality, slower)": "Usar o modelo de 24 camadas (melhor qualidade, mais lento)",
+    "Model variant": "Variante do modelo",
+    "Recommended (automatic)": "Recomendada (automática)",
+    "Small & fast (English only)": "Pequena e rápida (apenas inglês)",
+    "Standard": "Padrão",
+    "Highest quality (24 layers)": "Qualidade máxima (24 camadas)",
+    "Previous English model (2026-04)": "Modelo de inglês anterior (2026-04)",
     "Test voice": "Testar voz",
     "Advanced Voice Controls": "Controles avançados de voz",
     "Reset": "Redefinir",
@@ -38,5 +42,6 @@
     "Upload audio": "Enviar áudio",
     "Testing...": "Testando...",
     "For best results use 10-20 seconds of clean, single-speaker audio. Longer files are automatically trimmed to the first 30 seconds.": "Para melhores resultados, use de 10 a 20 segundos de áudio limpo com apenas uma pessoa falando. Arquivos mais longos são cortados automaticamente nos primeiros 30 segundos.",
-    "Optional for German, Italian, Portuguese, Spanish. French always uses 24L.": "Opcional para alemão, italiano, português e espanhol. O francês sempre usa o modelo 24L."
+    "Changing the variant reloads the model. The small model is English-only.": "Mudar a variante recarrega o modelo. O modelo pequeno é apenas em inglês.",
+    "Your custom voice must be re-cloned after changing the model variant": "Sua voz personalizada precisa ser re-clonada após mudar a variante do modelo"
 }
