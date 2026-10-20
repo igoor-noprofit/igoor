@@ -256,8 +256,16 @@ class SettingsManager:
         return self.settings
 
     def get_plugin_settings(self, plugin_name):
-        """Retrieve settings for a specific plugin."""
-        return self.settings.get('plugins', {}).get(plugin_name, {})
+        """Retrieve settings for a specific plugin.
+
+        Returns a DEEP COPY: update_plugin_settings mutates the stored dict
+        in place, and the settings_updated hook fires asynchronously AFTER
+        that mutation — a live reference would make plugins compare identical
+        old/new snapshots (e.g. pockettts never detected model-variant
+        changes). Callers that mutate must write back via
+        update_plugin_settings."""
+        import copy
+        return copy.deepcopy(self.settings.get('plugins', {}).get(plugin_name, {}))
 
     def update_plugin_settings(self, plugin_name, new_settings, plugin_manager=None):
         """Update settings for a specific plugin."""
