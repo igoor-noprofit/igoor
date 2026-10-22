@@ -17,9 +17,12 @@ Then:
   3. add the pinned revision to THIRD_PARTY_LICENSES.md under
      "Pocket TTS — model weights" (mirrored-revision list).
 
-A mirror folder contains exactly: model.safetensors, tokenizer.model,
-embeddings/ (cleaned). Preset voice embeddings whose source recordings are
-not AGPLv3-compatible are excluded here (same list as models.csv's header).
+A mirror folder contains exactly: model.safetensors, the variant's tokenizer
+file(s) — tokenizer.model, tokenizer.json, or both as shipped (pocket-tts 4
+moved most languages from sentencepiece to the `tokenizers` json backend) —
+and embeddings/ (cleaned). Preset voice embeddings whose source recordings
+are not AGPLv3-compatible are excluded here (same list as models.csv's
+header).
 """
 import argparse
 import re
@@ -76,11 +79,18 @@ def main():
         shutil.rmtree(dst)
     dst.mkdir(parents=True)
 
-    for name in ("model.safetensors", "tokenizer.model"):
+    copied_tokenizers = []
+    for name in ("model.safetensors", "tokenizer.model", "tokenizer.json"):
         f = src / name
         if not f.is_file():
-            sys.exit(f"Missing {name} in {src} — aborting, no mirror written")
+            if name == "model.safetensors":
+                sys.exit(f"Missing {name} in {src} — aborting, no mirror written")
+            continue
         shutil.copy2(f, dst / name)
+        if name != "model.safetensors":
+            copied_tokenizers.append(name)
+    if not copied_tokenizers:
+        sys.exit(f"No tokenizer file (tokenizer.model/tokenizer.json) in {src} — aborting")
 
     skipped = []
     emb_src = src / "embeddings"

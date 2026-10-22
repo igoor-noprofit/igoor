@@ -3,12 +3,16 @@ model,url
 # and mirrored revisions: see THIRD_PARTY_LICENSES.md, "AI Models"). Mirror
 # UNMODIFIED files only. The Google Drive gate is a contact/prohibited-use
 # covenant, not a redistribution restriction.
-# A mirror folder must contain exactly: model.safetensors, tokenizer.model,
+# A mirror folder must contain exactly: model.safetensors, the variant's
+# tokenizer file(s) (tokenizer.model and/or tokenizer.json as shipped by the
+# repo — pocket-tts 4 moved most languages to the json `tokenizers` backend),
 # embeddings/ (cleaned). No gdown *.metadata sidecars.
 # When (re)building a mirror folder, EXCLUDE these preset voice embeddings
 # from embeddings/ (license not AGPLv3-compatible or unverified):
 #   cosette.safetensors (Expresso, CC-BY-NC), jean.safetensors (EARS,
 #   CC-BY-NC), rafael.safetensors (unverified source)
+french,https://drive.google.com/drive/folders/1eYrmX0jQYrurw6QJ7bccne-Y0ctI-B2i?usp=sharing
+english_18m_2026-10,https://drive.google.com/drive/folders/1_yWCmAo_1Kk16wAjywwUgUnonVKKIYlb?usp=sharing
 english,https://drive.google.com/drive/folders/1_kxgmPA9zLQR4yS7Wm5xGN2dHtEO7rvg?usp=drive_link
 english_2026-01,https://drive.google.com/drive/folders/1vTkjOk040ZD-w-LbQG9fwHHuIgCDIKYF?usp=drive_link
 english_2026-04,https://drive.google.com/drive/folders/15cdZuJSE7stzXMQ3R3C3p7y3EMScbtfI?usp=drive_link

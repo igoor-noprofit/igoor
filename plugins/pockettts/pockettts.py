@@ -489,6 +489,25 @@ class Pockettts(Baseplugin):
         variant, or None if it isn't listed in models.csv."""
         return GDRIVE_MODELS.get(tts_language)
 
+    def _tokenizer_file_for(self, tts_language):
+        """Basename of the tokenizer file the bundled pocket-tts config for
+        `tts_language` expects: tokenizer.model for sentencepiece variants,
+        tokenizer.json since pocket-tts 4.0 moved most languages to the
+        `tokenizers` backend (feeding the json tokenizer the sentencepiece
+        protobuf fails with "stream did not contain valid UTF-8"). Falls
+        back to tokenizer.model when the config cannot be read."""
+        try:
+            import yaml
+            from pocket_tts.utils.config import CONFIGS_DIR
+            with open(CONFIGS_DIR / f"{tts_language}.yaml", "r", encoding="utf-8") as f:
+                cfg = yaml.safe_load(f)
+            # tokenizer_path may be an hf:// URL carrying an "@<revision>" suffix
+            return os.path.basename(
+                cfg["flow_lm"]["lookup_table"]["tokenizer_path"]
+            ).split("@")[0]
+        except Exception:
+            return "tokenizer.model"
+
     def _ensure_lang_downloaded(self, tts_language):
         """Download the Drive folder for `tts_language` and locate the model +
         tokenizer files inside it.
@@ -500,11 +519,12 @@ class Pockettts(Baseplugin):
         lang_dir = os.path.join(self._get_models_dir(), tts_language)
         os.makedirs(lang_dir, exist_ok=True)
 
-        # The folder contains model.safetensors + tokenizer.model at its root
-        # (plus an embeddings/ subdir of preset voices).
+        # The folder contains model.safetensors + the variant's tokenizer file
+        # (tokenizer.model or tokenizer.json — see _tokenizer_file_for) at its
+        # root, plus an embeddings/ subdir of preset voices.
         local_files = {
             "model": os.path.join(lang_dir, "model.safetensors"),
-            "tokenizer": os.path.join(lang_dir, "tokenizer.model"),
+            "tokenizer": os.path.join(lang_dir, self._tokenizer_file_for(tts_language)),
         }
         missing = [k for k, p in local_files.items()
                    if not (os.path.isfile(p) and os.path.getsize(p) > 0)]
