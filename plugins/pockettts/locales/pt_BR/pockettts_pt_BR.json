@@ -42,6 +42,8 @@
     "Upload audio": "Enviar áudio",
     "Testing...": "Testando...",
     "For best results use 10-20 seconds of clean, single-speaker audio. Longer files are automatically trimmed to the first 30 seconds.": "Para melhores resultados, use de 10 a 20 segundos de áudio limpo com apenas uma pessoa falando. Arquivos mais longos são cortados automaticamente nos primeiros 30 segundos.",
-    "Changing the variant reloads the model. The small model is English-only.": "Mudar a variante recarrega o modelo. O modelo pequeno é apenas em inglês.",
+    "Changing the variant reloads the model.": "Mudar a variante recarrega o modelo.",
+    "The small model is English-only.": "O modelo pequeno é apenas em inglês.",
+    "Not available for the current language": "Não disponível para o idioma atual",
     "Your custom voice must be re-cloned after changing the model variant": "Sua voz personalizada precisa ser re-clonada após mudar a variante do modelo"
 }

@@ -102,15 +102,17 @@
             <div class="form-label">{{ t('Model variant') }}</div>
             <div class="form-input">
                 <select v-model="formData.model_variant" class="voice-selector">
-                    <option value="auto">{{ t('Recommended (automatic)') }}</option>
-                    <option value="small">{{ t('Small & fast (English only)') }}</option>
-                    <option value="standard">{{ t('Standard') }}</option>
-                    <option value="24l">{{ t('Highest quality (24 layers)') }}</option>
-                    <option value="legacy_2026_04">{{ t('Previous English model (2026-04)') }}</option>
+                    <option v-for="opt in variantOptions" :key="opt.value" :value="opt.value">
+                        {{ opt.label }}
+                    </option>
+                    <option v-if="savedVariantUnavailable" :value="formData.model_variant" disabled>
+                        {{ t('Not available for the current language') }}
+                    </option>
                 </select>
             </div>
             <div class="form-note">
-                {{ t('Changing the variant reloads the model. The small model is English-only.') }}
+                {{ t('Changing the variant reloads the model.') }}
+                <span v-if="isEnglishAppLang">{{ t('The small model is English-only.') }}</span>
             </div>
             <div v-if="customVoiceSelected && formData.model_variant !== originalSettings.model_variant"
                 class="form-note" style="color:#ff6666">
@@ -248,6 +250,32 @@ export default {
         customVoiceSelected() {
             var v = this.formData.voice || '';
             return v === 'custom' || v.indexOf('custom:') === 0;
+        },
+        isEnglishAppLang() {
+            return (this.lang || '').indexOf('en') === 0;
+        },
+        variantOptions() {
+            // small (18M) and the previous English model only exist for
+            // English — don't offer them for the other languages
+            var opts = [
+                { value: 'auto', label: this.t('Recommended (automatic)') },
+                { value: 'standard', label: this.t('Standard') },
+                { value: '24l', label: this.t('Highest quality (24 layers)') }
+            ];
+            if (this.isEnglishAppLang) {
+                opts.splice(1, 0, { value: 'small', label: this.t('Small & fast (English only)') });
+                opts.push({ value: 'legacy_2026_04', label: this.t('Previous English model (2026-04)') });
+            }
+            return opts;
+        },
+        savedVariantUnavailable() {
+            // a saved English-only token (e.g. legacy_2026_04 from the
+            // migration) under a non-English app language: show it greyed
+            // out instead of an empty select
+            for (var i = 0; i < this.variantOptions.length; i++) {
+                if (this.variantOptions[i].value === this.formData.model_variant) return false;
+            }
+            return true;
         }
     },
     watch: {
