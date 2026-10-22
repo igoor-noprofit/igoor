@@ -1,4 +1,7 @@
 {
+  "1.2.19": [
+    "Synthèse vocale : modèles PocketTTS plus petits et plus rapides"
+  ],
   "1.2.18": [
     "Corrections de sécurité : eMudhra"
   ],
