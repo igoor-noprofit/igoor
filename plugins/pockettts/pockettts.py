@@ -106,10 +106,19 @@ DEFAULT_VOICE = {
     "spanish": "lola",
 }
 
-# Languages that ONLY have a 24-layer model (no standard variant available).
-# Verified from pocket_tts/config/ directory — only french has no standard .yaml.
-# Portuguese, Spanish, German, Italian all have both standard and _24l variants.
-REQUIRES_24L = {"french"}
+# Model variant selection: the "model_variant" setting is a language-
+# independent token resolved against the CURRENT language at load time, so a
+# profile exported to another machine/locale keeps a sensible choice:
+#   auto            -> AUTO_VARIANT[language] (falls back to the plain language)
+#   small           -> 18M model (English only; other languages fall back to auto)
+#   standard        -> the plain language model
+#   24l             -> <language>_24l
+#   legacy_2026_04  -> english_2026-04 (English only; keeps pre-4.0 custom
+#                      voices working — voice states are weights-specific)
+AUTO_VARIANT = {
+    "english": "english_18m_2026-10",  # 18.2M params: ~6x smaller weights, much faster load
+    "french": "french",                # pocket-tts 4.0 added a 6-layer standard French
+}
 
 # ── Google Drive model download ─────────────────────────────────────────
 # The model weights are gated on HuggingFace (kyutai/pocket-tts). To avoid
@@ -253,6 +262,58 @@ class Pockettts(Baseplugin):
         """Map IGOOR locale (e.g. 'fr_FR') to pocket-tts language name."""
         lang = getattr(self, 'lang', None) or 'en_EN'
         return IGOOR_LANG_TO_POCKETTTS.get(lang, "english")
+
+    def _resolve_variant(self, language):
+        """Map the model_variant setting token to a pocket-tts variant string
+        for `language` (see AUTO_VARIANT for the token list)."""
+        variant = self.settings.get("model_variant", "auto") or "auto"
+        if variant == "24l":
+            return f"{language}_24l"
+        if variant in ("small", "legacy_2026_04"):
+            if language == "english":
+                return ("english_18m_2026-10" if variant == "small"
+                        else "english_2026-04")
+            self.logger.warning(
+                f"model_variant '{variant}' is English-only, falling back to auto"
+            )
+        elif variant != "auto" and variant != "standard":
+            self.logger.warning(f"Unknown model_variant '{variant}', using auto")
+        if variant == "standard":
+            return language
+        return AUTO_VARIANT.get(language, language)
+
+    def _migrate_legacy_variant_settings(self):
+        """One-time migration from the removed use_24l/use_2026_04 flags to
+        the model_variant token. Returns True when a value was persisted.
+
+        Users WITHOUT a custom voice move to "auto" (the new defaults: 18M
+        English, standard French). Users WITH a custom voice are pinned to the
+        exact variant their voice was cloned with: voice states are
+        weights-specific and would fail to load on any other variant."""
+        if not self.settings or "model_variant" in self.settings:
+            return False
+        if not any(k in self.settings for k in ("use_24l", "use_2026_04")):
+            return False  # fresh install: model_variant comes from defaults
+        has_custom_voice = (
+            self.settings.get("voice") == "custom"
+            or bool(self.settings.get("custom_voice_path"))
+        )
+        if not has_custom_voice:
+            derived, note = "auto", "no custom voice: moving to the new default variant"
+        else:
+            language = self._resolve_language()
+            if self.settings.get("use_24l", False) or language == "french":
+                # pre-4.0.0 French shipped no standard model (old REQUIRES_24L)
+                derived = "24l"
+            elif language == "english" and self.settings.get("use_2026_04", False):
+                derived = "legacy_2026_04"
+            else:
+                derived = "standard"
+            note = "custom voice present: pinned to the variant it was cloned with"
+        self.update_my_settings("model_variant", derived)
+        self.settings = self.get_my_settings()
+        self.logger.info(f"Migrated legacy model flags -> model_variant='{derived}' ({note})")
+        return True
 
     # ── FastAPI router ──────────────────────────────────────────────────
 
@@ -580,7 +641,6 @@ class Pockettts(Baseplugin):
             language = self._resolve_language()
             # published for global_settings_updated (see comment in __init__)
             self._requested_language = language
-            use_24l = self.settings.get("use_24l", False)
             temp = float(self.settings.get("temp", 0.7))
             eos_threshold = float(self.settings.get("eos_threshold", -4.0))
 
@@ -594,25 +654,11 @@ class Pockettts(Baseplugin):
                     f"override via the cpu_threads setting)"
                 )
 
-            # Some languages only ship a 24L model (currently French — see
-            # REQUIRES_24L; all others have both variants).
-            # The _24l suffix is passed as the `language` arg directly (e.g. "french_24l").
-            # `config` is only for custom .yaml config file paths — do NOT use it here.
-            must_use_24l = language in REQUIRES_24L
-
-            if must_use_24l:
-                tts_language = f"{language}_24l"
-                self.logger.info(f"Language '{language}' requires 24L — loading as language='{tts_language}'")
-            elif use_24l and language != "english":
-                # User opted into optional 24L
-                tts_language = f"{language}_24l"
-            elif language == "english" and self.settings.get("use_2026_04", True):
-                # Upstream's dated checkpoint, recommended for short sentences
-                # and voice cloning (IGOOR's main use case). Mirrored on Drive.
-                tts_language = "english_2026-04"
-                self.logger.info("English: using the 2026-04 checkpoint")
-            else:
-                tts_language = language
+            # Variant selection: the model_variant token resolves per language
+            # (see _resolve_variant / AUTO_VARIANT). The resolved string is
+            # passed as the `language` arg directly (e.g. "french_24l");
+            # `config` is only for custom .yaml paths — do NOT use it here.
+            tts_language = self._resolve_variant(language)
 
             # int8 dynamic quantization: ~30% faster on CPU (lib >= 2.0)
             quantize = bool(self.settings.get("quantize", True))
@@ -1008,7 +1054,12 @@ class Pockettts(Baseplugin):
 
         self.settings = self.get_my_settings()
 
-        # Load model in background thread
+        # One-time legacy migration (use_24l/use_2026_04 -> model_variant):
+        # just persists the token — the load below picks it up. The hook it
+        # fires via update_my_settings is skipped by the _startup_done guard
+        # below, so there is exactly one model load.
+        self._migrate_legacy_variant_settings()
+        self._startup_done = True
         self._request_model_reload()
         self.logger.info("Pocket TTS model loading started in background thread")
 
@@ -1016,6 +1067,11 @@ class Pockettts(Baseplugin):
     def settings_updated(self, plugin_name, new_settings):
         """Called when plugin settings are updated via settings UI"""
         if plugin_name != self.plugin_name:
+            return
+        # Boot-time default merges (copy_default_plugin_settings_if_needed)
+        # also fire this hook before startup has run its own load; skip them
+        # — startup picks the final settings up anyway.
+        if not getattr(self, "_startup_done", False):
             return
 
         old_settings = self.settings.copy() if self.settings else {}
@@ -1030,10 +1086,9 @@ class Pockettts(Baseplugin):
         except (TypeError, ValueError):
             pass
 
-        # Check if language-affecting settings changed (requires model reload)
-        # Weight-level settings that genuinely require a model reload
+        # Check if model-affecting settings changed (requires model reload)
         # (temp/eos are NOT here: they are applied at speak time)
-        reload_keys = ("use_24l", "use_2026_04", "quantize")
+        reload_keys = ("model_variant", "quantize")
         needs_reload = any(
             old_settings.get(k, None) != self.settings.get(k, None) for k in reload_keys
         )

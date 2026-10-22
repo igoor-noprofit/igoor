@@ -98,19 +98,23 @@
                 </template>
             </div>
 
-            <!-- High Quality Mode (24L) -->
-            <div class="form-label">{{ t('High Quality Mode (24L)') }}</div>
+            <!-- Model variant -->
+            <div class="form-label">{{ t('Model variant') }}</div>
             <div class="form-input">
-                <label class="switch" style="margin: 0;">
-                    <input type="checkbox" id="use_24l" v-model="formData.use_24l" />
-                    <span class="slider round"></span>
-                </label>
-                <label for="use_24l" class="checkbox-label" style="margin: 0;">
-                    {{ t('Use 24-layer model (higher quality, slower)') }}
-                </label>
+                <select v-model="formData.model_variant" class="voice-selector">
+                    <option value="auto">{{ t('Recommended (automatic)') }}</option>
+                    <option value="small">{{ t('Small & fast (English only)') }}</option>
+                    <option value="standard">{{ t('Standard') }}</option>
+                    <option value="24l">{{ t('Highest quality (24 layers)') }}</option>
+                    <option value="legacy_2026_04">{{ t('Previous English model (2026-04)') }}</option>
+                </select>
             </div>
             <div class="form-note">
-                {{ t('Optional for German, Italian, Portuguese, Spanish. French always uses 24L.') }}
+                {{ t('Changing the variant reloads the model. The small model is English-only.') }}
+            </div>
+            <div v-if="customVoiceSelected && formData.model_variant !== originalSettings.model_variant"
+                class="form-note" style="color:#ff6666">
+                {{ t('Your custom voice must be re-cloned after changing the model variant') }}
             </div>
         </div>
 
@@ -205,7 +209,7 @@ export default {
             formData: {
                 voice: 'auto',
                 custom_voice_path: '',
-                use_24l: false,
+                model_variant: 'auto',
                 temp: 0.7,
                 eos_threshold: -4.0
             },
@@ -235,11 +239,15 @@ export default {
     computed: {
         hasChanges() {
             if (!this.originalSettings) return false;
-            var keys = ['voice', 'custom_voice_path', 'use_24l', 'temp', 'eos_threshold'];
+            var keys = ['voice', 'custom_voice_path', 'model_variant', 'temp', 'eos_threshold'];
             var self = this;
             return keys.some(function(k) {
                 return JSON.stringify(self.formData[k]) !== JSON.stringify(self.originalSettings[k]);
             });
+        },
+        customVoiceSelected() {
+            var v = this.formData.voice || '';
+            return v === 'custom' || v.indexOf('custom:') === 0;
         }
     },
     watch: {
