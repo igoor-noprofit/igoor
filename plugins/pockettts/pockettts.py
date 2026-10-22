@@ -255,6 +255,10 @@ class Pockettts(Baseplugin):
         # resolve built-in voice names to local .safetensors paths, since the
         # pocket-tts library rejects predefined voice names for non-CONFIGS origins.
         self._local_lang_dir = None
+        # Retries left for the meta-device race (see the except in
+        # _load_model_once): models can be born on the meta device when the
+        # load overlaps another plugin's transformers download
+        self._meta_race_retries = 2
 
     # ── Language helpers ────────────────────────────────────────────────
 
@@ -489,6 +493,29 @@ class Pockettts(Baseplugin):
         variant, or None if it isn't listed in models.csv."""
         return GDRIVE_MODELS.get(tts_language)
 
+    def _wait_for_pristine_module_registration(self, timeout=30.0):
+        """Block while accelerate's init_empty_weights patch is active.
+
+        transformers>=4.5x builds models on meta via
+        accelerate.init_empty_weights, which monkeypatches
+        nn.Module.register_parameter/register_buffer PROCESS-WIDE (not
+        thread-safe) for a few milliseconds: modules built in this loader
+        thread during that window are born on the meta device and the model
+        dies later with "Cannot copy out of meta tensor". The patched
+        functions live in the accelerate.* module namespace, so we simply
+        wait for the window to close before building anything. Returns False
+        on timeout (the caller's load attempt still proceeds — the retry in
+        the except branch is the backstop)."""
+        import torch.nn as nn
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            fn = nn.Module.register_parameter
+            if not str(getattr(fn, "__module__", "")).startswith("accelerate"):
+                return True
+            self.logger.info("Another plugin's transformers load holds the global meta patch — waiting")
+            time.sleep(0.05)
+        return False
+
     def _tokenizer_file_for(self, tts_language):
         """Basename of the tokenizer file the bundled pocket-tts config for
         `tts_language` expects: tokenizer.model for sentencepiece variants,
@@ -692,6 +719,10 @@ class Pockettts(Baseplugin):
             )
 
             start = time.time()
+            # Meta-race guard: never start building while the global
+            # register_parameter patch of another plugin's transformers load
+            # is active (see _wait_for_pristine_module_registration).
+            self._wait_for_pristine_module_registration()
             # Prefer locally-downloaded Drive weights (no HF account needed);
             # fall back to the library's HF download path if Drive isn't
             # configured for this language or the download failed.
@@ -742,11 +773,27 @@ class Pockettts(Baseplugin):
 
             self.is_loaded = True
             self.mark_ready()
+            self._meta_race_retries = 2
             self.logger.info("Pocket TTS is ready")
             self._warmup_generation()
 
         except Exception as e:
             self.mark_not_ready()
+            if "meta tensor" in str(e).lower() and self._meta_race_retries > 0:
+                # Race with a concurrent transformers load: accelerate's
+                # init_empty_weights monkeypatches nn.Module.register_parameter
+                # PROCESS-WIDE for a few ms, so modules built in this loader
+                # thread in that window are born on the meta device. The
+                # window is tiny — a delayed retry never hits it. We sleep in
+                # the loader thread (boot keeps progressing).
+                self._meta_race_retries -= 1
+                wait_s = 8 * (2 - self._meta_race_retries)
+                self.logger.warning(
+                    f"pocket-tts model was built on the meta device (race with "
+                    f"another plugin's transformers load) — retrying in {wait_s}s"
+                )
+                time.sleep(wait_s)
+                return self._load_model_once()
             self.logger.error(f"Failed to load pocket-tts model: {e}", exc_info=True)
 
     def _warmup_generation(self):
