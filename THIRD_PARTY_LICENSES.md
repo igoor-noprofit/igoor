@@ -1300,9 +1300,14 @@ mirrors them on Google Drive (see plugins/pockettts/models.csv) so that users
 do not need a HuggingFace account. Mirrored file revisions, as pinned by the
 pocket-tts library configs:
 
+- french: model.safetensors @ 3e82814a6866
+- english_18m_2026-10: model.safetensors @ db04f0e65347
 - english, english_2026-01, french_24l, german, german_24l, italian,
   italian_24l, portuguese, portuguese_24l, spanish, spanish_24l:
-  model.safetensors @ 39592ff23c9e
+  model.safetensors @ 39592ff23c9e (the revision pinned by pocket-tts 3.1;
+  the 4.x configs re-pinned these variants, the mirrors still serve the
+  3.1 weights — the plugin loads them by explicit local path, so both
+  revisions work)
 - english_2026-04: model.safetensors @ 19f95fe2df36
 - english_2026-04_24l (not mirrored): model.safetensors @ 492522650173
 
