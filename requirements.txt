@@ -223,9 +223,10 @@ yarl==1.16.0
 zstandard==0.23.0
 fastapi==0.115.5
 uvicorn[standard]==0.32.0
-# pocket-tts (local CPU TTS with voice cloning; 4.0.0 = small models + french standard,
-# requires tokenizers>=0.21 hence transformers>=4.48)
-pocket-tts>=4.0.0
+# pocket-tts (local CPU TTS with voice cloning; 4.0 = small models + french standard,
+# requires tokenizers>=0.21 hence transformers>=4.48; 4.0.1 = utf-8 config loading
+# fix, without it every load crashes on Windows cp1252)
+pocket-tts>=4.0.1
 sentencepiece>=0.2.1
 einops>=0.4.0
 typer>=0.12

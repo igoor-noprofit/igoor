@@ -554,14 +554,17 @@ class Pockettts(Baseplugin):
         from pocket_tts.utils.config import CONFIGS_DIR
 
         src = CONFIGS_DIR / f"{tts_language}.yaml"
-        with open(src, "r") as f:
+        # utf-8 explicit: the bundled configs carry typographic quotes in
+        # their punctuation tables, and the Windows default (cp1252) chokes
+        # on them exactly like pocket-tts < 4.0.1 did
+        with open(src, "r", encoding="utf-8") as f:
             cfg = yaml.safe_load(f)
         cfg["weights_path"] = local_files["model"]
         cfg["flow_lm"]["lookup_table"]["tokenizer_path"] = local_files["tokenizer"]
 
         out_path = os.path.join(self._get_models_dir(), tts_language, "local_config.yaml")
-        with open(out_path, "w") as f:
-            yaml.safe_dump(cfg, f, sort_keys=False)
+        with open(out_path, "w", encoding="utf-8") as f:
+            yaml.safe_dump(cfg, f, sort_keys=False, allow_unicode=True)
         return out_path
 
     # ── Model loading ───────────────────────────────────────────────────
