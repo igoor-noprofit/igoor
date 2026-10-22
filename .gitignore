@@ -32,6 +32,8 @@ AI/
 # Distribution / packaging
 .Python
 build/
+# pocket-tts Drive-mirror staging (tools/build_pockettts_mirror.py) — model weights
+builds/
 develop-eggs/
 dist/
 downloads/
