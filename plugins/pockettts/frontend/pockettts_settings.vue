@@ -112,7 +112,6 @@
             </div>
             <div class="form-note">
                 {{ t('Changing the variant reloads the model.') }}
-                <span v-if="isEnglishAppLang">{{ t('The small model is English-only.') }}</span>
             </div>
             <div v-if="customVoiceSelected && formData.model_variant !== originalSettings.model_variant"
                 class="form-note" style="color:#ff6666">
