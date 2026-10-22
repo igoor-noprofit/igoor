@@ -1,4 +1,7 @@
 {
+  "1.2.18": [
+    "Correções de segurança: eMudhra"
+  ],
   "1.2.13": [
     "Suporte ao ElevenLabs v4 / v4 turbo",
     "Reconhecimento de fala mais preciso com o modelo Parakeet (funciona na CPU)",
